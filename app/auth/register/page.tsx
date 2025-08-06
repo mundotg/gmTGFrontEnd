@@ -2,6 +2,9 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Database, User, Building, Shield } from 'lucide-react';
 import { Alert, Button, Input } from '@/app/component';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useSession } from '@/context/SessionContext';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -16,27 +19,33 @@ const RegisterPage = () => {
     confirmPassword: '',
     terms: false
   });
-
+  const { api} = useSession();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const router = useRouter();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement> | React.ChangeEvent<HTMLInputElement> ) => {
-    const { name, value, type } = e.target;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, type } = e.target;
+    const value =
+      type === 'checkbox'
+        ? (e.target as HTMLInputElement).checked
+        : e.target.value;
+
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'select-one' ? name : value
+      [name]: value
     }));
 
-    if (name === 'password') {
+    if (name === 'password' && typeof value === 'string') {
       setPasswordStrength(checkPasswordStrength(value));
     }
   };
 
-  const checkPasswordStrength = (password : string) => {
+  const checkPasswordStrength = (password: string) => {
     let strength = 0;
     if (password.length >= 8) strength++;
     if (/[a-z]/.test(password)) strength++;
@@ -63,23 +72,44 @@ const RegisterPage = () => {
     }
   };
 
-  const showError = (message:string) => {
+  const showError = (message: string) => {
     setError(message);
     setTimeout(() => setError(''), 5000);
   };
 
-  const showSuccess = (message:string) => {
+  const showSuccess = (message: string) => {
     setSuccess(message);
     setTimeout(() => setSuccess(''), 3000);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLButtonElement> | React.FormEvent<HTMLFormElement>) => {
+  const resetForm = () => {
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      company: '',
+      position: '',
+      companySize: '',
+      password: '',
+      confirmPassword: '',
+      terms: false
+    });
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setPasswordStrength(0);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const requiredFields: (keyof typeof formData)[] = [
+      'firstName', 'lastName', 'email', 'company', 'position',
+      'companySize', 'password', 'confirmPassword'
+    ];
+
     
-    // Validações
-    const requiredFields: (keyof typeof formData)[] = ['firstName', 'lastName', 'email', 'company', 'position', 'companySize', 'password', 'confirmPassword'];
     const missingFields = requiredFields.filter((field) => !formData[field]);
-    
     if (missingFields.length > 0) {
       showError('Por favor, preencha todos os campos obrigatórios.');
       return;
@@ -97,6 +127,7 @@ const RegisterPage = () => {
 
     if (formData.password !== formData.confirmPassword) {
       showError('As palavras-passe não coincidem.');
+      console.log('Dados do formulário:', formData);
       return;
     }
 
@@ -111,20 +142,22 @@ const RegisterPage = () => {
     }
 
     setIsLoading(true);
+    console.log('Enviando dados do formulário:', formData);
 
-    // Simular registro (substitua pela sua lógica de API)
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      showSuccess('Conta criada com sucesso! Verifique seu email para ativar a conta.');
-      
-      setTimeout(() => {
-        // Aqui você faria o redirecionamento com Next.js router
-        // router.push('/login');
-        console.log('Redirecionando para a página de login...');
-      }, 3000);
-    } catch (err) {
-      showError('Erro ao criar conta. Tente novamente.');
+      const response = await api.post('/auth/register', formData);
+
+      if (response.status === 201 || response.status === 200) {
+        showSuccess('Conta criada com sucesso!');
+        resetForm();
+        setTimeout(() => router.replace('/auth/login'), 2000);
+      } else {
+        showError(response.data?.detail || 'Erro ao criar conta.');
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err:any) {
+      const msg = err?.response?.data?.detail || 'Erro de conexão com o servidor.';
+      showError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -143,7 +176,7 @@ const RegisterPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
       <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl p-8 w-full max-w-2xl transform transition-all duration-300 hover:scale-105 hover:shadow-3xl my-8">
-        
+
         {/* Logo e Título */}
         <div className="text-center mb-8">
           <div className="bg-gradient-to-r from-indigo-500 to-purple-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
@@ -158,18 +191,19 @@ const RegisterPage = () => {
           <Alert type='error' message={error} />
         )}
 
-        {success && 
+        {success &&
           <Alert type='success' message={success} />
         }
 
         <div className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
           {/* Informações Pessoais */}
           <div className="border-b border-gray-200 pb-6">
             <div className="flex items-center mb-4">
               <User className="w-5 h-5 text-indigo-600 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Informações Pessoais</h3>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Nome</label>
@@ -229,7 +263,7 @@ const RegisterPage = () => {
               <Building className="w-5 h-5 text-indigo-600 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Informações da Empresa</h3>
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-2">Nome da Empresa</label>
               <Input
@@ -286,7 +320,7 @@ const RegisterPage = () => {
               <Shield className="w-5 h-5 text-indigo-600 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Segurança</h3>
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-2">Palavra-passe</label>
               <div className="relative">
@@ -307,7 +341,7 @@ const RegisterPage = () => {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </Button>
               </div>
-              
+
               {/* Indicador de força da senha */}
               <div className="mt-2">
                 <div className="flex items-center justify-between mb-1">
@@ -343,46 +377,50 @@ const RegisterPage = () => {
           </div>
 
           {/* Termos e Condições */}
-          <div className="flex items-start space-x-3 mb-6">
-            <Input
-              type="checkbox"
-              name="terms"
-              checked={formData.terms}
-              onChange={handleInputChange}
-              className="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500 focus:ring-2 mt-1"
-              required
-            />
-            <label className="text-sm text-gray-700 leading-relaxed">
-              Concordo com os{' '}
-              <Button
-                type="button"
-                onClick={handleTermsClick}
-                className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
-              >
-                Termos de Serviço
-              </Button>{' '}
-              e{' '}
-              <Button
-                type="button"
-                onClick={handlePrivacyClick}
-                className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
-              >
-                Política de Privacidade
-              </Button>
+          <div className="flex items-start gap-3 mb-6">
+            <label htmlFor="terms" className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                id="terms"
+                name="terms"
+                checked={formData.terms}
+                onChange={handleInputChange}
+                className="mt-1 w-5 h-5 text-indigo-600 bg-white border-gray-300 rounded focus:ring-indigo-500 focus:ring-2"
+                required
+              />
+              <span className="text-sm text-gray-700 leading-relaxed">
+                Concordo com os{' '}
+                <button
+                  type="button"
+                  onClick={handleTermsClick}
+                  className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
+                >
+                  Termos de Serviço
+                </button>{' '}
+                e{' '}
+                <button
+                  type="button"
+                  onClick={handlePrivacyClick}
+                  className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
+                >
+                  Política de Privacidade
+                </button>.
+              </span>
             </label>
           </div>
+
 
           {/* Botão de Registro */}
           <Button
             type="submit"
-            onClick={handleSubmit}
+            // onClick={handleSubmit}
             disabled={isLoading}
             className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-300 disabled:opacity-70"
           >entrar
           </Button>
           <div className="text-center">
             <span className="text-gray-600 text-sm">Já tem uma conta? </span>
-            <Button
+            <Link href={"/auth/login"}
               type="button"
               onClick={() => {
                 // Aqui você faria o redirecionamento com Next.js router
@@ -392,8 +430,9 @@ const RegisterPage = () => {
               className="text-indigo-600 hover:text-indigo-800 text-sm font-medium transition-colors duration-300 hover:underline"
             >
               Entrar
-            </Button>
+            </Link>
           </div>
+          </form>
         </div>
       </div>
     </div>

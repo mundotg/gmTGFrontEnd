@@ -1,0 +1,51 @@
+atabase Manager! O arquivo inclui:
+Organização por Categorias:
+🎨 Cores Primárias
+
+Azul: Cor principal da marca, botões, links
+Roxo: Para gradientes e elementos especiais
+
+🔄 Cores Secundárias
+
+Verde: Sucesso, conexões ativas, funcionalidades disponíveis
+Laranja: Avisos, funcionalidades em desenvolvimento
+Vermelho: Erros, desconexões, alertas críticos
+Amarelo: Atenção, processamento
+
+🎭 Cores Neutras
+
+Cinza: Escala completa para textos, bordas, fundos
+Branco/Preto: Para contraste máximo
+
+🗄️ Cores por Banco de Dados
+
+SQL Server: Vermelho Microsoft
+Oracle: Vermelho Oracle
+MySQL: Azul MySQL
+PostgreSQL: Azul PostgreSQL
+MongoDB: Verde MongoDB
+SQLite: Azul escuro
+
+📊 Cores para Gráficos
+
+Paletas primárias e secundárias para visualizações
+Gradientes para áreas e fundos
+
+🎯 Estados Interativos
+
+Hover, focus, disabled
+Cores para diferentes estados de UI
+
+🌓 Temas
+
+Modo claro e escuro
+Configurações completas para ambos os modos
+
+Utilitários Inclusos:
+
+getDatabaseColor(): Obtém cores específicas por banco
+getStatusColor(): Cores baseadas em status
+getChartColor(): Cores para gráficos
+colors: Objeto com as cores mais usadas
+
+Cada cor tem um comentário explicando seu uso específico, facilitando a manutenção e consistência visual em todo o projeto!

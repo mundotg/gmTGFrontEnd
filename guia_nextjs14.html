@@ -1,0 +1,126 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guia Completo: Next.js 14</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; line-height: 1.6; }
+    h1, h2, h3 { color: #2c3e50; }
+    code { background: #eee; padding: 2px 4px; border-radius: 4px; }
+    pre { background: #eee; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    ul { margin-top: 0; }
+    .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>📘 Guia Completo: Next.js 14</h1>
+
+    <h2>🚀 Criar Projeto</h2>
+    <pre><code>npx create-next-app@latest my-app</code></pre>
+
+    <h2>📂 Estrutura</h2>
+    <pre><code>my-app/
+├── app/                # App Router (Next 13+)
+│   └── page.tsx        # Página principal
+├── public/             # Arquivos estáticos
+├── styles/             # Estilos globais
+├── next.config.js      # Configuração Next.js
+├── tsconfig.json       # Configuração TypeScript
+├── package.json
+└── .env.local</code></pre>
+
+    <h2>⚙️ Configurações</h2>
+    <p><strong>next.config.js:</strong></p>
+    <pre><code>/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  experimental: {
+    serverActions: true,
+    appDir: true,
+  },
+}
+
+module.exports = nextConfig;</code></pre>
+
+    <h2>🔌 Variáveis de Ambiente</h2>
+    <pre><code># .env.local
+DATABASE_URL=postgres://user:pass@localhost:5432/db</code></pre>
+
+    <h2>🏗️ Rotas e Componentes</h2>
+    <p><strong>Exemplo de página:</strong></p>
+    <pre><code>// app/page.tsx
+export default function Home() {
+  return &lt;h1&gt;Olá, Next.js 14!&lt;/h1&gt;
+}</code></pre>
+
+    <h2>🧱 Componentes e Layouts</h2>
+    <pre><code>// app/layout.tsx
+export default function RootLayout({ children }) {
+  return (
+    &lt;html lang="pt-BR"&gt;
+      &lt;body&gt;{children}&lt;/body&gt;
+    &lt;/html&gt;
+  )
+}</code></pre>
+
+    <h2>💾 Fetch de Dados (Server)</h2>
+    <pre><code>// app/page.tsx
+async function getData() {
+  const res = await fetch("https://api.exemplo.com")
+  return res.json()
+}
+
+export default async function Page() {
+  const data = await getData()
+  return &lt;pre&gt;{JSON.stringify(data)}&lt;/pre&gt;
+}</code></pre>
+
+    <h2>🔒 Middleware</h2>
+    <pre><code>// middleware.ts
+import { NextResponse } from 'next/server'
+
+export function middleware(request) {
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: ['/api/:path*', '/dashboard/:path*'],
+}</code></pre>
+
+    <h2>💡 Comandos Úteis</h2>
+    <ul>
+      <li><code>npm run dev</code> – iniciar servidor local</li>
+      <li><code>npm run build</code> – build de produção</li>
+      <li><code>npm start</code> – iniciar app em produção</li>
+      <li><code>npm install pacote</code> – instalar pacote</li>
+    </ul>
+
+    <h2>📦 Pacotes Úteis</h2>
+    <ul>
+      <li><code>tailwindcss</code> – estilos rápidos</li>
+      <li><code>next-auth</code> – autenticação</li>
+      <li><code>prisma</code> – ORM para banco de dados</li>
+      <li><code>axios</code> – requisições HTTP</li>
+    </ul>
+
+    <h2>🧾 Exemplo package.json</h2>
+    <pre><code>{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "14.0.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  }
+}</code></pre>
+
+    <p>Guia pronto para uso offline ✅</p>
+  </div>
+</body>
+</html>

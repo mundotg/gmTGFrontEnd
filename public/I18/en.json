@@ -1,0 +1,115 @@
+{
+  "home": {
+    "title": "Welcome to DataSmart",
+    "description": "Intelligent system for database management and analysis.",
+    "featuresTitle": "✅ Available Features",
+    "futureTitle": "🌱 Upcoming Features",
+    "footer": "Built with ❤️ using Next.js + Python FastAPI"
+  },
+  "features": {
+    "consultas": "Simplified queries: just type the table name.",
+    "pesquisa": "Quick table search.",
+    "validacao": "Automatic field validation.",
+    "filtros": "Custom filters.",
+    "duplicados": "Duplicate record analysis with detailed insights.",
+    "detalhes": "Detailed information about the tables.",
+    "sql": "Advanced SQL mode.",
+    "conexoes": "Connection storage for databases.",
+    "historico": "Query history per user profile.",
+    "suporte": "Support for multiple databases: SQL Server, Oracle, MySQL, PostgreSQL, MongoDB, SQLite."
+  },
+  "futures": {
+    "dashboard": "Data visualization: interactive dashboards.",
+    "relacionamentos": "Visual Relationship Editor between tables.",
+    "logs": "User action logs and auditing.",
+    "colaboracao": "Real-time collaboration between users.",
+    "integracao": "Integration with legacy systems."
+  },
+  "sidebar": {
+    "overview": "Overview",
+    "connections": "Connections",
+    "tables": "Tables",
+    "query": "Queries",
+    "history": "History",
+    "analysis": "Analysis",
+    "settings": "Settings",
+    "subtitle": "Database Manager",
+    "quickStatus": "Quick Status",
+    "activeConnections": "Active Connections",
+    "queriesToday": "Queries Today",
+    "lastQuery": "Last Query",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu"
+  },
+  "status": {
+    "online": "Online"
+  },
+  "upConnection" : "conect",
+  "connectionNamePlaceholder": "connection name",
+  "offConnection" : "disconnect",
+  "databaseNamePlaceholder": "base data name",
+  "dbConnections": "Database Connections",
+  "dbConnectionsSubtitle": "Manage your connections and history",
+  "newConnection": "New Connection",
+  "dbType": "Database Type",
+  "selectDatabase": "Select a database",
+  "connectionName": "Connection Name",
+  "host": "Host",
+  "username": "username",
+  "port": "Port",
+  "database": "Database",
+  "filePath": "File Path",
+  "user": "User",
+  "password": "Password",
+  "testing": "Testing...",
+  "test": "Test",
+  "connecting": "Connecting...",
+  "connect": "Connect",
+  "testSuccess": "Test successful!",
+  "connectedSuccess": "Connected successfully!",
+  "connectionError": "Connection error",
+  "savedConnections": "Saved Connections",
+  "lastUsed": "Last used",
+  "loadConnection": "Load connection",
+  "deleteConnection": "Delete connection",
+  "noSavedConnections": "No saved connections available",
+  "connectionHistory": "Connection History",
+  "noHistory": "No history available",
+  "Tabelas Conectadas": "Connected Tables",
+  "Consultas Hoje": "Queries Today",
+  "Conexões Ativas": "Active Connections",
+  "Registros Analisados": "Analyzed Records",
+  "Conectado": "Connected",
+  "Disponível": "Available",
+
+  "Consultas Simplificadas": "Simplified Queries",
+  "Realize consultas digitando apenas o nome da tabela": "Perform queries by just typing the table name",
+
+  "Pesquisa Rápida": "Quick Search",
+  "Encontre rapidamente as tabelas desejadas": "Quickly find the desired tables",
+
+  "Validação Automática": "Automatic Validation",
+  "Garantia de dados corretos conforme o tipo": "Ensures correct data according to type",
+
+  "Filtros Personalizados": "Custom Filters",
+  "Digite os campos que deseja filtrar facilmente": "Easily type the fields you want to filter",
+
+  "Análise de Duplicados": "Duplicate Analysis",
+  "Identificação de duplicações com insights detalhados": "Identify duplicates with detailed insights",
+
+  "Modo SQL Avançado": "Advanced SQL Mode",
+  "Execute comandos SQL diretamente": "Run SQL commands directly",
+
+  "Visualização de Dados": "Data Visualization",
+  "Dashboards interativos para acompanhar crescimento": "Interactive dashboards to track growth",
+
+  "Editor Visual de Relacionamentos": "Visual Relationship Editor",
+  "Navegação entre tabelas com visualização": "Navigate between tables with visual links",
+
+  "Logs e Auditoria": "Logs and Audit",
+  "Registro de todas as ações do usuário": "Logs of all user actions",
+
+  "Colaboração em Tempo Real": "Real-time Collaboration",
+  "Trabalhe com equipe em consultas simultâneas": "Collaborate with your team in real-time queries"
+
+}

@@ -1,0 +1,115 @@
+{
+  "home": {
+    "title": "Bem-vindo ao DataSmart",
+    "description": "Sistema inteligente para gestão e análise de bases de dados.",
+    "featuresTitle": "✅ Funcionalidades Disponíveis",
+    "futureTitle": "🌱 Funcionalidades Futuras",
+    "footer": "Desenvolvido com ❤️ em Next.js + Python FastAPI"
+  },
+  "features": {
+    "consultas": "Consultas simplificadas: digite apenas o nome da tabela.",
+    "pesquisa": "Pesquisa rápida por tabelas.",
+    "validacao": "Validação automática de campos.",
+    "filtros": "Filtros personalizados.",
+    "duplicados": "Análise de registros duplicados com insights detalhados.",
+    "detalhes": "Informações detalhadas sobre as tabelas.",
+    "sql": "Modo avançado de SQL.",
+    "conexoes": "Armazenamento de conexões com bancos de dados.",
+    "historico": "Histórico de consultas por perfil de usuário.",
+    "suporte": "Suporte a múltiplos bancos de dados: SQL Server, Oracle, MySQL, PostgreSQL, MongoDB, SQLite."
+  },
+  "futures": {
+    "dashboard": "Visualização de Dados: dashboards interativos.",
+    "relacionamentos": "Editor Visual de Relacionamentos entre tabelas.",
+    "logs": "Logs e Auditoria das ações realizadas.",
+    "colaboracao": "Colaboração em Tempo Real entre usuários.",
+    "integracao": "Integração com Sistemas Legados."
+  },
+  "sidebar": {
+    "overview": "Visão Geral",
+    "connections": "Conexões",
+    "tables": "Tabelas",
+    "query": "Consultas",
+    "history": "Histórico",
+    "analysis": "Análises",
+    "settings": "Configurações",
+    "subtitle": "Gestor de Dados",
+    "quickStatus": "Status Rápido",
+    "activeConnections": "Conexões Ativas",
+    "queriesToday": "Consultas Hoje",
+    "lastQuery": "Última Consulta",
+    "collapse": "Minimizar menu",
+    "expand": "Expandir menu"
+  },
+  "status": {
+    "online": "Online"
+  },
+  "upConnection" : "conectar",
+  "connectionNamePlaceholder": "nome da conexão",
+  "offConnection" : "disconectar",
+  "databaseNamePlaceholder": "nome do banco de dados",
+  "dbConnections": "Conexões de Banco de Dados",
+  "dbConnectionsSubtitle": "Gerencie suas conexões e histórico",
+  "newConnection": "Nova Conexão",
+  "dbType": "Tipo de Banco de Dados",
+  "selectDatabase": "Selecione um banco de dados",
+  "connectionName": "Nome da Conexão",
+  "host": "Host",
+  "username": "nome do usuario",
+  "port": "Porta",
+  "database": "Database",
+  "filePath": "Caminho do Arquivo",
+  "user": "Usuário",
+  "password": "Senha",
+  "testing": "Testando...",
+  "test": "Testar",
+  "connecting": "Conectando...",
+  "connect": "Conectar",
+  "testSuccess": "Teste bem-sucedido!",
+  "connectedSuccess": "Conectado com sucesso!",
+  "connectionError": "Erro na conexão",
+  "savedConnections": "Conexões Salvas",
+  "lastUsed": "Último uso",
+  "loadConnection": "Carregar conexão",
+  "deleteConnection": "Excluir conexão",
+  "noSavedConnections": "Nenhuma conexão salva disponível",
+  "connectionHistory": "Histórico de Conexões",
+  "noHistory": "Nenhum histórico disponível",
+  
+  "Tabelas Conectadas": "Tabelas Conectadas",
+  "Consultas Hoje": "Consultas Hoje",
+  "Conexões Ativas": "Conexões Ativas",
+  "Registros Analisados": "Registros Analisados",
+  "Conectado": "Conectado",
+  "Disponível": "Disponível",
+
+  "Consultas Simplificadas": "Consultas Simplificadas",
+  "Realize consultas digitando apenas o nome da tabela": "Realize consultas digitando apenas o nome da tabela",
+
+  "Pesquisa Rápida": "Pesquisa Rápida",
+  "Encontre rapidamente as tabelas desejadas": "Encontre rapidamente as tabelas desejadas",
+
+  "Validação Automática": "Validação Automática",
+  "Garantia de dados corretos conforme o tipo": "Garantia de dados corretos conforme o tipo",
+
+  "Filtros Personalizados": "Filtros Personalizados",
+  "Digite os campos que deseja filtrar facilmente": "Digite os campos que deseja filtrar facilmente",
+
+  "Análise de Duplicados": "Análise de Duplicados",
+  "Identificação de duplicações com insights detalhados": "Identificação de duplicações com insights detalhados",
+
+  "Modo SQL Avançado": "Modo SQL Avançado",
+  "Execute comandos SQL diretamente": "Execute comandos SQL diretamente",
+
+  "Visualização de Dados": "Visualização de Dados",
+  "Dashboards interativos para acompanhar crescimento": "Dashboards interativos para acompanhar crescimento",
+
+  "Editor Visual de Relacionamentos": "Editor Visual de Relacionamentos",
+  "Navegação entre tabelas com visualização": "Navegação entre tabelas com visualização",
+
+  "Logs e Auditoria": "Logs e Auditoria",
+  "Registro de todas as ações do usuário": "Registro de todas as ações do usuário",
+
+  "Colaboração em Tempo Real": "Colaboração em Tempo Real",
+  "Trabalhe com equipe em consultas simultâneas": "Trabalhe com equipe em consultas simultâneas"
+}
