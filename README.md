@@ -18,6 +18,7 @@
 ---
 
 ## 🛠️ Arquitetura Simplificada
+## 🛠️ Arquitetura Simplificada
 
 ```mermaid
 graph TD
@@ -48,6 +49,7 @@ graph TD
     DBConn --> SQL1
     DBConn --> SQL2
     DBConn --> SQL3
+
 
 
 # 1. Clonar o repositório
