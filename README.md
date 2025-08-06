@@ -22,7 +22,6 @@ Este repositório contém o **Frontend**, desenvolvido com **Next.js 14**, **Typ
 
 ## 🧱 1. Estrutura Geral do Projeto (Arquitetura de Pastas)
 
-```
 
 /src
 │
@@ -61,9 +60,8 @@ Este repositório contém o **Frontend**, desenvolvido com **Next.js 14**, **Typ
 ├── types/                   → Tipagens TypeScript
 └── middleware.ts            → Proteção de rotas
 
-````
 
----
+
 
 ## 🖼️ 2. Navegação Principal (Layout)
 
@@ -121,7 +119,7 @@ Este repositório contém o **Frontend**, desenvolvido com **Next.js 14**, **Typ
 - **Realtime (futuro)**: Socket.IO  
 - **Gráficos**: Recharts ou Chart.js  
 
----
+
 
 ## 🔮 5. Funcionalidades Futuras
 
@@ -130,7 +128,7 @@ Este repositório contém o **Frontend**, desenvolvido com **Next.js 14**, **Typ
 - 🔐 **Logs e auditoria**  
 - 🤝 **Colaboração em tempo real**  
 
----
+
 
 ## 📌 Exemplo de Rota: `Consultas`
 
