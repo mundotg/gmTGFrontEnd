@@ -4,12 +4,12 @@ import { MetadataTableResponse, QueryResultType, SelectedRow } from "@/types";
 import { useCsvExporter } from "../services/relatorio";
 import ScrollableTable from "./ScrollableTable";
 import api from "@/context/axioCuston";
+import { Style_tabela_resultados } from "@/constant";
 
 interface ResultTableProps {
-  query: string;
   queryResults: QueryResultType;
   columnsInfo?: MetadataTableResponse[];
-  setQueryResults: (value: any) => void;
+  setQueryResults: (value: QueryResultType | null) => void;
   setSelectedRow?: (row: SelectedRow) => void;
   selectedRow?: SelectedRow | null;
 }
@@ -44,8 +44,11 @@ export default function ResultTable({
     });
   }, [columns, columnsInfo]);
 
+ 
+
   const {
     previewInfo,
+    getFilePreview,
     handleExport,
     exportProgress,
     isExporting,
@@ -54,8 +57,9 @@ export default function ResultTable({
   } = useCsvExporter(queryResults.preview, columns, headers);
 
 
+  
 
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleRowClick = useCallback((row: Record<string, any>, index: number) => {
     if (!setSelectedRow || !row || typeof index !== "number") return;
 
@@ -80,38 +84,38 @@ export default function ResultTable({
   }, [setSelectedRow, columns]);
 
   const carregarMaisLinhas = async () => {
-  const offset = queryResults.preview.length;
-  const limit = 100;
-  const query = queryResults.query;
-  const params = queryResults.params;
 
+    const query = queryResults.QueryPayload;
+    if (!query) return;
+    query.offset = queryResults.preview.length;
+    query.isCountQuery = false
+    console.log("Carregando mais linhas com offset:", query.offset);
   try {
-    const { data } = await api.post<QueryResultType>('/api/query-scroll', {
-      query,
-      params,
-      offset,
-      limit,
-    });
+    const { data } = await api.post<QueryResultType>("/exe/execute_query/", query, {
+        withCredentials: true,
+      });
 
     if (data.success) {
-      setQueryResults((prev: QueryResultType) => ({
-        ...prev,
-        preview: [...prev.preview, ...data.preview],
-      }));
+      setQueryResults({
+        ...queryResults,
+        preview: [...queryResults.preview, ...data.preview],
+      });
     }
   } catch (error) {
     console.error('Erro ao carregar mais linhas:', error);
+  } finally{
+    getFilePreview()
   }
 };
 
 
 
   return (
-    <div className="bg-white rounded-xl shadow-md border p-6 animate-fade-in">
+    <div className="bg-white rounded-xl shadow-md border p-6 animate-fade-in" aria-label="Tabela-de-Resultados">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <div className="flex flex-col">
           <h3 className="text-lg font-semibold text-gray-800">
-            Resultados ({queryResults.preview.length.toLocaleString('pt-BR')} registros)
+            Resultados ({queryResults.preview.length.toLocaleString('pt-BR')}  de {queryResults.totalResults?.toLocaleString('pt-BR') || "aguardando..."} registros)
           </h3>
           {previewInfo && (
             <p className="text-sm text-gray-600 mt-1">
@@ -208,7 +212,7 @@ export default function ResultTable({
         columns={columns}
         headers={headers}
         queryResults={queryResults.preview}
-        totalFromDb={100} // Total real da base de dados
+        totalFromDb={queryResults.totalResults || 0} // Total real da base de dados
         onLoadMore={carregarMaisLinhas} // Função que busca mais registros
         handleRowClick={handleRowClick}
       />
@@ -223,29 +227,7 @@ export default function ResultTable({
       )}
 
       {/* Estilos customizados para scrollbar */}
-      <style jsx>{`
-        .scrollbar-thin::-webkit-scrollbar {
-          width: 4px;
-          height: 4px;
-        }
-        .scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
-          background-color: #d1d5db;
-          border-radius: 2px;
-        }
-        .scrollbar-track-gray-100::-webkit-scrollbar-track {
-          background-color: #f3f4f6;
-        }
-        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-          background-color: #9ca3af;
-        }
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
-        }
-      `}</style>
+      <style jsx>{Style_tabela_resultados}</style>
     </div>
   );
 }

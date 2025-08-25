@@ -36,7 +36,7 @@ export const TableListSection: React.FC<TableListSectionProps> = ({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+    <div className="flex-1 overflow-y-auto p-4 lg:p-6" aria-label="Lista_de_Tabelas">
       <div className="space-y-1">
         {filteredTables.map((table, index) => {
           const isSelected = localSelection.includes(table);

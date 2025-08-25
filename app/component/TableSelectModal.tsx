@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { X, Search, Check, Database, Filter, Info, ChevronDown } from "lucide-react";
+"use client"
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { X, Search, Check, Database, Info, ChevronDown } from "lucide-react";
 import { RenderDistinctColumnSelector } from "./renderDistinctColumnSelector";
 import { TableListSection } from "./TableListSection";
 
@@ -61,6 +62,16 @@ export function TableSelectModal({
     return true;
   }, [localSelection.length, useDistinct, availableColumns.length, distinctColumns.length]);
 
+  const handleSave = useCallback(() => {
+    if (!isValidSelection) return;
+
+    const columnsToPass = useDistinct && distinctColumns.length > 0
+      ? distinctColumns
+      : undefined;
+
+    onSave(localSelection, useDistinct, columnsToPass);
+    onClose();
+  }, [localSelection, useDistinct, distinctColumns, onSave, onClose, isValidSelection]);
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -73,7 +84,7 @@ export function TableSelectModal({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, isValidSelection]);
+  }, [onClose, isValidSelection, handleSave]);
 
   const toggleTable = (table: string) => {
     setLocalSelection((prev) =>
@@ -128,19 +139,10 @@ export function TableSelectModal({
     setDistinctColumns([]);
   };
 
-  const handleSave = () => {
-    if (!isValidSelection) return;
 
-    const columnsToPass = useDistinct && distinctColumns.length > 0
-      ? distinctColumns
-      : undefined;
-
-    onSave(localSelection, useDistinct, columnsToPass);
-    onClose();
-  };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" aria-label="Modal_de_Seleção_de_Tabelas">
       <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl relative max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 lg:p-6 border-b border-gray-200">
@@ -244,15 +246,15 @@ export function TableSelectModal({
         {/* DISTINCT Columns Selection */}
         {showDistinctOptions && availableColumns.length > 0 && <RenderDistinctColumnSelector distinctColumns={distinctColumns} availableColumns={availableColumns} toggleDistinctColumn={toggleDistinctColumn} selectAllDistinctColumns={selectAllDistinctColumns} clearAllDistinctColumns={clearAllDistinctColumns} />}
 
-       <TableListSection
-         filteredTables={filteredTables}
-         localSelection={localSelection}
-         toggleTable={toggleTable}
-         useDistinct={useDistinct}
-         distinctColumns={distinctColumns}
-         handleDistinctAdd={handleDistinctAdd}
-         searchTerm={searchTerm}
-       />
+        <TableListSection
+          filteredTables={filteredTables}
+          localSelection={localSelection}
+          toggleTable={toggleTable}
+          useDistinct={useDistinct}
+          distinctColumns={distinctColumns}
+          handleDistinctAdd={handleDistinctAdd}
+          searchTerm={searchTerm}
+        />
 
         {/* Footer */}
         <div className="p-4 lg:p-6 border-t border-gray-200 bg-gray-50">

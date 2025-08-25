@@ -1,10 +1,11 @@
+import { SavedConnection } from "@/types";
 import { Power, Plug } from "lucide-react";
 import React from "react";
 
 interface ConnectionToggleButtonProps {
-  connection: { id:string ,status: string } | any;
-  onConnect: (connection: any) => void;
-  onDisconnect: (connection: any) => void;
+  connection: SavedConnection;
+  onConnect: (connection_id: string) => void;
+  onDisconnect: (connection_id: string) => void;
   titleConnect?: string;
   titleDisconnect?: string;
   className?: string;

@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CampoDetalhado } from "@/types";
+import { CampoDetalhado, tipo_db_Options } from "@/types";
 import { X } from "lucide-react";
 import { tiposPorBanco } from "@/constant";
 import { useSession } from "@/context/SessionContext";
@@ -48,7 +48,7 @@ export default function EditFieldModal({
         };
         document.addEventListener('keydown', handleEsc);
         return () => document.removeEventListener('keydown', handleEsc);
-    }, []);
+    }, [onClose]);
 
     const handleOutsideClick = (e: React.MouseEvent) => {
         if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
@@ -61,10 +61,11 @@ export default function EditFieldModal({
         onSave({
             ...field,
             nome,
-            tipo,
+            tipo: tipo as tipo_db_Options,
             is_nullable: isNullable,
             is_unique: isUnique,
             default: defaultValue,
+            tableName: ""
         });
         onClose();
     };

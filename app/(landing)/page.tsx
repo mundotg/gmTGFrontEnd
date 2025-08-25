@@ -22,7 +22,7 @@ export default function HomePage() {
     t("features.conexoes"),
     t("features.historico"),
     t("features.suporte"),
-  ],[]);
+  ],[t]);
 
   const future = useMemo(()=>[
     t("futures.dashboard"),
@@ -30,7 +30,7 @@ export default function HomePage() {
     t("futures.logs"),
     t("futures.colaboracao"),
     t("futures.integracao"),
-  ],[]);
+  ],[t]);
 
   const logoutHandle = () =>{
       logout().then(()=>{

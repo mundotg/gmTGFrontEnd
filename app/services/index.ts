@@ -1,4 +1,4 @@
-import { BancoSuportado, operators } from "@/constant";
+import { operators } from "@/constant";
 import { CampoDetalhado, DatabaseType, OperadorFiltro } from "@/types";
 
 // Função para exportar dados
@@ -30,20 +30,20 @@ export function extrairTipoBase(tipo: string): string {
 }
 
 
-export function exportToCsvAll(data: any[], filename = "consulta.csv") {
-  const csv = [
-    Object.keys(data[0]).join(","),
-    ...data.map(row => Object.values(row).join(","))
-  ].join("\n");
+// export function exportToCsvAll(data: any[], filename = "consulta.csv") {
+//   const csv = [
+//     Object.keys(data[0]).join(","),
+//     ...data.map(row => Object.values(row).join(","))
+//   ].join("\n");
 
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  window.URL.revokeObjectURL(url);
-}
+//   const blob = new Blob([csv], { type: "text/csv" });
+//   const url = window.URL.createObjectURL(blob);
+//   const a = document.createElement("a");
+//   a.href = url;
+//   a.download = filename;
+//   a.click();
+//   window.URL.revokeObjectURL(url);
+// }
 
 
 
@@ -61,7 +61,7 @@ export function mapColumnTypeToDbType(columnType?: string): DatabaseType {
 
 
 
-export function getOperatorsForType(rawType: string, banco: BancoSuportado): OperadorFiltro[] {
+export function getOperatorsForType(rawType: string): OperadorFiltro[] {
   const type = rawType.toLowerCase();
 
   const isText = [

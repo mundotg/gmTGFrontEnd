@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { MetadataTableResponse, SelectedRow } from '@/types';
+import { EditedField, MetadataTableResponse, SelectedRow } from '@/types';
 import DynamicInputByType from './DynamicInputByType';
 import { Lock, Key, Pencil, X, Save, AlertCircle } from 'lucide-react';
 
@@ -10,14 +10,9 @@ interface RowDetailsModalProps {
   row: SelectedRow | null;
   selectColumns?: string[];
   informacaosOftables: MetadataTableResponse[];
-  onSave?: (updatedRow: Record<string, any>) => void;
+  onSave?: (updatedRow: Record<string, EditedField>) => void;
 }
 
-interface EditedField {
-  value: string;
-  tableName: string;
-  hasChanged: boolean;
-}
 
 const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   isOpen,
@@ -35,8 +30,8 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   // Memoização das tabelas selecionadas
   const selectedTables = useMemo(() => {
     if (!selectColumns || !informacaosOftables) return [];
-    
-    return informacaosOftables.filter((table) => 
+
+    return informacaosOftables.filter((table) =>
       selectColumns.some((col) => col.startsWith(`${table.table_name}.`))
     );
   }, [selectColumns, informacaosOftables]);
@@ -46,34 +41,6 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     return Object.values(editedFields).some(field => field.hasChanged);
   }, [editedFields]);
 
-  // Reset do modal quando abrir/fechar
-  useEffect(() => {
-    if (!isOpen || !row?.row) {
-      setEditedFields({});
-      setEnabledFields({});
-      setErrors({});
-      return;
-    }
-
-    // Inicializar campos editados com valores originais
-    const initialEditedFields: Record<string, EditedField> = {};
-    const initialEnabledFields: Record<string, boolean> = {};
-
-    Object.entries(row.row).forEach(([key, value]) => {
-      const tableName = key.split('.')[0];
-      initialEditedFields[key] = {
-        value: String(value ?? ''),
-        tableName,
-        hasChanged: false
-      };
-      initialEnabledFields[key] = false;
-    });
-
-    setEditedFields(initialEditedFields);
-    setEnabledFields(initialEnabledFields);
-  }, [row, isOpen]);
-
-  // Validação de campo
   const validateField = useCallback((columnType: string, value: string): string | null => {
     if (!value.trim()) return null;
 
@@ -94,6 +61,37 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     }
   }, []);
 
+  // Reset do modal quando abrir/fechar
+  useEffect(() => {
+    if (!isOpen || !row?.row) {
+      setEditedFields({});
+      setEnabledFields({});
+      setErrors({});
+      console.log(informacaosOftables);
+      return;
+    }
+
+    // Inicializar campos editados com valores originais
+    const initialEditedFields: Record<string, EditedField> = {};
+    const initialEnabledFields: Record<string, boolean> = {};
+
+    Object.entries(row.row).forEach(([key, value]) => {
+      const tableName = key.split('.')[0];
+      initialEditedFields[key] = {
+        value: String(value ?? ''),
+        tableName,
+        hasChanged: false
+      };
+      initialEnabledFields[key] = false;
+    });
+
+    setEditedFields(initialEditedFields);
+    setEnabledFields(initialEnabledFields);
+  }, [row, isOpen, informacaosOftables]);
+
+  // Validação de campo
+
+
   // Handler para mudanças nos campos
   const handleFieldChange = useCallback((key: string, value: string, tableName: string, columnType: string) => {
     // Validação
@@ -107,7 +105,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     setEditedFields(prev => {
       const originalValue = row?.row?.[key] ?? '';
       const hasChanged = String(originalValue) !== value;
-      
+
       return {
         ...prev,
         [key]: {
@@ -117,7 +115,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
         }
       };
     });
-  }, [row?.row, validateField]);
+  }, [row?.row]);
 
   // Handler para salvar
   const handleSave = useCallback(async () => {
@@ -131,15 +129,15 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     }
 
     setIsLoading(true);
-    
+
     try {
       // Filtrar apenas campos que foram alterados
       const changedFields = Object.entries(editedFields)
         .filter(([, field]) => field.hasChanged)
         .reduce((acc, [key, field]) => {
-          acc[key] = { value: field.value, tableName: field.tableName };
+          acc[key] = { value: field.value, tableName: field.tableName, hasChanged: field.hasChanged };
           return acc;
-        }, {} as Record<string, any>);
+        }, {} as Record<string, EditedField>);
 
       await onSave(changedFields);
       onClose();
@@ -178,7 +176,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-label='Modal_de_Metadados'
       onClick={handleOverlayClick}
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-fade-in">
@@ -218,7 +216,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
                   {metadata.colunas.map((col, index) => {
                     const qualifiedName = `${metadata.table_name}.${col.nome}`;
                     const editedField = editedFields[qualifiedName];
-                    
+
                     if (!editedField) {
                       return null;
                     }
@@ -236,8 +234,18 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
                           <span className={hasChanged ? 'text-blue-600 font-semibold' : ''}>
                             {col.nome}
                           </span>
+                          {
+                            col.is_primary_key && (
+                              <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                                <Key className="w-4 h-4" xlinkTitle="Chave primária" /> PK
+                              </span>
+                            )
+                          }
                           {col.is_ForeignKey && (
-                            <Key className="w-4 h-4 text-blue-500" xlinkTitle="Chave estrangeira" />
+                            <span>
+                              <Key className="w-4 h-4 text-blue-500" xlinkTitle="Chave estrangeira" />
+                              {'->'}{col.referenced_table}. {col.field_references}
+                            </span>
                           )}
                           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                             {col.tipo}
@@ -264,11 +272,10 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
                           <button
                             type="button"
                             onClick={() => toggleEdit(qualifiedName)}
-                            className={`p-2 rounded-lg transition-all ${
-                              isEnabled
+                            className={`p-2 rounded-lg transition-all ${isEnabled
                                 ? 'bg-red-100 text-red-600 hover:bg-red-200'
                                 : 'bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600'
-                            }`}
+                              }`}
                             title={isEnabled ? 'Bloquear edição' : 'Habilitar edição'}
                           >
                             {isEnabled ? <Lock className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}

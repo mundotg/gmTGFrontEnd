@@ -1,72 +1,23 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Database, Hash, Type, Calendar, CheckCircle, XCircle, Key,
+  Database, CheckCircle, XCircle, Key,
   Search, ArrowUpDown, Download, Moon, Sun,
-  ChevronLeft, ChevronRight, AlertCircle, Loader2, Check
+  ChevronLeft, ChevronRight,  Loader2, Check
 } from 'lucide-react';
 import { CampoDetalhado, FilterType, TableColumnsDisplayProps } from '@/types';
 import { useTableColumns } from '@/hook/useTable';
 import { exportToCSV } from '../services';
 import { FILTER_OPTIONS } from '@/constant';
 import EditFieldModal from './EditFieldModal';
+import { ColumnSkeleton, ErrorDisplay, getColumnIcon } from '@/util';
 
-// Componente de Loading Skeleton
-const ColumnSkeleton = ({ theme }: { theme: 'light' | 'dark' }) => (
-  <div className={`animate-pulse p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
-    <div className="flex items-start gap-3">
-      <div className={`w-5 h-5 rounded ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`} />
-      <div className="flex-1">
-        <div className={`h-4 rounded mb-2 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`} />
-        <div className={`h-3 rounded w-2/3 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`} />
-      </div>
-    </div>
-  </div>
-);
-
-// Componente de Error
-const ErrorDisplay = ({ error, theme }: { error: string; theme: 'light' | 'dark' }) => (
-  <div className={`p-6 rounded-lg border-2 border-dashed ${theme === 'dark'
-    ? 'border-red-800 bg-red-900/20 text-red-300'
-    : 'border-red-200 bg-red-50 text-red-600'
-    }`}>
-    <div className="flex items-center gap-3">
-      <AlertCircle className="w-6 h-6" />
-      <div>
-        <h3 className="font-semibold">Erro ao carregar colunas</h3>
-        <p className="text-sm opacity-75">{error}</p>
-      </div>
-    </div>
-  </div>
-);
-
-// Função aprimorada para ícones
-const getColumnIcon = (column: CampoDetalhado, theme: 'light' | 'dark') => {
-  const iconClass = `w-5 h-5 flex-shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`;
-
-  switch (column.tipo.toLowerCase()) {
-    case 'varchar':
-    case 'text':
-    case 'string':
-      return <Type className={iconClass} />;
-    case 'int':
-    case 'integer':
-    case 'bigint':
-    case 'number':
-      return <Hash className={iconClass} />;
-    case 'datetime':
-    case 'timestamp':
-    case 'date':
-      return <Calendar className={iconClass} />;
-    default:
-      return <Database className={iconClass} />;
-  }
-};
 
 const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   tableName,
   columns,
   className = "",
   isLoading = false,
+  setIsLoading,
   error,
   theme = 'light',
   showSearch = true,
@@ -82,6 +33,8 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   const currentTheme = isDarkMode ? 'dark' : 'light';
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedColumn, setSelectedColumn] = useState<CampoDetalhado & { tableName: string } | null>(null);
+   const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
 
   const {
     searchTerm,
@@ -97,58 +50,67 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     filteredAndSortedColumns
   } = useTableColumns(columns);
 
-  // Paginação
-  const totalPages = Math.ceil(filteredAndSortedColumns.length / itemsPerPage);
-  const paginatedColumns = filteredAndSortedColumns.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  // Memoize cálculos derivados
+  const totalPages = useMemo(
+    () => Math.ceil(filteredAndSortedColumns.length / itemsPerPage),
+    [filteredAndSortedColumns, itemsPerPage]
   );
 
-  const handleColumnClick = (col: CampoDetalhado& { tableName: string }) => {
+  const getColumnCount = useMemo(() => {
+    return filteredAndSortedColumns.length;
+  }, [filteredAndSortedColumns]);
+
+  const paginatedColumns = useMemo(
+    () => filteredAndSortedColumns.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    ),
+    [filteredAndSortedColumns, currentPage, itemsPerPage]
+  );
+
+  const totalCols = useMemo(
+    () => columns?.reduce((acc, c) => acc + (c.total_colunas || 0), 0) || 0,
+    [columns]
+  );
+
+  // Callbacks memoizados
+  const handleColumnClick = useCallback((col: CampoDetalhado & { tableName: string }) => {
+    setIsLoading?.(true);
     setSelectedColumn(col);
     setIsModalOpen(true);
     onColumnClick?.(col);
-  };
+    setIsLoading?.(false);
+  }, [setIsLoading, onColumnClick]);
 
-    const handleColumnSelect = (col: CampoDetalhado & { tableName: string }, event: React.MouseEvent) => {
+  const handleColumnSelect = useCallback((col: CampoDetalhado & { tableName: string }, event: React.MouseEvent) => {
     event.stopPropagation();
     const columnKey = `${col.tableName}.${col.nome}`;
     const newSelected = new Set(select);
-    
+
     if (newSelected.has(columnKey)) {
       newSelected.delete(columnKey);
     } else {
       newSelected.add(columnKey);
     }
-
     setSelect?.(Array.from(newSelected));
-  };
+  }, [select, setSelect]);
 
-  const isColumnSelected = (col: CampoDetalhado & { tableName: string }) => {
-    const columnKey = `${col.tableName}.${col.nome}`;
+  const isColumnSelected = useCallback((col: CampoDetalhado & { tableName: string }) => {
     if (!select) return false;
-    return select.includes(columnKey);
-  };
+    return select.includes(`${col.tableName}.${col.nome}`);
+  }, [select]);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     const allKeys = filteredAndSortedColumns.map(col => `${col.tableName}.${col.nome}`);
     const allSelected = allKeys.every(key => select.includes(key));
+    setSelect?.(allSelected ? [] : allKeys);
+  }, [filteredAndSortedColumns, select, setSelect]);
 
-    if (allSelected) {
-      setSelect?.([]);
-    } else {
-      setSelect?.(allKeys);
-    }
-  };
+  const handleSave = useCallback((updatedField: CampoDetalhado) => {
+    console.log("Campo atualizado:", updatedField);
+  }, []);
 
-
-  const handleSave = (updatedField: CampoDetalhado) => {
-    // console.log("Campo atualizado:", updatedField);
-    // Atualize sua lista de colunas ou envie para API
-  };
-
-  // Estilos baseados no tema
-  const themeClasses = {
+  const themeClasses = useMemo(() => ({
     container: currentTheme === 'dark'
       ? 'bg-gray-900 border-gray-700 text-white'
       : 'bg-white border-gray-200 text-gray-800',
@@ -167,7 +129,16 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     selectButton: currentTheme === 'dark'
       ? 'bg-blue-700 hover:bg-blue-600 text-white border-blue-600'
       : 'bg-blue-100 hover:bg-blue-200 text-blue-700 border-blue-300'
-  };
+  }), [currentTheme]);
+
+    if (!hydrated) {
+    return (
+      <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${className}`}>
+        <div className="text-sm opacity-50">Carregando colunas...</div>
+      </div>
+    );
+  }
+
 
   // Renderização condicional para estados
   if (error) {
@@ -179,7 +150,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   }
 
   return (
-    <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${themeClasses.container} ${className}`}>
+    <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${themeClasses.container} ${className}`} aria-label='Exibição_de_Colunas_da_Tabela'>
       {/* Cabeçalho com controles */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
         <div className="flex items-center gap-3">
@@ -194,14 +165,14 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
             {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
         </div>
-        
+
         <EditFieldModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           field={selectedColumn}
           onSave={handleSave}
         />
-        
+
         <div className="flex items-center gap-2 text-sm">
           <span className="opacity-75">
             {isLoading ? (
@@ -210,10 +181,10 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
                 Carregando...
               </div>
             ) : (
-              `${filteredAndSortedColumns.length} de ${columns?.reduce((acc, c) => acc + (c.total_colunas || 0), 0) || 0} colunas`
+              `${getColumnCount} de ${totalCols} colunas`
             )}
           </span>
-          
+
           {select.length > 0 && (
             <span className="text-blue-500 font-medium">
               ({select.length} selecionadas)
@@ -253,8 +224,8 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
             onChange={(e) => setFilterType(e.target.value as FilterType)}
             className={`px-4 py-2 rounded-lg border transition-colors ${themeClasses.input}`}
           >
-            {FILTER_OPTIONS.map((option,index) => (
-              <option key={option.value+index} value={option.value}>
+            {FILTER_OPTIONS.map((option, index) => (
+              <option key={option.value + index} value={option.value}>
                 {option.label}
               </option>
             ))}
@@ -302,11 +273,11 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {paginatedColumns.map((column,index) => {
+          {paginatedColumns.map((column, index) => {
             const isSelected = isColumnSelected(column);
             return (
               <div
-                key={column.nome+index+"pa"}
+                key={column.nome + index + "pa"}
                 onClick={() => handleColumnClick(column)}
                 className={`relative p-3 rounded-lg border transition-all duration-200 cursor-pointer 
                   ${isSelected ? themeClasses.cardSelected : themeClasses.card}
@@ -326,9 +297,9 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
                   onClick={(e) => handleColumnSelect(column, e)}
                 >
                   <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer
-                    ${isSelected 
-                      ? currentTheme === 'dark' 
-                        ? 'bg-blue-600 border-blue-600' 
+                    ${isSelected
+                      ? currentTheme === 'dark'
+                        ? 'bg-blue-600 border-blue-600'
                         : 'bg-blue-500 border-blue-500'
                       : currentTheme === 'dark'
                         ? 'border-gray-500 hover:border-blue-500 bg-gray-800'
@@ -355,7 +326,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
                         {column.nome}
                       </span>
                       {column.is_primary_key && (
-                        <Key className="w-3 h-3 text-yellow-500 flex-shrink-0" xlinkTitle={select.length === filteredAndSortedColumns.length ? 'Desmarcar todos' : 'Selecionar todos'}/>
+                        <Key className="w-3 h-3 text-yellow-500 flex-shrink-0" xlinkTitle={select.length === filteredAndSortedColumns.length ? 'Desmarcar todos' : 'Selecionar todos'} />
                       )}
                     </div>
 
@@ -393,7 +364,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
                         <div className="flex flex-wrap gap-1">
                           {column.enum_valores_encontrados.map((valor, idx) => (
                             <span
-                              key={idx+valor+"enum"}
+                              key={idx + valor + "enum"}
                               className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded font-mono"
                               title={valor}
                             >

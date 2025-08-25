@@ -1,4 +1,4 @@
-import { FILTER_OPTIONS} from "@/constant";
+import { FILTER_OPTIONS } from "@/constant";
 
 export type DatabaseOption = {
   id: string;
@@ -7,6 +7,32 @@ export type DatabaseOption = {
   color: string;
   port: string;
 };
+
+export interface QueryBuilderProps {
+  columns: MetadataTableResponse[];
+  table_list: string[];
+  onExecuteQuery: (conditions: QueryPayload) => Promise<void>;
+  title?: string;
+  isExecuting?: boolean;
+  maxConditions?: number;
+  showLogicalOperators?: boolean;
+  className?: string;
+  select: string[];
+  setSelect: (select: string[]) => void;
+}
+
+export interface DatabaseMetadata {
+  connectionName: string;
+  databaseName: string;
+  serverVersion: string;
+  tableCount: number;
+  viewCount: number;
+  procedureCount: number;
+  functionCount: number;
+  triggerCount: number;
+  indexCount: number;
+  tableNames: { name: string; rowcount: number }[];
+}
 
 export interface LinhaCompletaResponse {
   success: boolean;
@@ -24,45 +50,45 @@ export type SelectedRow = {
 };
 
 export type tipo_db_Options =
-  'char'|
-  'text'|
-  'string'|
-  'nchar'|
-  'nvarchar'|
-  'int'|
-  'integer'|
-  'bigint'|
-  'smallint'|
-  'tinyint'|
-  'mediumint'|
-  'decimal'|
-  'numeric'|
-  'double'|
-  'float'|
-  'real'|
-  'money'|
-  'smallmoney'|
-  'boolean'|
-  'date'|
-  'datetime'|
-  'timestamp'|
-  'time'|
-  'year'|
-  'uuid'|
-  'json'|
-  'jsonb'|
-  'object'|
-  'xml'|
-  'blob'|
-  'bytea'|
-  'binary'|
-  'varbinary'|
-  'enum'|
-  'geometry'|
-  'geography'|
-  'point'|
-  'linestring'|
-  'polygon'|
+  'char' |
+  'text' |
+  'string' |
+  'nchar' |
+  'nvarchar' |
+  'int' |
+  'integer' |
+  'bigint' |
+  'smallint' |
+  'tinyint' |
+  'mediumint' |
+  'decimal' |
+  'numeric' |
+  'double' |
+  'float' |
+  'real' |
+  'money' |
+  'smallmoney' |
+  'boolean' |
+  'date' |
+  'datetime' |
+  'timestamp' |
+  'time' |
+  'year' |
+  'uuid' |
+  'json' |
+  'jsonb' |
+  'object' |
+  'xml' |
+  'blob' |
+  'bytea' |
+  'binary' |
+  'varbinary' |
+  'enum' |
+  'geometry' |
+  'geography' |
+  'point' |
+  'linestring' |
+  'polygon' |
   'varchar'
 
 
@@ -85,9 +111,9 @@ export interface CondicaoFiltro {
   table_name_fil: string
   column: string;           // Nome da coluna
   operator: string;         // Operador (deve estar em operators.value)
-  value: string ;   // Valor inserido pelo usuário
-  logicalOperator?: 'AND' | 'OR' ; // Para combinar com outras condições
-  column_type: tipo_db_Options; 
+  value: string;   // Valor inserido pelo usuário
+  logicalOperator?: 'AND' | 'OR'; // Para combinar com outras condições
+  column_type: tipo_db_Options;
   value_type?: 'string' | 'number' | 'date' | 'boolean'; // opcional
 }
 
@@ -110,9 +136,9 @@ export interface OrderByOption {
   direction: "ASC" | "DESC";
 }
 
-export type DistinctList= {
-    useDistinct: boolean;
-    distinct_columns: string[];
+export type DistinctList = {
+  useDistinct: boolean;
+  distinct_columns: string[];
 }
 
 export interface QueryPayload {
@@ -125,6 +151,7 @@ export interface QueryPayload {
   orderBy?: OrderByOption;
   limit?: number;
   offset?: number;
+  isCountQuery?: boolean;
 }
 
 export type QueryResultType = {
@@ -133,10 +160,21 @@ export type QueryResultType = {
   params: {
     [key: string]: number | string | boolean;
   };
+  totalResults: number | null;
   duration_ms: number;
   columns: string[];
   preview: any[];
+  QueryPayload?: QueryPayload;
+
 };
+
+export type QueryCountResultType = {
+  success: boolean;
+  query: string;
+  count: number;
+  duration_ms: number;
+};
+
 
 
 export type ConnectionLog = {
@@ -172,9 +210,9 @@ export type ConnectionFormData = {
   database: string;
   username: string;
   password: string;
-  service? : string;
+  service?: string;
   sslmode?: string;
-  trustServerCertificate?:string
+  trustServerCertificate?: string
 };
 
 
@@ -186,6 +224,7 @@ export interface TableColumnsDisplayProps {
   columns?: MetadataTableResponse[];
   className?: string;
   isLoading?: boolean;
+  setIsLoading?: (loading: boolean) => void;
   error?: string | null;
   theme?: 'light' | 'dark';
   showSearch?: boolean;
@@ -194,7 +233,7 @@ export interface TableColumnsDisplayProps {
   showExport?: boolean;
   itemsPerPage?: number;
   select: string[];
-  setSelect: (select:string[] )=>void;
+  setSelect: (select: string[]) => void;
   onColumnClick?: (column: CampoDetalhado) => void;
 }
 
@@ -204,12 +243,23 @@ export interface CampoDetalhado {
   is_nullable: boolean;
   is_primary_key: boolean;
   is_ForeignKey?: boolean;
+  is_auto_increment?: boolean;
+  referenced_table?: string | null;
+  field_references?: string | null;
   is_unique: boolean;
   default?: string | null;
   comentario?: string | null;
+  length?: number | null;
   enum_valores_encontrados?: string[];
   enum_valores_adicionados?: string[];
 }
+
+export interface EditedField {
+  value: string;
+  tableName: string;
+  hasChanged: boolean;
+}
+
 
 export interface MetadataTableResponse {
   message: string;

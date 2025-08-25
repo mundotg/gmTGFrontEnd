@@ -1,5 +1,5 @@
 "use client";
-import React, { use, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Database,
   Plus,
@@ -42,7 +42,7 @@ const DatabaseConnectionForm = () => {
     password: ""
   });
 
-  const { page: historyPage, totalPages: historyTotal, data: paginatedHistory, setData: setPaginatedHist, goToNext: nextHistory,
+  const { page: historyPage, totalPages: historyTotal, data: paginatedHistory, goToNext: nextHistory,
     goToPrev: prevHistory, setPage: setPagehistory } = usePagination<ConnectionLog>((page) =>
       api.get("/conn/connection_logs/", {
         params: { page, limit: 10 },
@@ -51,7 +51,7 @@ const DatabaseConnectionForm = () => {
     );
 
   const { page: connPage, totalPages: connTotal, data: paginatedConnections, setData: setPageConnetion,
-    goToNext: nextConn, goToPrev: prevConn, setPage: setPageConn,setExecute } = usePagination<SavedConnection>((page) =>
+    goToNext: nextConn, goToPrev: prevConn, setExecute } = usePagination<SavedConnection>((page) =>
       api.get("/conn/connections/", {
         params: { page, limit: 10 },
         withCredentials: true,
@@ -230,8 +230,8 @@ const DatabaseConnectionForm = () => {
         conn.id === connection_id ? { ...conn, status: connect ? "connected" : "disconnected" } : conn
       );
       setPageConnetion(atualizados);
-      setExecute(prev => !prev)
-
+      setExecute(prev => !prev);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("❌ Erro ao alternar conexão:", error.response?.data || error.message);
     }
@@ -587,8 +587,9 @@ const DatabaseConnectionForm = () => {
                     </div>
                   );
                 }) : t('noSavedConnections')}
-                <Pagination page={connPage} totalPages={connTotal} setPage={setPagehistory} goToNext={nextConn} goToPrev={prevConn} />
+                
               </div>
+              <Pagination page={connPage} totalPages={connTotal} setPage={setPagehistory} goToNext={nextConn} goToPrev={prevConn} />
             </div>
 
             {/* Histórico */}
@@ -609,9 +610,8 @@ const DatabaseConnectionForm = () => {
                     </div>
                   </div>
                 )) : t('noHistory')}
-
-                <Pagination page={historyPage} totalPages={historyTotal} setPage={setPagehistory} goToNext={nextHistory} goToPrev={prevHistory} />
               </div>
+              <Pagination page={historyPage} totalPages={historyTotal} setPage={setPagehistory} goToNext={nextHistory} goToPrev={prevHistory} />
             </div>
           </div>
         </div>

@@ -1,24 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Search, Plus, X, Trash2, Filter, Play, Database, TriangleDashed, MemoryStick } from 'lucide-react';
+
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Search, Plus,Trash2, Filter, Play, Database, MemoryStick } from 'lucide-react';
 import FiltroCondicaoItem from './FiltroCondicaoItem';
 import { operators } from '@/constant';
-import { CondicaoFiltro, DistinctList, JoinOption, MetadataTableResponse, OrderByOption, QueryPayload } from '@/types';
+import { CondicaoFiltro, DistinctList, JoinOption, MetadataTableResponse, OrderByOption, QueryBuilderProps, QueryPayload } from '@/types';
 import { JoinOptions } from './JoinOptions';
 import { OrderByOptions } from './OrderByOptions';
 import { TableSelectModal } from './TableSelectModal';
+import usePersistedState from '@/hook/localStoreUse';
 
-interface QueryBuilderProps {
-  columns: MetadataTableResponse[];
-  table_list: string[];
-  onExecuteQuery: (conditions: QueryPayload) => Promise<void>;
-  title?: string;
-  isExecuting?: boolean;
-  maxConditions?: number;
-  showLogicalOperators?: boolean;
-  className?: string;
-  select: string[];
-  setSelect: (select: string[]) => void;
-}
+
 
 const QueryBuilder: React.FC<QueryBuilderProps> = ({
   columns = [],
@@ -32,13 +23,15 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   select,
   setSelect
 }) => {
-  const [conditions, setConditions] = useState<CondicaoFiltro[]>([]);
+  const [conditions, setConditions] = usePersistedState<CondicaoFiltro[]>("query_conditions", []);
   const [showPreview, setShowPreview] = useState(false);
   const [orderBy, setOrderBy] = useState<OrderByOption>({ column: "", direction: "ASC" });
-  const [joinConfig, setJoinConfig] = useState<Record<string, JoinOption>>({});
+  const [joinConfig, setJoinConfig] = usePersistedState<Record<string, JoinOption>>("query_joins", {});
   const [showTableModal, setShowTableModal] = useState(false);
-  const [distinctList, setDistinctList] = useState<DistinctList>({ useDistinct: false, distinct_columns: [] });
+  const [distinctList, setDistinctList] = usePersistedState<DistinctList>("query_distinct",{ useDistinct: false, distinct_columns: [] });
   const isMounted = useRef(false);
+    const [hydrated, setHydrated] = useState(false);
+    useEffect(() => setHydrated(true), []);
 
   const addCondition = () => {
     if (conditions.length >= maxConditions) return;
@@ -56,36 +49,12 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   };
 
   useEffect(() => {
-    const cachedConditions = localStorage.getItem("query_conditions");
     const cachedSelect = localStorage.getItem("query_select");
-    const cachedDistinct = localStorage.getItem("query_distinct");
-    const cachedJoins = localStorage.getItem("query_joins");
-
-    console.log("Cached Conditions:", cachedConditions);
-    // console.log("Cached Select:", cachedSelect);
-    // console.log("Cached Distinct:", cachedDistinct);
-    console.log("Cached Joins:", cachedJoins);
-
-    if (cachedConditions) setConditions(JSON.parse(cachedConditions) as CondicaoFiltro[]);
     if (cachedSelect) setSelect(JSON.parse(cachedSelect) as string[]);
-    if (cachedDistinct) setDistinctList(JSON.parse(cachedDistinct) as DistinctList);
-    if (cachedJoins) setJoinConfig(JSON.parse(cachedJoins) as Record<string, JoinOption>);
     isMounted.current = true;
-  }, []);
+  }, [setSelect]);
 
 
-  useEffect(() => {
-    if (isMounted.current && conditions.length > 0) {
-      localStorage.setItem("query_conditions", JSON.stringify(conditions));
-    }
-  }, [conditions]);
-
-  useEffect(() => {
-    if (isMounted.current && joinConfig) {
-      // console.log("Saving joinConfig to localStorage:", joinConfig);
-      localStorage.setItem("query_joins", JSON.stringify(joinConfig));
-    }
-  }, [joinConfig]);
 
   useEffect(() => {
     if (isMounted.current && select.length > 0) {
@@ -93,13 +62,12 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     }
   }, [select]);
 
-  useEffect(() => {
-    if (isMounted.current && distinctList) {
-      localStorage.setItem("query_distinct", JSON.stringify(distinctList));
-    }
-  }, [distinctList]);
+   const getcolumn = useCallback((table_name: string) => {
+    return columns.find(t => t.table_name === table_name);
 
-  const updateCondition = (index: number, field: keyof CondicaoFiltro, value: string) => {
+  }, [columns]);
+
+  const updateCondition = useCallback((index: number, field: keyof CondicaoFiltro, value: string) => {
     let updatedConditions = []
     if (!["value", "operator"].includes(field))
       updatedConditions = conditions.map((condition, i) => {
@@ -113,22 +81,22 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         i === index ? { ...condition, [field]: value } : condition
       );
     setConditions(updatedConditions);
-  };
+  }, [conditions, getcolumn,setConditions]);
 
-  const removeCondition = (index: number) => {
+  const removeCondition = useCallback((index: number) => {
     const updatedConditions = conditions.filter((_, i) => i !== index);
     // Remove logical operator from first condition if it exists
     if (updatedConditions.length > 0 && updatedConditions[0].logicalOperator) {
       updatedConditions[0].logicalOperator = undefined;
     }
     setConditions(updatedConditions);
-  };
+  }, [conditions,setConditions]);
 
-  const clearAllConditions = () => {
+  const clearAllConditions = useCallback(() => {
     setConditions([]);
-  };
+  }, [setConditions]);
 
-  const executeQuery = async () => {
+  const executeQuery = useCallback(async () => {
     // if (conditions.length === 0) return;
 
     const validConditions = conditions.filter(c => c.column && c.value.trim());
@@ -150,9 +118,9 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     } catch (error) {
       console.error('Erro ao executar consulta:', error);
     }
-  };
+  }, [conditions, distinctList, joinConfig, onExecuteQuery, orderBy, select, table_list]);
 
-  const generateSQLPreview = (): string => {
+  const generateSQLPreview = useCallback((): string => {
     if (!table_list || table_list.length === 0) return "";
 
     // 1. Todas as colunas com nome qualificado (ex: users.id)
@@ -229,11 +197,11 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     }
 
     return query + ";";
-  };
+  }, [columns, conditions, distinctList, joinConfig, orderBy, select, table_list]);
 
 
   // Versão alternativa mais robusta com validação
-  const handleTableSelectionWithValidation = (selectedItems: string[], useDistinct?: boolean, columnsToPass?: string[]) => {
+  const handleTableSelectionWithValidation = useCallback((selectedItems: string[], useDistinct?: boolean, columnsToPass?: string[]) => {
     try {
       if (!selectedItems) {
         setSelect([])
@@ -250,15 +218,15 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       // Fallback para seleção vazia em caso de erro
       setSelect([]);
     }
-  };
+  }, [columns, conditions, distinctList, joinConfig, orderBy, select, table_list, setSelect, setDistinctList]);
 
 
 
-  const getcolumn = (table_name: string) => {
-    return columns.find(t => t.table_name === table_name);
+ 
 
-  };
-
+  if (!hydrated) {
+    return null;
+  }
 
   if (columns.length === 0) {
     return (
@@ -272,7 +240,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   }
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm border overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-xl shadow-sm border overflow-hidden ${className}`} aria-label='Query Builder'>
       {/* Header */}
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-6 border-b">
@@ -388,7 +356,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
             </div>
             <h4 className="text-lg font-medium text-gray-900 mb-2">Nenhuma condição adicionada</h4>
             <p className="text-gray-500 mb-6 max-w-md mx-auto">
-              Clique em "Adicionar" para criar condições de filtro e refinar seus resultados de consulta.
+              Clique em &quot;Adicionar&quot; para criar condições de filtro e refinar seus resultados de consulta.
             </p>
             <button
               onClick={addCondition}
@@ -417,7 +385,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
         {/* Verificação de múltiplas tabelas - Responsivo */}
         <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-          {columns.length > 1 && (
+          {columns.length > 1 ? (
             <div className="flex-1 border p-3 lg:p-4 rounded-lg bg-gray-50">
               <div className="text-xs lg:text-sm text-gray-500 mb-2">A consulta envolverá múltiplas junções entre as tabelas selecionadas. Exemplo:</div>
               <div className="bg-white p-2 border rounded text-xs lg:text-sm font-mono text-gray-700 overflow-x-auto">
@@ -428,39 +396,48 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
               </div>
             </div>
-          )}
+          ) : <div className="bg-white p-2 border rounded text-xs lg:text-sm font-mono text-gray-700 overflow-x-auto">
+            <span className="block lg:inline">&nbsp;&nbsp;
+              <OrderByOptions columns={columns} orderBy={orderBy.column} setOrderBy={setOrderBy} orderDirection={orderBy.direction} />
+            </span>
+
+          </div>}
+
         </div>
 
       </div>
 
       {/* Execute Button */}
-      {conditions.length > 0 && (
-        <div className="mt-6 pt-6 border-t">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+
+      <div className="mt-6 pt-6 border-t">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          {conditions.length > 0 && (
             <div className="text-sm text-gray-600">
               {conditions.filter(c => c.value.trim()).length} de {conditions.length} condições válidas
             </div>
+          )}
+          <button
+            onClick={executeQuery}
+            // disabled={false && isExecuting || conditions.filter(c => c.value.trim()).length === 0}
+            className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors"
+          >
+            {isExecuting ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Executando...
+              </>
+            ) : (
+              <>
+                <Play className="w-5 h-5" />
+                Executar Consulta
+              </>
+            )}
+          </button>
 
-            <button
-              onClick={executeQuery}
-              // disabled={false && isExecuting || conditions.filter(c => c.value.trim()).length === 0}
-              className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors"
-            >
-              {isExecuting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Executando...
-                </>
-              ) : (
-                <>
-                  <Play className="w-5 h-5" />
-                  Executar Consulta
-                </>
-              )}
-            </button>
-          </div>
         </div>
-      )}
+      </div>
+
+
     </div>
   );
 };

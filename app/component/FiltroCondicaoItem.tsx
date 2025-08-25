@@ -1,9 +1,7 @@
-'use client';
 import { X } from 'lucide-react';
 import { MetadataTableResponse, CondicaoFiltro } from '@/types';
-import DatabaseDateInput from './date-input-component';
-import { getOperatorsForType, mapColumnTypeToDbType } from '../services';
-import { useSession } from '@/context/SessionContext';
+import { getOperatorsForType } from '../services';
+// import { useSession } from '@/context/SessionContext';
 import DynamicInputByType from './DynamicInputByType';
 
 interface FiltroCondicaoItemProps {
@@ -12,7 +10,7 @@ interface FiltroCondicaoItemProps {
   columns: MetadataTableResponse[];
   operators: { value: string; label: string; icon?: string }[];
   showLogicalOperator?: boolean;
-  updateCondition: (index: number, campo: keyof CondicaoFiltro, valor: any) => void;
+  updateCondition: (index: number, campo: keyof CondicaoFiltro, valor: string) => void;
   removeCondition: (index: number) => void;
 }
 
@@ -25,7 +23,7 @@ export default function FiltroCondicaoItem({
   removeCondition,
 }: FiltroCondicaoItemProps) {
   const selectedTable = columns.find(c => c.table_name === condition.table_name_fil);
-  const { user } = useSession()
+  // const { user } = useSession()
 
   const getInputType = (type: string): 'text' | 'number' | 'date' | 'checkbox' | 'select' => {
 
@@ -38,16 +36,16 @@ export default function FiltroCondicaoItem({
     return 'text'; // fallback
   };
 
-  function formatDecimal(value: string): string {
-    // Remove tudo que não for número ou ponto
-    const cleaned = value.replace(/[^\d.,]/g, '').replace(',', '.');
-    const num = parseFloat(cleaned);
-    if (isNaN(num)) return '';
-    return num.toFixed(2);
-  }
+  // function formatDecimal(value: string): string {
+  //   // Remove tudo que não for número ou ponto
+  //   const cleaned = value.replace(/[^\d.,]/g, '').replace(',', '.');
+  //   const num = parseFloat(cleaned);
+  //   if (isNaN(num)) return '';
+  //   return num.toFixed(2);
+  // }
 
 
-  const getPlaceholder = (columnType: string, operator: string, table_name: string) => {
+  const getPlaceholder = (columnType: string, operator: string) => {
 
     if (operator === 'IN' || operator === 'NOT IN') {
       return 'valor1, valor2, valor3...';
@@ -124,7 +122,7 @@ export default function FiltroCondicaoItem({
             onChange={(e) => updateCondition(index, 'operator', e.target.value)}
             className="w-full min-w-[8rem] p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {getOperatorsForType(condition.column_type, user?.InfPlus?.type || "postgresql").map((op, i) => (
+            {getOperatorsForType(condition.column_type).map((op, i) => (
               <option key={`${op.value}-${i}-opera`} value={op.value}>
                 {op.label}
               </option>
@@ -139,7 +137,7 @@ export default function FiltroCondicaoItem({
             type={getInputType(condition.column_type)}
             value={condition.value}
             onChange={(value) => updateCondition(index, 'value', value)}
-            placeholder={getPlaceholder(condition.column_type, condition.operator, condition.table_name_fil)}
+            placeholder={getPlaceholder(condition.column_type, condition.operator)}
           />
 
         </div>

@@ -1,14 +1,13 @@
 'use client';
-
 import React from 'react';
 import DatabaseDateInput from './date-input-component';
 import { mapColumnTypeToDbType } from '../services';
 
 interface DynamicInputProps {
   type: string;
-  value: any;
+  value: string | number | boolean;
   operator?: string;
-  onChange: (value: any) => void;
+  onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
 }
@@ -28,7 +27,7 @@ export default function DynamicInputByType({ type, value, onChange, placeholder,
       return (
         <select
           value={isNamber ? value === 1 ? 'true' : 'false' : String(value) ? 'true' : 'false'}
-          onChange={(e) => onChange( isNamber ? (e.target.value === 'true' ? "1" : "0") : e.target.value === 'true')}
+          onChange={(e) => onChange(isNamber ? (e.target.value === 'true' ? "1" : "0") : String(e.target.value === 'true'))}
           className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">-- Selecione --</option>
@@ -43,8 +42,8 @@ export default function DynamicInputByType({ type, value, onChange, placeholder,
           label=""
           name=""
           dbType={mapColumnTypeToDbType(type)}
-          value={value}
-          onChange={(e: any) => onChange(e.target.value)}
+          value={String(value)}
+          onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           displayFormat="YYYY-MM-DD"
         />
@@ -56,7 +55,7 @@ export default function DynamicInputByType({ type, value, onChange, placeholder,
           <input
           disabled={disabled}
             type="text"
-            value={value}
+            value={String(value)}
             onChange={(e) => onChange(formatDecimal(e.target.value))}
             placeholder="0.00"
             className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -68,7 +67,7 @@ export default function DynamicInputByType({ type, value, onChange, placeholder,
         <input
         disabled={disabled}
           type="number"
-          value={value}
+          value={String(value)}
           onChange={(e) => onChange(e.target.value)}
           className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
@@ -79,7 +78,7 @@ export default function DynamicInputByType({ type, value, onChange, placeholder,
         <input
         disabled={disabled}
           type="text"
-          value={value}
+          value={String(value)}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder || 'Digite um valor'}
           className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

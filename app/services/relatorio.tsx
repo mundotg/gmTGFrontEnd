@@ -11,6 +11,7 @@ interface ExportOptions {
     numbersAsText?: boolean;
     excludeColumns?: string[];
     includeOnly?: string[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     transformValue?: (value: any, key: string, row: any) => any;
     sortBy?: string | string[];
     maxRows?: number;
@@ -37,6 +38,7 @@ type CsvResult = {
  * @param options Opções avançadas de configuração
  * @returns CsvResult se preventDownload for true, senão void
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function exportToCsv(data: any[], options: ExportOptions = {}): CsvResult | void {
     const {
         filename = `export_${new Date().toISOString().split('T')[0]}_${Date.now()}.csv`,
@@ -156,6 +158,7 @@ export function exportToCsv(data: any[], options: ExportOptions = {}): CsvResult
     };
 
     // Função ultra robusta para escapar valores
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const escapeValue = (value: any, key: string, row: any): string => {
         // Aplicar transformação customizada primeiro
         if (transformValue) {
@@ -328,6 +331,7 @@ function formatFileSize(bytes: number): string {
 /**
  * Versão simplificada para uso rápido
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function quickExportToCsv(data: any[], filename?: string): void {
     exportToCsv(data, { filename });
 }
@@ -335,6 +339,7 @@ export function quickExportToCsv(data: any[], filename?: string): void {
 /**
  * Exporta com configurações otimizadas para Excel brasileiro
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function exportToCsvForExcel(data: any[], filename?: string): void {
     exportToCsv(data, {
         filename,
@@ -349,7 +354,9 @@ export function exportToCsvForExcel(data: any[], filename?: string): void {
 /**
  * Exporta dados grandes com feedback de progresso
  */
+
 export function exportLargeCsv(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any[],
     onProgress: (progress: number) => void,
     options: ExportOptions = {}
@@ -364,6 +371,7 @@ export function exportLargeCsv(
 /**
  * Gera CSV sem fazer download (útil para preview ou processamento adicional)
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function generateCsvContent(data: any[], options: ExportOptions = {}): CsvResult {
     const result = exportToCsv(data, { ...options, preventDownload: true });
     return result as CsvResult;
@@ -381,12 +389,13 @@ interface UseCsvExporterResult {
   previewInfo: { size: string; rows: number; columns: number } | null;
   exportProgress: number;
   isExporting: boolean;
+  getFilePreview: ()=>void;
   handleExport: (type: ExportType) => void;
   showExportOptions: boolean;
   setShowExportOptions: (show: boolean) => void;
 }
-
 export function useCsvExporter(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   queryResults: any[],
   columns: string[],
   headers: ColumnInfo[]
@@ -398,12 +407,6 @@ export function useCsvExporter(
   const exportOptions = useMemo(() => {
     const timestamp = new Date().toISOString().split('T')[0];
 
-    const dateColumns = headers
-      .filter(h =>
-        h.type?.toLowerCase().includes('date') ||
-        h.type?.toLowerCase().includes('timestamp') ||
-        h.name?.toLowerCase().includes('data'))
-      .map(h => h.name);
 
     const idColumns = headers
       .filter(h =>
@@ -447,6 +450,7 @@ export function useCsvExporter(
         customHeaders,
         booleanFormat: 'sim/não' as const,
         locale: 'pt-BR',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         transformValue: (value: any, key: string) => {
           if (typeof value === 'string' && value.length > 100) return value.substring(0, 97) + '...';
           if (idColumns.includes(key) && typeof value === 'number') return value.toString();
@@ -506,6 +510,7 @@ export function useCsvExporter(
         columns: preview.columnCount,
       };
     } catch (error) {
+      console.error('Erro ao gerar preview do CSV:', error);
       return null;
     }
   }, [queryResults, exportOptions]);
@@ -515,6 +520,7 @@ export function useCsvExporter(
   return {
     previewInfo,
     exportProgress,
+    getFilePreview,
     isExporting,
     handleExport,
     showExportOptions,

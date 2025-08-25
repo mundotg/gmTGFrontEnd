@@ -5,7 +5,7 @@ export function checkAuth(req: NextRequest, protectedRoutes: string[]) {
   const { pathname } = req.nextUrl;
 
   //   console.log('Middleware checkAuth - URL:', req.url);
-  console.log('Pathname:', pathname, "token: ",token);
+  // console.log('Pathname:', pathname, "token: ",token);
   //   console.log('Token:', token);
   //   console.log('Protected Routes:', protectedRoutes);
 
