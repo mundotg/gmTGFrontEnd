@@ -1,8 +1,7 @@
 'use client';
-
 import React, { useEffect, useState } from 'react';
 import { DatabaseType, DisplayFormat } from '@/types';
-
+import { formatDisplay, getDatabaseFormattedValue, getHTMLInputType } from '@/util/func';
 interface ChangeEventCustom {
   target: { name: string; value: string };
   isValid: boolean;
@@ -26,60 +25,7 @@ interface Props {
   maxDate?: string | Date;
 }
 
-const formatDisplay = (date: Date, format: DisplayFormat): string => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
 
-  switch (format) {
-    case 'DD/MM/YYYY': return `${d}/${m}/${y}`;
-    case 'MM/DD/YYYY': return `${m}/${d}/${y}`;
-    case 'YYYY-MM-DD': return `${y}-${m}-${d}`;
-    case 'DD-MM-YYYY': return `${d}-${m}-${y}`;
-    case 'DD.MM.YYYY': return `${d}.${m}.${y}`;
-    default: return `${y}-${m}-${d}`;
-  }
-};
-
-const getHTMLInputType = (dbType: DatabaseType): 'text' | 'date' | 'datetime-local' => {
-  switch (dbType) {
-    case DatabaseType.DATETIME:
-    case DatabaseType.TIMESTAMP:
-      return 'datetime-local';
-    case DatabaseType.DATE:
-      return 'date';
-    case DatabaseType.VARCHAR:
-    case DatabaseType.TEXT:
-      return 'text';
-    default:
-      return 'text';
-  }
-};
-
-const getDatabaseFormattedValue = (value: string, dbType: DatabaseType): string | number | null => {
-  try {
-    const date = new Date(value);
-
-    if (dbType === DatabaseType.VARCHAR || dbType === DatabaseType.TEXT) {
-      return value;
-    }
-
-    if (isNaN(date.getTime())) return null;
-
-    switch (dbType) {
-      case DatabaseType.DATE:
-        return date.toISOString().slice(0, 10); // YYYY-MM-DD
-      case DatabaseType.DATETIME:
-        return date.toISOString().slice(0, 19).replace('T', ' '); // YYYY-MM-DD HH:mm:ss
-      case DatabaseType.TIMESTAMP:
-        return Math.floor(date.getTime() / 1000); // Unix timestamp
-      default:
-        return value;
-    }
-  } catch {
-    return null;
-  }
-};
 
 const DatabaseDateInput: React.FC<Props> = ({
   value = '',

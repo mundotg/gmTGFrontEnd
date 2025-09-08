@@ -13,19 +13,21 @@ import RowDetailsModal from "@/app/component/MetadataModal";
 
 import {
   DatabaseMetadata,
-  EditedField,
+  EditedFieldForQuery,
   LinhaCompletaResponse,
   MetadataTableResponse,
   QueryCountResultType,
   QueryPayload,
   QueryResultType,
-  SelectedRow
+  SelectedRow,
+  Tables_primary_keys_values
 } from "@/types";
 
 import { InfoCard } from "@/app/component/InfoCard";
 import usePersistedState from "@/hook/localStoreUse";
 import { LabeledSelect } from "@/app/component/LabeledSelect";
 import TableColumnsDisplay from "@/app/component/table-columns-display";
+import { findIdentifierField } from "@/util/func";
 
 
 const ConsultaPage = () => {
@@ -46,173 +48,246 @@ const ConsultaPage = () => {
   const [selectColumns, setSelectColumns] = usePersistedState<string[]>("consulta_selectColumns", []);
   const [queryLimit, setQueryLimit] = usePersistedState<string>("consulta_queryLimit", "100");
 
-  
+
   // ----------------- Helpers -----------------
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parseErrorMessage = (err: any): string =>
+    err?.response?.data?.detail ||
     err?.response?.data?.detail?.[0]?.msg ||
+    err?.response?.data?.detail?.[0]||
     err?.response?.data?.message ||
+    err?.response?.data ||
     err?.message ||
     "Erro inesperado. Tente novamente.";
 
   // ----------------- Effects -----------------
- useEffect(() => {
-  const fetchMetadata = async () => {
-    setLoadingMetadata(true);
-    try {
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      setLoadingMetadata(true);
+      try {
 
-      console.log("Buscando metadados...");
-      const response = await api.get("/consu/metadata_db/", { withCredentials: true });
-      const data = response.data.data || null;
-      setMetadata(data);
-    } catch (err) {
-      setError(parseErrorMessage(err));
-    } finally {
-      setLoadingMetadata(false);
+        console.log("Buscando metadados...");
+        const response = await api.get("/consu/metadata_db/", { withCredentials: true });
+        const data = response.data.data || null;
+        setMetadata(data);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (err:any) {
+        setError(parseErrorMessage(err?.response?.data || error));
+      } finally {
+        setLoadingMetadata(false);
+      }
+    };
+
+    if (!loadingMetadata) {
+      fetchMetadata();
     }
-  };
+  }, []);
 
-  if (!loadingMetadata) {
-    fetchMetadata();
-  }
-}, [selectedTables]);
+  const removerCacheLocalStorage = useCallback(() => {
+    
+    localStorage.removeItem("consulta_selectedTables");
+    localStorage.removeItem("consulta_columnsInfo");
+    localStorage.removeItem("consulta_selectColumns");
+    localStorage.removeItem("query_conditions");
+    localStorage.removeItem("query_select");
+    localStorage.removeItem("query_distinct");
+    localStorage.removeItem("query_joins");
+    setSelectColumns([]);
+    setSelectedTables([]);
+    setColumnsInfo([]);
 
+  }, []);
 
   const handleSelectTables = useCallback(
-  async (newTables: string[]) => {
-    const normalized = newTables.map(t => t.trim().toLowerCase());
+    async (newTables: string[]) => {
+      const normalized = newTables.map(t => t.trim().toLowerCase());
 
-    // Reset caso não tenha seleção
-    if (normalized.length === 0) {
-      setSelectColumns([]);
-      setSelectedTables([]);
-      setColumnsInfo([]);
-      return;
-    }
+      // Reset caso não tenha seleção
+      if (normalized.length === 0) {
+        setSelectColumns([]);
+        setSelectedTables([]);
+        setColumnsInfo([]);
+        return;
+      }
 
-    setSelectedTables(newTables);
+      setSelectedTables(newTables);
 
-    try {
-      // Buscar apenas as tabelas novas (não já carregadas)
-      const missing = newTables.filter(
-        t => !columnsInfo.some(ci => ci.table_name.toLowerCase() === t.toLowerCase())
-      );
-
-      if (missing.length > 0) {
-        const responses = await Promise.all(
-          missing.map(t =>
-            api.get<MetadataTableResponse>(
-              `/consu/metadata_fieds/${encodeURIComponent(t)}`,
-              { withCredentials: true }
-            )
-          )
+      try {
+        // Buscar apenas as tabelas novas (não já carregadas)
+        const missing = newTables.filter(
+          t => !columnsInfo.some(ci => ci.table_name.toLowerCase() === t.toLowerCase())
         );
 
-        setColumnsInfo(prev => [...prev, ...responses.map(r => r.data)]);
+        if (missing.length > 0) {
+          const responses = await Promise.all(
+            missing.map(t =>
+              api.get<MetadataTableResponse>(
+                `/consu/metadata_fieds/${encodeURIComponent(t)}`,
+                { withCredentials: true }
+              )
+            )
+          );
+
+          setColumnsInfo(prev => [...prev, ...responses.map(r => r.data)]);
+        }
+        else {
+
+          setColumnsInfo(columnsInfo.filter(ci => newTables.some(nt => nt.toLowerCase() === ci.table_name.toLowerCase())));
+          setSelectColumns(prev =>
+            prev.filter(s => {
+              const [table] = s.split("."); // pega só o nome da tabela
+              console.log("ss ", table)
+              return selectedTables.includes(table);
+            })
+          );
+        }
+
+      } catch (err) {
+        setError(parseErrorMessage( error));
       }
-    } catch (err) {
-      setError(parseErrorMessage(err));
-    }
-  },
-  [columnsInfo,setColumnsInfo,selectColumns]
-);
+    },
+    [columnsInfo, setColumnsInfo, selectColumns,setSelectColumns,setSelectedTables]
+  );
 
 
-
-const handleRowClick = useCallback(async (selectedRow: SelectedRow) => {
+  const handleRowClick = useCallback(async (selectedRow: SelectedRow) => {
     // console.log("Linha clicada:", selectedRow); // Verificação básica
     if (!selectedRow || selectedRow.index === undefined) {
-        console.warn("⚠️ Índice da linha inválido ou linha não selecionada.");
-        return;
+      console.warn("⚠️ Índice da linha inválido ou linha não selecionada.");
+      return;
     } // Garante que tableName seja tratado como array
     const selectedTables = Array.isArray(selectedRow.tableName) ? selectedRow.tableName : [selectedRow.tableName];
     // Se houver campos de múltiplas tabelas, apenas abre o modal
     if (selectedTables.length > 1) {
-        console.warn("⚠️ A linha possui campos de múltiplas tabelas:", selectedTables);
-        setSelectedRow(selectedRow);
-        setModalOpen(true);
-        return;
+      console.warn("⚠️ A linha possui campos de múltiplas tabelas:", selectedTables);
+      setSelectedRow(selectedRow);
+      setModalOpen(true);
+      return;
     }
     const tableName = selectedTables[0];
     if (!tableName) {
-        console.warn("⚠️ Nome da tabela não identificado.");
-        return;
+      console.warn("⚠️ Nome da tabela não identificado.");
+      return;
     }
-    // Função auxiliar para localizar um campo específico
-    const findIdentifierField = (tableName: string) => {
-        const table = columnsInfo.find(col => col.table_name === tableName);
-        if (!table) return undefined;
-        return (
-            table.colunas.find(c => c.is_primary_key)?.nome ||
-            table.colunas.find(c => c.is_unique)?.nome ||
-            table.colunas.find(c => !c.is_nullable)?.nome ||
-            table.colunas[0]?.nome
-        );
-    };
     // Tenta encontrar o campo mais confiável para buscar a linha completa
-    const primaryKeyField = findIdentifierField(tableName);
+    const primaryKeyField = findIdentifierField(tableName, columnsInfo);
     if (!primaryKeyField) {
-        console.warn("⚠️ Nenhum campo identificador encontrado para a tabela:", tableName);
-        return;
+      console.warn("⚠️ Nenhum campo identificador encontrado para a tabela:", tableName);
+      return;
     }
     // Verifica se a linha já possui todas as colunas
     const isColumnComplete = columnsInfo.some(col => col.table_name === tableName && col.colunas.length === selectedRow.nameColumns.length);
     if (isColumnComplete) {
-        setSelectedRow(selectedRow);
-        setModalOpen(true);
-        return;
+      setSelectedRow(selectedRow);
+      setModalOpen(true);
+      return;
     }
     try {
-        const response = await api.get<LinhaCompletaResponse>(`/consu/linha-completa/${encodeURIComponent(selectedRow.index)}`, {
-            params: { primary_key_field: primaryKeyField, table_name: tableName },
-            withCredentials: true,
-        });
-        if (!response.data || !response.data.data) {
-            console.warn("⚠️ Nenhum dado encontrado para a linha completa.");
-            return;
-        }
-        selectedRow.row = response.data.data.__root__; //
-        console.log("Dados da linha completa:", selectedRow.row);
-        setSelectedRow(selectedRow); setModalOpen(true);
+      const response = await api.get<LinhaCompletaResponse>(`/consu/linha-completa/${encodeURIComponent(selectedRow.index)}`, {
+        params: { primary_key_field: primaryKeyField, table_name: tableName },
+        withCredentials: true,
+      });
+      if (!response.data || !response.data.data) {
+        console.warn("⚠️ Nenhum dado encontrado para a linha completa.");
+        return;
+      }
+      selectedRow.row = response.data.data.__root__; //
+      console.log("Dados da linha completa:", selectedRow.row);
+      setSelectedRow(selectedRow); 
+      setModalOpen(true);
     }
-    catch (error) { console.error("❌ Erro ao recuperar dados da linha completa:", error); }
-}, [columnsInfo,setSelectedRow]);
+    catch (error) { 
+      const msnErr = parseErrorMessage( error)
+      setError(msnErr);
+     }
+  }, [columnsInfo, setSelectedRow]);
 
   const handleExecuteQuery = useCallback(async (query: QueryPayload) => {
-    if (!selectedTables.length) return;
+    // if (!selectedTables.length) return;
 
     setExecutingQuery(true);
     setQueryResults(null);
+    const select = selectColumns.filter(c=> selectedTables.includes(c.split(".")[0] || c))
     query.limit = parseInt(queryLimit);
     query.select = selectColumns.length > 0
-      ? selectColumns
+      ? select
       : columnsInfo.flatMap(col => col.colunas.map(c => `${col.table_name}.${c.nome}`));
 
     try {
       const { data } = await api.post<QueryResultType>("/exe/execute_query/", query, { withCredentials: true });
-      setQueryResults(data);
 
       // buscar count total
       query.isCountQuery = true;
+      // console.log("Buscando total de resultados para a query:", query);
       const { data: codata } = await api.post<QueryCountResultType>("/exe/execute_query/", query, { withCredentials: true });
-      setQueryResults(prev => prev ? { ...prev, totalResults: codata.count, QueryPayload: query } : prev);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      setError(parseErrorMessage(err));
+      console.log(codata)
+      setQueryResults({ ...data, totalResults: codata.count , QueryPayload: query } );
+    } catch (err) {
+      
+      const msnErr = parseErrorMessage(err)
+      if(msnErr.includes("exceptions must derive from BaseException"))
+          removerCacheLocalStorage()
+      setError(msnErr);
     } finally {
       setExecutingQuery(false);
       setSelectColumns(query.select || []);
     }
-  }, [selectedTables, queryLimit, selectColumns, setSelectedTables, setSelectColumns]);
+  }, [selectedTables, queryLimit, selectColumns, setSelectColumns,columnsInfo]);
 
-  const handleRowUpdate = useCallback((updatedRow: Record<string, EditedField>) => {
-    if (!updatedRow || isEditingRow) return;
+  const handleRowUpdate = useCallback(async (
+    updatedRow: EditedFieldForQuery,
+    tables_primary_keys_values: Tables_primary_keys_values
+  ) => {
+    if (!updatedRow || isEditingRow || !tables_primary_keys_values) return;
     setIsEditingRow(true);
-    setSelectedRow({ row: updatedRow, nameColumns: selectedRow?.nameColumns || [] });
-    console.log("Linha atualizada:", updatedRow);
-    setIsEditingRow(false);
+
+    try {
+      await api.post("/exe/update_row", { updatedRow, tables_primary_keys_values }, { withCredentials: true });
+
+      // Mapeia valores atualizados
+      const value = Object.entries(updatedRow).reduce<Record<string, string>>(
+        (acc, [, columns]) => {
+          Object.entries(columns).forEach(([col, { value }]) => {
+            acc[col] = value;
+          });
+          return acc;
+        },
+        {}
+      );
+
+      console.log("Valor para atualização na tabela:", value);
+
+      // Cria a nova linha
+      const newLine = selectedRow ? {
+        ...selectedRow,
+        row: { ...selectedRow.row, ...value },
+        index: selectedRow.index,
+        nameColumns: selectedRow.nameColumns ?? [],
+        tableName: selectedRow.tableName ?? [],
+      } : null;
+
+      if (newLine) {
+        setSelectedRow(newLine);
+
+        setQueryResults(prev => {
+          if (!prev) return prev;
+          if(!newLine.index) return prev;
+          // Cria cópia imutável
+          const newPreview = [...prev.preview];
+          newPreview[newLine.index] = newLine.row;
+          return { ...prev, preview: newPreview };
+        });
+
+        console.log("Linha atualizada:", newLine);
+      }
+    } catch (error) {
+      setError(parseErrorMessage(error));
+    } finally {
+      setIsEditingRow(false);
+    }
   }, [isEditingRow, selectedRow]);
-  
+
+
 
   // ----------------- Render -----------------
   if (loadingMetadata) return <LoadingScreen message="Carregando metadados..." />;
@@ -243,7 +318,7 @@ const handleRowClick = useCallback(async (selectedRow: SelectedRow) => {
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Selecionar Tabela</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          { metadata && <LabeledSelect
+            {metadata && <LabeledSelect
               label="Tabela"
               value={selectedTables}
               onChange={handleSelectTables}
@@ -263,12 +338,13 @@ const handleRowClick = useCallback(async (selectedRow: SelectedRow) => {
         </div>
 
         <TableColumnsDisplay
-          tableName="usuarios"
+          tableNames={selectedTables.join(", ")}
           columns={columnsInfo}
           isLoading={loadingFields}
           setIsLoading={setLoadingFields}
           error={error}
           theme="light"
+          tabelaExistenteNaDB={metadata?.tableNames.map(t => t.name) || []}
           showSearch
           showFilter
           showSort
@@ -283,7 +359,8 @@ const handleRowClick = useCallback(async (selectedRow: SelectedRow) => {
             columns={columnsInfo}
             table_list={selectedTables}
             onExecuteQuery={handleExecuteQuery}
-            title="Consulta de Usuários"
+            removerCacheLocalStorage={removerCacheLocalStorage}
+            title={`Consulta de ${selectedTables.join(",")}`}
             isExecuting={executingQuery}
             maxConditions={25}
             showLogicalOperators
@@ -299,7 +376,7 @@ const handleRowClick = useCallback(async (selectedRow: SelectedRow) => {
             columnsInfo={columnsInfo}
             setSelectedRow={handleRowClick}
             selectedRow={selectedRow}
-            
+
           />
         )}
 
@@ -340,5 +417,6 @@ const ErrorScreen = ({ message }: { message: string }) => (
     </div>
   </div>
 );
+
 
 export default ConsultaPage;

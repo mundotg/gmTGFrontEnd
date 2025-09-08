@@ -1,6 +1,5 @@
 import { CampoDetalhado } from "@/types";
 import { AlertCircle, Calendar, Database, Hash, Type } from "lucide-react";
-
 // Componente de Loading Skeleton
 export const ColumnSkeleton = ({ theme }: { theme: 'light' | 'dark' }) => (
   <div className={`animate-pulse p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
@@ -30,6 +29,8 @@ export const ErrorDisplay = ({ error, theme }: { error: string; theme: 'light' |
   </div>
 );
 
+
+
 // Função aprimorada para ícones
 export const getColumnIcon = (column: CampoDetalhado, theme: 'light' | 'dark') => {
   const iconClass = `w-5 h-5 flex-shrink-0 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`;
@@ -52,3 +53,36 @@ export const getColumnIcon = (column: CampoDetalhado, theme: 'light' | 'dark') =
       return <Database className={iconClass} />;
   }
 };
+
+  export const Badge = ({ color, text, icon }: { color: "green" | "blue" | "gray" | "yellow", text: string, icon?: React.ReactNode }) => (
+    <span
+      className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded badge-base 
+      ${color === 'green' && 'bg-green-50 text-green-600'}
+      ${color === 'blue' && 'bg-blue-50 text-blue-600'}
+      ${color === 'gray' && 'bg-gray-100 text-gray-600'}
+      ${color === 'yellow' && 'bg-yellow-50 text-yellow-500'}
+    `}>
+      {icon}
+      {text}
+    </span>
+  );
+
+ export const validateField = (columnType: string, value: string): string | null => {
+    if (!value.trim()) return null;
+
+    switch (columnType.toLowerCase()) {
+      case 'email':
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(value) ? null : 'Email inválido';
+      case 'int':
+      case 'integer':
+        return isNaN(Number(value)) ? 'Deve ser um número inteiro' : null;
+      case 'float':
+      case 'decimal':
+        return isNaN(Number(value)) ? 'Deve ser um número decimal' : null;
+      case 'date':
+        return isNaN(Date.parse(value)) ? 'Data inválida' : null;
+      default:
+        return null;
+    }
+  };

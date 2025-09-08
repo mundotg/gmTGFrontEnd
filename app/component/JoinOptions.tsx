@@ -1,6 +1,6 @@
 // components/JoinOptions.tsx
 import { JoinOption, JoinType, MetadataTableResponse } from "@/types";
-import React from "react";
+import React, { useMemo } from "react";
 
 const joinTypes: JoinType[] = ["INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "FULL JOIN"];
 
@@ -11,7 +11,8 @@ interface JoinOptionsProps {
 }
 
 export function JoinOptions({ joinConfig, setJoinConfig, columns }: JoinOptionsProps) {
-  const baseTable = columns[0].table_name; // Ex: "alembic_version"
+  const baseTable = useMemo(() => columns[0].table_name, [columns]);
+
 
   return (
     <div className="border p-2 lg:p-4 rounded-lg bg-gray-50 space-y-3">
@@ -74,9 +75,9 @@ export function JoinOptions({ joinConfig, setJoinConfig, columns }: JoinOptionsP
             >
               {columns
                 .filter((_table) => _table.table_name !== tableName)
-                .flatMap((_table) =>
+                .flatMap((_table,i) =>
                   _table.colunas.map((col, j) => (
-                    <option key={_table.table_name+col.nome + j+"base"} value={col.nome}>
+                    <option key={_table.table_name+col.nome + j+"base"+i} value={col.nome}>
                       {_table.table_name}.{col.nome}
                     </option>
                   ))

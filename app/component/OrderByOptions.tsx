@@ -28,10 +28,10 @@ export function OrderByOptions({
             className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
           >
             <option value="">Selecione uma coluna</option>
-            {columns.flatMap((tabela) =>
+            {columns.flatMap((tabela,index) =>
               tabela.colunas.map((col, idx) => (
                 <option
-                  key={`${tabela.table_name}-${col.nome}-${idx}`}
+                  key={`${tabela.table_name}-${col.nome}-${idx}+${index}`}
                   value={`${tabela.table_name}.${col.nome}`}
                 >
                   {tabela.table_name}.{col.nome}

@@ -6,19 +6,19 @@ import api from "./axioCuston";
 import { BancoSuportado } from "@/constant";
 
 export interface DbOn {
-  id_connection: number;
-  name_db: string;
-  data: string; // datetime → string em ISO
-  type: BancoSuportado;
-  num_table: number;
-  num_consultas: number;
-  ultima_execucao_ms?: number;
-  ultima_consulta_em?: string;
-  registros_analizados?: number;
+    id_connection: number;
+    name_db: string;
+    data: string; // datetime → string em ISO
+    type: BancoSuportado;
+    num_table: number;
+    num_consultas: number;
+    ultima_execucao_ms?: number;
+    ultima_consulta_em?: string;
+    registros_analizados?: number;
 }
 export interface Usuario {
     id: string;
-    nome:string;
+    nome: string;
     email: string;
     tipoUsuario?: String;
     avatar_url: string;
@@ -125,6 +125,27 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
         return () => api.interceptors.response.eject(interceptor);
     }, [isRefreshing, isLoggingOut, refreshAccessToken, logout]);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+
+        const refresh = async () => {
+            try {
+                await refreshAccessToken(); // faz request ao backend, backend usa refresh_token do httpOnly cookie
+                console.log("Access token renovado ✅");
+            } catch (err) {
+                console.error("Falha ao atualizar token:", err);
+            }
+        };
+
+        // chama refresh a cada 13 minutos (antes dos 15 min)
+        interval = setInterval(refresh, 13 * 60 * 1000);
+
+        // chama uma vez logo ao montar (garantir sincronização inicial)
+        refresh();
+
+        return () => clearInterval(interval);
+    }, []);
 
     // Recupera sessão ao carregar o app
     useEffect(() => {

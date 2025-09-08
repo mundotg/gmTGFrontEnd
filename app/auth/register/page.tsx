@@ -413,7 +413,7 @@ const RegisterPage = () => {
           {/* Botão de Registro */}
           <Button
             type="submit"
-            // onClick={handleSubmit}
+            onClick={handleSubmit}
             disabled={isLoading}
             className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-300 disabled:opacity-70"
           >entrar

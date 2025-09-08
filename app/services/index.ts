@@ -29,24 +29,6 @@ export function extrairTipoBase(tipo: string): string {
   return tipo.split('(')[0].trim().toLowerCase();
 }
 
-
-// export function exportToCsvAll(data: any[], filename = "consulta.csv") {
-//   const csv = [
-//     Object.keys(data[0]).join(","),
-//     ...data.map(row => Object.values(row).join(","))
-//   ].join("\n");
-
-//   const blob = new Blob([csv], { type: "text/csv" });
-//   const url = window.URL.createObjectURL(blob);
-//   const a = document.createElement("a");
-//   a.href = url;
-//   a.download = filename;
-//   a.click();
-//   window.URL.revokeObjectURL(url);
-// }
-
-
-
 export function mapColumnTypeToDbType(columnType?: string): DatabaseType {
   const type = columnType?.toLowerCase() || '';
 
@@ -59,9 +41,7 @@ export function mapColumnTypeToDbType(columnType?: string): DatabaseType {
   return DatabaseType.DATE; // fallback padrão
 }
 
-
-
-export function getOperatorsForType(rawType: string): OperadorFiltro[] {
+export function getOperatorsForType(rawType: string, is_nullable?: boolean): OperadorFiltro[] {
   const type = rawType.toLowerCase();
 
   const isText = [
@@ -80,32 +60,40 @@ export function getOperatorsForType(rawType: string): OperadorFiltro[] {
 
   const isEnum = type.includes('enum');
 
+   function addNullableOps(ops: OperadorFiltro[]): OperadorFiltro[] {
+    console.log("is_nullable: ",is_nullable)
+    if (is_nullable) {
+      return [...ops, ...operators.filter(op => ['IS NULL','IS NOT NULL'].includes(op.value))];
+    }
+    return ops;
+  }
+
   // console.log(isNumber,isText,isDate,isBoolean,isEnum)
 
   if (isBoolean) {
-    return operators.filter(op => ['=', '!='].includes(op.value));
+    return addNullableOps(operators.filter(op => ['=', '!='].includes(op.value)));
   }
 
   if (isNumber) {
-    return operators.filter(op =>
-      ['=', '!=', '>', '<', '>=', '<=', 'IN', 'NOT IN'].includes(op.value)
-    );
+    return addNullableOps(operators.filter(op =>
+      ['=', '!=', '>', '<', '>=', '<=', 'Não Contém', 'Contém', 'IN', 'NOT IN','Entre'].includes(op.value)
+    ));
   }
 
   if (isDate) {
-    return operators.filter(op =>
-      ['=', '!=', '>', '<', '>=', '<=', 'IN', 'NOT IN'].includes(op.value)
-    );
+    return addNullableOps(operators.filter(op =>
+      ['=', '!=', '>=', '<=','Não Contém', 'Contém', 'Antes de', 'Depois de', 'Entre','IN', 'NOT IN'].includes(op.value)
+    ));
   }
 
   if (isText || isEnum) {
-    return operators.filter(op =>
-      ['=', '!=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN'].includes(op.value)
-    );
+    return addNullableOps(operators.filter(op =>
+      ['=', '!=', 'Não Contém', 'Contém', 'IN', 'NOT IN'].includes(op.value)
+    ));
   }
 
   // fallback: todos
-  return operators;
+  return addNullableOps(operators.filter(op =>['=', '!=', '>', '<', '>=', '<=', 'Não Contém', 'Contém'].includes(op.value)));
 }
 
 

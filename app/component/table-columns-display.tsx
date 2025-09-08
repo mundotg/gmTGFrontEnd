@@ -1,23 +1,29 @@
+"use client"
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Database, CheckCircle, XCircle, Key,
   Search, ArrowUpDown, Download, Moon, Sun,
-  ChevronLeft, ChevronRight,  Loader2, Check
+  ChevronLeft, ChevronRight, Loader2, Check, Lock,
+  Plus
 } from 'lucide-react';
-import { CampoDetalhado, FilterType, TableColumnsDisplayProps } from '@/types';
+import { CampoDetalhado, EditedFieldForQuery, FilterType, TableColumnsDisplayProps } from '@/types';
 import { useTableColumns } from '@/hook/useTable';
-import { exportToCSV } from '../services';
-import { FILTER_OPTIONS } from '@/constant';
+import { quickExportToCsv } from "../services/relatorio";
+import { FILTER_OPTIONS, themeClassesMap } from '@/constant';
 import EditFieldModal from './EditFieldModal';
 import { ColumnSkeleton, ErrorDisplay, getColumnIcon } from '@/util';
+import CriarRegistroNovo from './criar-registro';
+import ModalAutoCreate from './ModalIntermediario';
+import usePersistedState from '@/hook/localStoreUse';
 
 
 const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
-  tableName,
+  tableNames,
   columns,
   className = "",
   isLoading = false,
   setIsLoading,
+  tabelaExistenteNaDB,
   error,
   theme = 'light',
   showSearch = true,
@@ -29,11 +35,13 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   setSelect,
   select
 }) => {
-  const [isDarkMode, setIsDarkMode] = useState(theme === 'dark');
+  const [isDarkMode, setIsDarkMode] = usePersistedState<boolean>("_theme",theme === 'dark');
   const currentTheme = isDarkMode ? 'dark' : 'light';
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [openIntermediario, setOpenIntermediario] = useState(false);
+  const [modalCreateOpen, setModalCreateOpen] = usePersistedState<boolean>("_modal_Create_Open",false);
   const [selectedColumn, setSelectedColumn] = useState<CampoDetalhado & { tableName: string } | null>(null);
-   const [hydrated, setHydrated] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
   const {
@@ -58,7 +66,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
 
   const getColumnCount = useMemo(() => {
     return filteredAndSortedColumns.length;
-  }, [filteredAndSortedColumns]);
+  }, [filteredAndSortedColumns.length]);
 
   const paginatedColumns = useMemo(
     () => filteredAndSortedColumns.slice(
@@ -110,28 +118,9 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     console.log("Campo atualizado:", updatedField);
   }, []);
 
-  const themeClasses = useMemo(() => ({
-    container: currentTheme === 'dark'
-      ? 'bg-gray-900 border-gray-700 text-white'
-      : 'bg-white border-gray-200 text-gray-800',
-    card: currentTheme === 'dark'
-      ? 'bg-gray-800 hover:bg-gray-700 border-gray-600'
-      : 'bg-gray-50 hover:bg-gray-100 border-gray-200',
-    cardSelected: currentTheme === 'dark'
-      ? 'bg-blue-900/30 border-blue-600 ring-2 ring-blue-500/50'
-      : 'bg-blue-50 border-blue-300 ring-2 ring-blue-200',
-    input: currentTheme === 'dark'
-      ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400'
-      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500',
-    button: currentTheme === 'dark'
-      ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-600'
-      : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300',
-    selectButton: currentTheme === 'dark'
-      ? 'bg-blue-700 hover:bg-blue-600 text-white border-blue-600'
-      : 'bg-blue-100 hover:bg-blue-200 text-blue-700 border-blue-300'
-  }), [currentTheme]);
+  const themeClasses = themeClassesMap[currentTheme === 'dark' ? 'dark' : 'light'];
 
-    if (!hydrated) {
+  if (!hydrated) {
     return (
       <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${className}`}>
         <div className="text-sm opacity-50">Carregando colunas...</div>
@@ -149,13 +138,26 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     );
   }
 
+  function handleRowUpdate(updatedRow: EditedFieldForQuery): void {
+    // throw new Error('Function not implemented.');
+
+    console.log(updatedRow)
+  }
+
+  function openModalCreateNewRegister(): void {
+    setModalCreateOpen(true)
+  }
+  const handleConfirm = () => {
+    setModalCreateOpen(true); // abre a modal final de criação
+  };
+
   return (
     <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${themeClasses.container} ${className}`} aria-label='Exibição_de_Colunas_da_Tabela'>
       {/* Cabeçalho com controles */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold truncate">
-            Colunas: {tableName}
+            Colunas: {tableNames}
           </h3>
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
@@ -170,7 +172,24 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           field={selectedColumn}
+          tabelaExistenteNaDB={tabelaExistenteNaDB}
           onSave={handleSave}
+        />
+        <ModalAutoCreate
+          isOpen={openIntermediario}
+          setModelDeCriacaoDeRegistro={handleConfirm}
+          onClose={() => setOpenIntermediario(false)}
+          onConfirm={(configs) => {
+            console.log("Config recebida do intermediário:",configs);
+          }}
+          metadataList={columns || []}
+        />
+
+        <CriarRegistroNovo
+          isOpen={modalCreateOpen}
+          onClose={() => setModalCreateOpen(false)}
+          informacaosOftables={columns || []}
+          onSave={handleRowUpdate}
         />
 
         <div className="flex items-center gap-2 text-sm">
@@ -193,13 +212,41 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
 
           {showExport && columns && (
             <button
-              onClick={() => exportToCSV(filteredAndSortedColumns, tableName)}
+              onClick={() => quickExportToCsv(filteredAndSortedColumns, tabelaExistenteNaDB.join("_"))}
               className={`p-2 rounded-lg transition-colors ${themeClasses.button}`}
               title="Exportar CSV"
             >
               <Download className="w-4 h-4" />
             </button>
           )}
+
+          {(columns && columns.length > 0) && (
+            <>
+              <button
+                onClick={() => setOpenIntermediario(true)}
+                className={`
+        group relative px-4 py-2 rounded-lg font-medium text-sm
+        bg-gradient-to-r from-blue-500 to-blue-600 
+        hover:from-blue-600 hover:to-blue-700
+        text-white shadow-lg hover:shadow-xl
+        transform hover:scale-105 active:scale-95
+        transition-all duration-200 ease-in-out
+        flex items-center gap-2
+        border-0 outline-none focus:ring-4 focus:ring-blue-200
+        ${themeClasses.button}
+      `}
+                title="Criar novo registro"
+              >
+                <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
+                <span className="hidden sm:inline font-semibold">Novo Registro</span>
+                <span className="sm:hidden font-semibold">Novo</span>
+
+                {/* Efeito de brilho sutil */}
+                <div className="absolute inset-0 rounded-lg bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+              </button>
+            </>
+          )}
+
         </div>
       </div>
 
@@ -272,19 +319,23 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-3  md:grid-cols-2 ">
           {paginatedColumns.map((column, index) => {
             const isSelected = isColumnSelected(column);
+
             return (
               <div
-                key={column.nome + index + "pa"}
+                key={`${column.nome}-${index}-pa`}
                 onClick={() => handleColumnClick(column)}
                 className={`relative p-3 rounded-lg border transition-all duration-200 cursor-pointer 
-                  ${isSelected ? themeClasses.cardSelected : themeClasses.card}
-                  ${onColumnClick ? 'hover:shadow-md transform hover:scale-105' : ''}
-                `}
+          focus:outline-none focus:ring-2 focus:ring-blue-400
+          ${isSelected ? themeClasses.cardSelected : themeClasses.card}
+          ${onColumnClick ? 'hover:shadow-md hover:scale-[1.02]' : ''}
+        `}
                 role="button"
                 tabIndex={0}
+                aria-pressed={isSelected}
+                aria-label={`Coluna ${column.nome}`}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     onColumnClick?.(column);
@@ -296,15 +347,16 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
                   className="absolute top-2 right-2 z-10"
                   onClick={(e) => handleColumnSelect(column, e)}
                 >
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer
-                    ${isSelected
-                      ? currentTheme === 'dark'
-                        ? 'bg-blue-600 border-blue-600'
-                        : 'bg-blue-500 border-blue-500'
-                      : currentTheme === 'dark'
-                        ? 'border-gray-500 hover:border-blue-500 bg-gray-800'
-                        : 'border-gray-300 hover:border-blue-400 bg-white'
-                    }`}
+                  <div
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer
+              ${isSelected
+                        ? currentTheme === 'dark'
+                          ? 'bg-blue-600 border-blue-600'
+                          : 'bg-blue-500 border-blue-500'
+                        : currentTheme === 'dark'
+                          ? 'border-gray-500 hover:border-blue-500 bg-gray-800'
+                          : 'border-gray-300 hover:border-blue-400 bg-white'
+                      }`}
                   >
                     {isSelected && <Check className="w-3 h-3 text-white" />}
                   </div>
@@ -312,8 +364,9 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
 
                 {/* Indicador visual de seleção */}
                 {isSelected && (
-                  <div className={`absolute top-0 left-0 w-full h-1 rounded-t-lg 
-                    ${currentTheme === 'dark' ? 'bg-blue-500' : 'bg-blue-400'}`}
+                  <div
+                    className={`absolute top-0 left-0 w-full h-1 rounded-t-lg 
+              ${currentTheme === 'dark' ? 'bg-blue-500' : 'bg-blue-400'}`}
                   />
                 )}
 
@@ -321,58 +374,80 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
                   {getColumnIcon(column, currentTheme)}
 
                   <div className="flex-1 min-w-0">
+                    {/* Nome da coluna */}
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium truncate" title={column.nome}>
+                      <span
+                        className="font-medium truncate"
+                        title={column.nome}
+                      >
                         {column.nome}
                       </span>
                       {column.is_primary_key && (
-                        <Key className="w-3 h-3 text-yellow-500 flex-shrink-0" xlinkTitle={select.length === filteredAndSortedColumns.length ? 'Desmarcar todos' : 'Selecionar todos'} />
+                        <Key
+                          className="w-3 h-3 text-yellow-500 flex-shrink-0"
+                          aria-label="Chave primária"
+                        />
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs mb-1">
-                      <span className={`font-mono px-1.5 py-0.5 rounded ${currentTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
-                        }`}>
+                    {/* Tipo + Nullability */}
+                    <div className="flex flex-wrap items-center gap-2 text-xs mb-1">
+                      <span
+                        className={`font-mono px-1.5 py-0.5 rounded truncate max-w-[120px] sm:max-w-[80px] 
+      ${currentTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}
+                        title={column.tipo.toUpperCase()}
+                      >
                         {column.tipo.toUpperCase()}
                       </span>
                       {column.is_nullable ? (
-                        <span className="text-green-500 flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" />
+                        <span className="text-green-500 flex items-center gap-1 sm:text-[10px]">
+                          <CheckCircle className="w-3 h-3 sm:w-2 sm:h-2" />
                           NULL
                         </span>
                       ) : (
-                        <span className="text-red-500 flex items-center gap-1">
-                          <XCircle className="w-3 h-3" />
+                        <span className="text-red-500 flex items-center gap-1 sm:text-[10px]">
+                          <XCircle className="w-3 h-3 sm:w-2 sm:h-2" />
                           NOT NULL
                         </span>
                       )}
                     </div>
 
-                    {column.default !== null && column.default !== undefined && (
+
+                    {/* Valor padrão */}
+                    {column.default != null && (
                       <div className="text-xs opacity-75 mb-1 break-words">
                         <span className="mr-1">Padrão:</span>
-                        <code className={`px-1 py-0.5 rounded font-mono text-xs break-all ${currentTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
-                          }`}>
+                        <code
+                          className={`px-1 py-0.5 rounded font-mono text-xs break-all 
+                    ${currentTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}
+                        >
                           {String(column.default)}
                         </code>
                       </div>
                     )}
 
+                    {/* ENUM valores */}
                     {column.enum_valores_encontrados && column.enum_valores_encontrados.length > 0 && (
-                      <div className="mt-2">
-                        <div className="text-xs text-blue-500 mb-1">ENUM:</div>
-                        <div className="flex flex-wrap gap-1">
-                          {column.enum_valores_encontrados.map((valor, idx) => (
-                            <span
-                              key={idx + valor + "enum"}
-                              className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded font-mono"
-                              title={valor}
-                            >
-                              {valor}
-                            </span>
-                          ))}
-                        </div>
+                      <div className="flex flex-wrap gap-1">
+                        {column.enum_valores_encontrados.map((valor, idx) => (
+                          <span
+                            key={`${valor}-${idx}-enum`}
+                            className="text-xs sm:text-[10px] bg-blue-100 dark:bg-blue-900 
+                 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded font-mono truncate max-w-[100px]"
+                            title={valor}
+                          >
+                            {valor}
+                          </span>
+                        ))}
                       </div>
+                    )}
+
+                    {/* Foreign Key */}
+                    {column.is_foreign_key && (
+                      <span className="text-xs text-green-500 flex items-center gap-1 mt-1">
+                        <Lock className="w-3 h-3" />
+                        {column.referenced_table} - {column.field_references}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -380,6 +455,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
             );
           })}
         </div>
+
       )}
 
       {/* Paginação */}

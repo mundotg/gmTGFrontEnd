@@ -25,8 +25,8 @@ export const useTableColumns = (tables: MetadataTableResponse[] | undefined) => 
 
     const filtered = allColumns.filter((column) => {
       const matchesSearch =
-        column.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        column.tableName.toLowerCase().includes(searchTerm.toLowerCase());
+        column.nome.toLowerCase().trim().includes(searchTerm.toLowerCase().trim()) ||
+        column.tableName.toLowerCase().trim().includes(searchTerm.toLowerCase().trim());
 
       const matchesFilter =
         filterType === 'all' ||

@@ -18,6 +18,7 @@ export interface QueryBuilderProps {
   showLogicalOperators?: boolean;
   className?: string;
   select: string[];
+  removerCacheLocalStorage?: () => void;
   setSelect: (select: string[]) => void;
 }
 
@@ -50,46 +51,93 @@ export type SelectedRow = {
 };
 
 export type tipo_db_Options =
-  'char' |
-  'text' |
-  'string' |
-  'nchar' |
-  'nvarchar' |
-  'int' |
-  'integer' |
-  'bigint' |
-  'smallint' |
-  'tinyint' |
-  'mediumint' |
-  'decimal' |
-  'numeric' |
-  'double' |
-  'float' |
-  'real' |
-  'money' |
-  'smallmoney' |
-  'boolean' |
-  'date' |
-  'datetime' |
-  'timestamp' |
-  'time' |
-  'year' |
-  'uuid' |
-  'json' |
-  'jsonb' |
-  'object' |
-  'xml' |
-  'blob' |
-  'bytea' |
-  'binary' |
-  'varbinary' |
-  'enum' |
-  'geometry' |
-  'geography' |
-  'point' |
-  'linestring' |
-  'polygon' |
-  'varchar'
+  | 'char'
+  | 'varchar'
+  | 'nchar'
+  | 'nvarchar'
+  | 'text'
+  | 'tinytext'
+  | 'mediumtext'
+  | 'longtext'
+  | 'string'
+  | 'int'
+  | 'integer'
+  | 'smallint'
+  | 'tinyint'
+  | 'mediumint'
+  | 'bigint'
+  | 'serial'
+  | 'bigserial'
+  | 'smallserial'
+  | 'decimal'
+  | 'numeric'
+  | 'float'
+  | 'double'
+  | 'real'
+  | 'money'
+  | 'smallmoney'
+  | 'boolean'
+  | 'bit'
+  | 'date'
+  | 'datetime'
+  | 'datetime2'
+  | 'smalldatetime'
+  | 'timestamp'
+  | 'time'
+  | 'year'
+  | 'interval'
+  | 'uuid'
+  | 'uniqueidentifier'
+  | 'json'
+  | 'jsonb'
+  | 'object'
+  | 'xml'
+  | 'clob'
+  | 'nclob'
+  | 'blob'
+  | 'tinyblob'
+  | 'mediumblob'
+  | 'longblob'
+  | 'bytea'
+  | 'binary'
+  | 'varbinary'
+  | 'image'
+  | 'enum'
+  | 'set'
+  | 'geometry'
+  | 'geography'
+  | 'point'
+  | 'linestring'
+  | 'polygon'
+  | 'inet'
+  | 'cidr'
+  | 'macaddr'
+  | 'tsvector'
+  | 'tsquery'
+  | 'oid'
+  | 'bfile'
+  | 'citext'
+  | 'timestamp with time zone'
+  | 'nvarchar2'
+  |'varchar2'
+  |'number'
+  |'raw'
+  |'long'
+  |'binary_float'
+  |'binary_double'
+  |'timestamp with local time zone'
+  | 'xmltype'
+  |'null'
+  |'array'
+  |'regex'
+  |'objectId'
+  | 'dec'
+  |'double precision'
+  |'float4' | 'float8' | 'serial8' | 'mediumserial' | 'vector'
+  | 'timestamp without time zone' | 'time with time zone' | 'time without time zone'
+
+
+
 
 
 export enum DatabaseType {
@@ -98,6 +146,9 @@ export enum DatabaseType {
   TIMESTAMP = 'TIMESTAMP',
   VARCHAR = 'VARCHAR',
   TEXT = 'TEXT',
+  TIME='time',
+  TIMESTAMP_WITH_TZ = 'time with time zone',
+  TIMESTAMP_WITH_LOCAL_TZ= 'timestamp with local time zone'
 }
 
 export type DisplayFormat =
@@ -110,11 +161,14 @@ export type DisplayFormat =
 export interface CondicaoFiltro {
   table_name_fil: string
   column: string;           // Nome da coluna
-  operator: string;         // Operador (deve estar em operators.value)
-  value: string;   // Valor inserido pelo usuário
+  operator: OperatorType;         // Operador (ex: '=', 'LIKE', 'IN'...)
+  value: string;   // Valor inserido pelo usuário~
+  value2?: string;  // Segundo valor para condições "Entre" e "Não Entre"
   logicalOperator?: 'AND' | 'OR'; // Para combinar com outras condições
   column_type: tipo_db_Options;
   value_type?: 'string' | 'number' | 'date' | 'boolean'; // opcional
+  length?: number; // opcional
+  is_nullable?: boolean; // opcional
 }
 
 export type JoinType = "INNER JOIN" | "LEFT JOIN" | "RIGHT JOIN" | "FULL JOIN";
@@ -125,11 +179,8 @@ export interface JoinOption {
   on?: string; // Ex: 'users.id = pedidos.usuario_id'
 }
 
-export interface WhereCondition {
-  column: string;
-  operator: "=" | "!=" | ">" | "<" | ">=" | "<=" | "LIKE" | "IN"; // pode expandir
-  value: string | number | boolean | (string | number)[];
-}
+export type OperatorType = "=" | "!=" | ">" | "<" | ">=" | "<=" | "IN" | 'Entre' | "Não Contém" | "Depois de" | 'Antes de' | 'Contém' | 'NOT IN' | "Não Entre" | "IS NULL" | "IS NOT NULL"; // pode expandir
+
 
 export interface OrderByOption {
   column: string;
@@ -154,6 +205,29 @@ export interface QueryPayload {
   isCountQuery?: boolean;
 }
 
+export interface RowDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  row: SelectedRow | null;
+  selectColumns?: string[];
+  informacaosOftables: MetadataTableResponse[];
+  onSave?: (updatedRow: EditedFieldForQuery, tables_primary_keys_values: Record<string, Record<string, any>>, index: number ) => void;
+}
+
+export interface RowDetailsModalCreateProps {
+  isOpen: boolean;
+  onClose: () => void;
+  informacaosOftables: MetadataTableResponse[];
+  onSave?: (updatedRow: EditedFieldForQuery ) => void;
+}
+
+
+export interface ForeignKeyOption {
+    id: string;
+    dados: string;
+}
+
+
 export type QueryResultType = {
   success: boolean;
   query: string;
@@ -163,9 +237,8 @@ export type QueryResultType = {
   totalResults: number | null;
   duration_ms: number;
   columns: string[];
-  preview: any[];
+  preview: Record<string, any>[];
   QueryPayload?: QueryPayload;
-
 };
 
 export type QueryCountResultType = {
@@ -220,7 +293,8 @@ export type ConnectionFormData = {
 export type FilterType = typeof FILTER_OPTIONS[number]['value'];
 
 export interface TableColumnsDisplayProps {
-  tableName: string;
+  tableNames: string;
+  tabelaExistenteNaDB: string[];
   columns?: MetadataTableResponse[];
   className?: string;
   isLoading?: boolean;
@@ -237,12 +311,34 @@ export interface TableColumnsDisplayProps {
   onColumnClick?: (column: CampoDetalhado) => void;
 }
 
+
+
+export interface EditedField {
+  value: string;
+  tableName: string;
+  hasChanged: boolean;
+  type_column: string;
+}
+
+
+export type EditedFieldForQuery = {
+  [tableName: string]: {
+    [columnName: string]: {
+      value: string;
+      type_column: string;
+    };
+  };
+};
+
+
+export type Tables_primary_keys_values = Record<string, Record<string, string>>;
+
 export interface CampoDetalhado {
   nome: string;
   tipo: tipo_db_Options;
   is_nullable: boolean;
   is_primary_key: boolean;
-  is_ForeignKey?: boolean;
+  is_foreign_key?: boolean;
   is_auto_increment?: boolean;
   referenced_table?: string | null;
   field_references?: string | null;
@@ -253,13 +349,6 @@ export interface CampoDetalhado {
   enum_valores_encontrados?: string[];
   enum_valores_adicionados?: string[];
 }
-
-export interface EditedField {
-  value: string;
-  tableName: string;
-  hasChanged: boolean;
-}
-
 
 export interface MetadataTableResponse {
   message: string;

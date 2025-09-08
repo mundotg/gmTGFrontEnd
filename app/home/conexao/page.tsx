@@ -165,7 +165,7 @@ const DatabaseConnectionForm = () => {
         trustServerCertificate: formData.trustServerCertificate
       };
       const response = await api.post('/conn/connect', payload, { withCredentials: true });
-      console.log("response=", response)
+      // console.log("response=", response)
       if (response.data.connect) {
         setConnectionStatus("connected");
         setIsConnecting(false);

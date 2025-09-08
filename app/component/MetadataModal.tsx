@@ -1,17 +1,12 @@
 'use client';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { EditedField, MetadataTableResponse, SelectedRow } from '@/types';
+import { EditedField, EditedFieldForQuery, RowDetailsModalProps, Tables_primary_keys_values } from '@/types';
 import DynamicInputByType from './DynamicInputByType';
-import { Lock, Key, Pencil, X, Save, AlertCircle } from 'lucide-react';
-
-interface RowDetailsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  row: SelectedRow | null;
-  selectColumns?: string[];
-  informacaosOftables: MetadataTableResponse[];
-  onSave?: (updatedRow: Record<string, EditedField>) => void;
-}
+import { Lock, Key, Pencil, X, Save, AlertCircle, Search } from 'lucide-react';
+import { validateField, Badge } from '@/util';
+import { usePopupReference } from '../services/popups';
+import { CLASSNAME_BUTTON } from '@/constant';
+import { findIdentifierField } from '@/util/func';
 
 
 const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
@@ -20,12 +15,14 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   row,
   selectColumns,
   informacaosOftables,
-  onSave
+  onSave,
 }) => {
   const [editedFields, setEditedFields] = useState<Record<string, EditedField>>({});
   const [enabledFields, setEnabledFields] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { openReferencePopup: viewReferenceTable } = usePopupReference();
 
   // Memoização das tabelas selecionadas
   const selectedTables = useMemo(() => {
@@ -41,61 +38,43 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     return Object.values(editedFields).some(field => field.hasChanged);
   }, [editedFields]);
 
-  const validateField = useCallback((columnType: string, value: string): string | null => {
-    if (!value.trim()) return null;
-
-    switch (columnType.toLowerCase()) {
-      case 'email':
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(value) ? null : 'Email inválido';
-      case 'int':
-      case 'integer':
-        return isNaN(Number(value)) ? 'Deve ser um número inteiro' : null;
-      case 'float':
-      case 'decimal':
-        return isNaN(Number(value)) ? 'Deve ser um número decimal' : null;
-      case 'date':
-        return isNaN(Date.parse(value)) ? 'Data inválida' : null;
-      default:
-        return null;
-    }
-  }, []);
-
   // Reset do modal quando abrir/fechar
   useEffect(() => {
     if (!isOpen || !row?.row) {
       setEditedFields({});
       setEnabledFields({});
       setErrors({});
-      console.log(informacaosOftables);
       return;
     }
 
     // Inicializar campos editados com valores originais
     const initialEditedFields: Record<string, EditedField> = {};
     const initialEnabledFields: Record<string, boolean> = {};
-
     Object.entries(row.row).forEach(([key, value]) => {
       const tableName = key.split('.')[0];
       initialEditedFields[key] = {
         value: String(value ?? ''),
         tableName,
-        hasChanged: false
+        hasChanged: false,
+        type_column: typeof value
       };
       initialEnabledFields[key] = false;
     });
+
+
 
     setEditedFields(initialEditedFields);
     setEnabledFields(initialEnabledFields);
   }, [row, isOpen, informacaosOftables]);
 
-  // Validação de campo
-
-
   // Handler para mudanças nos campos
-  const handleFieldChange = useCallback((key: string, value: string, tableName: string, columnType: string) => {
+  const handleFieldChange = useCallback((key: string, value: string, tableName: string, columnType: string,isNullable?: boolean) => {
     // Validação
-    const error = validateField(columnType, String(value));
+    let error = validateField(columnType, String(value));
+    // Valida NOT NULL
+    if (!isNullable && (value === "" || value === null || value === undefined)) {
+      error = "Este campo é obrigatório.";
+    }
     setErrors(prev => ({
       ...prev,
       [key]: error || ''
@@ -111,7 +90,8 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
         [key]: {
           value,
           tableName,
-          hasChanged
+          hasChanged,
+          type_column: columnType
         }
       };
     });
@@ -119,6 +99,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
 
   // Handler para salvar
   const handleSave = useCallback(async () => {
+
     if (!onSave || !hasChanges) return;
 
     // Verificar se há erros
@@ -127,26 +108,53 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       console.warn("Não é possível salvar: existem erros de validação");
       return;
     }
+    if (!window.confirm("Tens a certeza que queres editar?")) return;
 
     setIsLoading(true);
 
     try {
-      // Filtrar apenas campos que foram alterados
-      const changedFields = Object.entries(editedFields)
+      const tables_primary_keys_values = Object.entries(editedFields)
         .filter(([, field]) => field.hasChanged)
         .reduce((acc, [key, field]) => {
-          acc[key] = { value: field.value, tableName: field.tableName, hasChanged: field.hasChanged };
-          return acc;
-        }, {} as Record<string, EditedField>);
+          const table = informacaosOftables.find(t => t.table_name === field.tableName);
+          if (!table) return acc;
 
-      await onSave(changedFields);
+          if (!acc[table.table_name]) {
+            const primaryKeyField = findIdentifierField(table.table_name, informacaosOftables);
+            const primary_key_name = `${table.table_name}.${primaryKeyField}`;
+            acc[table.table_name] = {
+              primaryKey: primary_key_name,
+              valor: String(row?.row?.[primary_key_name]) ?? "null",
+            };
+          }
+
+          acc[table.table_name][key] = field.value;
+          return acc;
+        }, {} as Tables_primary_keys_values);
+
+      const updatedRow = Object.entries(editedFields)
+        .filter(([, field]) => field.hasChanged)
+        .reduce<EditedFieldForQuery>((acc, [key, field]) => {
+          const [tableName, column] = key.split(".");
+          if (!acc[tableName]) acc[tableName] = {};
+          acc[tableName][column] = { value: String(field.value), type_column: field.type_column };
+          return acc;
+        }, {});
+
+
+
+      // console.log("Tabelas editadas:", tables_primary_keys_values);
+      console.log("Campos alterados:", updatedRow);
+
+      await onSave(updatedRow, tables_primary_keys_values, row?.index ?? -1);
       onClose();
     } catch (error) {
       console.error("Erro ao salvar:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [onSave, hasChanges, errors, editedFields, onClose]);
+  }, [onSave, hasChanges, errors, editedFields, onClose, informacaosOftables, row]);
+
 
   // Handler para alternar edição
   const toggleEdit = useCallback((field: string) => {
@@ -161,7 +169,6 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     }
     onClose();
   }, [hasChanges, onClose]);
-
   // Handler para clique no overlay
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -176,39 +183,44 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" aria-label='Modal_de_Metadados'
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      aria-label="Modal de Metadados"
       onClick={handleOverlayClick}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-fade-in">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-fade-in scale-95">
+
         {/* Header */}
-        <div className="flex justify-between items-center border-b border-gray-200 p-6">
+        <header className="flex justify-between items-center border-b border-gray-200 p-6">
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-gray-800">
+            <h2 id="modal-title" className="text-2xl font-bold text-gray-800">
               Detalhes da Linha
             </h2>
             {hasChanges && (
-              <div className="flex items-center gap-1 text-amber-600 text-sm">
+              <span className="flex items-center gap-1 text-amber-600 text-sm">
                 <AlertCircle className="w-4 h-4" />
-                <span>Alterações pendentes</span>
-              </div>
+                Alterações pendentes
+              </span>
             )}
           </div>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
             aria-label="Fechar modal"
           >
             <X className="w-6 h-6" />
           </button>
-        </div>
+        </header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6">
           <div className="space-y-8">
             {selectedTables.map((metadata, tableIndex) => (
               <div key={`${metadata.table_name}_${tableIndex}`} className="bg-gray-50 rounded-lg p-5">
                 <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
                   Tabela: {metadata.table_name}
                 </h3>
 
@@ -217,69 +229,108 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
                     const qualifiedName = `${metadata.table_name}.${col.nome}`;
                     const editedField = editedFields[qualifiedName];
 
-                    if (!editedField) {
-                      return null;
-                    }
+                    if (!editedField) return null;
 
                     const isEnabled = enabledFields[qualifiedName] ?? false;
                     const hasError = errors[qualifiedName];
                     const hasChanged = editedField.hasChanged;
 
+
+
                     return (
                       <div key={`${qualifiedName}_${index}`} className="bg-white rounded-lg p-4 border border-gray-200">
                         <label
                           htmlFor={qualifiedName}
-                          className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2"
+                          className="block text-sm font-medium text-gray-700 mb-2 flex flex-wrap items-center gap-2"
                         >
                           <span className={hasChanged ? 'text-blue-600 font-semibold' : ''}>
-                            {col.nome}
+                            {col.nome}{!col.is_nullable && "*"}
                           </span>
-                          {
-                            col.is_primary_key && (
-                              <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                                <Key className="w-4 h-4" xlinkTitle="Chave primária" /> PK
-                              </span>
-                            )
-                          }
-                          {col.is_ForeignKey && (
-                            <span>
-                              <Key className="w-4 h-4 text-blue-500" xlinkTitle="Chave estrangeira" />
-                              {'->'}{col.referenced_table}. {col.field_references}
-                            </span>
+
+                          {col.is_primary_key && (
+                            <Badge color="yellow" icon={<Key className="w-4 h-4" />} text="PK" />
                           )}
-                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                            {col.tipo}
-                          </span>
+
+                          {col.is_foreign_key && (
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                color="green"
+                                icon={<Key className="w-4 h-4" />}
+                                text={`→ ${col.referenced_table}.${col.field_references}`}
+                              />
+                              <button
+                                type="button"
+                                className={CLASSNAME_BUTTON[0]}
+                                disabled={!editedField.value}
+                                onClick={() => {
+                                  viewReferenceTable({
+                                    table: col.referenced_table,
+                                    field: col.field_references,
+                                    value: editedField.value,
+                                  }, {
+                                    name: `${metadata.table_name}_${col.nome}_to_${col.referenced_table}_${col.field_references}`
+                                  });
+                                }}
+                                aria-label={`Ver referência de ${col.referenced_table}.${col.field_references}`}
+                                title={`Abrir tabela de referência: ${col.referenced_table}.${col.field_references}`}
+                              >
+                                <Search className={CLASSNAME_BUTTON[1]} />
+                              </button>
+                            </div>
+                          )}
+
+
+                          <Badge color="gray" text={col.tipo} />
+
                           {hasChanged && (
-                            <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                              Alterado
-                            </span>
+                            <Badge color="blue" text="Alterado" />
                           )}
                         </label>
 
                         <div className="flex items-center gap-2">
                           <div className="flex-1">
                             <DynamicInputByType
+                              enum_values={col.enum_valores_adicionados}
                               type={col.tipo}
                               value={editedField.value}
-                              onChange={(newVal) => handleFieldChange(qualifiedName, newVal, metadata.table_name, col.tipo)}
+                              onChange={(newVal) =>
+                                handleFieldChange(qualifiedName, newVal, metadata.table_name, col.tipo, col.is_nullable)
+                              }
                               disabled={!isEnabled}
+                              aria-invalid={!!hasError}
                             />
                             {hasError && (
                               <p className="text-red-500 text-xs mt-1">{hasError}</p>
                             )}
                           </div>
+
                           <button
                             type="button"
+                            disabled={col.is_auto_increment}
                             onClick={() => toggleEdit(qualifiedName)}
-                            className={`p-2 rounded-lg transition-all ${isEnabled
-                                ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                                : 'bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600'
+                            className={`p-2 rounded-lg transition-all focus:outline-none focus:ring-2
+    ${col.is_auto_increment
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : isEnabled
+                                  ? 'bg-red-100 text-red-600 hover:bg-red-200 focus:ring-red-400'
+                                  : 'bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600 focus:ring-blue-400'
                               }`}
-                            title={isEnabled ? 'Bloquear edição' : 'Habilitar edição'}
+                            title={
+                              col.is_auto_increment
+                                ? "Não podes modificar porque é um autoincremento"
+                                : isEnabled
+                                  ? 'Bloquear edição'
+                                  : 'Habilitar edição'
+                            }
                           >
-                            {isEnabled ? <Lock className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+                            {col.is_auto_increment
+                              ? <Lock className="w-4 h-4 opacity-50" />
+                              : isEnabled
+                                ? <Lock className="w-4 h-4" />
+                                : <Pencil className="w-4 h-4" />
+                            }
                           </button>
+
                         </div>
                       </div>
                     );
@@ -288,13 +339,13 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
               </div>
             ))}
           </div>
-        </div>
+        </main>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+        <footer className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
           <button
             onClick={handleClose}
-            className="px-6 py-2 text-sm font-medium rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-6 py-2 text-sm font-medium rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
             disabled={isLoading}
           >
             Cancelar
@@ -302,7 +353,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
           <button
             onClick={handleSave}
             disabled={!hasChanges || isLoading || Object.values(errors).some(error => error)}
-            className="px-6 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             {isLoading ? (
               <>
@@ -316,10 +367,11 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
               </>
             )}
           </button>
-        </div>
+        </footer>
       </div>
     </div>
   );
+
 };
 
 export default RowDetailsModal;
