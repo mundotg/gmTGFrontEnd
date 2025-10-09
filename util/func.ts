@@ -4,10 +4,10 @@ export const findIdentifierField = (tableName: string, columnsInfo: MetadataTabl
   const table = columnsInfo.find(col => col.table_name === tableName);
   if (!table) return undefined;
   return (
-    table.colunas.find(c => c.is_primary_key)?.nome ||
-    table.colunas.find(c => c.is_unique)?.nome ||
-    table.colunas.find(c => !c.is_nullable)?.nome ||
-    table.colunas[0]?.nome
+    table.colunas.find(c => c.is_primary_key)||
+    table.colunas.find(c => c.is_unique) ||
+    table.colunas.find(c => !c.is_nullable)||
+    table.colunas[0]
   );
 };
 
@@ -105,7 +105,7 @@ export const getDatabaseFormattedValue = (
         return date.toISOString(); // UTC ISO completo
       case DatabaseType.TIMESTAMP_WITH_LOCAL_TZ:
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
-               `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+          `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
       default:
         return value;
     }
@@ -113,3 +113,17 @@ export const getDatabaseFormattedValue = (
     return null;
   }
 };
+
+
+// ----------------- Helpers -----------------
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const parseErrorMessage = (err: any): string =>
+  err?.response?.data?.detail?.[0]?.msg ||
+  err?.response?.data?.detail?.[0] ||
+  err?.response?.data?.detail ||
+  err?.response?.data?.message ||
+  err?.response?.data ||
+  err?.message ||
+  "Erro inesperado. Tente novamente.";
+
+

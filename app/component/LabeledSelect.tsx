@@ -10,7 +10,7 @@ interface Option {
 interface LabeledSelectProps {
   label: string;
   value: string[];
-  onChange: (value: string[]) => Promise<void>;
+  onChange: (value: string) => Promise<void>;
   options: Option[];
   placeholder?: string;
   disabled?: boolean;
@@ -84,15 +84,15 @@ const LabeledSelectComponent: React.FC<LabeledSelectProps> = ({
     (optionValue: string) => {
       const isSelected = value.includes(optionValue);
       if (isSelected) {
-        onChange(value.filter(v => v !== optionValue));
+        onChange(optionValue);
       } else if (!maxSelections || value.length < maxSelections) {
-        onChange([...value, optionValue]);
+        onChange( optionValue);
       }
     },
     [value, onChange, maxSelections]
   );
 
-  const handleClearAll = useCallback(() => onChange([]), [onChange]);
+  const handleClearAll = useCallback(() => onChange(""), [onChange]);
 
   return (
     <div className="w-full">

@@ -3,8 +3,7 @@
 import { useI18n } from '@/context/I18nContext';
 import {
   Database, TableProperties, Search, History,
-  TrendingUp, ChevronLeft, ChevronRight, Menu,
-  Settings, Bell, User, LogOut, HelpCircle,
+  TrendingUp, ChevronLeft, ChevronRight, Settings, Bell, User, LogOut, HelpCircle,
   Sun, Moon, Maximize2, Minimize2
 } from 'lucide-react';
 import Link from 'next/link';
@@ -204,9 +203,11 @@ export default function SidebarPopup({ children }: { children: React.ReactNode }
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen();
       setIsFullscreen(true);
+      setNotifications(5); // Simular novas notificações ao entrar em fullscreen
     } else {
       document.exitFullscreen();
       setIsFullscreen(false);
+      setNotifications(0); // Limpar notificações ao sair do fullscreen
     }
   }, []);
 
@@ -215,6 +216,7 @@ export default function SidebarPopup({ children }: { children: React.ReactNode }
     const savedCollapsed = localStorage.getItem('sidebar-collapsed');
     if (savedCollapsed !== null) {
       setCollapsed(JSON.parse(savedCollapsed));
+      setNotifications(0); // Limpar notificações ao carregar o estado
     }
   }, []);
 
@@ -244,6 +246,7 @@ export default function SidebarPopup({ children }: { children: React.ReactNode }
       if (event.key === 'F11') {
         event.preventDefault();
         toggleFullscreen();
+        setNotifications(0); // Limpar notificações ao usar F11
       }
     };
 

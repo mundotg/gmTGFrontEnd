@@ -383,9 +383,9 @@ interface ColumnInfo {
   type?: string;
 }
 
-type ExportType = 'basic' | 'excel' | 'advanced';
+export type ExportType = 'basic' | 'excel' | 'advanced';
 
-interface UseCsvExporterResult {
+export interface UseCsvExporterResult {
   previewInfo: { size: string; rows: number; columns: number } | null;
   exportProgress: number;
   isExporting: boolean;

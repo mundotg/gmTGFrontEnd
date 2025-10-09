@@ -50,11 +50,6 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
         setEditedFields(initialFields);
     }, [isOpen, informacaosOftables]);
 
-    // Seleciona opção FK
-    const handleFkSelect = useCallback((key: string, option: ForeignKeyOption | null, tableName: string, columnType: string) => {
-        handleFieldChange(key, option?.id || "", tableName, columnType);
-    }, []);
-
     // Atualiza campo
     const handleFieldChange = useCallback(
         (key: string, value: string, tableName: string, columnType: string, isNullable?: boolean) => {
@@ -83,6 +78,11 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
         []
     );
 
+    // Seleciona opção FK
+    const handleFkSelect = useCallback((key: string, option: ForeignKeyOption | null, tableName: string, columnType: string) => {
+        handleFieldChange(key, option?.id || "", tableName, columnType);
+    }, [handleFieldChange]);
+
 
     // Salvar novo registro
     const handleSave = useCallback(async () => {
@@ -109,7 +109,7 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
 
             console.log('Novo registro a ser salvo:', createdRow);
             // await onSave(newRow);
-            const resp =await api.post("/exe/insert_row", { createdRow }, { withCredentials: true });
+            await api.post("/exe/insert_row", { createdRow }, { withCredentials: true });
 
             if (onSave) onSave(createdRow);
 
@@ -231,9 +231,9 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
                                                         {hasChanged && <Badge color="blue" text="Alterado" />}
                                                     </div>
                                                 </label>
-                                                <div>
+                                                <div className='text-black'>
                                                     <DynamicInputByType
-                                                        enum_values={col.enum_valores_adicionados}
+                                                        enum_values={col.enum_valores_encontrados}
                                                         type={col.tipo}
                                                         value={fieldState.value}
                                                         onChange={(val) =>

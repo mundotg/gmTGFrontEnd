@@ -1,0 +1,11 @@
+BUSCAR LINHA COMPLETA;
+
+
+ELIMINAR;
+
+
+
+tpomar notas :
+
+
+erros nos wheres e nos joins

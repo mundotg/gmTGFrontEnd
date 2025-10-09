@@ -1,21 +1,24 @@
 'use client';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { EditedField, EditedFieldForQuery, RowDetailsModalProps, Tables_primary_keys_values } from '@/types';
+import { EditedField, EditedFieldForQuery, MetadataTableResponse, RowDetailsModalProps, Tables_primary_keys_values } from '@/types';
 import DynamicInputByType from './DynamicInputByType';
-import { Lock, Key, Pencil, X, Save, AlertCircle, Search } from 'lucide-react';
+import { Lock, Key, Pencil, X, Save, AlertCircle, Search, Trash2 } from 'lucide-react';
 import { validateField, Badge } from '@/util';
 import { usePopupReference } from '../services/popups';
 import { CLASSNAME_BUTTON } from '@/constant';
 import { findIdentifierField } from '@/util/func';
+import { useRowDelete } from '@/hook/useRowDelete';
+import { createLogger } from '@/util/logger';
 
-
+const logger = createLogger({ component: 'RowDetailsModal' });
+  
 const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   isOpen,
   onClose,
   row,
-  selectColumns,
   informacaosOftables,
   onSave,
+  onDelete,
 }) => {
   const [editedFields, setEditedFields] = useState<Record<string, EditedField>>({});
   const [enabledFields, setEnabledFields] = useState<Record<string, boolean>>({});
@@ -25,13 +28,34 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   const { openReferencePopup: viewReferenceTable } = usePopupReference();
 
   // Memoização das tabelas selecionadas
-  const selectedTables = useMemo(() => {
-    if (!selectColumns || !informacaosOftables) return [];
+  const selectedTables = useMemo<MetadataTableResponse[]>(() => {
+    if (!row?.tableName || !informacaosOftables) return [];
 
-    return informacaosOftables.filter((table) =>
-      selectColumns.some((col) => col.startsWith(`${table.table_name}.`))
-    );
-  }, [selectColumns, informacaosOftables]);
+    return Object.entries(informacaosOftables)
+      .filter(([tableName]) => row.tableName?.includes(tableName))
+      .map(([tableName, colunas]) => ({
+        message: "",
+        executado_em: "",
+        connection_id: 0,
+        schema_name: "",
+        table_name: tableName,
+        total_colunas: colunas.length,
+        colunas,
+      }));
+  }, [row, informacaosOftables]);
+
+  // Usa o hook de delete
+  const {
+    handleDelete,
+    showDeleteConfirm,
+    setShowDeleteConfirm,
+    isDeleting
+  } = useRowDelete({
+    row,
+    selectedTables,
+    onDelete,
+    onClose
+  });
 
   // Verificação de mudanças
   const hasChanges = useMemo(() => {
@@ -44,34 +68,51 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       setEditedFields({});
       setEnabledFields({});
       setErrors({});
+      setShowDeleteConfirm(false);
       return;
     }
 
-    // Inicializar campos editados com valores originais
     const initialEditedFields: Record<string, EditedField> = {};
     const initialEnabledFields: Record<string, boolean> = {};
-    Object.entries(row.row).forEach(([key, value]) => {
-      const tableName = key.split('.')[0];
-      initialEditedFields[key] = {
-        value: String(value ?? ''),
+    
+    const rowEntries = Object.entries(row.row);
+    const nameColumns = row.nameColumns || [];
+    const mainTableName = row.tableName?.[0] || 'unknown_table';
+    rowEntries.forEach(([key, value], index) => {
+      let columnName: string;
+      let tableName: string;
+
+      if (index < nameColumns.length && nameColumns[index]) {
+        columnName = nameColumns[index];
+        if (typeof columnName === 'string' && columnName.includes('.')) {
+          tableName = columnName.split('.')[0];
+        } else {
+          tableName = mainTableName;
+        }
+      } else {
+        columnName = key;
+        tableName = mainTableName;
+      }
+
+      const safeColumnName = typeof columnName === 'string' ? columnName : key;
+
+      initialEditedFields[safeColumnName] = {
+        value: value !== null && value !== undefined ? String(value) : '',
         tableName,
         hasChanged: false,
         type_column: typeof value
       };
-      initialEnabledFields[key] = false;
+      initialEnabledFields[safeColumnName] = false;
     });
-
-
 
     setEditedFields(initialEditedFields);
     setEnabledFields(initialEnabledFields);
-  }, [row, isOpen, informacaosOftables]);
+
+  }, [row, isOpen, informacaosOftables, setShowDeleteConfirm]);
 
   // Handler para mudanças nos campos
-  const handleFieldChange = useCallback((key: string, value: string, tableName: string, columnType: string,isNullable?: boolean) => {
-    // Validação
+  const handleFieldChange = useCallback((key: string, value: string, tableName: string, columnType: string, isNullable?: boolean) => {
     let error = validateField(columnType, String(value));
-    // Valida NOT NULL
     if (!isNullable && (value === "" || value === null || value === undefined)) {
       error = "Este campo é obrigatório.";
     }
@@ -80,7 +121,6 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       [key]: error || ''
     }));
 
-    // Atualizar campo editado
     setEditedFields(prev => {
       const originalValue = row?.row?.[key] ?? '';
       const hasChanged = String(originalValue) !== value;
@@ -99,13 +139,11 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
 
   // Handler para salvar
   const handleSave = useCallback(async () => {
-
     if (!onSave || !hasChanges) return;
 
-    // Verificar se há erros
     const hasErrors = Object.values(errors).some(error => error);
     if (hasErrors) {
-      console.warn("Não é possível salvar: existem erros de validação");
+      logger.warn("Não é possível salvar: existem erros de validação");
       return;
     }
     if (!window.confirm("Tens a certeza que queres editar?")) return;
@@ -116,11 +154,11 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       const tables_primary_keys_values = Object.entries(editedFields)
         .filter(([, field]) => field.hasChanged)
         .reduce((acc, [key, field]) => {
-          const table = informacaosOftables.find(t => t.table_name === field.tableName);
+          const table = selectedTables.find(t => t.table_name === field.tableName);
           if (!table) return acc;
 
           if (!acc[table.table_name]) {
-            const primaryKeyField = findIdentifierField(table.table_name, informacaosOftables);
+            const primaryKeyField = findIdentifierField(table.table_name, selectedTables)?.nome;
             const primary_key_name = `${table.table_name}.${primaryKeyField}`;
             acc[table.table_name] = {
               primaryKey: primary_key_name,
@@ -135,26 +173,22 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       const updatedRow = Object.entries(editedFields)
         .filter(([, field]) => field.hasChanged)
         .reduce<EditedFieldForQuery>((acc, [key, field]) => {
-          const [tableName, column] = key.split(".");
+          const [tableName, column] = key?.split(".");
           if (!acc[tableName]) acc[tableName] = {};
           acc[tableName][column] = { value: String(field.value), type_column: field.type_column };
           return acc;
         }, {});
 
-
-
-      // console.log("Tabelas editadas:", tables_primary_keys_values);
-      console.log("Campos alterados:", updatedRow);
+      logger.success("Campos alterados:", updatedRow);
 
       await onSave(updatedRow, tables_primary_keys_values, row?.index ?? -1);
       onClose();
     } catch (error) {
-      console.error("Erro ao salvar:", error);
+      logger.error("Erro ao salvar:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [onSave, hasChanges, errors, editedFields, onClose, informacaosOftables, row]);
-
+  }, [onSave, hasChanges, errors, editedFields, onClose, informacaosOftables, row, selectedTables]);
 
   // Handler para alternar edição
   const toggleEdit = useCallback((field: string) => {
@@ -169,6 +203,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     }
     onClose();
   }, [hasChanges, onClose]);
+
   // Handler para clique no overlay
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -235,8 +270,6 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
                     const hasError = errors[qualifiedName];
                     const hasChanged = editedField.hasChanged;
 
-
-
                     return (
                       <div key={`${qualifiedName}_${index}`} className="bg-white rounded-lg p-4 border border-gray-200">
                         <label
@@ -279,7 +312,6 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
                             </div>
                           )}
 
-
                           <Badge color="gray" text={col.tipo} />
 
                           {hasChanged && (
@@ -290,7 +322,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
                         <div className="flex items-center gap-2">
                           <div className="flex-1">
                             <DynamicInputByType
-                              enum_values={col.enum_valores_adicionados}
+                              enum_values={col.enum_valores_encontrados}
                               type={col.tipo}
                               value={editedField.value}
                               onChange={(newVal) =>
@@ -309,7 +341,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
                             disabled={col.is_auto_increment}
                             onClick={() => toggleEdit(qualifiedName)}
                             className={`p-2 rounded-lg transition-all focus:outline-none focus:ring-2
-    ${col.is_auto_increment
+                              ${col.is_auto_increment
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                 : isEnabled
                                   ? 'bg-red-100 text-red-600 hover:bg-red-200 focus:ring-red-400'
@@ -330,7 +362,6 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
                                 : <Pencil className="w-4 h-4" />
                             }
                           </button>
-
                         </div>
                       </div>
                     );
@@ -342,36 +373,94 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
         </main>
 
         {/* Footer */}
-        <footer className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+        <footer className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50">
+          {/* Botão de Delete - Lado esquerdo */}
           <button
-            onClick={handleClose}
-            className="px-6 py-2 text-sm font-medium rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
-            disabled={isLoading}
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={isLoading || isDeleting}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-red-400"
+            title="Eliminar este registro"
           >
-            Cancelar
+            <Trash2 className="w-4 h-4" />
+            Eliminar
           </button>
-          <button
-            onClick={handleSave}
-            disabled={!hasChanges || isLoading || Object.values(errors).some(error => error)}
-            className="px-6 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          >
-            {isLoading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Salvando...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Salvar Alterações
-              </>
-            )}
-          </button>
+
+          {/* Botões de Save/Cancel - Lado direito */}
+          <div className="flex gap-3">
+            <button
+              onClick={handleClose}
+              className="px-6 py-2 text-sm font-medium rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
+              disabled={isLoading || isDeleting}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges || isLoading || isDeleting || Object.values(errors).some(error => error)}
+              className="px-6 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Salvar Alterações
+                </>
+              )}
+            </button>
+          </div>
         </footer>
+
+        {/* Modal de Confirmação de Delete */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-fade-in">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">Confirmar Eliminação</h3>
+              </div>
+              
+              <p className="text-gray-600 mb-6">
+                Tem a certeza que deseja eliminar este registro? Esta ação não pode ser desfeita.
+              </p>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  disabled={isDeleting}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors flex items-center gap-2"
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Sim, Eliminar
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
-
 };
 
 export default RowDetailsModal;

@@ -20,7 +20,7 @@ export default function RootLayout({
         className={`antialiased`}
       >
         <AuthProvider>
-          <div className="flex h-screen bg-gray-50">
+          <div className="flex bg-gray-50">
             <Sidebar >
               {children}
             </Sidebar>
