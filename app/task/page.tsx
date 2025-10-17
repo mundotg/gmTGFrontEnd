@@ -1,258 +1,516 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import ProjectModal from "./components/ProjectModal";
-import TaskModal from "./components/TaskModal";
-import { Project, Task, TaskStatus } from "./types";
-import { ProjectList } from "./paginas/ProjectList";
-import { TaskList } from "./paginas/Tasklist";
-import { useSession } from "@/context/SessionContext";
+import { TaskModal } from "./components/TaskModal";
+import { Project, ProjectFormData, Sprint, Task, Taskcreate, TypeShowToste, UsuarioTaskCreate } from "./types";
+import ProjectList from "./paginas/ProjectList";
+import TaskList from "./paginas/Tasklist";
+import { AuthModal } from "./components/AuthModal";
+import { useSessionTask } from "./contexts/UserContext";
+import { SessionMenu } from "./components/SessionMenu";
+import { PaginatedResponse } from "./components/Paginacao";
+import usePersistedState from "@/hook/localStoreUse";
+import { Loader2, ArrowLeft, Briefcase } from "lucide-react";
+import { convertProject } from "./utils";
+import { Toast } from "./components/ToastComponent";
+import { DEFAULT_TASK_DURATION } from "./costant";
 
-const TASK_CHECK_INTERVAL = 60_000;
-const DEFAULT_TASK_DURATION = 7 * 24 * 60 * 60 * 1000;
-const DEFAULT_SPRINT_DURATION = 14 * 24 * 60 * 60 * 1000;
 
 const App: React.FC = () => {
-    const { user, isLoading, isAuthenticated, api } = useSession();
-    const [projects, setProjects] = useState<Project[]>([]);
-    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-    const [isProjectModalOpen, setProjectModalOpen] = useState(false);
-    const [isTaskModalOpen, setTaskModalOpen] = useState(false);
-    const [editingProject, setEditingProject] = useState<Project | null>(null);
-    const [editingTask, setEditingTask] = useState<Task | null>(null);
-    const [formError, setFormError] = useState<string | null>(null);
-    const [newTaskProjectId, setNewTaskProjectId] = useState<string | null>(null);
+  const {
+    user,
+    isLoading,
+    isAuthenticated,
+    api,
+    login,
+    register,
+    logout: handleLogout,
+  } = useSessionTask();
 
-    const fetchProjects = useCallback(async () => {
-        if (!isAuthenticated) return;
-        try {
-            const res = await api.get("/projects");
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const data: Project[] = res.data.map((p: any) => ({
-                ...p,
-                createdAt: new Date(p.created_at),
-                dueDate: p.dueDate ? new Date(p.due_date) : undefined,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                tasks: p.tasks.map((t:any) => ({
-                    ...t,
-                    startDate: new Date(t.start_date),
-                    endDate: new Date(t.end_date),
-                    completedAt: t.completed_at ? new Date(t.completed_at) : undefined,
-                })),
-            }));
-            setProjects(data);
-        } catch {
-            setFormError("Não foi possível carregar os projetos.");
-        }
-    }, [isAuthenticated, api]);
+  const [projects, setProjects] = usePersistedState<PaginatedResponse<Project>>(
+    "paginacaoprojectos",
+    { items: [], limit: 10, page: 1, pages: 0, total: 0 }
+  );
+  const [sprintList, setSprintList] = usePersistedState<Record<string, PaginatedResponse<Sprint>>>(
+    "paginacaoprojectoSprint",
+    {}
+  );
+  const [selectedProjectId, setSelectedProjectId] = usePersistedState<string | null>("projectIdTask", null)
+  const [selectedSprintId, setSelectedSprintId] = usePersistedState<string | null | undefined>("SprintIdTask", null)
+  const [isProjectModalOpen, setProjectModalOpen] = usePersistedState("isProjectModalOpen", false);
+  const [isTaskModalOpen, setTaskModalOpen] = usePersistedState("isTaskModalOpen", false);
+  const [editingProject, setEditingProject] = usePersistedState<ProjectFormData | null>("editingProject", null);
+  const [editingTask, setEditingTask,clearEditTask] = usePersistedState<Task | null>("editingTask", null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [selectedProject, setSelectedProject] = usePersistedState<Project | null | undefined>("selectedProject_", null)
+  
 
-    useEffect(() => { if (isAuthenticated && !isLoading) fetchProjects(); }, [isAuthenticated, isLoading, fetchProjects]);
-
-    const validateProjectForm = (f: Partial<Project>) => !f.name?.trim() ? "O nome do projeto é obrigatório." : null;
-    const validateTaskForm = (f: Partial<Task>) => !f.title?.trim() ? "O título da tarefa é obrigatório." : null;
-
-    const handleAddProject = useCallback(async (f: Partial<Project>) => {
-        const err = validateProjectForm(f); if (err) return setFormError(err);
-        try {
-            const res = await api.post("/projects", f);
-            setProjects(prev => [...prev, res.data]);
-            setProjectModalOpen(false);
-            setFormError(null);
-        }
-        catch { setFormError("Não foi possível criar o projeto."); }
-    }, [api]);
-
-    const handleEditProject = useCallback(async (f: Partial<Project>) => {
-        if (!editingProject) return;
-        const err = validateProjectForm(f); if (err) return setFormError(err);
-        try {
-            const res = await api.put(`/projects/${editingProject.id}`, f);
-            setProjects(prev => prev.map(p => p.id === editingProject.id ? res.data : p));
-            setEditingProject(null);
-            setProjectModalOpen(false);
-            setFormError(null);
-        }
-        catch { setFormError("Não foi possível atualizar o projeto."); }
-    }, [api, editingProject]);
-
-    const handleDeleteProject = useCallback(async (id: string) => {
-        if (!confirm("Tem certeza?")) return;
-        try { await api.delete(`/projects/${id}`); setProjects(prev => prev.filter(p => p.id !== id)); if (selectedProjectId === id) setSelectedProjectId(null); }
-        catch { setFormError("Não foi possível deletar o projeto."); }
-    }, [api, selectedProjectId]);
-
-    const validateTasks = useCallback((p: Project) => {
-        const now = new Date();
-        return {
-            ...p,
-            tasks: p.tasks?.map(t =>
-                t.endDate && now > t.endDate && t.status !== "concluida"
-                    ? { ...t, status: "atrasada" as TaskStatus }
-                    : t
-            )
-        };
-    }, []);
+  const [selectedSprint, setSelectedSprint] = usePersistedState<Sprint | null | undefined>("selectedSprint_", null)
 
 
-    useEffect(() => { const interval = setInterval(() => setProjects(prev => prev.map(validateTasks)), TASK_CHECK_INTERVAL); return () => clearInterval(interval); }, [validateTasks]);
+  // Função auxiliar para mostrar toast
+  const showToast = useCallback((message: string, type:TypeShowToste = "info") => {
+    setToast({ message, type });
+  }, [setToast]);
 
-    const handleAddTask = useCallback(async (f: Partial<Task>) => {
-        const err = validateTaskForm(f);
-        if (err) return setFormError(err);
-        if (!newTaskProjectId) return setFormError("Nenhum projeto selecionado.");
+  // Validações
+  const validateProjectForm = useCallback((f: Partial<Project>) =>
+    !f.name?.trim() ? "O nome do projeto é obrigatório." : null, []);
 
-        const newTask: Task = {
-            id: crypto.randomUUID(),
-            title: f.title!.trim(),
-            description: f.description?.trim(),
-            status: "pendente",
-            project_id: newTaskProjectId,
-            priority: f.priority ?? "media",
-            assignedTo: f.assignedTo ?? (user?.nome || "Desconhecido"),
-            createdBy: user?.nome || "Desconhecido",
-            startDate: f.startDate ? new Date(f.startDate) : new Date(),
-            endDate: f.endDate ? new Date(f.endDate) : new Date(Date.now() + DEFAULT_TASK_DURATION),
-            estimatedHours: f.estimatedHours,
-            tags: f.tags ?? [],
-            isValidated: false,
-            // Removido projectId pois não existe em Task
-        };
+  const validateTaskForm = useCallback((f: Partial<Task>) =>
+    !f.title?.trim() ? "O título da tarefa é obrigatório." : null, []);
+  // CRUD DE PROJETOS
+  const handleAddProject = useCallback(
+    async (f: Partial<Project>) => {
+      const err = validateProjectForm(f);
+      if (err) return setFormError(err);
 
-        try {
-            const res = await api.post(`/projects/${newTaskProjectId}/tasks`, newTask);
-            setProjects(prev =>
-                prev.map(p => (p.id === newTaskProjectId ? { ...p, tasks: [...(p.tasks ?? []), res.data] } : p))
-            );
-            setTaskModalOpen(false);
-            setNewTaskProjectId(null);
-            setFormError(null);
-        } catch (error) {
-            setFormError("Não foi possível criar a tarefa."+error);
-        }
-    }, [newTaskProjectId, user?.nome,api]);
+      setActionLoading(true);
+      try {
+        const res = await api.post("/projects", f);
 
-
-    const handleEditTask = useCallback(async (f: Partial<Task>) => {
-        if (!editingTask) return;
-        const updatedTask = { ...editingTask, ...f };
-
-        try {
-            const res = await api.put(
-                `/projects/${editingTask.project_id}/tasks/${editingTask.id}`,
-                updatedTask
-            );
-            setProjects(prev =>
-                prev.map(p => ({
-                    ...p,
-                    tasks: p.tasks ? p.tasks.map(t => (t.id === editingTask.id ? res.data : t)) : []
-                }))
-            );
-            setTaskModalOpen(false);
-            setEditingTask(null);
-            setFormError(null);
-        } catch (error) {
-            setFormError("Não foi possível atualizar a tarefa." + error);
-        }
-    }, [editingTask,api]);
-
-
-    const handleToggleTask = useCallback((projectId: string, taskId: string) => {
-        setProjects(prev => prev.map(p => {
-            if (p.id !== projectId) return p;
-            return {
-                ...p,
-                tasks: p.tasks ? p.tasks.map(t => {
-                    if (t.id !== taskId) return t;
-                    const newStatus = t.status === "concluida" ? "pendente" : "concluida";
-                    return { ...t, status: newStatus, completedAt: newStatus === "concluida" ? new Date() : undefined };
-                }) : []
-            };
+        setProjects((prev) => ({
+          ...prev,
+          items: [...prev.items, res.data],
+          total: prev.total + 1,
         }));
-    }, []);
+
+        setProjectModalOpen(false);
+        setFormError(null);
+        showToast("Projeto criado com sucesso!", "success");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        console.error("Erro ao criar projeto:", error);
+        const errorMsg = error.response?.data?.detail || "Não foi possível criar o projeto.";
+        setFormError(errorMsg);
+        showToast(errorMsg, "error");
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [api, setProjectModalOpen, setProjects, showToast, validateProjectForm]
+  );
+
+  const handleEditProject = useCallback(
+    async (f: Partial<Project>) => {
+      if (!editingProject) return;
+
+      const err = validateProjectForm(f);
+      if (err) return setFormError(err);
+
+      setActionLoading(true);
+      try {
+        const res = await api.put(`/projects/${editingProject.id}`, f);
+
+        setProjects((prev) => ({
+          ...prev,
+          items: prev.items.map((p) => (p.id === editingProject.id ? res.data : p)),
+        }));
+
+        setEditingProject(null);
+        setProjectModalOpen(false);
+        setFormError(null);
+        showToast("Projeto atualizado com sucesso!", "success");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        console.error("Erro ao atualizar projeto:", error);
+        const errorMsg = error.response?.data?.detail || "Não foi possível atualizar o projeto.";
+        setFormError(errorMsg);
+        showToast(errorMsg, "error");
+
+        throw error;
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [api, editingProject, setProjectModalOpen, setProjects, showToast, validateProjectForm]
+  );
+
+  const handleDeleteProject = useCallback(
+    async (id: string) => {
+      if (!confirm("Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.")) return;
+
+      setActionLoading(true);
+      try {
+        await api.delete(`/projects/${id}`);
+
+        setProjects((prev) => ({
+          ...prev,
+          items: prev.items.filter((p) => p.id !== id),
+          total: prev.total - 1,
+        }));
+
+        if (selectedProjectId === id) setSelectedProjectId(null);
+        setFormError(null);
+        showToast("Projeto excluído com sucesso!", "success");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        console.error("Erro ao deletar projeto:", error);
+        const errorMsg = error.response?.data?.detail || "Não foi possível deletar o projeto.";
+        showToast(errorMsg, "error");
+        throw error;
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [api, selectedProjectId,setSelectedProjectId]
+  );
+
+  // CRUD DE TAREFAS
+  const handleAddTask = useCallback(
+    async (f: Partial<Taskcreate>) => {
+      const err = validateTaskForm(f);
+      if (err) return setFormError(err);
+      const projectId = f.projectId || selectedProject?.id || selectedProjectId
+      if (!projectId) {
+        return setFormError("Nenhum projeto selecionado.");
+      }
+
+      const newTask: Taskcreate = {
+        id: crypto.randomUUID(),
+        title: f.title!.trim(),
+        description: f.description?.trim(),
+        status: "pendente",
+        projectId: f.projectId,
+        priority: f.priority ?? "media",
+        assignedToId: f.assignedToId ?? user?.id ?? "desconhecido",
+        createdById: user?.id ?? "desconhecido",
+        startDate: f.startDate,
+        endDate: f.endDate
+          ? f.endDate
+          : new Date(Date.now() + DEFAULT_TASK_DURATION),
+        estimatedHours: f.estimatedHours ?? 0,
+        tags: f.tags ?? [],
+        isValidated: false,
+        delegatedToId: f.delegatedToId,
+        schedule: f.schedule,
+        sprintId: f.sprintId,
+
+      };
+
+      setActionLoading(true);
+      try {
+        const res = await api.post(`/task/${projectId}/tasks`, newTask);
+
+        setProjects((prev) => ({
+          ...prev,
+          items: prev.items.map((p) =>
+            p.id === projectId
+              ? { ...p, tasks: [...(p.tasks ?? []), res.data] }
+              : p
+          ),
+        }));
+
+        setTaskModalOpen(false);
+        setFormError(null);
+        showToast("Tarefa criada com sucesso!", "success");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        console.error("Erro ao criar tarefa:", error);
+        const errorMsg = error.response?.data?.detail || "Não foi possível criar a tarefa.";
+        setFormError(errorMsg);
+        showToast(errorMsg, "error");
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [user?.id, api, selectedProject?.id]
+  );
+
+  const handleDeleteTask = useCallback(
+    async (projectId: string, taskId: string) => {
+      if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
+
+      setActionLoading(true);
+      try {
+        await api.delete(`/task/${projectId}/tasks/${taskId}`);
+
+        setProjects((prev) => ({
+          ...prev,
+          items: prev.items.map((p) =>
+            p.id === projectId
+              ? { ...p, tasks: (p.tasks ?? []).filter((t) => t.id !== taskId) }
+              : p
+          ),
+        }));
+
+        setFormError(null);
+        showToast("Tarefa excluída com sucesso!", "success");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        console.error("Erro ao excluir tarefa:", error);
+        const errorMsg = error.response?.data?.detail || "Não foi possível excluir a tarefa.";
+        showToast(errorMsg, "error");
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [api]
+  );
+
+  const handleEditTask = useCallback(
+    async (f: Partial<Taskcreate>) => {
+      if (!editingTask) return;
+      const projectId = f.projectId || selectedProject?.id || selectedProjectId
+      if (!projectId) {
+        return setFormError("Nenhum projeto selecionado.");
+      }
+      const updatedTask: Taskcreate = {
+        id: crypto.randomUUID(),
+        title: f.title || "",
+        description: f.description,
+        status: f.status,
+        projectId: f.projectId || projectId,
+        priority: f.priority ,
+        assignedToId: f.assignedToId || user?.id || "",
+        createdById: f.createdById || user?.id,
+        startDate: f.startDate,
+        endDate: f.endDate || "",
+        estimatedHours: f.estimatedHours || 0,
+        tags: f.tags,
+        isValidated: f.isValidated,
+        completedAt: f.completedAt,
+        delegatedToId: f.delegatedToId,
+        schedule: f.schedule,
+        sprintId: f.sprintId 
+
+      };
 
 
-    const handleDeleteTask = useCallback(async (projectId: string, taskId: string) => {
-        if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
-        try {
-            await api.delete(`/projects/${projectId}/tasks/${taskId}`);
-            setProjects(prev =>
-                prev.map(p => (p.id === projectId ? { ...p, tasks: (p.tasks ?? []).filter(t => t.id !== taskId) } : p))
-            );
-        } catch (error) {
-            setFormError("Não foi possível excluir a tarefa." + error);
-        }
-    }, [api]);
+      setActionLoading(true);
+      try {
+        const res = await api.put(
+          `/task/${editingTask.project_id}/tasks/${editingTask.id}`,
+          updatedTask
+        );
+
+        setProjects((prev) => ({
+          ...prev,
+          items: prev.items.map((p) =>
+            p.id === editingTask.project_id
+              ? {
+                ...p,
+                tasks: (p.tasks ?? []).map((t) =>
+                  t.id === editingTask.id ? res.data : t
+                ),
+              }
+              : p
+          ),
+        }));
+
+        setTaskModalOpen(false);
+        setEditingTask(null);
+        setFormError(null);
+        showToast("Tarefa atualizada com sucesso!", "success");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        console.error("Erro ao atualizar tarefa:", error);
+        const errorMsg = error.response?.data?.detail || "Não foi possível atualizar a tarefa.";
+        setFormError(errorMsg);
+        showToast(errorMsg, "error");
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [api, editingTask]
+  );
+
+  // LOGIN E REGISTRO
+  const handleLogin = useCallback(
+    async (email: string, password: string) => {
+      try {
+        await login(email, password);
+        showToast("Login realizado com sucesso!", "success");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        showToast(error.message || "Erro ao fazer login", "error");
+      }
+    },
+    [login]
+  );
+
+  const handleRegister = useCallback(
+    async (data:UsuarioTaskCreate) => {
+      try {
+        await register(data);
+        showToast("Conta criada com sucesso!", "success");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        showToast(error.message || "Erro ao criar conta", "error");
+      }
+    },
+    [register]
+  );
 
 
-    const handleDelegateTask = useCallback((projectId: string, taskId: string, newUser: string) => {
-        setProjects(prev => prev.map(p => p.id === projectId ? { ...p, tasks: (p.tasks ?? []).map(t => t.id === taskId ? { ...t, assignedTo: newUser } : t) } : p));
-    }, []);
 
-    const handleToggleSprint = useCallback((projectId: string) => {
-        setProjects(prev => prev.map(p => p.id === projectId ? { ...p, sprint: p.sprint?.isActive ? { ...p.sprint, isActive: false } : { id: crypto.randomUUID(), name: `Sprint ${new Date().toLocaleDateString("pt-BR")}`, isActive: true, startDate: new Date(), endDate: new Date(Date.now() + DEFAULT_SPRINT_DURATION), goal: "Sprint objetivo" } } : p));
-    }, []);
-
-    const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
-
+  // UI - Loading
+  if (isLoading) {
     return (
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-                <header className="text-center mb-8 sm:mb-12">
-                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">Gerenciador de Projetos</h1>
-                    <p className="text-gray-600 text-lg max-w-2xl mx-auto">Organize seus projetos, gerencie tarefas e acompanhe o progresso da equipe</p>
-                </header>
-                <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10">
-                    {!selectedProject ? (
-                        <ProjectList
-                            projects={projects}
-                            onSelectProject={setSelectedProjectId}
-                            onOpenAddProject={() => { setEditingProject(null); setFormError(null); setProjectModalOpen(true); }}
-                            onEditProject={id => { const p = projects.find(p => p.id === id); if (p) { setEditingProject(p); setFormError(null); setProjectModalOpen(true); } }}
-                            onDeleteProject={handleDeleteProject}
-                            onToggleSprint={handleToggleSprint}
-                        />
-                    ) : (
-                        <TaskList
-                            project={selectedProject}
-                            onBack={() => setSelectedProjectId(null)}
-                            onOpenAddTask={() => { setEditingTask(null); setFormError(null); setNewTaskProjectId(selectedProject.id ?? null); setTaskModalOpen(true); }}
-                            onToggleTask={taskId => selectedProject.id ? handleToggleTask(selectedProject.id, taskId) : undefined}
-                            onEditTask={taskId => { 
-                                const t = selectedProject.tasks?.find(t => t.id === taskId); 
-                                if (t) { setEditingTask(t); setFormError(null); setTaskModalOpen(true); } 
-                            }}
-                            onDeleteTask={taskId => {
-                                if (selectedProject.id) {
-                                    handleDeleteTask(selectedProject.id, taskId);
-                                }
-                            }}
-                            onDelegateTask={(taskId, newUser) => {
-                                if (selectedProject.id) {
-                                    handleDelegateTask(selectedProject.id, taskId, newUser);
-                                }
-                            }}
-                        />
-                    )}
-                </div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="text-center">
+          <Loader2 className="animate-spin h-12 w-12 text-indigo-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // UI - Não autenticado
+  if (!isAuthenticated) {
+    return (
+      <AuthModal
+        isOpen={true}
+        onClose={() => { }}
+        onLogin={handleLogin}
+        onRegister={handleRegister}
+      />
+    );
+  }
+
+
+
+  return (
+    <div className="bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen ">
+      {/* Toast de feedback */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* Header fixo */}
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <div className="flex items-center gap-3">
+              <Briefcase className="text-indigo-600 w-6 h-6 sm:w-7 sm:h-7" />
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">
+                Gerenciador de Projetos
+              </h1>
             </div>
 
-            <ProjectModal
-                isOpen={isProjectModalOpen}
-                editingProject={editingProject}
-                formError={formError}
-                onClose={() => { setProjectModalOpen(false); setEditingProject(null); setFormError(null); }}
-                onSubmit={editingProject ? handleEditProject : handleAddProject}
-            />
-
-            <TaskModal
-                isOpen={isTaskModalOpen}
-                editingTask={editingTask ?? undefined}
-                formError={formError ?? undefined}
-                defaultAssignedTo={user?.nome ?? "Desconhecido"}
-                onClose={() => { setTaskModalOpen(false); setEditingTask(null); setFormError(null); }}
-                onSubmit={editingTask ? handleEditTask : handleAddTask}
-            />
+            <SessionMenu user={user} onLogout={handleLogout} />
+          </div>
         </div>
-    );
+      </header>
+
+      {/* Breadcrumb para navegação */}
+      {selectedProject && (
+        <div className="bg-white border-b border-gray-200">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2">
+            <button
+              onClick={() => {setSelectedProjectId(null); setSelectedProject(null);setSelectedSprint(null);setSelectedSprintId(null)}}
+              className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+            >
+              <ArrowLeft size={16} />
+              <span className="font-medium">Voltar para Projetos</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Conteúdo principal */}
+      <main className="container mx-auto p-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 overflow-auto ">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl ">
+          <div className=" ">
+            {!selectedProject ? (
+              <ProjectList
+
+              showToast={showToast}
+                projects={projects}
+                sprintList={sprintList}
+                setSprintList={setSprintList}
+                setProjects={setProjects}
+                onSelectProject={(project,spring) => {
+                  setSelectedSprint( spring)
+                  setSelectedProject(project)
+                }}
+                onOpenAddProject={() => {
+                  setEditingProject(null);
+                  setFormError(null);
+                  setProjectModalOpen(true);
+                }}
+                onEditProject={(id) => {
+                  const p = projects.items.find((p) => p.id === id);
+                  if (p) {
+                    setEditingProject(convertProject(p) as ProjectFormData);
+                    setFormError(null);
+                    setProjectModalOpen(true);
+                  }
+                }}
+                onDeleteProject={handleDeleteProject}
+              />
+            ) : (
+              <TaskList
+                showToast={showToast}
+                project={selectedProject}
+                sprint={selectedSprint}
+                onBack={() => {setSelectedProjectId(null); setSelectedProject(null) ; setSelectedSprint(null);setSelectedSprintId(null)}}
+                onOpenAddTask={(project_id, sprint_id) => {
+                  // console.log(project_id," on", sprint_id)
+                  setSelectedProjectId(project_id)
+                  setSelectedSprintId(sprint_id)
+                  clearEditTask()
+                  setEditingTask(null);
+                  setFormError(null);
+                  setTaskModalOpen(true);
+
+                }}
+                onEditTask={(task) => {
+                  clearEditTask()
+                  setEditingTask(task);
+                  setFormError(null);
+                  setTaskModalOpen(true);
+
+                }}
+                onDeleteTask={(taskId) =>
+                  selectedProject.id && handleDeleteTask(selectedProject.id, taskId)
+                }
+                onToggleTask={() => { }}
+                onDelegateTask={() => { }}
+              />
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* Modais */}
+      {isProjectModalOpen && <ProjectModal
+        isOpen={isProjectModalOpen}
+        editingProject={editingProject}
+        formError={formError}
+        onClose={() => {
+          setProjectModalOpen(false);
+          setEditingProject(null);
+          setFormError(null);
+        }}
+        onSubmit={editingProject ? handleEditProject : handleAddProject}
+      // isLoading={actionLoading}
+      />}
+
+      {isTaskModalOpen && <TaskModal
+        isOpen={isTaskModalOpen}
+        isLoading={actionLoading}
+        projectId={selectedProjectId!}
+        sprintid={editingTask ? null :selectedSprintId}
+        editingTask={editingTask ?? undefined}
+        formError={formError ?? undefined}
+        defaultAssignedTo={user?.nome ?? "Desconhecido"}
+        onClose={() => {
+          setTaskModalOpen(false);
+          setEditingTask(null);
+          setFormError(null);
+        }}
+        onSubmit={editingTask ? handleEditTask : handleAddTask}
+      // isLoading={actionLoading}
+      />}
+    </div>
+  );
 };
 
 export default App;

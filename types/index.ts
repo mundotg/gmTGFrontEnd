@@ -230,7 +230,7 @@ export interface AdvancedJoinOption {
 
 
 export interface AdvancedJoinOptionPayload {
-  conditions:  JoinConditionPayload[];
+  conditions: JoinConditionPayload[];
   alias?: string;
   typeJoin: JoinType;
   groupStart?: { initIndex: number, is: boolean }[]; // Para suporte futuro a parênteses
@@ -282,9 +282,9 @@ export interface RowDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   row: SelectedRow | null;
-  informacaosOftables?:  Record<string,CampoDetalhado[]>;
+  informacaosOftables?: Record<string, CampoDetalhado[]>;
   onSave?: (updatedRow: EditedFieldForQuery, tables_primary_keys_values: Record<string, Record<string, any>>, index: number) => void;
-  onDelete: (table: string, idColumn: string, idValue: string, index: number, typeColumn: string) => Promise<void>
+  onDelete: (payload: PayloadDeleteRow, index: number) => Promise<void>
 }
 
 export interface RowDetailsModalCreateProps {
@@ -310,7 +310,7 @@ export type QueryResultType = {
   totalResults: number | null;
   duration_ms: number;
   columns: string[];
-  tabela_coluna?: Record<string,CampoDetalhado[]>
+  tabela_coluna?: Record<string, CampoDetalhado[]>
   preview: Record<string, any>[];
   QueryPayload?: QueryPayload;
 };
@@ -327,6 +327,7 @@ export type QueryCountResultType = {
 export type ConnectionLog = {
   id: string;
   connection: string;
+  details?: any;
   action?: string;
   timestamp?: string; // ou `Date` se preferir trabalhar com objetos Date
   status: "success" | "error" | "warning" | "info";
@@ -407,6 +408,50 @@ export type EditedFieldForQuery = {
 
 export type Tables_primary_keys_values = Record<string, Record<string, string>>;
 
+export interface AnalizeDataType {
+    overview: {
+        totalProjects: number;
+        activeProjects: number;
+        completedProjects: number;
+        overdueProjects: number;
+        totalTasks: number;
+        completedTasks: number;
+        teamMembers: number;
+    };
+    projectProgress: {
+        name: string;
+        progress: number;
+        tasks: number;
+        completed: number;
+    }[];
+    taskStatus: {
+        name: string;
+        value: number;
+    }[];
+    teamPerformance: {
+        name: string;
+        tasks: number;
+        completed: number;
+        efficiency: number;
+    }[];
+    weeklyActivity: {
+        week: string;
+        tasks: number;
+        completed: number;
+    }[];
+    projectTypes: {
+        name: string;
+        value: number;
+    }[];
+    recentActivity: {
+        id: number;
+        user: string;
+        action: string;
+        project: string;
+        time: string;
+    }[];
+}
+
 export interface CampoDetalhado {
   nome: string;
   tipo: tipo_db_Options;
@@ -421,8 +466,8 @@ export interface CampoDetalhado {
   comentario?: string | null;
   length?: number | null;
   enum_valores_encontrados?: string[];
-  on_delete_action? : string;
-  on_update_action? : string;
+  on_delete_action?: string;
+  on_update_action?: string;
 }
 
 export interface MetadataTableResponse {
@@ -434,3 +479,18 @@ export interface MetadataTableResponse {
   total_colunas: number;
   colunas: CampoDetalhado[];
 }
+
+export type RowDelete ={
+  primaryKey: string;
+  primaryKeyValue?: string;
+  keyType: tipo_db_Options;
+  isPrimarykeyOrUnique?: boolean;
+}
+export type PayloadDeleteRow = {
+  index: number
+  payloadSelectedRow?: QueryPayload;
+  rowDeletes: Record<string, RowDelete>;
+}
+
+
+

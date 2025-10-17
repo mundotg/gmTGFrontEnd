@@ -68,7 +68,7 @@ export function ForeignKeySelect({
             offset
         },
         config: { withCredentials: true }
-    }), [referencedTable, referencedField, search, page]);
+    }), [referencedTable, referencedField, search, page,offset]);
 
     const {
         data,

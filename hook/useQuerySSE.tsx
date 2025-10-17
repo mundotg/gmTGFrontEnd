@@ -113,7 +113,18 @@ const handleData = useCallback((data: QueryResultType) => {
       try {
         if (!query) throw new Error("Query payload é obrigatório");
         setQueryPayload(query);
-        setQueryResults(null);
+        setQueryResults({
+          success: false,
+          query: "", // or query.sql if available
+          params: {},
+          duration_ms: 0,
+          columns: [],
+          preview: [],
+          totalResults: 0,
+          tabela_coluna: {},
+          QueryPayload: query,
+
+        });
         setTotalResults(null);
         setError(null);
         setProgress("Preparando execução...");

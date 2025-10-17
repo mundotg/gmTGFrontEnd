@@ -38,10 +38,10 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
   deleteProgress,
   columns,
   headers,
-  selectedItems,
+  // selectedItems,
   selectedCount, // ✅ Nova prop
   isAllSelected, // ✅ Nova prop
-  isSomeSelected, // ✅ Nova prop
+  // isSomeSelected, // ✅ Nova prop
   showMobileMenu,
   mobileMenuRef,
   setQueryResults,

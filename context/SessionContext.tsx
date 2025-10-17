@@ -58,6 +58,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const isAuthenticated = useMemo(() => !!user, [user]);
+ 
 
     // const route = useRouter();
 

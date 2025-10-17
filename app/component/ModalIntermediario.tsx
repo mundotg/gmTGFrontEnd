@@ -231,7 +231,7 @@ export default function ModalAutoCreate({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 text-black"
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
       <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -289,7 +289,7 @@ export default function ModalAutoCreate({
                 min={1}
                 max={1000}
                 value={quantidade}
-                onChange={(e) => setQuantidade(Number(e.target.value))}
+                onChange={(e) => setQuantidade(parseInt(e.target.value))}
                 className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.quantidade ? 'border-red-500' : ''
                   }`}
               />

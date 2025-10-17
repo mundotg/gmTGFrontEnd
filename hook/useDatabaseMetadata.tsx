@@ -1,5 +1,5 @@
 "use client"
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect,useState } from "react";
 import { DatabaseMetadata } from "@/types";
 import { fetchSyncMetadata, fetchTables } from "@/app/services/metadata_DB";
 import { useSession } from "@/context/SessionContext";

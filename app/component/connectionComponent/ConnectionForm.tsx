@@ -1,21 +1,19 @@
 "use client";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { ChevronDown, Eye, EyeOff, Plus, Server } from "lucide-react";
-import { DatabaseOption } from "@/types";
-
-
+import { ConnectionFormData, DatabaseOption } from "@/types";
 
 interface ConnectionFormProps {
   t: (key: string) => string;
   databases: DatabaseOption[];
   selectedDatabase?: DatabaseOption | null;
   selectedDb: string | null;
-  formData: Record<string, string>;
-  connectionStatus: string;
-  isConnecting: boolean;
+  formData: ConnectionFormData;
+  setFormData: React.Dispatch<React.SetStateAction<ConnectionFormData>>;
+  connectionStatus?: "success" | "connected" | "error" | string;
+  isConnecting?: boolean;
   showDropdown: boolean;
-  setShowDropdown: (v : boolean)=> void;
-  updateField: (field: string, value: string) => void;
+  setShowDropdown: (v: boolean) => void;
   handleDbSelect: (id: string) => void;
   testConnection: () => void;
   connect: () => void;
@@ -24,21 +22,50 @@ interface ConnectionFormProps {
 
 export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   t,
+  databases,
+  selectedDatabase = null,
+  selectedDb = null,
+  formData,
+  setFormData,
+  connectionStatus = "",
+  isConnecting = false,
   showDropdown,
   setShowDropdown,
-  databases,
-  selectedDatabase,
-  selectedDb,
-  formData,
-  connectionStatus,
-  isConnecting,
-  updateField,
   handleDbSelect,
   testConnection,
   connect,
   getStatusIcon,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+
+  /** Atualiza campo do formulário */
+  const updateField = useCallback(
+    (field: keyof ConnectionFormData, value: string) => {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value ?? "",
+      }));
+    },
+    [setFormData]
+  );
+
+  /** Garante placeholders e valores padrão dinâmicos */
+  const getPlaceholder = (field: string) => {
+    const map: Record<string, string> = {
+      name: t("connectionNamePlaceholder"),
+      host: "localhost",
+      port: selectedDatabase?.port?.toString() || "5432",
+      database:
+        selectedDb === "sqlite"
+          ? "/path/to/database.db"
+          : t("databaseNamePlaceholder"),
+      username: "user",
+      password: "••••••",
+      sslmode: "disable / require / verify-ca",
+      service: "xe / orcl",
+    };
+    return map[field] || "";
+  };
 
   return (
     <div className="space-y-6">
@@ -47,7 +74,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
           {t("newConnection")}
         </h2>
 
-        {/* Database Type Selector */}
+        {/* Selecionar tipo de DB */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             {t("dbType")}
@@ -94,105 +121,73 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         {selectedDb && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Nome da Conexão */}
               <InputField
                 label={t("connectionName")}
-                value={formData.name}
+                value={formData.name || ""}
                 onChange={(e) => updateField("name", e.target.value)}
-                placeholder={t("connectionNamePlaceholder")}
+                placeholder={getPlaceholder("name")}
               />
 
-              {/* Host */}
               <InputField
                 label={t("host")}
-                value={formData.host}
+                value={formData.host || ""}
                 onChange={(e) => updateField("host", e.target.value)}
-                placeholder="localhost"
+                placeholder={getPlaceholder("host")}
               />
 
-              {/* Porta */}
               <InputField
                 label={t("port")}
-                value={formData.port}
+                value={formData.port || ""}
                 onChange={(e) => updateField("port", e.target.value)}
-                placeholder={selectedDatabase?.port || "5432"}
+                placeholder={getPlaceholder("port")}
               />
 
-              {/* Database ou SQLite */}
               <InputField
                 label={
                   selectedDb === "sqlite" ? t("filePath") : t("database")
                 }
-                value={formData.database}
+                value={formData.database || ""}
                 onChange={(e) => updateField("database", e.target.value)}
-                placeholder={
-                  selectedDb === "sqlite"
-                    ? "/path/to/database.db"
-                    : t("databaseNamePlaceholder")
-                }
+                placeholder={getPlaceholder("database")}
               />
 
-              {/* Usuário e Senha (exceto SQLite) */}
               {selectedDb !== "sqlite" && (
                 <>
                   <InputField
                     label={t("username")}
-                    value={formData.username}
+                    value={formData.username || ""}
                     onChange={(e) => updateField("username", e.target.value)}
-                    placeholder="user"
+                    placeholder={getPlaceholder("username")}
                   />
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t("password")}
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        value={formData.password}
-                        onChange={(e) =>
-                          updateField("password", e.target.value)
-                        }
-                        placeholder="••••••"
-                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
+                  <PasswordField
+                    label={t("password")}
+                    value={formData.password || ""}
+                    showPassword={showPassword}
+                    togglePassword={() => setShowPassword((p) => !p)}
+                    onChange={(e) => updateField("password", e.target.value)}
+                  />
                 </>
               )}
 
-              {/* SSL PostgreSQL */}
               {selectedDb === "postgresql" && (
                 <InputField
                   label="SSL Mode"
                   value={formData.sslmode || ""}
                   onChange={(e) => updateField("sslmode", e.target.value)}
-                  placeholder="disable / require / verify-ca"
+                  placeholder={getPlaceholder("sslmode")}
                 />
               )}
 
-              {/* Service Oracle */}
               {selectedDb === "oracle" && (
                 <InputField
                   label="Service Name"
                   value={formData.service || ""}
                   onChange={(e) => updateField("service", e.target.value)}
-                  placeholder="xe / orcl"
+                  placeholder={getPlaceholder("service")}
                 />
               )}
 
-              {/* TrustServerCertificate SQL Server */}
               {selectedDb === "sqlserver" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -238,50 +233,29 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
 
         {/* Botões */}
         <div className="flex gap-3 pt-4">
-          <button
-            type="button"
+          <ActionButton
             onClick={testConnection}
-            disabled={isConnecting}
-            className="flex-1 px-4 py-2 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50 flex items-center justify-center"
-          >
-            {isConnecting ? (
-              <>
-                <div className="animate-spin h-4 w-4 border-b-2 border-blue-600 rounded-full mr-2"></div>
-                {t("testing")}
-              </>
-            ) : (
-              <>
-                <Server className="w-4 h-4 mr-2" />
-                {t("test")}
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
+            disabled={isConnecting || !selectedDb}
+            icon={<Server className="w-4 h-4 mr-2" />}
+            text={isConnecting ? t("testing") : t("test")}
+            loading={isConnecting}
+            variant="outline"
+          />
+          <ActionButton
             onClick={connect}
             disabled={isConnecting}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
-          >
-            {isConnecting ? (
-              <>
-                <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full mr-2"></div>
-                {t("connecting")}
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4 mr-2" />
-                {t("connect")}
-              </>
-            )}
-          </button>
+            icon={<Plus className="w-4 h-4 mr-2" />}
+            text={isConnecting ? t("connecting") : t("connect")}
+            loading={isConnecting}
+            variant="solid"
+          />
         </div>
       </div>
     </div>
   );
 };
 
-/* Subcomponente para inputs */
+/* Input genérico */
 const InputField: React.FC<{
   label: string;
   value: string;
@@ -300,4 +274,62 @@ const InputField: React.FC<{
       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
     />
   </div>
+);
+
+/* Campo de senha isolado */
+const PasswordField: React.FC<{
+  label: string;
+  value: string;
+  showPassword: boolean;
+  togglePassword: () => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}> = ({ label, value, showPassword, togglePassword, onChange }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label}
+    </label>
+    <div className="relative">
+      <input
+        type={showPassword ? "text" : "password"}
+        value={value}
+        onChange={onChange}
+        placeholder="••••••"
+        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+      />
+      <button
+        type="button"
+        onClick={togglePassword}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+      >
+        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+      </button>
+    </div>
+  </div>
+);
+
+/* Botão com loading e variantes */
+const ActionButton: React.FC<{
+  onClick: () => void;
+  disabled: boolean;
+  icon: React.ReactNode;
+  text: string;
+  loading?: boolean;
+  variant?: "solid" | "outline";
+}> = ({ onClick, disabled, icon, text, loading, variant = "solid" }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className={`flex-1 px-4 py-2 rounded-lg flex items-center justify-center disabled:opacity-50 ${
+      variant === "solid"
+        ? "bg-blue-600 text-white hover:bg-blue-700"
+        : "border border-blue-500 text-blue-600 hover:bg-blue-50"
+    }`}
+  >
+    {loading && (
+      <div className="animate-spin h-4 w-4 border-b-2 border-current rounded-full mr-2"></div>
+    )}
+    {icon}
+    {text}
+  </button>
 );

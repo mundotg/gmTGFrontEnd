@@ -15,6 +15,7 @@ import {
   CampoDetalhado,
   EditedFieldForQuery,
   MetadataTableResponse,
+  PayloadDeleteRow,
   SelectedRow,
   Tables_primary_keys_values
 } from "@/types";
@@ -140,9 +141,9 @@ const ConsultaPage = () => {
     if (!tableName) return;
 
     const isColumnComplete = queryResults?.tabela_coluna?.[tableName].length === row.nameColumns.length
-    console.log(queryResults?.tabela_coluna?.[tableName].length, row.nameColumns.length)
-    console.log(queryResults?.tabela_coluna,row.nameColumns)
-    console.log(queryResults)
+    // console.log(queryResults?.tabela_coluna?.[tableName].length, row.nameColumns.length)
+    // console.log(queryResults?.tabela_coluna, row.nameColumns)
+    // console.log(queryResults)
     if (isColumnComplete) return openRowModal(row);
 
     const primaryKeyField = findIdentifierField(tableName, columnsInfo);
@@ -173,7 +174,7 @@ const ConsultaPage = () => {
     } finally {
       setLoadingFields(false);
     }
-  }, [columnsInfo, openRowModal, setError, setError, queryResults]);
+  }, [setLoadingFields,columnsInfo, openRowModal, setError, queryResults]);
 
 
   const handleRowUpdate = useCallback(async (
@@ -227,37 +228,50 @@ const ConsultaPage = () => {
     } finally {
       setIsEditingRow(false);
     }
-  }, [isEditingRow, selectedRow, setError, selectedRow]);
+  }, [isEditingRow, selectedRow, setError, selectedRow,setIsEditingRow,setSelectedRow]);
 
   // No componente que usa o RowDetailsModal
-  const handleDelete = async (table: string, idColumn: string, idValue: string, index: number, typeColumn: string) => {
+  const handleDelete =useCallback( async (payload: PayloadDeleteRow, index: number) => {
     try {
-      // Chamar sua API de delete
-      await api.delete('/delete/records', {
+      // Adiciona o payloadSelectedRow (estrutura da query original)
+      payload.payloadSelectedRow = queryResults?.QueryPayload;
+
+      // 🚀 Requisição DELETE com corpo (data) e credenciais
+      await api.delete("/delete/records", {
         data: {
-          table,
-          idColumn,
-          typeColumn,
-          idValue,
-          originalQuery: queryResults?.QueryPayload || {}
-        }
+          registros: [payload],
+        },
+        withCredentials: true,
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
 
-      // Atualizar estado local
+      // 🧹 Atualiza o estado local para remover o item da tabela
       if (queryResults) {
-        const newPreview = queryResults?.preview.filter((_, i) => i !== index);
+        const newPreview = queryResults.preview.filter((_, i) => i !== index);
         setQueryResults({
           ...queryResults,
           preview: newPreview,
-          totalResults: Math.max(0, (queryResults?.totalResults || 0) - 1),
+          totalResults: Math.max(0, (queryResults.totalResults || 0) - 1),
         });
       }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("❌ Erro ao eliminar registro:", error);
 
-    } catch (error) {
-      console.error('Erro ao eliminar registro:', error);
-      throw error;
+      // Melhor mensagem de erro para debugging
+      if (error?.response) {
+        console.error("Erro do servidor:", error?.response?.data);
+      }
+
+      // Opcional: feedback ao usuário
+      throw new Error(
+        error?.response?.data?.detail ||
+        "Erro inesperado ao tentar eliminar o registro."
+      );
     }
-  };
+  },[queryResults]);
 
   // ----------------- Render -----------------
   if (loadingMetadata || !mounted) {

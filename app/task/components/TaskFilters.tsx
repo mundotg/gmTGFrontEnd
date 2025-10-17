@@ -7,9 +7,9 @@ import { TaskPriority, TaskStatus } from "../types";
 interface TaskFiltersProps {
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  statusFilter: TaskStatus | "";
+  statusFilter?: TaskStatus | "" ;
   onStatusFilterChange: (status: TaskStatus | "") => void;
-  priorityFilter: TaskPriority | "";
+  priorityFilter?: TaskPriority | "";
   onPriorityFilterChange: (priority: TaskPriority | "") => void;
 }
 

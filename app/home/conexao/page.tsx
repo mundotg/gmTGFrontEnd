@@ -1,12 +1,12 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Database,
   Trash2,
   Edit,
 } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
-import { ConnectionFormData, ConnectionLog, DatabaseOption, SavedConnection } from '@/types';
+import { ConnectionFormData, ConnectionLog, SavedConnection } from '@/types';
 import { useSession } from '@/context/SessionContext';
 import { databases } from '@/constant';
 import { usePagination } from '@/hook';
@@ -14,80 +14,54 @@ import Pagination from '@/app/component/pagination-component';
 import { ConnectionToggleButton } from '@/app/component/ConnectionToggleButton';
 import { ConnectionForm } from '@/app/component/connectionComponent/ConnectionForm';
 import { formatDate, getStatusColor, getStatusIcon } from '@/util/connectioPage/func';
+import usePersistedState from '@/hook/localStoreUse';
 
 
 const DatabaseConnectionForm = () => {
-  const [selectedDb, setSelectedDb] = useState("");
+  const [selectedDb, setSelectedDb] = usePersistedState<string>("selectedDb", "");
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showDropdown, setShowDropdown] = usePersistedState<boolean>("showDropdown", false);
   const { t } = useI18n();
   const { api } = useSession();
-
-
-
-  const [formData, setFormData] = useState<ConnectionFormData>({
+  const [formData, setFormData] = usePersistedState<ConnectionFormData>("ConnectionFormData", {
     name: "",
     host: "",
     port: "",
     type: "",
     database: "",
     username: "",
-    password: ""
+    password: "",
+    trustServerCertificate: "yes",
+    sslmode: "",
+    service: "",
   });
 
-  const { page: historyPage, totalPages: historyTotal, data: paginatedHistory,  setPage: setPagehistory } = usePagination<ConnectionLog>((page) =>
-      api.get("/conn/connection_logs/", {
-        params: { page, limit: 10 },
-        withCredentials: true,
-      }).then(res => res.data)
-    );
+  const { page: historyPage, totalPages: historyTotal, data: paginatedHistory, setPage: setPagehistory } = usePagination<ConnectionLog>((page) =>
+    api.get("/log/connection_logs/", {
+      params: { page, limit: 10 },
+      withCredentials: true,
+    }).then(res => res.data)
+  );
 
   const { page: connPage, totalPages: connTotal, data: paginatedConnections, setData: setPageConnetion, setPage: setConn, setExecute } = usePagination<SavedConnection>((page) =>
-      api.get("/conn/connections/", {
-        params: { page, limit: 10 },
-        withCredentials: true,
-      }).then(res => res.data)
-    );
-
-
-  const updateField = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-
-  useEffect(() => {
-    // Atualiza o localStorage sempre que savedConnections mudar
-    const formSave = localStorage.getItem('formData');
-    if (formSave) {
-      setFormData(JSON.parse(formSave));
-    }
-    const Dbform = localStorage.getItem("Dbform");
-    if (Dbform) {
-      const { select, isShowdropdown } = JSON.parse(Dbform);
-      setSelectedDb(select);
-      setShowDropdown(isShowdropdown);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Atualiza o localStorage sempre que formData mudar
-    localStorage.setItem('formData', JSON.stringify(formData));
-  }, [formData]);
-
+    api.get("/conn/connections/", {
+      params: { page, limit: 10 },
+      withCredentials: true,
+    }).then(res => res.data)
+  );
 
   const handleDbSelect = (dbId: string) => {
     setSelectedDb(dbId);
     setShowDropdown(false);
-    localStorage.setItem("Dbform", JSON.stringify({ "select": dbId, "isShowdropdown": false }));
-    const db: DatabaseOption | undefined = databases.find(d => d.id === dbId);
+    const db = databases.find(d => d.id === dbId);
     if (!db) return;
-    // updateField("port", db.port);
 
-    // Buscar conexão existente para este tipo de banco
     const existingConnection = paginatedConnections.find(conn => conn.type === dbId);
+
     if (existingConnection) {
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         name: existingConnection.name,
         host: existingConnection.host,
         port: db.port,
@@ -95,21 +69,22 @@ const DatabaseConnectionForm = () => {
         database: existingConnection.database,
         username: "",
         password: "",
-      });
+      }));
     } else {
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         name: "",
         host: "",
         type: "",
         port: db.port,
         database: "",
         username: "",
-        password: ""
-      });
+        password: "",
+      }));
     }
   };
 
-  const testConnection = async () => {
+  const testConnection = useCallback(async () => {
 
     try {
 
@@ -123,10 +98,9 @@ const DatabaseConnectionForm = () => {
         password: formData.password,
         service: formData.service,
         sslmode: formData.sslmode,
-        trustServerCertificate: formData.trustServerCertificate
+        trustServerCertificate: formData.trustServerCertificate || "yes"
       };
-      const response = await api.post('/conn/test-connection',
-        payload, { withCredentials: true });
+      const response = await api.post('/conn/connect', { conn_data: payload, tipo: "con" }, { withCredentials: true });
 
       if (response.data.success) {
         setConnectionStatus("success");
@@ -138,9 +112,9 @@ const DatabaseConnectionForm = () => {
       return;
 
     }
-  };
+  }, [formData, api,selectedDb]);
 
-  const connect = async () => {
+  const connect = useCallback(async () => {
     setIsConnecting(true);
     setConnectionStatus("");
     try {
@@ -154,9 +128,11 @@ const DatabaseConnectionForm = () => {
         password: formData.password,
         service: formData.service,
         sslmode: formData.sslmode,
-        trustServerCertificate: formData.trustServerCertificate
+        trustServerCertificate: formData.trustServerCertificate || "yes"
       };
-      const response = await api.post('/conn/connect', payload, { withCredentials: true });
+
+      console.log("payload: ", formData)
+      const response = await api.post('/conn/connect', { conn_data: payload, tipo: "upsert" }, { withCredentials: true });
       // console.log("response=", response)
       if (response.data.connect) {
         setConnectionStatus("connected");
@@ -174,26 +150,33 @@ const DatabaseConnectionForm = () => {
 
     }
 
-  };
+  }, [selectedDb,formData,api,setIsConnecting,setConnectionStatus,setExecute]);
 
-  const loadConnection = async (connection: SavedConnection) => {
-    const db: DatabaseOption | undefined = databases.find(d => d.id === connection.type);
+  const loadConnection = useCallback(async (connection: SavedConnection) => {
+    const db = databases.find(d => d.id === connection.type);
     if (!db) return;
+
     setSelectedDb(connection.type);
-    const { data: { password, username, service, sslmode, trustServerCertificate } } = await api.get('/conn/get_credencial_db/' + connection.id, { withCredentials: true })
-    console.log(service, sslmode, trustServerCertificate)
-    setFormData({
+    const { data } = await api.get(`/conn/get_credencial_db/${connection.id}`, { withCredentials: true });
+
+    const { password, username, service, sslmode, trustServerCertificate } = data;
+
+    setFormData(prev => ({
+      ...prev,
       name: connection.name,
       host: connection.host,
       port: db.port,
       type: connection.type,
       database: connection.database,
-      username: username,
-      password: password,
-      service, sslmode, trustServerCertificate
-    });
+      username,
+      password,
+      service: service || prev.service,
+      sslmode: sslmode || prev.sslmode,
+      trustServerCertificate: trustServerCertificate || prev.trustServerCertificate || "yes",
+    }));
+
     setConnectionStatus("");
-  };
+  }, [setFormData, setSelectedDb, setConnectionStatus,api]);
 
   const deleteConnection = async (id: string) => {
     if (!id) {
@@ -253,11 +236,11 @@ const DatabaseConnectionForm = () => {
             t={t}
             databases={databases}
             selectedDatabase={selectedDatabase}
+            setFormData={setFormData}
             selectedDb={selectedDb}
             formData={formData}
             connectionStatus={connectionStatus}
             isConnecting={isConnecting}
-            updateField={updateField}
             handleDbSelect={handleDbSelect}
             testConnection={testConnection}
             connect={connect}

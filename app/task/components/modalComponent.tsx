@@ -44,7 +44,7 @@ export const Modal: React.FC<ModalProps> = ({
       className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
       aria-modal="true"
       role="dialog"
-      aria-labelledby="modal-title"
+      aria-labelledby={"modal-"+title}
       onClick={onClose} // Fecha no clique fora
     >
       <div

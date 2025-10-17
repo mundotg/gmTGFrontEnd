@@ -2,7 +2,7 @@ import { AlertCircle, Database, RefreshCw, Save, Trash2, X } from "lucide-react"
 import { FieldEditor } from "./FieldEditor";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { EditedField, EditedFieldForQuery, MetadataTableResponse, QueryPayload, QueryResultType, SelectedRow, Tables_primary_keys_values } from "@/types";
+import { EditedField, EditedFieldForQuery, MetadataTableResponse, PayloadDeleteRow, QueryPayload, QueryResultType, SelectedRow, Tables_primary_keys_values } from "@/types";
 import { usePopupReference } from "@/app/services/popups";
 import api from "@/context/axioCuston";
 import { validateField } from "@/util";
@@ -140,16 +140,19 @@ export const ReferencePopup = () => {
   }, [table, field, value, setRow, setInformacaosOftables, setSelectColumns]);
 
   // Hook customizado para deletar registro
-  const onDelete = useCallback(async (table: string, idColumn: string, idValue: string, index: number, typeColumn: string) => {
+
+  const onDelete = useCallback(async (payload: PayloadDeleteRow,index: number)  => {
     try {
       // Chamar sua API de delete
-      await api.delete('/delete/records', {
+      payload.index = payload.index || index
+      await api.delete("/delete/records", {
         data: {
-          table,
-          idColumn,
-          typeColumn,
-          idValue,
-        }
+          registros: [payload],
+        },
+        withCredentials: true,
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
     } catch (error) {
       console.error('Erro ao eliminar registro:', error);

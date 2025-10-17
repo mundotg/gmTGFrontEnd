@@ -78,6 +78,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     const rowEntries = Object.entries(row.row);
     const nameColumns = row.nameColumns || [];
     const mainTableName = row.tableName?.[0] || 'unknown_table';
+    console.log("Inicializando modal para tabela(s):", row.tableName, "com colunas:", nameColumns);
     rowEntries.forEach(([key, value], index) => {
       let columnName: string;
       let tableName: string;

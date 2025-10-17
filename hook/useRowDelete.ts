@@ -1,11 +1,16 @@
 import { useCallback, useState } from 'react';
-import { MetadataTableResponse } from '@/types';
+import { MetadataTableResponse, PayloadDeleteRow, SelectedRow } from '@/types';
 import { findIdentifierField } from '@/util/func';
+import { createLogger } from '@/util/logger';
+import { usePrimaryKeyExtractor } from './getPrimarykeyValorOfRow';
+
+// Criar logger específico para este hook
+const logger = createLogger({ hook: 'useRowDelete' });
 
 interface UseRowDeleteProps {
-  row: any;
+  row: SelectedRow | null;
   selectedTables: MetadataTableResponse[];
-  onDelete?: (tableName: string, primaryKey: string, primaryKeyValue: string, rowIndex: number, keyType: string) => Promise<void>;
+  onDelete?: (payload: PayloadDeleteRow, rowIndex: number) => Promise<void>;
   onClose: () => void;
 }
 
@@ -20,109 +25,128 @@ export const useRowDelete = ({
   row,
   selectedTables,
   onDelete,
-  onClose
+  onClose,
 }: UseRowDeleteProps): UseRowDeleteReturn => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Função auxiliar para extrair a chave primária do registro
-  const getPrimaryKeyInfo = useCallback(() => {
-    if (!row || selectedTables.length === 0) {
-      throw new Error("Dados insuficientes para identificar o registro");
-    }
-
-    // Tenta encontrar a chave primária em todas as tabelas selecionadas
-    for (const table of selectedTables) {
-      const primaryKeyField = findIdentifierField(table.table_name, selectedTables);
-      if (primaryKeyField) {
-        // Tenta diferentes formas de acessar o valor da chave primária
-        const qualifiedPrimaryKey = `${table.table_name}.${primaryKeyField.nome}`;
-        const primaryKeyValue = row.row?.[qualifiedPrimaryKey] ?? row.row?.[primaryKeyField.nome] ?? row.row?.['id'] ?? row.row?.['ID'];
-        
-        if (primaryKeyValue) {
-          return {
-            tableName: table.table_name,
-            primaryKey: primaryKeyField.nome,
-            primaryKeyValue: String(primaryKeyValue),
-            keyType: primaryKeyField.tipo
-          };
-        }
-      }
-    }
-
-    // Fallback: tenta usar o primeiro campo único ou qualquer campo como identificador
-    const firstTable = selectedTables[0];
-    const firstColumn = firstTable.colunas[0];
-    
-    if (firstColumn) {
-      const qualifiedKey = `${firstTable.table_name}.${firstColumn.nome}`;
-      const keyValue = row.row?.[qualifiedKey] ?? row.row?.[firstColumn.nome] ?? Object.values(row.row || {})[0];
-      
-      if (keyValue) {
-        return {
-          tableName: firstTable.table_name,
-          primaryKey: firstColumn.nome,
-          primaryKeyValue: String(keyValue),
-          keyType: firstColumn.tipo
-        };
-      }
-    }
-
-    throw new Error("Não foi possível identificar uma chave única para eliminação");
-  }, [row, selectedTables]);
-
-  // Handler para deletar registro
+  const { getPrimaryKeyInfo } = usePrimaryKeyExtractor(row, selectedTables);
+  /**
+   * Manipula a exclusão do registro com confirmação
+   * e tratamento robusto de erros.
+   */
   const handleDelete = useCallback(async () => {
     if (!onDelete || !row) {
-      console.warn("Função onDelete não disponível");
+      logger.warn('Operação de delete cancelada - condições não atendidas', {
+        hasOnDelete: !!onDelete,
+        hasRow: !!row,
+        rowIndex: row?.index
+      });
       return;
     }
 
-    // Confirmação adicional
-    if (!window.confirm("Tens a certeza que queres ELIMINAR este registro? Esta ação não pode ser desfeita.")) {
+    const confirmed = window.confirm(
+      "Tens a certeza que queres ELIMINAR este registro? Esta ação não pode ser desfeita."
+    );
+    
+    if (!confirmed) {
+      logger.debug('Usuário cancelou a eliminação na confirmação', {
+        rowIndex: row.index
+      });
       return;
     }
 
-    setIsDeleting(true);
+    return logger.measure('Eliminação de registro via modal', async () => {
+      logger.info('Iniciando processo de eliminação', {
+        rowIndex: row.index,
+        tableNames: row.tableName,
+        selectedTablesCount: selectedTables.length
+      });
 
-    try {
-      const primaryKeyInfo = getPrimaryKeyInfo();
-      
-      await onDelete(
-        primaryKeyInfo.tableName,
-        primaryKeyInfo.primaryKey,
-        primaryKeyInfo.primaryKeyValue,
-        row.index ?? -1,
-        primaryKeyInfo.keyType
-      );
-      
-      onClose();
-    } catch (error) {
-      console.error("Erro ao eliminar registro:", error);
-      
-      // Mensagens de erro mais específicas
-      let errorMessage = "Erro desconhecido ao eliminar registro";
-      if (error instanceof Error) {
-        if (error.message.includes("chave única")) {
-          errorMessage = "Não foi possível identificar unicamente este registro para eliminação. O registro pode ter campos insuficientes para identificação única.";
-        } else if (error.message.includes("Dados insuficientes")) {
-          errorMessage = "Dados insuficientes para realizar a eliminação. Verifique se o registro está completo.";
-        } else {
-          errorMessage = error.message;
+      setIsDeleting(true);
+
+      try {
+        const primaryKeyInfo = getPrimaryKeyInfo();
+        
+        logger.debug('Executando callback onDelete', {
+          payloadStructure: {
+            tables: Object.keys(primaryKeyInfo.rowDeletes),
+            tablesWithData: Object.entries(primaryKeyInfo.rowDeletes)
+              .filter(([_, config]) => config.primaryKeyValue)
+              .map(([tableName, config]) => ({
+                tableName,
+                primaryKey: config.primaryKey,
+                value: config.primaryKeyValue
+              }))
+          },
+          rowIndex: primaryKeyInfo.index
+        });
+
+        await onDelete(primaryKeyInfo, row.index ?? -1);
+        
+        logger.success('Registro eliminado com sucesso', {
+          rowIndex: row.index,
+          tables: Object.keys(primaryKeyInfo.rowDeletes),
+          tablesWithValues: Object.entries(primaryKeyInfo.rowDeletes)
+            .filter(([_, config]) => config.primaryKeyValue)
+            .map(([tableName]) => tableName)
+        });
+        
+        onClose();
+
+      } catch (error) {
+        let errorMessage = "Erro desconhecido ao eliminar registro";
+        let logLevel: 'warn' | 'error' = 'error';
+        let errorContext: any = { rowIndex: row.index };
+
+        if (error instanceof Error) {
+          if (error.message.includes("chave única")) {
+            errorMessage = "Não foi possível identificar unicamente este registro para eliminação. O registro pode ter campos insuficientes para identificação única.";
+            logLevel = 'warn';
+            errorContext.issue = 'missing_primary_key';
+          } else if (error.message.includes("Dados insuficientes")) {
+            errorMessage = "Dados insuficientes para realizar a eliminação. Verifique se o registro está completo.";
+            logLevel = 'warn';
+            errorContext.issue = 'insufficient_data';
+          } else {
+            errorMessage = error.message;
+            errorContext.originalError = error.message;
+          }
         }
+
+        logger[logLevel]('Falha na eliminação do registro', error, errorContext);
+        
+        alert(`Erro ao eliminar registro: ${errorMessage}`);
+      } finally {
+        setIsDeleting(false);
+        setShowDeleteConfirm(false);
+        logger.debug('Estado de deleção resetado', { 
+          isDeleting: false, 
+          showDeleteConfirm: false 
+        });
       }
-      
-      alert(`Erro ao eliminar registro: ${errorMessage}`);
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteConfirm(false);
-    }
-  }, [onDelete, row, getPrimaryKeyInfo, onClose]);
+    }, { 
+      operation: 'modal_row_delete',
+      rowIndex: row.index 
+    });
+  }, [onDelete, row, getPrimaryKeyInfo, onClose, selectedTables]);
+
+  /**
+   * Wrapper para setShowDeleteConfirm com logging
+   */
+  const setShowDeleteConfirmWrapper = useCallback((show: boolean) => {
+    logger.debug('Alterando estado de confirmação de delete', { 
+      show,
+      previousState: showDeleteConfirm,
+      rowIndex: row?.index 
+    });
+    setShowDeleteConfirm(show);
+  }, [showDeleteConfirm, row?.index]);
 
   return {
     handleDelete,
     showDeleteConfirm,
-    setShowDeleteConfirm,
-    isDeleting
+    setShowDeleteConfirm: setShowDeleteConfirmWrapper,
+    isDeleting,
   };
 };

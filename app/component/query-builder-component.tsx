@@ -210,7 +210,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       return changed ? newCond : prevCond;
     });
 
-  }, [table_list, setAdvancedConditions, hydrated, addNotification]);
+  }, [table_list, setAdvancedConditions, hydrated, addNotification,columns]);
 
   // ---------------- HANDLERS ----------------
   const addCondition = useCallback(() => {

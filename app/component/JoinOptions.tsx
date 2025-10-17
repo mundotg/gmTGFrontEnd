@@ -318,7 +318,7 @@ export function JoinOptions({
     // Notificar o componente pai sobre a mudança
     onBaseTableChange(newBaseTable);
 
-  }, [baseTable, joinOrder, onBaseTableChange, setAdvancedConditions, addNotification, removeJoinTable]);
+  }, [baseTable, joinOrder, onBaseTableChange, setAdvancedConditions, addNotification, removeJoinTable,setAdvancedConditions]);
 
 
   // Adicionar condição
