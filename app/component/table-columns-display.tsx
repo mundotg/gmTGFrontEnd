@@ -1,13 +1,12 @@
 "use client"
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Download, Moon, Sun, Loader2,
+   Moon, Sun, Loader2,
   Plus,
-  Filter
+  Filter,
 } from 'lucide-react';
-import { CampoDetalhado, EditedFieldForQuery, TableColumnsDisplayProps } from '@/types';
+import { CampoDetalhado, EditedFieldForQuery, MetadataTableResponse, TableColumnsDisplayProps } from '@/types';
 import { useTableColumns } from '@/hook/useTable';
-import { quickExportToCsv } from "../services/relatorio";
 import { themeClassesMap } from '@/constant';
 import EditFieldModal from './EditFieldModal';
 import { ColumnSkeleton, ErrorDisplay } from '@/util';
@@ -15,7 +14,9 @@ import CriarRegistroNovo from './criar-registro';
 import ModalAutoCreate from './ModalIntermediario';
 import usePersistedState from '@/hook/localStoreUse';
 import { FilterableGrid } from './columns-displayComponent/FilterableGrid';
-
+import { FormatoRelatorio, useRelatorioAvancado } from '../services/useRelatorio';
+import { RelatorioPayload } from '@/hook/useRelatorio';
+import { FORMATS, ReportButton } from '../services/ReportButton';
 
 const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   tableNames,
@@ -26,7 +27,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   tabelaExistenteNaDB,
   error,
   theme = 'light',
-  showExport = true,
+  // showExport = true,
   itemsPerPage = 12,
   onColumnClick,
   setSelect,
@@ -43,6 +44,19 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     false
   );
   const [hydrated, setHydrated] = useState(false);
+
+  // Hook de relatório adicionado
+  const {
+    gerarRelatorio,
+    cancelarGeracao,
+    isLoading: isLoadingRelatorio,
+    error: errorRelatorio,
+    success: successRelatorio,
+    progress: progressRelatorio,
+    tempoEstimado,
+    dadosRelatorio,
+    reset: resetRelatorio
+  } = useRelatorioAvancado<MetadataTableResponse[]>();
 
   useEffect(() => setHydrated(true), []);
 
@@ -120,6 +134,30 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     console.log("Campo atualizado:", updatedField);
   }, []);
 
+  // Função para gerar relatório PDF adicionada
+  const handleGerarRelatorio = useCallback(async (format : FormatoRelatorio) => {
+    if (!columns || columns.length === 0) {
+      console.error('Nenhuma coluna disponível para gerar relatório');
+      return;
+    }
+
+
+    const payload: RelatorioPayload<MetadataTableResponse[]>= {
+      tipo: 'metadados',
+      body: columns ,
+      filtros: {
+        tabelas: tableNames,
+        totalColunas: totalCols
+      },
+      parametros: {
+        formato: format,
+        incluirDetalhes: true
+      }
+    };
+
+    await gerarRelatorio(payload);
+  }, [columns, tableNames, totalCols, gerarRelatorio]);
+
   const themeClasses = themeClassesMap[currentTheme === 'dark' ? 'dark' : 'light'];
 
   if (!hydrated) {
@@ -129,7 +167,6 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
       </div>
     );
   }
-
 
   // Renderização condicional para estados
   if (error) {
@@ -141,14 +178,14 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   }
 
   function handleRowUpdate(updatedRow: EditedFieldForQuery): void {
-    // throw new Error('Function not implemented.');
-
     console.log(updatedRow)
   }
 
   const handleConfirm = () => {
-    setModalCreateOpen(true); // abre a modal final de criação
+    setModalCreateOpen(true);
   };
+
+  
 
   return (
     <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${themeClasses.container} ${className}`} aria-label='Exibição_de_Colunas_da_Tabela'>
@@ -164,7 +201,6 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
             </div>
           </h3>
 
-
           {/* Botão de tema */}
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
@@ -174,9 +210,6 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
             {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
         </div>
-
-        {/* Scroll horizontal para muitas tabelas */}
-
 
         <EditFieldModal
           isOpen={isModalOpen}
@@ -220,62 +253,120 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
             </span>
           )}
 
-          {showExport && columns && (
-            <button
-              onClick={() => quickExportToCsv(filteredAndSortedColumns, tabelaExistenteNaDB.join("_"))}
-              className={`p-2 rounded-lg transition-colors ${themeClasses.button}`}
-              title="Exportar CSV"
-            >
-              <Download className="w-4 h-4" />
-            </button>
+          {/* Botão de Gerar Relatório PDF adicionado */}
+          {columns && columns.length > 0 && (
+             <ReportButton
+              onGenerate={handleGerarRelatorio}
+              formats={FORMATS}
+              hasResults={true}
+              isLoading={isLoadingRelatorio}
+            />
           )}
+
+         
 
           {(columns && columns.length > 0) && (
             <>
               <button
                 onClick={() => setOpenIntermediario(true)}
                 className={`
-        group relative px-4 py-2 rounded-lg font-medium text-sm
-        bg-gradient-to-r from-blue-500 to-blue-600 
-        hover:from-blue-600 hover:to-blue-700
-        text-white shadow-lg hover:shadow-xl
-        transform hover:scale-105 active:scale-95
-        transition-all duration-200 ease-in-out
-        flex items-center gap-2
-        border-0 outline-none focus:ring-4 focus:ring-blue-200
-        ${themeClasses.button}
-      `}
+                  group relative px-4 py-2 rounded-lg font-medium text-sm
+                  bg-gradient-to-r from-blue-500 to-blue-600 
+                  hover:from-blue-600 hover:to-blue-700
+                  text-white shadow-lg hover:shadow-xl
+                  transform hover:scale-105 active:scale-95
+                  transition-all duration-200 ease-in-out
+                  flex items-center gap-2
+                  border-0 outline-none focus:ring-4 focus:ring-blue-200
+                  ${themeClasses.button}
+                `}
                 title="Criar novo registro"
               >
                 <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
                 <span className="hidden sm:inline font-semibold">Novo Registro</span>
                 <span className="sm:hidden font-semibold">Novo</span>
-
-                {/* Efeito de brilho sutil */}
                 <div className="absolute inset-0 rounded-lg bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
               </button>
             </>
           )}
-
         </div>
+
         <button
           onClick={() => setShowFilters((prev) => !prev)}
           className={`
-        group relative px-4 py-2 rounded-lg font-medium text-sm
-        bg-gradient-to-r from-blue-500 to-blue-600 
-        hover:from-blue-600 hover:to-blue-700
-        text-white shadow-lg hover:shadow-xl
-        transform hover:scale-105 active:scale-95
-        transition-all duration-200 ease-in-out
-        flex items-center gap-2
-        border-0 outline-none focus:ring-4 focus:ring-blue-200
-        ${themeClasses.button}
-      `}
+            group relative px-4 py-2 rounded-lg font-medium text-sm
+            bg-gradient-to-r from-blue-500 to-blue-600 
+            hover:from-blue-600 hover:to-blue-700
+            text-white shadow-lg hover:shadow-xl
+            transform hover:scale-105 active:scale-95
+            transition-all duration-200 ease-in-out
+            flex items-center gap-2
+            border-0 outline-none focus:ring-4 focus:ring-blue-200
+            ${themeClasses.button}
+          `}
         >
           <Filter size={18} />
           {showFilters ? "Esconder colunas" : "Mostrar colunas"}
         </button>
       </div>
+
+      {/* Barra de progresso do relatório */}
+      {isLoadingRelatorio && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex justify-between text-sm text-blue-800 mb-2">
+            <span>Gerando relatório PDF... ({progressRelatorio}%)</span>
+            <span>Tempo estimado: {tempoEstimado}s</span>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progressRelatorio}%` }}
+            />
+          </div>
+          <button
+            onClick={cancelarGeracao}
+            className="mt-2 text-xs text-red-600 hover:text-red-800"
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+
+      {/* Mensagem de sucesso do relatório */}
+      {successRelatorio && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex justify-between items-center">
+            <span className="text-green-800 text-sm">
+              ✅ Relatório gerado com sucesso! 
+              {dadosRelatorio.geradoEm && ` em ${dadosRelatorio.geradoEm.toLocaleString()}`}
+            </span>
+            <button 
+              onClick={resetRelatorio}
+              className="text-green-800 underline text-xs"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mensagem de erro do relatório */}
+      {errorRelatorio && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex justify-between items-center">
+            <span className="text-red-800 text-sm">
+              ❌ Erro ao gerar relatório: {errorRelatorio}
+            </span>
+            <button 
+              onClick={resetRelatorio}
+              className="text-red-800 underline text-xs"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      )}
+
       {showFilters && (
         <FilterableGrid
           data={paginatedColumns}
@@ -305,8 +396,8 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           isLoading={isLoading}
           skeleton={<ColumnSkeleton theme={currentTheme} />}
           emptyState={<p className="text-center opacity-70">Nenhuma coluna encontrada</p>}
-        />)
-      }
+        />
+      )}
     </div>
   );
 };

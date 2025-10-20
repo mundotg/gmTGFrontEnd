@@ -1,11 +1,11 @@
 'use client';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { EditedField, EditedFieldForQuery, ForeignKeyOption, RowDetailsModalCreateProps } from '@/types';
-import DynamicInputByType from './DynamicInputByType';
 import { Key, X, Save, AlertCircle } from 'lucide-react';
 import { Badge, validateField } from '@/util';
 import { ForeignKeySelect } from './ForeignKeySelect';
 import api from '@/context/axioCuston';
+import DynamicInputByTypeWithNullable from './DynamicInputByTypeWithNullable';
 const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
     isOpen,
     onClose,
@@ -232,7 +232,8 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
                                                     </div>
                                                 </label>
                                                 <div className='text-black'>
-                                                    <DynamicInputByType
+                                                    <DynamicInputByTypeWithNullable
+                                                        is_nullable={col.is_nullable}
                                                         enum_values={col.enum_valores_encontrados}
                                                         type={col.tipo}
                                                         value={fieldState.value}

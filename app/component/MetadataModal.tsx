@@ -1,7 +1,6 @@
 'use client';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { EditedField, EditedFieldForQuery, MetadataTableResponse, RowDetailsModalProps, Tables_primary_keys_values } from '@/types';
-import DynamicInputByType from './DynamicInputByType';
 import { Lock, Key, Pencil, X, Save, AlertCircle, Search, Trash2 } from 'lucide-react';
 import { validateField, Badge } from '@/util';
 import { usePopupReference } from '../services/popups';
@@ -9,6 +8,7 @@ import { CLASSNAME_BUTTON } from '@/constant';
 import { findIdentifierField } from '@/util/func';
 import { useRowDelete } from '@/hook/useRowDelete';
 import { createLogger } from '@/util/logger';
+import DynamicInputByTypeWithNullable from './DynamicInputByTypeWithNullable';
 
 const logger = createLogger({ component: 'RowDetailsModal' });
   
@@ -26,7 +26,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { openReferencePopup: viewReferenceTable } = usePopupReference();
-
+  console.log(row)
   // Memoização das tabelas selecionadas
   const selectedTables = useMemo<MetadataTableResponse[]>(() => {
     if (!row?.tableName || !informacaosOftables) return [];
@@ -78,7 +78,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     const rowEntries = Object.entries(row.row);
     const nameColumns = row.nameColumns || [];
     const mainTableName = row.tableName?.[0] || 'unknown_table';
-    console.log("Inicializando modal para tabela(s):", row.tableName, "com colunas:", nameColumns);
+    // console.log("Inicializando modal para tabela(s):", row.tableName, "com colunas:", nameColumns);
     rowEntries.forEach(([key, value], index) => {
       let columnName: string;
       let tableName: string;
@@ -322,9 +322,10 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
 
                         <div className="flex items-center gap-2">
                           <div className="flex-1">
-                            <DynamicInputByType
+                            <DynamicInputByTypeWithNullable
                               enum_values={col.enum_valores_encontrados}
                               type={col.tipo}
+                              is_nullable={col.is_nullable}
                               value={editedField.value}
                               onChange={(newVal) =>
                                 handleFieldChange(qualifiedName, newVal, metadata.table_name, col.tipo, col.is_nullable)

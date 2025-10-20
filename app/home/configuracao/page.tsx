@@ -1,10 +1,8 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { Button } from "@/app/component";
-import { useI18n } from "@/context/I18nContext";
+// import { useI18n } from "@/context/I18nContext";
 import { useSession } from "@/context/SessionContext";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   User,
   Building,
@@ -12,11 +10,10 @@ import {
   Users,
   Plug,
   Settings,
-  LogOut,
 } from "lucide-react";
 
 export default function SettingsPage() {
-  const { t } = useI18n();
+  // const { t } = useI18n();
   const route = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useSession();
 
@@ -38,7 +35,7 @@ export default function SettingsPage() {
     logout().then(() => route.push("/auth/login"));
   };
 
-  if (isLoading) {
+  if (isLoading || isAuthenticated) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-black text-white text-lg">
         Carregando sessão...
@@ -79,6 +76,8 @@ export default function SettingsPage() {
           {activeTab === "usuario" && (
             <section>
               <h2 className="text-xl font-semibold mb-3">👤 Configurações do Usuário</h2>
+              <h1>{user?.nome}</h1>
+              <button onClick={logoutHandle}></button>
               <ul className="space-y-2 text-white/90">
                 <li>• Atualizar nome, email e foto de perfil</li>
                 <li>• Alterar senha</li>

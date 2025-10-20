@@ -1,4 +1,5 @@
-import DynamicInputByType from "@/app/component/DynamicInputByType";
+
+import DynamicInputByTypeWithNullable from "@/app/component/DynamicInputByTypeWithNullable";
 import { CLASSNAME_BUTTON } from "@/constant";
 import { CampoDetalhado, EditedField, MetadataTableResponse } from "@/types";
 import { Badge } from "@/util";
@@ -84,7 +85,8 @@ const FieldEditor = React.memo(({
 
       <div className="flex items-start gap-2">
         <div className="flex-1">
-          <DynamicInputByType
+          <DynamicInputByTypeWithNullable
+          is_nullable={col.is_nullable}
             enum_values={col.enum_valores_encontrados}
             type={col.tipo}
             value={editedField.value}

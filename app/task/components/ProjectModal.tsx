@@ -228,8 +228,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const handleSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
+      setLoading(true)
 
-      if (!formState.name.trim()) {
+      try {
+        if (!formState.name.trim()) {
         alert("O nome do projeto é obrigatório.");
         return;
       }
@@ -256,6 +258,11 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
       onSubmit(project);
       
       if (!editingProject && !formError) clearForm();
+      } catch (error) {
+        console.error(error)
+      }finally{
+        setLoading(false)
+      }
     },
     [formState, editingProject, user?.id, clearForm, onSubmit]
   );

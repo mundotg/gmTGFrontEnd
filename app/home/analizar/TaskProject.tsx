@@ -24,17 +24,6 @@ const ProjectAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [analyticsData, setAnalyticsData] = useState<AnalizeDataType|null>(null);
 
-  // Cores para gráficos
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
-  const STATUS_COLORS = {
-    'concluída': '#00C49F',
-    'em andamento': '#0088FE',
-    'pendente': '#FFBB28',
-    'em revisão': '#FF8042',
-    'bloqueada': '#FF6B6B',
-    'cancelada': '#8884D8'
-  };
-
   // Dados mockados baseados nos seus modelos
   const mockData:AnalizeDataType = {
     overview: {

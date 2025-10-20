@@ -188,7 +188,6 @@ export const SpringCard = React.memo(function SpringCard({
       <PaginacaoGenerica<Sprint>
         Lista={sprintData}
         apiUrl="/paginate/"
-        api={null}
         searchPlaceholder="pesquisar sprint por nome"
         fetchFunc={(limit, page, tipo, search) =>
           buscarSprintsPorProjeto(limit, page, tipo, { project_id: project.id }, search)

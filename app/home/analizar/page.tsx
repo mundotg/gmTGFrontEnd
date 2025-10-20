@@ -37,7 +37,7 @@ type QueryRow = {
 };
 
 export default function AnalyticsPage() {
-  const { api, user } = useSession(); // assume context fornece api (axios-like) e user
+  const { api } = useSession(); // assume context fornece api (axios-like) e user
   const [mode, setMode] = useState<"db" | "project">("db");
 
   // Loading / error
@@ -46,9 +46,11 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Data state
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [overview, setOverview] = useState<any>(null);
   const [topQueries, setTopQueries] = useState<QueryRow[]>([]);
-  const [projectOverview, setProjectOverview] = useState<any>(null);
+  
+  // const [projectOverview, setProjectOverview] = useState<any>(null);
 
   // Filters
   const [dateFrom, setDateFrom] = useState<string>(() =>
@@ -81,15 +83,15 @@ export default function AnalyticsPage() {
     try {
       if (!api) {
         // placeholder data if api not available
-        setOverview({
-          activeConnections: 7,
-          databases: 4,
-          queriesLast24h: 1240,
-          avgLatencyMs: 84,
-          errorsLast24h: 3,
-          queriesByType: { SELECT: 900, INSERT: 150, UPDATE: 120, DELETE: 70 },
-          queriesTrend: Array.from({ length: 7 }, (_, i) => ({ day: `D-${6 - i}`, value: Math.round(400 + Math.random() * 600) })),
-        });
+        // setOverview({
+        //   activeConnections: 7,
+        //   databases: 4,
+        //   queriesLast24h: 1240,
+        //   avgLatencyMs: 84,
+        //   errorsLast24h: 3,
+        //   queriesByType: { SELECT: 900, INSERT: 150, UPDATE: 120, DELETE: 70 },
+        //   queriesTrend: Array.from({ length: 7 }, (_, i) => ({ day: `D-${6 - i}`, value: Math.round(400 + Math.random() * 600) })),
+        // });
         return;
       }
 
@@ -97,6 +99,7 @@ export default function AnalyticsPage() {
         params: { from: dateFrom, to: dateTo, connection: connectionFilter, user: userFilter },
       });
       setOverview(resp.data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error("loadOverview error", err);
       setError("Erro ao carregar visão geral");
@@ -142,25 +145,25 @@ export default function AnalyticsPage() {
   async function loadProjectOverview() {
     try {
       if (!api) {
-        setProjectOverview({
-          totalProjects: 12,
-          activeProjects: 8,
-          overdueTasks: 14,
-          tasksCompletedLast30d: 132,
-          burndown: Array.from({ length: 10 }, (_, i) => ({ day: `T-${9 - i}`, remaining: Math.max(0, 100 - i * 8) })),
-          tasksByUser: [
-            { user: "Alice", completed: 34 },
-            { user: "Bob", completed: 21 },
-            { user: "Carol", completed: 18 },
-          ],
-        });
+        // setProjectOverview({
+        //   totalProjects: 12,
+        //   activeProjects: 8,
+        //   overdueTasks: 14,
+        //   tasksCompletedLast30d: 132,
+        //   burndown: Array.from({ length: 10 }, (_, i) => ({ day: `T-${9 - i}`, remaining: Math.max(0, 100 - i * 8) })),
+        //   tasksByUser: [
+        //     { user: "Alice", completed: 34 },
+        //     { user: "Bob", completed: 21 },
+        //     { user: "Carol", completed: 18 },
+        //   ],
+        // });
         return;
       }
-      const resp = await api.get(PROJECT_OVERVIEW_URL, { params: { from: dateFrom, to: dateTo } });
-      setProjectOverview(resp.data);
+      /* const resp =  */await api.get(PROJECT_OVERVIEW_URL, { params: { from: dateFrom, to: dateTo } });
+      // setProjectOverview(resp.data);
     } catch (err) {
       console.error("loadProjectOverview error", err);
-      setProjectOverview(null);
+      // setProjectOverview(null);
     }
   }
 
@@ -260,7 +263,7 @@ export default function AnalyticsPage() {
                 {loadingQueries ? <LoadingPlaceholder /> : <TopQueriesList data={topQueries.slice(0, 5)} />}
               </Card>
             </div>
-
+    
             {/* DB-specific table */}
             {mode === "db" && (
               <Card title="Top Queries (tabela)">
@@ -329,7 +332,7 @@ export default function AnalyticsPage() {
 
             {/* Project analytics */}
             {mode === "project" && (
-              <ProjectAnalytics/>
+              <ProjectAnalytics />
             )}
           </div>
 
@@ -416,6 +419,7 @@ function StatCard({ title, value, subtitle, icon }: { title: string; value: Reac
 }
 
 /* Simple SVG placeholders for charts - replace with real charts if desired */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function LineChartPlaceholder({ data }: { data?: any[] }) {
   // simple sparkline display
   const points = (data || []).map((d, i) => ({ x: i, y: d?.value ?? Math.random() * 200 }));
@@ -496,17 +500,17 @@ function LoadingPlaceholder() {
 function BarIcon() { return <BarChart2 className="w-5 h-5" />; }
 function PieIcon() { return <PieChart className="w-5 h-5" />; }
 
-function BarChartPlaceholder({ data }: { data?: any[] }) {
-  const series = data || [{ user: "A", completed: 30 }, { user: "B", completed: 20 }, { user: "C", completed: 10 }];
-  const max = Math.max(...series.map((s) => s.completed), 1);
-  return (
-    <div className="flex gap-4 items-end h-36">
-      {series.map((s) => (
-        <div key={s.user} className="flex-1">
-          <div style={{ height: `${(s.completed / max) * 100}%` }} className="bg-indigo-400 rounded-t-md transition-all" />
-          <div className="text-xs text-center mt-2">{s.user}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// function BarChartPlaceholder({ data }: { data?: any[] }) {
+//   const series = data || [{ user: "A", completed: 30 }, { user: "B", completed: 20 }, { user: "C", completed: 10 }];
+//   const max = Math.max(...series.map((s) => s.completed), 1);
+//   return (
+//     <div className="flex gap-4 items-end h-36">
+//       {series.map((s) => (
+//         <div key={s.user} className="flex-1">
+//           <div style={{ height: `${(s.completed / max) * 100}%` }} className="bg-indigo-400 rounded-t-md transition-all" />
+//           <div className="text-xs text-center mt-2">{s.user}</div>
+//         </div>
+//       ))}
+//     </div>
+//   );
+// }

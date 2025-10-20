@@ -11,7 +11,7 @@ import {
   TrendingUp,
   Repeat,
 } from "lucide-react";
-import { Taskcreate, TaskModalProps, TaskPriority, TaskRepeat, TaskStatus } from "../types";
+import { TaskCreate, TaskModalProps, TaskPriority, TaskRepeat, TaskStatus } from "../types";
 import { useSessionTask } from "../contexts/UserContext";
 import { useTaskModalData, useDateUtils } from "../hook/useTaskModal";
 import { SelectComp } from "./select_Component";
@@ -22,7 +22,6 @@ import {
   STATUS_OPTIONS,
 } from "../costant";
 import usePersistedState from "@/hook/localStoreUse";
-import { safeDateTime } from "../utils";
 
 interface TaskModalPropsExtended extends TaskModalProps {
   isLoading?: boolean;
@@ -92,7 +91,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
   );
 
   // ⚙️ Validação local - MANTIDO (já está correto)
-  const validateForm = useCallback(( formChanges: Taskcreate) => {
+  const validateForm = useCallback(( formChanges: TaskCreate) => {
     const title = formChanges.title ?? editingTask?.title;
     if (!title?.trim()) {
       setLocalError("O título da tarefa é obrigatório");
@@ -136,7 +135,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
       
 
       // Preparar dados para o backend
-      const taskData: Taskcreate = {
+      const taskData: TaskCreate = {
         // Campos para criação
         ...(!editingTask && {
           projectId: projectId,
@@ -281,7 +280,6 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
             <input
               type="text"
               name="title"
-              // defaultValue={editingTask?.title || ""}
               value={formChanges.title || editingTask?.title || ""}
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -297,7 +295,6 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
             </label>
             <textarea
               name="description"
-              // defaultValue={editingTask?.description || ""}
               value={formChanges.description || editingTask?.description || ""}
               onChange={handleChange}
               rows={4}
@@ -312,7 +309,6 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
             </label>
             <select
               name="priority"
-              // defaultValue={editingTask?.priority || "media"}
               value={formChanges.priority || editingTask?.priority}
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500"
@@ -386,7 +382,6 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
               <input
                 type="datetime-local"
                 name="startDate"
-                // defaultValue={formatDateTimeLocal(editingTask?.start_date)}
                 value={formChanges.startDate || (formatDateTimeLocal(editingTask?.start_date || dataCurrentDefaul))}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500"
@@ -399,7 +394,6 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
               <input
                 type="datetime-local"
                 name="endDate"
-                // defaultValue={formatDateTimeLocal(editingTask?.end_date)}
                 value={formChanges.endDate || formatDateTimeLocal(editingTask?.end_date || dataEndDefaul)}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500"
@@ -434,7 +428,6 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
                 </label>
                 <select
                   name="status"
-                  // defaultValue={editingTask?.status || "pendente"}
                   value={formChanges.status || editingTask?.status || "pendente"}
                   onChange={handleChange}
                   className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500"
@@ -487,11 +480,6 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
                       <input
                         type="datetime-local"
                         name="repeat_until"
-                        // defaultValue={
-                        //   editingTask?.schedule?.until
-                        //     ? formatDateTimeLocal(editingTask.schedule.until)
-                        //     : ""
-                        // }
                         value={formatDateTimeLocal(formChanges.repeat_until) || (editingTask?.schedule?.until ? formatDateTimeLocal(editingTask.schedule.until)
                           : "")}
                         onChange={handleChange}
@@ -511,7 +499,6 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
                 <input
                   type="number"
                   name="estimatedHours"
-                  // defaultValue={editingTask?.estimated_hours || ""}
                   value={(formChanges.estimatedHours) || editingTask?.estimated_hours || ""}
                   onChange={handleChange}
                   min="0"
@@ -528,7 +515,6 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
                 <input
                   type="text"
                   name="tags"
-                  // defaultValue={Array.isArray(editingTask?.tags) ? editingTask.tags.join(", ") : editingTask?.tags || ""}
                   value={formChanges.tags || (Array.isArray(editingTask?.tags) ? editingTask.tags.join(", ") : editingTask?.tags || "")}
                   onChange={handleChange}
                   placeholder="frontend, backend, urgente"

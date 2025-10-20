@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Modal } from "./modalComponent";
-import { UsuarioTaskCreate } from "../types";
+import { UserRoleEnum, UsuarioTaskCreate } from "../types";
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -26,7 +26,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const [senha, setSenha] = useState("");
     const [confirmarSenha, setConfirmarSenha] = useState("");
     const [avatarUrl, setAvatarUrl] = useState("");
-    const [role, setRole] = useState<string>("membro");
+    const [role, setRole] = useState<UserRoleEnum>("membro");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
@@ -91,7 +91,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 await onLogin(email, senha);
             } else {
                 // Prepara os dados no formato do schema UsuarioCreateSchema
-                const userData = {
+                const userData:UsuarioTaskCreate = {
                     nome: nome.trim(),
                     email,
                     senha,
@@ -216,7 +216,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             <select
                                 id="role"
                                 value={role}
-                                onChange={(e) => setRole(e.target.value)}
+                                onChange={(e) => setRole(e.target.value as UserRoleEnum)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                                 disabled={loading}
                             >

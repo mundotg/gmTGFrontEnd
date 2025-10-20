@@ -114,7 +114,7 @@ export default function HistoricoPage() {
 
   // Filtro e ordenação
   const filteredAndSortedLogs = useMemo(() => {
-    let filtered = logs.filter((log) => {
+    const filtered = logs.filter((log) => {
       const matchesSearch =
         log.user.toLowerCase().includes(search.toLowerCase()) ||
         log.project.toLowerCase().includes(search.toLowerCase()) ||
@@ -128,7 +128,9 @@ export default function HistoricoPage() {
 
     // Ordenação
     filtered.sort((a, b) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let aValue: any = a[sortField];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let bValue: any = b[sortField];
 
       if (sortField === "timestamp") {

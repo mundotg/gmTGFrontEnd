@@ -362,7 +362,7 @@ function ResultTable({
         isSelectionMode={isSelectionMode}
         isDeleting={isDeleting}
         deleteProgress={deleteProgress}
-        selectedItems={selectedItems}
+        // selectedItems={selectedItems}
         selectedCount={selectedCount}
         isAllSelected={isAllSelected}
         isSomeSelected={isSomeSelected}

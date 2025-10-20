@@ -22,7 +22,7 @@ enum InputType {
   SELECT = "select"
 }
 
-export default function DynamicInputByType({ type, value, onChange, placeholder, disabled, enum_values }: DynamicInputProps) {
+export default function DynamicInputByType({ type, value, onChange, placeholder, disabled, enum_values}: DynamicInputProps) {
 
   const input = useMemo<InputType>(() => {
     const lowerType = type.toLowerCase();

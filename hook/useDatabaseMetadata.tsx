@@ -1,17 +1,18 @@
 "use client"
-import { useCallback, useEffect,useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useEffect,useState } from "react";
 import { DatabaseMetadata } from "@/types";
 import { fetchSyncMetadata, fetchTables } from "@/app/services/metadata_DB";
 import { useSession } from "@/context/SessionContext";
 
 interface UseDatabaseMetadataResult {
   metadata: DatabaseMetadata | null;
+  setMetadata: Dispatch<SetStateAction<DatabaseMetadata | null>>;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<(() => void) | undefined>;
 }
 
-export function useDatabaseMetadata(): UseDatabaseMetadataResult {
+export function useDatabaseMetadata(op?: string): UseDatabaseMetadataResult {
   const { user } = useSession();
   const [metadata, setMetadata] = useState<DatabaseMetadata | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,7 +30,7 @@ export function useDatabaseMetadata(): UseDatabaseMetadataResult {
       if (isCancelled) return;
 
       // 2. Busca lista de tabelas
-      const tables = await fetchTables();
+      const tables =op ? [] : await fetchTables();
       if (isCancelled) return;
 
       const initial: DatabaseMetadata = {
@@ -117,5 +118,5 @@ export function useDatabaseMetadata(): UseDatabaseMetadataResult {
     };
   }, [fetchMetadata]);
 
-  return { metadata, loading, error, refresh: fetchMetadata };
+  return { metadata,setMetadata, loading, error, refresh: fetchMetadata };
 }

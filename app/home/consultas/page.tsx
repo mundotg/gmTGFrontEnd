@@ -141,9 +141,6 @@ const ConsultaPage = () => {
     if (!tableName) return;
 
     const isColumnComplete = queryResults?.tabela_coluna?.[tableName].length === row.nameColumns.length
-    // console.log(queryResults?.tabela_coluna?.[tableName].length, row.nameColumns.length)
-    // console.log(queryResults?.tabela_coluna, row.nameColumns)
-    // console.log(queryResults)
     if (isColumnComplete) return openRowModal(row);
 
     const primaryKeyField = findIdentifierField(tableName, columnsInfo);

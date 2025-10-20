@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Calendar, CheckCircle, Eye, Pencil, Save, X } from "lucide-react";
+import { Calendar, CheckCircle, Eye, Save, X } from "lucide-react";
 import { useSessionTask } from "../contexts/UserContext";
 import { Modal } from "./modalComponent";
 import { Sprint } from "../types";
@@ -85,7 +85,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
     if (isOpen) {
       loadProjects();
     }
-  }, [api, mode, isOpen]);
+  }, [mode, isOpen]);
 
   // 🔹 Popular dados da sprint e detectar alterações
   useEffect(() => {

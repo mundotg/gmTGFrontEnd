@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from "react";
 import ProjectModal from "./components/ProjectModal";
 import { TaskModal } from "./components/TaskModal";
-import { Project, ProjectFormData, Sprint, Task, Taskcreate, TypeShowToste, UsuarioTaskCreate } from "./types";
+import { Project, ProjectFormData, Sprint, Task, TaskCreate, TypeShowToste, UsuarioTaskCreate } from "./types";
 import ProjectList from "./paginas/ProjectList";
 import TaskList from "./paginas/Tasklist";
 import { AuthModal } from "./components/AuthModal";
@@ -90,7 +90,7 @@ const App: React.FC = () => {
         setActionLoading(false);
       }
     },
-    [api, setProjectModalOpen, setProjects, showToast, validateProjectForm]
+    [setProjectModalOpen, setProjects, showToast, validateProjectForm]
   );
 
   const handleEditProject = useCallback(
@@ -125,7 +125,7 @@ const App: React.FC = () => {
         setActionLoading(false);
       }
     },
-    [api, editingProject, setProjectModalOpen, setProjects, showToast, validateProjectForm]
+    [editingProject, setProjectModalOpen, setProjects, showToast, validateProjectForm]
   );
 
   const handleDeleteProject = useCallback(
@@ -155,12 +155,12 @@ const App: React.FC = () => {
         setActionLoading(false);
       }
     },
-    [api, selectedProjectId,setSelectedProjectId]
+    [selectedProjectId,setSelectedProjectId]
   );
 
   // CRUD DE TAREFAS
   const handleAddTask = useCallback(
-    async (f: Partial<Taskcreate>) => {
+    async (f: Partial<TaskCreate>) => {
       const err = validateTaskForm(f);
       if (err) return setFormError(err);
       const projectId = f.projectId || selectedProject?.id || selectedProjectId
@@ -168,7 +168,7 @@ const App: React.FC = () => {
         return setFormError("Nenhum projeto selecionado.");
       }
 
-      const newTask: Taskcreate = {
+      const newTask: TaskCreate = {
         id: crypto.randomUUID(),
         title: f.title!.trim(),
         description: f.description?.trim(),
@@ -216,7 +216,7 @@ const App: React.FC = () => {
         setActionLoading(false);
       }
     },
-    [user?.id, api, selectedProject?.id]
+    [user?.id, selectedProject?.id]
   );
 
   const handleDeleteTask = useCallback(
@@ -251,13 +251,13 @@ const App: React.FC = () => {
   );
 
   const handleEditTask = useCallback(
-    async (f: Partial<Taskcreate>) => {
+    async (f: Partial<TaskCreate>) => {
       if (!editingTask) return;
       const projectId = f.projectId || selectedProject?.id || selectedProjectId
       if (!projectId) {
         return setFormError("Nenhum projeto selecionado.");
       }
-      const updatedTask: Taskcreate = {
+      const updatedTask: TaskCreate = {
         id: crypto.randomUUID(),
         title: f.title || "",
         description: f.description,
@@ -314,7 +314,7 @@ const App: React.FC = () => {
         setActionLoading(false);
       }
     },
-    [api, editingTask]
+    [editingTask]
   );
 
   // LOGIN E REGISTRO

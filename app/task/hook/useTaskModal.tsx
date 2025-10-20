@@ -43,7 +43,7 @@ export const useTaskModalData = (projectId?: string, editingTask?: any) => {
             console.error("Erro ao buscar sprints:", err);
             return { options: [], hasMore: false, total: 0 };
         }
-    }, [api, projectId, editingTask?.project_id]);
+    }, [ projectId, editingTask?.project_id]);
 
     // Função para buscar usuários com paginação
     const fetchUsers = useCallback(async (page: number, search: string) => {
@@ -72,7 +72,7 @@ export const useTaskModalData = (projectId?: string, editingTask?: any) => {
             console.error("Erro ao buscar usuários:", err);
             return { options: [], hasMore: false, total: 0 };
         }
-    }, [api]);
+    }, []);
 
     return {
         fetchSprints,

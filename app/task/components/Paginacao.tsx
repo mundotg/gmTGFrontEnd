@@ -9,6 +9,7 @@ import {
   Trash2,
   Eye,
 } from "lucide-react";
+import { useSessionTask } from "../contexts/UserContext";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface PaginatedResponse<T = any> {
   items: T[];
@@ -24,8 +25,6 @@ interface PaginacaoGenericaProps<T = any> {
   setLista?: React.Dispatch<React.SetStateAction<PaginatedResponse<T>>>;
   fetchFunc?: (limit: number, page: number, tipo: "user" | "project" | "task" | "sprint", search?: string) => Promise<void>;
   apiUrl: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  api: any;
   tipo: "user" | "project" | "task" | "sprint";
   token?: string;
   onSelect?: (item: T) => void;
@@ -40,7 +39,6 @@ export const PaginacaoGenerica = <T,>({
   setLista,
   fetchFunc,
   apiUrl,
-  api,
   tipo,
   token,
   onSelect,
@@ -56,7 +54,7 @@ export const PaginacaoGenerica = <T,>({
   const [limit] = useState(10);
   const [search, setSearch] = useState(Lista.search || "");
   const [searchInput, setSearchInput] = useState(Lista.search || "");
-
+  const {api} = useSessionTask()
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -82,8 +80,8 @@ export const PaginacaoGenerica = <T,>({
         result = response.data;
       } else {
         const response = await api(`${apiUrl}?${params}`);
-        if (!response.ok) throw new Error("Erro ao buscar dados");
-        result = await response.json();
+        if (response?.status == 500) throw new Error("Erro ao buscar dados");
+        result = await response.data;
       }
       setLista?.(result || []);
     } catch (err) {
@@ -171,17 +169,6 @@ export const PaginacaoGenerica = <T,>({
   }[tipo]),
   [tipo]
 );
-
-  // // Debug: log para verificar dados de paginação
-  // console.log("Pagination Debug:", {
-  //   currentPage: page,
-  //   totalPages: data.pages,
-  //   totalItems: data.total,
-  //   itemsCount: data.items.length,
-  //   limit,
-  //   startPage,
-  //   endPage
-  // });
 
   return (
     <div className="w-full overflow-clip max-w-6xl mx-auto p-3 sm:p-4 md:p-6 flex flex-col h-full max-h-[calc(100vh-200px)] m-2">

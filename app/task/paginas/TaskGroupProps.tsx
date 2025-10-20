@@ -45,6 +45,8 @@ export const TaskGroup = memo(
     onValidateTask,
     onDelegateTask,
   }: TaskGroupProps): JSX.Element => {
+
+    console.log(groupTasks)
     const styles = useMemo(() => {
       if (isBacklog)
         return {
@@ -117,6 +119,7 @@ export const TaskGroup = memo(
             <div className="space-y-3 w-full">
               {groupTasks.map((task) => (
                 <TaskCard
+                // onGenerateReport={()=>{}}
                   key={task.id}
                   task={task}
                   onToggle={() => onToggleTask(task.id!)}
