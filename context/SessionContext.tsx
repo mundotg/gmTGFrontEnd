@@ -58,6 +58,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const isAuthenticated = useMemo(() => !!user, [user]);
+ 
 
     // const route = useRouter();
 
@@ -167,7 +168,6 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     const storeLoginData = useCallback((user: Usuario) => {
         setUser(user);
-        console.log("\nArmazenando dados do usuário:", user)
         localStorage.setItem("user", JSON.stringify(user));
     }, []);
 

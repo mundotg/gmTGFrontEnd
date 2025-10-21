@@ -1,101 +1,67 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Database,
-  Plus,
-  Eye,
-  EyeOff,
-  Server,
-  Clock,
   Trash2,
   Edit,
-  CheckCircle,
-  AlertCircle,
-  ChevronDown
 } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
-import { ConnectionFormData, ConnectionLog, DatabaseOption, SavedConnection } from '@/types';
+import { ConnectionFormData, ConnectionLog, SavedConnection } from '@/types';
 import { useSession } from '@/context/SessionContext';
 import { databases } from '@/constant';
 import { usePagination } from '@/hook';
 import Pagination from '@/app/component/pagination-component';
 import { ConnectionToggleButton } from '@/app/component/ConnectionToggleButton';
+import { ConnectionForm } from '@/app/component/connectionComponent/ConnectionForm';
+import { formatDate, getStatusColor, getStatusIcon } from '@/util/connectioPage/func';
+import usePersistedState from '@/hook/localStoreUse';
+
 
 const DatabaseConnectionForm = () => {
-  const [selectedDb, setSelectedDb] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [selectedDb, setSelectedDb] = usePersistedState<string>("selectedDb", "");
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showDropdown, setShowDropdown] = usePersistedState<boolean>("showDropdown", false);
   const { t } = useI18n();
   const { api } = useSession();
-
-
-
-  const [formData, setFormData] = useState<ConnectionFormData>({
+  const [formData, setFormData] = usePersistedState<ConnectionFormData>("ConnectionFormData", {
     name: "",
     host: "",
     port: "",
     type: "",
     database: "",
     username: "",
-    password: ""
+    password: "",
+    trustServerCertificate: "yes",
+    sslmode: "",
+    service: "",
   });
 
-  const { page: historyPage, totalPages: historyTotal, data: paginatedHistory, goToNext: nextHistory,
-    goToPrev: prevHistory, setPage: setPagehistory } = usePagination<ConnectionLog>((page) =>
-      api.get("/conn/connection_logs/", {
-        params: { page, limit: 10 },
-        withCredentials: true,
-      }).then(res => res.data)
-    );
+  const { page: historyPage, totalPages: historyTotal, data: paginatedHistory, setPage: setPagehistory } = usePagination<ConnectionLog>((page) =>
+    api.get("/log/connection_logs/", {
+      params: { page, limit: 10 },
+      withCredentials: true,
+    }).then(res => res.data)
+  );
 
-  const { page: connPage, totalPages: connTotal, data: paginatedConnections, setData: setPageConnetion,
-    goToNext: nextConn, goToPrev: prevConn, setExecute } = usePagination<SavedConnection>((page) =>
-      api.get("/conn/connections/", {
-        params: { page, limit: 10 },
-        withCredentials: true,
-      }).then(res => res.data)
-    );
-
-
-  const updateField = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-
-  useEffect(() => {
-    // Atualiza o localStorage sempre que savedConnections mudar
-    const formSave = localStorage.getItem('formData');
-    if (formSave) {
-      setFormData(JSON.parse(formSave));
-    }
-    const Dbform = localStorage.getItem("Dbform");
-    if (Dbform) {
-      const { select, isShowdropdown } = JSON.parse(Dbform);
-      setSelectedDb(select);
-      setShowDropdown(isShowdropdown);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Atualiza o localStorage sempre que formData mudar
-    localStorage.setItem('formData', JSON.stringify(formData));
-  }, [formData]);
-
+  const { page: connPage, totalPages: connTotal, data: paginatedConnections, setData: setPageConnetion, setPage: setConn, setExecute } = usePagination<SavedConnection>((page) =>
+    api.get("/conn/connections/", {
+      params: { page, limit: 10 },
+      withCredentials: true,
+    }).then(res => res.data)
+  );
 
   const handleDbSelect = (dbId: string) => {
     setSelectedDb(dbId);
     setShowDropdown(false);
-    localStorage.setItem("Dbform", JSON.stringify({ "select": dbId, "isShowdropdown": false }));
-    const db: DatabaseOption | undefined = databases.find(d => d.id === dbId);
+    const db = databases.find(d => d.id === dbId);
     if (!db) return;
-    // updateField("port", db.port);
 
-    // Buscar conexão existente para este tipo de banco
     const existingConnection = paginatedConnections.find(conn => conn.type === dbId);
+
     if (existingConnection) {
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         name: existingConnection.name,
         host: existingConnection.host,
         port: db.port,
@@ -103,21 +69,22 @@ const DatabaseConnectionForm = () => {
         database: existingConnection.database,
         username: "",
         password: "",
-      });
+      }));
     } else {
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         name: "",
         host: "",
         type: "",
         port: db.port,
         database: "",
         username: "",
-        password: ""
-      });
+        password: "",
+      }));
     }
   };
 
-  const testConnection = async () => {
+  const testConnection = useCallback(async () => {
 
     try {
 
@@ -131,10 +98,9 @@ const DatabaseConnectionForm = () => {
         password: formData.password,
         service: formData.service,
         sslmode: formData.sslmode,
-        trustServerCertificate: formData.trustServerCertificate
+        trustServerCertificate: formData.trustServerCertificate || "yes"
       };
-      const response = await api.post('/conn/test-connection',
-        payload, { withCredentials: true });
+      const response = await api.post('/conn/connect', { conn_data: payload, tipo: "con" }, { withCredentials: true });
 
       if (response.data.success) {
         setConnectionStatus("success");
@@ -146,9 +112,9 @@ const DatabaseConnectionForm = () => {
       return;
 
     }
-  };
+  }, [formData, api,selectedDb]);
 
-  const connect = async () => {
+  const connect = useCallback(async () => {
     setIsConnecting(true);
     setConnectionStatus("");
     try {
@@ -162,9 +128,11 @@ const DatabaseConnectionForm = () => {
         password: formData.password,
         service: formData.service,
         sslmode: formData.sslmode,
-        trustServerCertificate: formData.trustServerCertificate
+        trustServerCertificate: formData.trustServerCertificate || "yes"
       };
-      const response = await api.post('/conn/connect', payload, { withCredentials: true });
+
+      console.log("payload: ", formData)
+      const response = await api.post('/conn/connect', { conn_data: payload, tipo: "upsert" }, { withCredentials: true });
       // console.log("response=", response)
       if (response.data.connect) {
         setConnectionStatus("connected");
@@ -182,26 +150,33 @@ const DatabaseConnectionForm = () => {
 
     }
 
-  };
+  }, [selectedDb,formData,api,setIsConnecting,setConnectionStatus,setExecute]);
 
-  const loadConnection = async (connection: SavedConnection) => {
-    const db: DatabaseOption | undefined = databases.find(d => d.id === connection.type);
+  const loadConnection = useCallback(async (connection: SavedConnection) => {
+    const db = databases.find(d => d.id === connection.type);
     if (!db) return;
+
     setSelectedDb(connection.type);
-    const { data: { password, username,service,sslmode, trustServerCertificate} } = await api.get('/conn/get_credencial_db/' + connection.id, { withCredentials: true })
-    console.log(service,sslmode, trustServerCertificate)
-    setFormData({
+    const { data } = await api.get(`/conn/get_credencial_db/${connection.id}`, { withCredentials: true });
+
+    const { password, username, service, sslmode, trustServerCertificate } = data;
+
+    setFormData(prev => ({
+      ...prev,
       name: connection.name,
       host: connection.host,
       port: db.port,
       type: connection.type,
       database: connection.database,
-      username: username,
-      password: password,
-      service,sslmode, trustServerCertificate
-    });
+      username,
+      password,
+      service: service || prev.service,
+      sslmode: sslmode || prev.sslmode,
+      trustServerCertificate: trustServerCertificate || prev.trustServerCertificate || "yes",
+    }));
+
     setConnectionStatus("");
-  };
+  }, [setFormData, setSelectedDb, setConnectionStatus,api]);
 
   const deleteConnection = async (id: string) => {
     if (!id) {
@@ -237,45 +212,6 @@ const DatabaseConnectionForm = () => {
     }
   };
 
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "Data indisponível";
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "Data inválida";
-    return date.toLocaleString("pt-BR", {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  };
-
-
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success':
-      case 'connected':
-        return 'text-green-600 bg-green-50';
-      case 'error':
-        return 'text-red-600 bg-red-50';
-      case 'info':
-        return 'text-blue-600 bg-blue-50';
-      default:
-        return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'success':
-      case 'connected':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'error':
-        return <AlertCircle className="w-4 h-4" />;
-      default:
-        return <Clock className="w-4 h-4" />;
-    }
-  };
-
   const selectedDatabase = databases.find(db => db.id === selectedDb);
 
   return (
@@ -296,252 +232,22 @@ const DatabaseConnectionForm = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Formulário de Conexão */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('newConnection')}</h2>
-
-              {/* Database Type Selector */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('dbType')}
-                </label>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowDropdown(!showDropdown)}
-                    className="w-full px-4 py-3 text-left bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between"
-                  >
-                    {selectedDatabase ? (
-                      <div className="flex items-center">
-                        <span className="text-xl mr-3">{selectedDatabase.icon}</span>
-                        <span>{selectedDatabase.name}</span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-500">{t('selectDatabase')}</span>
-                    )}
-                    <ChevronDown className={`w-5 h-5 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {showDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
-                      {databases.map((db) => (
-                        <button
-                          key={db.id}
-                          onClick={() => handleDbSelect(db.id)}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center first:rounded-t-lg last:rounded-b-lg"
-                        >
-                          <span className="text-xl mr-3">{db.icon}</span>
-                          <span>{db.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {selectedDb && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Nome da Conexão */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('connectionName')}
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => updateField("name", e.target.value)}
-                        placeholder={t('connectionNamePlaceholder')}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    {/* Host */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('host')}
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.host}
-                        onChange={(e) => updateField("host", e.target.value)}
-                        placeholder="localhost"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    {/* Porta */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('port')}
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.port}
-                        onChange={(e) => updateField("port", e.target.value)}
-                        placeholder={selectedDatabase?.port || "5432"}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    {/* Database ou Caminho SQLite */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {selectedDb === 'sqlite' ? t('filePath') : t('database')}
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.database}
-                        onChange={(e) => updateField("database", e.target.value)}
-                        placeholder={selectedDb === 'sqlite' ? "/path/to/database.db" : t('databaseNamePlaceholder')}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    {/* Usuário */}
-                    {selectedDb !== 'sqlite' && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {t('username')}
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.username}
-                            onChange={(e) => updateField("username", e.target.value)}
-                            placeholder="user"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-
-                        {/* Senha */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {t('password')}
-                          </label>
-                          <div className="relative">
-                            <input
-                              type={showPassword ? "text" : "password"}
-                              value={formData.password}
-                              onChange={(e) => updateField("password", e.target.value)}
-                              placeholder="••••••"
-                              className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            >
-                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {/* 🔒 Campo SSL (PostgreSQL) */}
-                    {selectedDb === "postgresql" && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          SSL Mode
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.sslmode || ""}
-                          onChange={(e) => updateField("sslmode", e.target.value)}
-                          placeholder="disable / require / verify-ca"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    )}
-
-                    {/* 🔐 Campo Service (Oracle) */}
-                    {selectedDb === "oracle" && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Service Name
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.service || ""}
-                          onChange={(e) => updateField("service", e.target.value)}
-                          placeholder="xe / orcl"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    )}
-
-                    {/* ✅ Campo trustServerCertificate (SQL Server) */}
-                    {selectedDb === "sqlserver" && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Trust Server Certificate
-                        </label>
-                        <select
-                          value={formData.trustServerCertificate || "yes"}
-                          onChange={(e) => updateField("trustServerCertificate", e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="yes">yes</option>
-                          <option value="no">no</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-
-
-              {connectionStatus && (
-                <div className={`p-4 rounded-lg flex items-center ${connectionStatus === 'success' ? 'bg-green-50 text-green-700' :
-                  connectionStatus === 'connected' ? 'bg-blue-50 text-blue-700' :
-                    'bg-red-50 text-red-700'
-                  }`}>
-                  {getStatusIcon(connectionStatus)}
-                  <span className="ml-2">
-                    {connectionStatus === 'success' ? t('testSuccess') :
-                      connectionStatus === 'connected' ? t('connectedSuccess') :
-                        t('connectionError')}
-                  </span>
-                </div>
-              )}
-
-              {/* Botões */}
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={testConnection} disabled={isConnecting}
-                  className="flex-1 px-4 py-2 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50 flex items-center justify-center">
-                  {isConnecting ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 border-b-2 border-blue-600 rounded-full mr-2"></div>
-                      {t('testing')}
-                    </>
-                  ) : (
-                    <>
-                      <Server className="w-4 h-4 mr-2" />
-                      {t('test')}
-                    </>
-                  )}
-                </button>
-
-                <button type="button" onClick={connect} disabled={isConnecting}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center">
-                  {isConnecting ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full mr-2"></div>
-                      {t('connecting')}
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4 mr-2" />
-                      {t('connect')}
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
+          <ConnectionForm
+            t={t}
+            databases={databases}
+            selectedDatabase={selectedDatabase}
+            setFormData={setFormData}
+            selectedDb={selectedDb}
+            formData={formData}
+            connectionStatus={connectionStatus}
+            isConnecting={isConnecting}
+            handleDbSelect={handleDbSelect}
+            testConnection={testConnection}
+            connect={connect}
+            getStatusIcon={getStatusIcon}
+            showDropdown={showDropdown}
+            setShowDropdown={setShowDropdown}
+          />
           {/* Painéis */}
           <div className="space-y-6">
             <div className="bg-white rounded-xl p-6 shadow-sm border">
@@ -587,9 +293,9 @@ const DatabaseConnectionForm = () => {
                     </div>
                   );
                 }) : t('noSavedConnections')}
-                
+
               </div>
-              <Pagination page={connPage} totalPages={connTotal} setPage={setPagehistory} goToNext={nextConn} goToPrev={prevConn} />
+              <Pagination page={connPage} totalPages={connTotal} size='md' onPageChange={setConn} maxVisiblePages={5} showPageNumbers={true} /* goToNext={nextConn} goToPrev={prevConn} */ />
             </div>
 
             {/* Histórico */}
@@ -611,7 +317,7 @@ const DatabaseConnectionForm = () => {
                   </div>
                 )) : t('noHistory')}
               </div>
-              <Pagination page={historyPage} totalPages={historyTotal} setPage={setPagehistory} goToNext={nextHistory} goToPrev={prevHistory} />
+              <Pagination page={historyPage} totalPages={historyTotal} size='md' onPageChange={setPagehistory} maxVisiblePages={5} showPageNumbers={true} /* setPage={setPagehistory} goToNext={nextHistory} goToPrev={prevHistory} */ />
             </div>
           </div>
         </div>

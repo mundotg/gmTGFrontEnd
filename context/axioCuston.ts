@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const api = axios.create({
+const api =axios.create({
   baseURL: process.env.NEXT_PUBLIC_BACKEND_URL,
   timeout: 10000,
   withCredentials: true,

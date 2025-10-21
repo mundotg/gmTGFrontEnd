@@ -1,11 +1,11 @@
 'use client';
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { EditedField, EditedFieldForQuery, ForeignKeyOption, RowDetailsModalCreateProps } from '@/types';
-import DynamicInputByType from './DynamicInputByType';
 import { Key, X, Save, AlertCircle } from 'lucide-react';
 import { Badge, validateField } from '@/util';
 import { ForeignKeySelect } from './ForeignKeySelect';
 import api from '@/context/axioCuston';
+import DynamicInputByTypeWithNullable from './DynamicInputByTypeWithNullable';
 const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
     isOpen,
     onClose,
@@ -50,11 +50,6 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
         setEditedFields(initialFields);
     }, [isOpen, informacaosOftables]);
 
-    // Seleciona opção FK
-    const handleFkSelect = useCallback((key: string, option: ForeignKeyOption | null, tableName: string, columnType: string) => {
-        handleFieldChange(key, option?.id || "", tableName, columnType);
-    }, []);
-
     // Atualiza campo
     const handleFieldChange = useCallback(
         (key: string, value: string, tableName: string, columnType: string, isNullable?: boolean) => {
@@ -83,6 +78,11 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
         []
     );
 
+    // Seleciona opção FK
+    const handleFkSelect = useCallback((key: string, option: ForeignKeyOption | null, tableName: string, columnType: string) => {
+        handleFieldChange(key, option?.id || "", tableName, columnType);
+    }, [handleFieldChange]);
+
 
     // Salvar novo registro
     const handleSave = useCallback(async () => {
@@ -109,7 +109,7 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
 
             console.log('Novo registro a ser salvo:', createdRow);
             // await onSave(newRow);
-            const resp =await api.post("/exe/insert_row", { createdRow }, { withCredentials: true });
+            await api.post("/exe/insert_row", { createdRow }, { withCredentials: true });
 
             if (onSave) onSave(createdRow);
 
@@ -231,9 +231,10 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
                                                         {hasChanged && <Badge color="blue" text="Alterado" />}
                                                     </div>
                                                 </label>
-                                                <div>
-                                                    <DynamicInputByType
-                                                        enum_values={col.enum_valores_adicionados}
+                                                <div className='text-black'>
+                                                    <DynamicInputByTypeWithNullable
+                                                        is_nullable={col.is_nullable}
+                                                        enum_values={col.enum_valores_encontrados}
                                                         type={col.tipo}
                                                         value={fieldState.value}
                                                         onChange={(val) =>

@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { FilterType, CampoDetalhado, MetadataTableResponse } from "@/types";
+import { FilterType, CampoDetalhado, MetadataTableResponse, tipo_db_Options } from "@/types";
 import { FILTER_TYPE_MAP } from "@/constant";
 
 export const useTableColumns = (tables: MetadataTableResponse[] | undefined) => {
@@ -33,7 +33,7 @@ export const useTableColumns = (tables: MetadataTableResponse[] | undefined) => 
         (filterType === 'primary' && column.is_primary_key) ||
         (filterType === 'nullable' && column.is_nullable) ||
         (filterType === 'enum' && column.enum_valores_encontrados?.length) ||
-        (FILTER_TYPE_MAP[filterType]?.includes(column.tipo.toLowerCase()));
+        (FILTER_TYPE_MAP[filterType]?.includes(column?.tipo));
 
       return matchesSearch && matchesFilter;
     });

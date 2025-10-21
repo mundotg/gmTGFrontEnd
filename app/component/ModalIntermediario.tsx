@@ -42,16 +42,16 @@ export default function ModalAutoCreate({
   // Campos válidos para TODAS as tabelas escolhidas (interseção)
   const camposValidos: CampoDetalhado[] = useMemo(() => {
     if (!metadataList?.length || !tabelas.length) return [];
-    
+
     // Para múltiplas tabelas, só mostrar campos que existem em TODAS
     const tabelasSelecionadas = metadataList.filter(t => tabelas.includes(t.table_name));
-    
+
     if (tabelasSelecionadas.length === 1) {
       return tabelasSelecionadas[0].colunas.filter(
         c => !c.is_auto_increment && !c.is_primary_key
       );
     }
-    return tabelasSelecionadas.flatMap(tabela=> tabela.colunas.filter(
+    return tabelasSelecionadas.flatMap(tabela => tabela.colunas.filter(
       c => !c.is_auto_increment && !c.is_primary_key
     ))
 
@@ -77,7 +77,7 @@ export default function ModalAutoCreate({
     }
 
     // Validar campos padronizados
-    camposPadronizados.forEach((cp, index) => {
+    camposPadronizados.forEach((cp) => {
       if (cp.campo && !cp.valor.trim()) {
         newErrors[`campo_${cp.id}`] = "Campo selecionado deve ter um valor";
       }
@@ -104,6 +104,13 @@ export default function ModalAutoCreate({
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [tabelas, quantidade, camposPadronizados]);
+  const resetForm = useCallback(() => {
+    setTabelas([]);
+    setQuantidade(1);
+    setCamposPadronizados([]);
+    setErrors({});
+    setChooseOp(0);
+  }, []);
 
   const handleConfirm = useCallback(async () => {
     if (!validarFormulario()) return;
@@ -122,22 +129,20 @@ export default function ModalAutoCreate({
       };
     });
     try {
-      await api.post("/exe/auto-create",{"configs":configs},{withCredentials: true})
+      await api.post("/exe/auto-create", { "configs": configs }, { withCredentials: true })
     } catch (error) {
 
       console.log(error)
-      
-    }
-      
 
+    }
     onConfirm(configs);
     resetForm();
     onClose();
-  }, [tabelas, quantidade, camposPadronizados, metadataList, onConfirm, validarFormulario]);
+  }, [tabelas, quantidade, camposPadronizados, metadataList, onConfirm, validarFormulario, onClose, resetForm]);
 
   const adicionarCampo = useCallback(() => {
     if (camposDisponiveis.length === 0) return;
-    
+
     const novoId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setCamposPadronizados(prev => [
       ...prev,
@@ -160,7 +165,7 @@ export default function ModalAutoCreate({
         cp.id === id ? { ...cp, [propriedade]: valor } : cp
       )
     );
-    
+
     // Limpar erro específico do campo ao atualizá-lo
     if (errors[`campo_${id}`]) {
       setErrors(prev => {
@@ -170,14 +175,6 @@ export default function ModalAutoCreate({
       });
     }
   }, [errors]);
-
-  const resetForm = useCallback(() => {
-    setTabelas([]);
-    setQuantidade(1);
-    setCamposPadronizados([]);
-    setErrors({});
-    setChooseOp(0);
-  }, []);
 
   const handleClose = useCallback(() => {
     resetForm();
@@ -196,7 +193,7 @@ export default function ModalAutoCreate({
   // Tela de escolha da operação
   if (chooseOp === 0) {
     return (
-      <div 
+      <div
         className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
         onClick={(e) => e.target === e.currentTarget && handleClose()}
       >
@@ -234,7 +231,7 @@ export default function ModalAutoCreate({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 text-black"
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
       <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -264,13 +261,12 @@ export default function ModalAutoCreate({
                 multiple
                 value={tabelas}
                 onChange={handleTabelaChange}
-                className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.tabelas ? 'border-red-500' : ''
-                }`}
+                className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.tabelas ? 'border-red-500' : ''
+                  }`}
                 size={Math.min(metadataList.length, 6)}
               >
-                {metadataList.map((t,index) => (
-                  <option key={t.table_name+index} value={t.table_name}>
+                {metadataList.map((t, index) => (
+                  <option key={t.table_name + index} value={t.table_name}>
                     {t.table_name}
                   </option>
                 ))}
@@ -293,10 +289,9 @@ export default function ModalAutoCreate({
                 min={1}
                 max={1000}
                 value={quantidade}
-                onChange={(e) => setQuantidade(Number(e.target.value))}
-                className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.quantidade ? 'border-red-500' : ''
-                }`}
+                onChange={(e) => setQuantidade(parseInt(e.target.value))}
+                className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.quantidade ? 'border-red-500' : ''
+                  }`}
               />
               {errors.quantidade && (
                 <p className="text-sm text-red-600 mt-1">{errors.quantidade}</p>
@@ -324,7 +319,7 @@ export default function ModalAutoCreate({
                   <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                     <p className="text-sm text-amber-800 flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                      As tabelas selecionadas não possuem campos em comum. 
+                      As tabelas selecionadas não possuem campos em comum.
                       Campos padronizados não estarão disponíveis.
                     </p>
                   </div>
@@ -342,7 +337,7 @@ export default function ModalAutoCreate({
                     const temErro = errors[`campo_${cp.id}`];
 
                     return (
-                      <div key={cp.id+"=="+index} className={`p-4 border rounded-lg ${temErro ? 'border-red-200 bg-red-50' : 'bg-gray-50'}`}>
+                      <div key={cp.id + "==" + index} className={`p-4 border rounded-lg ${temErro ? 'border-red-200 bg-red-50' : 'bg-gray-50'}`}>
                         <div className="flex justify-between items-start mb-3">
                           <span className="text-sm font-medium text-gray-700">
                             Campo #{index + 1}
@@ -382,8 +377,8 @@ export default function ModalAutoCreate({
                                     : ""}
                                 </option>
                               )}
-                              {camposDisponiveis.map((c,inde) => (
-                                <option key={c.nome+"_"+inde} value={c.nome}>
+                              {camposDisponiveis.map((c, inde) => (
+                                <option key={c.nome + "_" + inde} value={c.nome}>
                                   {c.nome}
                                   {c.is_foreign_key
                                     ? ` (FK → ${c.referenced_table || "?"})`
@@ -397,7 +392,7 @@ export default function ModalAutoCreate({
                           <div>
                             <label className="block text-sm font-medium mb-1">Valor</label>
                             <DynamicInputByType
-                              enum_values={campoSelecionado?.enum_valores_adicionados}
+                              enum_values={campoSelecionado?.enum_valores_encontrados}
                               type={campoSelecionado?.tipo || "text"}
                               value={cp.valor}
                               onChange={(val) => atualizarCampo(cp.id, 'valor', val)}
@@ -436,12 +431,12 @@ export default function ModalAutoCreate({
                   })}
                 </div>
 
-                {Object.values(camposDisponiveis).every(campos => campos.length === 0) && 
-                 camposPadronizados.length > 0 && (
-                  <p className="text-sm text-gray-500 mt-2">
-                    Todos os campos disponíveis foram selecionados para suas respectivas tabelas.
-                  </p>
-                )}
+                {Object.values(camposDisponiveis).every(campos => campos.length === 0) &&
+                  camposPadronizados.length > 0 && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      Todos os campos disponíveis foram selecionados para suas respectivas tabelas.
+                    </p>
+                  )}
               </div>
             )}
           </div>

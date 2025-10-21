@@ -154,6 +154,7 @@ const LoginPage = () => {
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:bg-white focus:outline-none transition-all duration-300 text-gray-800 placeholder-gray-500 pr-12"
                   placeholder="••••••••"
+                  autoComplete="current-password"
                   required
                 />
                 <button

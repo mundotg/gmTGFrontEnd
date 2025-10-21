@@ -25,8 +25,8 @@ export const exportToCSV = (columns: CampoDetalhado[], tableName: string) => {
 };
 
 
-export function extrairTipoBase(tipo: string): string {
-  return tipo.split('(')[0].trim().toLowerCase();
+export function extrairTipoBase(tipo: string):string  {
+  return tipo.split('(')[0].trim().toLowerCase() ;
 }
 
 export function mapColumnTypeToDbType(columnType?: string): DatabaseType {
@@ -61,7 +61,6 @@ export function getOperatorsForType(rawType: string, is_nullable?: boolean): Ope
   const isEnum = type.includes('enum');
 
    function addNullableOps(ops: OperadorFiltro[]): OperadorFiltro[] {
-    console.log("is_nullable: ",is_nullable)
     if (is_nullable) {
       return [...ops, ...operators.filter(op => ['IS NULL','IS NOT NULL'].includes(op.value))];
     }

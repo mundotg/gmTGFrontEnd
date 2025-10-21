@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";// ajuste o caminho se necessário
+import React, { useMemo } from "react";
 import { Button } from "@/app/component";
 import { useI18n } from "@/context/I18nContext";
 import { useSession } from "@/context/SessionContext";
@@ -8,10 +8,10 @@ import Link from "next/link";
 
 export default function HomePage() {
   const { t } = useI18n();
-  const route = useRouter()
+  const route = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useSession();
 
-  const features = useMemo(()=>[
+  const features = useMemo(() => [
     t("features.consultas"),
     t("features.pesquisa"),
     t("features.validacao"),
@@ -22,21 +22,21 @@ export default function HomePage() {
     t("features.conexoes"),
     t("features.historico"),
     t("features.suporte"),
-  ],[t]);
+  ], [t]);
 
-  const future = useMemo(()=>[
+  const future = useMemo(() => [
     t("futures.dashboard"),
     t("futures.relacionamentos"),
     t("futures.logs"),
     t("futures.colaboracao"),
     t("futures.integracao"),
-  ],[t]);
+  ], [t]);
 
-  const logoutHandle = () =>{
-      logout().then(()=>{
-          route.push("/auth/login")
-      })
-  }
+  const logoutHandle = () => {
+    logout().then(() => {
+      route.push("/auth/login");
+    });
+  };
 
   if (isLoading) {
     return (
@@ -49,22 +49,33 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-6 text-white">
       <div className="max-w-4xl mx-auto bg-white/10 backdrop-blur-sm p-8 rounded-2xl shadow-xl">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
           <h1 className="text-3xl font-bold text-white">🧠 {t("home.title")}</h1>
-          <Link
-            href="/home"            
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
-          >
-            Ir para Home
-          </Link>
-          {isAuthenticated && (
-            <Button
-              onClick={logoutHandle}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm"
+          <div className="flex gap-2">
+            <Link
+              href="/home"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
             >
-              Sair
-            </Button>
-          )}
+              Ir para Home
+            </Link>
+
+            {/* ✅ Novo botão para Task Sprint */}
+            <Link
+              href="/task"
+              className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-md text-sm"
+            >
+              Ir para Task Sprint
+            </Link>
+
+            {isAuthenticated && (
+              <Button
+                onClick={logoutHandle}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm"
+              >
+                Sair
+              </Button>
+            )}
+          </div>
         </div>
 
         {isAuthenticated ? (
