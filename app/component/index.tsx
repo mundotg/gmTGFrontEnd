@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import clsx from "clsx";
-import { CheckCircle, AlertCircle, Info, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Info, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 
 // ------------------------------
 // 🔄 Spinner

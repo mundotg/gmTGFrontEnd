@@ -126,10 +126,10 @@ const ConsultaPage = () => {
     [columnsInfo, setAliasTables, setColumnsInfo, setError, setSelectColumns, setSelectedTables, selectedTables]
   );
 
-  const openRowModal = (row: SelectedRow) => {
+  const openRowModal = useCallback((row: SelectedRow) => {
     setSelectedRow(row);
     setModalOpenEdit(true);
-  };
+  },[setSelectedRow,setModalOpenEdit]);
 
   const handleRowClick = useCallback(async (row: SelectedRow) => {
     if (!row || row.index === undefined) return;
