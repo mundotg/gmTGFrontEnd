@@ -1,9 +1,23 @@
+# ================================================================
+# 💠 Azure Static Web Apps CI/CD Workflow
+# ---------------------------------------------------------------
+# Este workflow automatiza o processo de build e deploy de um app
+# hospedado no Azure Static Web Apps, com integração ao GitHub Actions.
+#
+# ➜ Gatilho: Pushs ou Pull Requests no branch "azure-main"
+# ➜ Passos: Checkout → Build → Deploy
+# ➜ Variáveis: Configuradas na seção `env:` e nos `secrets` do GitHub
+# ================================================================
+
 name: Azure Static Web Apps CI/CD
 
 on:
+  # 🚀 Dispara o deploy quando houver push no branch principal
   push:
     branches:
       - azure-main
+
+  # 🧩 Também executa em pull requests (para testar PRs antes do merge)
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
@@ -11,28 +25,48 @@ on:
 
 jobs:
   build_and_deploy_job:
+    # 🧠 Executa apenas se for um push ou PR não fechado
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
+
+    # 🌍 Variáveis de ambiente usadas no build e no deploy
+    env:
+      NEXT_PUBLIC_BACKEND_URL: ${{ vars.NEXT_PUBLIC_BACKEND_URL }}
+      NEXT_PUBLIC_BACKEND_AUTH_URL: ${{ vars.NEXT_PUBLIC_BACKEND_AUTH_URL }}
+      NEXT_PUBLIC_SECRET_KEY: ${{ vars.NEXT_PUBLIC_SECRET_KEY }}
+
     steps:
+      # 🧾 Passo 1: Baixar o código do repositório
       - uses: actions/checkout@v3
         with:
-          submodules: true
-          lfs: false
+          submodules: true  # Clona também submódulos (se houver)
+          lfs: false        # Não usa Large File Storage (opcional)
+
+      # ⚙️ Passo 2: Build + Deploy para o Azure Static Web Apps
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
+          # 🔑 Token de autenticação com o Azure
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_NICE_MOSS_04D1C2803 }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
-          action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/" # App source code path
-          api_location: "" # Api source code path - optional
-          output_location: "" # Built app content directory - optional
-          ###### End of Repository/Build Configurations ######
 
+          # 🔐 Token do GitHub (usado para comentários automáticos em PRs)
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+
+          # 🧩 Ação a ser executada
+          action: "upload"
+
+          ###### 🧱 Configurações do repositório / build ######
+          # app_location: Caminho da aplicação principal
+          # api_location: Caminho da API (se aplicável)
+          # output_location: Diretório onde ficam os arquivos de build
+          app_location: "/"         # Caminho raiz do app
+          api_location: ""          # Caminho da API (vazio = nenhuma)
+          output_location: "dist"   # Onde o build será gerado
+          ###### 🔚 Fim das configurações ######
+
+  # 🧹 Job de limpeza ao fechar Pull Requests
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
