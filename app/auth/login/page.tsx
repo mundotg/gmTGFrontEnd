@@ -13,7 +13,7 @@ const LoginPage = () => {
     remember: false,
   });
   const route = useRouter()
-  const { login} = useSession();
+  const { login, api} = useSession();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -46,6 +46,8 @@ const LoginPage = () => {
     }
   };
 
+
+  console.log("envs: ",process.env)
   const showError = (message: string) => {
     setError(message);
     setTimeout(() => setError(""), 5000);
