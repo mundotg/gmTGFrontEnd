@@ -13,7 +13,7 @@ const LoginPage = () => {
     remember: false,
   });
   const route = useRouter()
-  const { login, api} = useSession();
+  const { login} = useSession();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
