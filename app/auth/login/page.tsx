@@ -47,7 +47,7 @@ const LoginPage = () => {
   };
 
 
-  console.log("envs: ",process.env)
+  // console.log("envs: ",process.env)
   const showError = (message: string) => {
     setError(message);
     setTimeout(() => setError(""), 5000);
