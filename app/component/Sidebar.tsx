@@ -3,12 +3,15 @@ import { useI18n } from '@/context/I18nContext';
 import { useSession } from '@/context/SessionContext';
 import {
   BarChart3, Database, TableProperties, Search, History,
-  TrendingUp, Settings, Menu, X, ChevronLeft, ChevronRight
+  TrendingUp, Settings, Menu, X, ChevronLeft, ChevronRight,
+  ScanLine,
+  LucideProjector
 } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SidebarFooter } from './silederMenuComponent/SidebarFooter';
+import { hasPermission } from '@/permissions_val';
 
 // Constantes
 const MIN_WIDTH = 200;
@@ -16,39 +19,129 @@ const MAX_WIDTH = 450;
 const DEFAULT_WIDTH = 280;
 const COLLAPSED_WIDTH = 80;
 
+
+/* =========================
+   📌 Sidebar config (RBAC)
+========================= */
 const sidebarItems = [
-  { id: 'overview', label: 'sidebar.overview', icon: BarChart3, href: '/home' },
-  { id: 'connections', label: 'sidebar.connections', icon: Database, badge: 'active', href: '/home/conexao' },
-  { id: 'tables', label: 'sidebar.tables', icon: TableProperties, badge: 'num_table', href: '/home/tabelas' },
-  { id: 'query', label: 'sidebar.query', icon: Search, badge: 'num_consultas', href: '/home/consultas' },
-  { id: 'history', label: 'sidebar.history', icon: History, badge: 'registros_analizados', href: '/home/historico' },
-  { id: 'analysis', label: 'sidebar.analysis', icon: TrendingUp, href: '/home/analizar' },
-  { id: 'settings', label: 'sidebar.settings', icon: Settings, href: '/home/configuracao' },
+  {
+    id: 'overview',
+    label: 'sidebar.overview',
+    icon: BarChart3,
+    href: '/home',
+  },
+  {
+    id: 'connections',
+    label: 'sidebar.connections',
+    icon: Database,
+    badge: 'active',
+    href: '/home/conexao',
+    permission: [
+      'db_connection:read_own',
+      'db_connection:read_company',
+      'db_connection:read_all',
+    ],
+  },
+  {
+    id: 'tables',
+    label: 'sidebar.tables',
+    icon: TableProperties,
+    badge: 'num_table',
+    href: '/home/tabelas',
+    permission: 'query:execute',
+    requiresConnection: true,
+  },
+  {
+    id: 'query',
+    label: 'sidebar.query',
+    icon: Search,
+    badge: 'num_consultas',
+    href: '/home/consultas',
+    permission: 'query:execute',
+    requiresConnection: true,
+  },
+   {
+    id: 'task',
+    label: 'gestor de projetos',
+    icon: LucideProjector,
+    badge: 'num_tasks',
+    href: '/task',
+    permission: 'project:view',
+    requiresConnection: false,
+  },
+
+  {
+    id: 'Live_Text_Intelligence',
+    label: 'scanner texto',
+    icon: ScanLine,
+    badge: 'registros_analizados',
+    href: '/home/ocr',
+    permission: '',
+    requiresConnection: false,
+  },
+  {
+    id: 'history',
+    label: 'sidebar.history',
+    icon: History,
+    badge: 'registros_analizados',
+    href: '/home/historico',
+    permission: 'query:execute',
+    requiresConnection: true,
+  },
+  {
+    id: 'analysis',
+    label: 'sidebar.analysis',
+    icon: TrendingUp,
+    href: '/home/analizar',
+    permission: 'project:view',
+    requiresConnection: true,
+  },
+  {
+    id: 'settings',
+    label: 'sidebar.settings',
+    icon: Settings,
+    href: '/home/configuracao',
+    permission: 'user:manage',
+  },
 ];
+
 
 export default function Sidebar({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   const { logout, user } = useSession();
   const pathname = usePathname();
-  
+
+  const allowedSidebarItems = useMemo(() => {
+  return sidebarItems.filter(item =>
+    hasPermission(user?.permissions, item.permission)
+  );
+}, [user?.permissions]);
+
+
   // Estados
   const [collapsed, setCollapsed] = useState(true);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-  
+
   // Refs
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
 
+   /* =========================
+     🔎 Estado da conexão
+  ========================= */
+  const hasActiveConnection = Boolean(user?.info_extra?.name_db);
+
   // Determinar aba ativa baseada na rota atual
-  const activeTab = useMemo(() => 
-    sidebarItems.find(item => item.href === pathname)?.id || 'overview',
-    [pathname]
+  const activeTab = useMemo(() =>
+    allowedSidebarItems.find(item => item.href === pathname)?.id || 'overview',
+    [pathname, allowedSidebarItems]
   );
 
+
   // Largura atual da sidebar
-  const currentWidth = useMemo(() => 
+  const currentWidth = useMemo(() =>
     collapsed ? COLLAPSED_WIDTH : width,
     [collapsed, width]
   );
@@ -58,7 +151,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       const savedCollapsed = localStorage.getItem('sidebar-collapsed');
       const savedWidth = localStorage.getItem('sidebar-width');
-      
+
       if (savedCollapsed) {
         setCollapsed(JSON.parse(savedCollapsed));
       }
@@ -109,7 +202,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isResizing.current = true;
-    
+
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing.current) return;
       const newWidth = Math.min(Math.max(e.clientX, MIN_WIDTH), MAX_WIDTH);
@@ -143,11 +236,11 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
         setMobileOpen(false);
       }
     };
-if (typeof window !== "undefined") {
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }
-}, [mobileOpen]);
+    if (typeof window !== "undefined") {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [mobileOpen]);
 
   // Componente do tooltip
   const renderTooltip = (item: typeof sidebarItems[0]) => (
@@ -156,8 +249,8 @@ if (typeof window !== "undefined") {
       {item.badge && (
         <span className="ml-2 px-2 py-0.5 bg-white/20 rounded text-xs">
           {item.id !== "connections"
-            ? user?.InfPlus?.[item.badge as keyof typeof user.InfPlus] || "0"
-            : user?.InfPlus?.name_db ? "ativo" : "inativo"}
+            ? user?.info_extra?.[item.badge as keyof typeof user.info_extra] || "0"
+            : user?.info_extra?.name_db ? "ativo" : "inativo"}
         </span>
       )}
       <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900" />
@@ -168,9 +261,9 @@ if (typeof window !== "undefined") {
     <div className="flex h-screen w-screen bg-gray-50">
       {/* Overlay mobile */}
       {mobileOpen && (
-        <div 
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30" 
-          onClick={() => setMobileOpen(false)} 
+        <div
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setMobileOpen(false)}
         />
       )}
 
@@ -234,11 +327,13 @@ if (typeof window !== "undefined") {
         <nav className="mt-6 px-3 flex-1 overflow-y-auto">
           {sidebarItems.map((item) => {
             const Icon = item.icon;
+            // console.log("Rendering item:", item.id, "Allowed items:", allowedSidebarItems.map(i => i.id));
             const isActive = activeTab === item.id;
             const isHovered = hoveredItem === item.id;
-            
+            const disabled = item.requiresConnection && !hasActiveConnection;
+            if (disabled) return null;
             return (
-              <div key={item.id} className="relative">
+              <div key={item.id} className="relative" >
                 <Link
                   href={item.href}
                   onClick={handleItemClick}
@@ -247,8 +342,8 @@ if (typeof window !== "undefined") {
                   className={`
                     w-full flex items-center px-4 py-3 mb-1 rounded-xl transition-all duration-200
                     ${collapsed ? 'justify-center' : 'justify-between'}
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105' 
+                    ${isActive
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 hover:shadow-md'
                     }
                   `}
@@ -261,31 +356,31 @@ if (typeof window !== "undefined") {
                       </span>
                     )}
                   </div>
-                  
+
                   {item.badge && !collapsed && (
                     <span className={`
                       px-2 py-1 text-xs rounded-full font-medium flex-shrink-0
-                      ${isActive 
-                        ? 'bg-white/20 text-white' 
-                        : item.badge === 'active' 
-                          ? 'bg-green-100 text-green-600' 
+                      ${isActive
+                        ? 'bg-white/20 text-white'
+                        : item.badge === 'active'
+                          ? 'bg-green-100 text-green-600'
                           : 'bg-gray-100 text-gray-600'
                       }
                     `}>
                       {item.id !== "connections"
-                        ? user?.InfPlus?.[item.badge as keyof typeof user.InfPlus] || "0"
-                        : user?.InfPlus?.name_db ? "ativo" : "inativo"}
+                        ? user?.info_extra?.[item.badge as keyof typeof user.info_extra] || "0"
+                        : user?.info_extra?.name_db ? "ativo" : "inativo"}
                     </span>
                   )}
                 </Link>
-                
+
                 {collapsed && isHovered && renderTooltip(item)}
               </div>
             );
           })}
         </nav>
 
-       <SidebarFooter user={user} collapsed={collapsed} onLogout={handleLogout} />
+        <SidebarFooter user={user} collapsed={collapsed} onLogout={handleLogout} />
 
         {/* Handle de resize */}
         {!collapsed && (
@@ -301,7 +396,7 @@ if (typeof window !== "undefined") {
       </aside>
 
       {/* Conteúdo principal */}
-      <main 
+      <main
         className="overflow-auto transition-all duration-300 ease-in-out w-full"
         style={{
           marginLeft: typeof window !== "undefined" && window.innerWidth >= 768 ? 0 : 0, // Remove margem fixa

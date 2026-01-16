@@ -74,10 +74,10 @@
 //         if (!badge) return null;
 
 //         if (id === "connections") {
-//             return user?.InfPlus?.name_db ? "ativo" : "inativo";
+//             return user?.info_extra?.name_db ? "ativo" : "inativo";
 //         }
 
-//         return user?.InfPlus?.[badge as keyof typeof user.InfPlus] || "0";
+//         return user?.info_extra?.[badge as keyof typeof user.info_extra] || "0";
 //     }, [id, badge, user]);
 // };
 
@@ -87,7 +87,7 @@
 //         if (!badge) return null;
 
 //         if (id === "connections") {
-//             return user?.InfPlus?.name_db ? "success" : "default";
+//             return user?.info_extra?.name_db ? "success" : "default";
 //         }
 
 //         if (badge === "active") {

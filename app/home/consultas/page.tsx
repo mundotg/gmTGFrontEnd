@@ -225,7 +225,7 @@ const ConsultaPage = () => {
     } finally {
       setIsEditingRow(false);
     }
-  }, [isEditingRow, selectedRow, setError, selectedRow,setIsEditingRow,setSelectedRow]);
+  }, [isEditingRow, selectedRow, setError, selectedRow,setIsEditingRow]);
 
   // No componente que usa o RowDetailsModal
   const handleDelete =useCallback( async (payload: PayloadDeleteRow, index: number) => {
@@ -297,10 +297,10 @@ const ConsultaPage = () => {
                     <span className="font-medium text-gray-700">
                       {metadata?.connection_name}
                     </span>
-                    {user?.InfPlus?.name_db && (
+                    {user?.info_extra?.name_db && (
                       <>
                         <span className="mx-1.5 text-gray-400">•</span>
-                        <span>{user.InfPlus.name_db}</span>
+                        <span>{user.info_extra.name_db}</span>
                       </>
                     )}
                   </p>

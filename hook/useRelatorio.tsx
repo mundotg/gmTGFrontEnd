@@ -1,4 +1,4 @@
-import { useSessionTask } from '@/app/task/contexts/UserContext';
+// import { useSessionTask } from '@/app/task/contexts/UserContext';
 import { useSession } from '@/context/SessionContext';
 import { useState, useCallback } from 'react';
 
@@ -34,7 +34,7 @@ export const useRelatorio = <T = any>(): UseRelatorioReturn<T> => {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [progress, setProgress] = useState(0);
-    const { api } = useSessionTask();
+    const { api } = useSession();
 
     const reset = useCallback(() => {
         setError(null);

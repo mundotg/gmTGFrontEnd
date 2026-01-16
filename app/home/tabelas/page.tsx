@@ -1,51 +1,54 @@
-// DatabaseTablesPage.tsx
 "use client";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Database,
   AlertCircle,
-  Loader2,
 } from "lucide-react";
 import { MetadataTableResponse } from "@/types";
 import { parseErrorMessage } from "@/util/func";
 import { useSession } from "@/context/SessionContext";
-import { DBStructureOut } from "@/types/db-structure";
 import { clearCache, fetchHealthCheck, fetchStructures } from "@/app/services/metadata_DB";
 import { useDatabaseMetadata } from "@/hook/useDatabaseMetadata";
-import DatabaseHeader from "./componentTabela/HeaderComponent";
-import { FilterPanel } from "./componentTabela/FilterPanel";
+import DatabaseHeader, { HealthStatus } from "./componentTabela/HeaderComponent";
 import EmptyStateSection from "./componentTabela/EmptyStateSection";
 import { TableCard } from "./componentTabela/TabelaCard";
 import { Modal } from "@/app/component";
+import { CreateTableForm } from "./componentTabela/CreateTableForm";
+import { EditTableForm } from "./componentTabela/EditTableForm";
+import { DataTransactionForm } from "./componentTabela/DataTransactionForm";
+import { BackupRestoreForm } from "./componentTabela/BackupRestoreForm";
+import { DeadlocksMonitor } from "./componentTabela/DeadlocksMonitor";
+import { DBStructure } from "@/types/db-structure";
+import usePersistedState from "@/hook/localStoreUse";
 
 const DatabaseTablesPage: React.FC = () => {
   const { metadata, loading: loadingMetadata, error: errorFetch } = useDatabaseMetadata();
-  const [structures, setStructures] = useState<DBStructureOut[]>([]);
+  const [structures, setStructures] = useState<DBStructure[]>([]);
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
   const [loadingColumns, setLoadingColumns] = useState<Set<string>>(new Set());
   const [seletColunaForTable, setSeleColunaForTable] = useState<Record<string, Set<string>> | undefined>({});
   const [isLoading, setIsLoading] = useState(loadingMetadata);
   const [loadingFields, setLoadingFields] = useState(false);
   const [error, setError] = useState<string | null>(errorFetch);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [isDarkMode, setIsDarkMode] = usePersistedState("tema_menu_tabela",false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [filterSchema, setFilterSchema] = useState("all");
   const [sortBy, setSortBy] = useState<"name" | "rows" | "schema">("name");
   const { api, user } = useSession();
-  const [colunasShow, setColunaShow] = useState<MetadataTableResponse | undefined>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [colunasShow, setColunaShow] = usePersistedState<Record<string, MetadataTableResponse | undefined>>("colunasShow_menu_tabela",{});
+  const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
 
-  // seleção de linhas / tabelas
   const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
 
-  // modais: criar e editar
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingTable, setEditingTable] = useState<string | null>(null);
 
-  // --- Carregar dados iniciais
+  const [isTransactionOpen, setIsTransactionOpen] = usePersistedState("openisTransactionOpen", false);
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isDeadlocksOpen, setIsDeadlocksOpen] = usePersistedState("isDeadlocksOpen",false);
+
   const loadInitialData = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -79,12 +82,19 @@ const DatabaseTablesPage: React.FC = () => {
     loadInitialData();
   }, [loadInitialData]);
 
-  // --- buscar colunas de uma tabela
   const handleSelectTables = useCallback(async (tableName: string) => {
+    if(colunasShow[tableName]) {
+      setLoadingColumns(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(tableName);
+        return newSet;
+      });
+      return;
+    }
     try {
       setLoadingColumns(prev => new Set(prev).add(tableName));
-      const rs = await api.get<MetadataTableResponse>(`/consu/metadata_fieds/${encodeURIComponent(tableName)}`, { withCredentials: true, timeout: 45000 });
-      setColunaShow(rs.data);
+      const rs = await api.get<MetadataTableResponse>(`/consu/metadata_fieds/${encodeURIComponent(tableName)}`, { withCredentials: true, timeout: 65000 });
+      setColunaShow(prev => ({...prev, [tableName]: rs.data}));
     } catch (err) {
       const errorMsg = parseErrorMessage(err);
       setError(errorMsg);
@@ -95,7 +105,7 @@ const DatabaseTablesPage: React.FC = () => {
         return newSet;
       });
     }
-  }, [api]);
+  }, [colunasShow]);
 
   const toggleTable = useCallback((tableName: string) => {
     setExpandedTables(prev => {
@@ -109,18 +119,16 @@ const DatabaseTablesPage: React.FC = () => {
     });
   }, [handleSelectTables]);
 
-  const getTableStructure = useCallback((tableName: string): DBStructureOut | undefined => {
+  const getTableStructure = useCallback((tableName: string): DBStructure | undefined => {
     return structures.find(s => s.table_name.toLowerCase() === tableName.toLowerCase());
   }, [structures]);
 
-  // schemas
   const schemas = useMemo(() => {
     const schemaSet = new Set<string>();
     structures.forEach(s => { if (s.schema_name) schemaSet.add(s.schema_name); });
     return Array.from(schemaSet);
   }, [structures]);
 
-  // filtrar / ordenar
   const filteredAndSortedTables = useMemo(() => {
     const filtered = metadata?.table_names.filter(table => {
       const tableStructure = getTableStructure(table.name);
@@ -146,7 +154,6 @@ const DatabaseTablesPage: React.FC = () => {
     return filtered;
   }, [metadata, searchTerm, filterSchema, sortBy, getTableStructure]);
 
-  // --- Seleção de tabelas
   const toggleSelectTable = useCallback((tableName: string) => {
     setSelectedTables(prev => {
       const newSet = new Set(prev);
@@ -164,7 +171,6 @@ const DatabaseTablesPage: React.FC = () => {
     setSelectedTables(new Set());
   }, []);
 
-  // --- Deletar tabela (individual)
   const handleDeleteTable = useCallback(async (tableName: string) => {
     if (!confirm(`Eliminar tabela "${tableName}"? Essa ação é irreversível.`)) return;
     try {
@@ -177,16 +183,14 @@ const DatabaseTablesPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [api, loadInitialData]);
+  }, [loadInitialData]);
 
-  // --- Deletar múltiplas tabelas selecionadas
   const handleDeleteSelectedTables = useCallback(async () => {
     const list = Array.from(selectedTables);
     if (list.length === 0) { alert("Nenhuma tabela selecionada."); return; }
     if (!confirm(`Eliminar ${list.length} tabelas selecionadas? Essa ação é irreversível.`)) return;
     try {
       setIsLoading(true);
-      // supondo endpoint que aceita body com array de tabelas
       await api.request({ method: "DELETE", url: "/consu/tables", data: { tables: list }, withCredentials: true });
       await loadInitialData();
       setSelectedTables(new Set());
@@ -195,16 +199,15 @@ const DatabaseTablesPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [api, selectedTables, loadInitialData]);
+  }, [selectedTables, loadInitialData]);
 
-  // --- Editar Tabela (abre modal)
   const openEditModal = useCallback((tableName: string) => {
     setEditingTable(tableName);
     setIsEditOpen(true);
   }, []);
 
   const handleSaveEdit = useCallback(async (newName: string, newDescription: string) => {
-    if (!editingTable ||  loadingFields) return;
+    if (!editingTable || loadingFields) return;
     setLoadingFields(true)
     try {
       setIsLoading(true);
@@ -218,9 +221,8 @@ const DatabaseTablesPage: React.FC = () => {
       setIsLoading(false);
       setLoadingFields(false)
     }
-  }, [api, editingTable, loadInitialData]);
+  }, [editingTable, loadInitialData]);
 
-  // --- Criar nova tabela
   const handleCreateTable = useCallback(async (name: string, schema?: string) => {
     if (!name) { alert("Nome da tabela é obrigatório."); return; }
     try {
@@ -235,37 +237,43 @@ const DatabaseTablesPage: React.FC = () => {
     }
   }, [api, loadInitialData]);
 
-  // --- Deletar colunas selecionadas (de uma tabela)
   const handleDeleteSelectedColumns = useCallback(async (tableName: string, columns: string[]) => {
     if (!columns || columns.length === 0) { alert("Nenhuma coluna selecionada."); return; }
     if (!confirm(`Remover ${columns.length} coluna(s) da tabela "${tableName}"?`)) return;
     try {
       setIsLoading(true);
       await api.request({ method: "DELETE", url: `/consu/columns/${encodeURIComponent(tableName)}`, data: { columns }, withCredentials: true });
-      // limpar seleção local para a tabela
       setSeleColunaForTable(prev => ({ ...(prev ?? {}), [tableName]: new Set<string>() }));
-      // recarregar colunas abertas
       if (expandedTables.has(tableName)) await handleSelectTables(tableName);
     } catch (err) {
       setError(parseErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
-  }, [api, expandedTables, handleSelectTables]);
+  }, [expandedTables, handleSelectTables]);
 
-  const themeClasses = isDarkMode ? "bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 text-white" : "bg-gradient-to-br from-gray-50 via-white to-gray-50 text-gray-900";
-  const cardClasses = isDarkMode ? "bg-gray-800/50 backdrop-blur-sm border-gray-700" : "bg-white/80 backdrop-blur-sm border-gray-200";
+  const themeClasses = isDarkMode 
+    ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white" 
+    : "bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 text-slate-900";
+  
+  const cardClasses = isDarkMode 
+    ? "bg-slate-800/80 backdrop-blur-xl border-slate-700/50 shadow-2xl shadow-black/20" 
+    : "bg-white/90 backdrop-blur-xl border-slate-200/60 shadow-xl shadow-slate-200/50";
 
   if (isLoading && (!metadata || metadata.table_names.length === 0)) {
     return (
       <div className={`min-h-screen ${themeClasses} flex items-center justify-center`}>
         <div className="text-center">
-          <div className="relative">
-            <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-6"></div>
-            <Database className="w-8 h-8 text-blue-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          <div className="relative mb-8">
+            <div className="w-24 h-24 border-4 border-blue-200 dark:border-blue-900 border-t-blue-500 dark:border-t-blue-400 rounded-full animate-spin mx-auto"></div>
+            <Database className="w-10 h-10 text-blue-500 dark:text-blue-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
           </div>
-          <p className="text-xl font-semibold">Carregando Database Explorer...</p>
-          <p className={`text-sm mt-2 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>Preparando informações do banco de dados</p>
+          <p className="text-2xl font-bold mb-2 bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
+            Carregando Database Explorer
+          </p>
+          <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
+            Preparando informações do banco de dados
+          </p>
         </div>
       </div>
     );
@@ -275,13 +283,22 @@ const DatabaseTablesPage: React.FC = () => {
     return (
       <div className={`min-h-screen ${themeClasses} flex items-center justify-center p-4`}>
         <div className="max-w-md w-full">
-          <div className={`${cardClasses} border rounded-2xl p-8 text-center shadow-xl`}>
-            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8 text-red-500" />
+          <div className={`${cardClasses} border-2 rounded-3xl p-10 text-center`}>
+            <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-500/30">
+              <AlertCircle className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Erro ao Carregar Dados</h2>
-            <p className={`mb-6 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>{error}</p>
-            <button onClick={handleRefresh} className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all font-medium shadow-lg hover:shadow-xl">Tentar Novamente</button>
+            <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-red-500 to-rose-600 bg-clip-text text-transparent">
+              Erro ao Carregar Dados
+            </h2>
+            <p className={`mb-8 ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
+              {error}
+            </p>
+            <button 
+              onClick={handleRefresh} 
+              className="px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 font-semibold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5"
+            >
+              Tentar Novamente
+            </button>
           </div>
         </div>
       </div>
@@ -290,39 +307,36 @@ const DatabaseTablesPage: React.FC = () => {
 
   return (
     <div className={`min-h-screen ${themeClasses} transition-all duration-300`}>
-      <DatabaseHeader handleRefresh={handleRefresh} isDarkMode={isDarkMode} isLoading={isLoading} setIsDarkMode={setIsDarkMode} cardClasses={cardClasses} healthStatus={healthStatus} metadata={metadata} user={user} />
-
+      <DatabaseHeader 
+        handleRefresh={handleRefresh} 
+        isDarkMode={isDarkMode}
+        isLoading={isLoading} 
+        setIsDarkMode={setIsDarkMode} 
+        cardClasses={cardClasses}
+        healthStatus={healthStatus} 
+        metadata={metadata} 
+        user={user}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        filterSchema={filterSchema}
+        setFilterSchema={setFilterSchema}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        schemas={schemas}
+        selectAllVisible={selectAllVisible}
+        clearSelection={clearSelection}
+        setIsCreateOpen={setIsCreateOpen}
+        handleDeleteSelectedTables={handleDeleteSelectedTables}
+        setIsTransactionOpen={setIsTransactionOpen}
+        setIsBackupOpen={setIsBackupOpen}
+        setIsDeadlocksOpen={setIsDeadlocksOpen}
+        filteredAndSortedTables={filteredAndSortedTables} 
+      />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <FilterPanel
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          filterSchema={filterSchema}
-          setFilterSchema={setFilterSchema}
-          sortBy={sortBy}
-          setSortBy={setSortBy}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          schemas={schemas}
-          isDarkMode={isDarkMode}
-        />
-
-        {/* Barra de ações (seleção em massa) */}
-        <div className="mt-4 mb-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <button onClick={selectAllVisible} className="px-3 py-1 rounded-md bg-blue-50 text-blue-600">Selecionar todos</button>
-            <button onClick={clearSelection} className="px-3 py-1 rounded-md bg-gray-50">Limpar seleção</button>
-            <button onClick={() => setIsCreateOpen(true)} className="px-3 py-1 rounded-md bg-green-50 text-green-700">Nova tabela</button>
-            <button onClick={handleDeleteSelectedTables} className="px-3 py-1 rounded-md bg-red-50 text-red-600">Eliminar selecionadas</button>
-          </div>
-
-          <div>
-            <span className="text-sm">{filteredAndSortedTables.length} {filteredAndSortedTables.length === 1 ? "tabela" : "tabelas"}</span>
-            {isLoading && <span className="ml-3 text-sm text-blue-500"><Loader2 className="inline w-4 h-4 animate-spin" /> Atualizando...</span>}
-          </div>
-        </div>
-
-        {/* Listagem */}
-        <div className={`mt-6 ${viewMode === "grid" ? "grid grid-cols-1 lg:grid-cols-2 gap-4" : "space-y-4"}`}>
+        <div className={`mt-6 ${viewMode === "grid" ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : "space-y-6"}`}>
           {filteredAndSortedTables.map((table, idx) => {
             const isExpanded = expandedTables.has(table.name);
             const isLoadingCols = loadingColumns.has(table.name);
@@ -335,12 +349,12 @@ const DatabaseTablesPage: React.FC = () => {
                 isExpanded={isExpanded}
                 isLoadingCols={isLoadingCols}
                 toggleTable={toggleTable}
-                colunasShow={colunasShow}
+                colunasShow={colunasShow[table.name]}
                 loadingFields={loadingFields}
                 isDarkMode={isDarkMode}
                 seletColunaForTable={seletColunaForTable}
                 setSeleColunaForTable={setSeleColunaForTable}
-                selected={selectedTables.has(table.name)}
+                selected={selectedTables?.has(table.name)}
                 onToggleSelect={toggleSelectTable}
                 onRequestEdit={(name) => openEditModal(name)}
                 onRequestDelete={(name) => handleDeleteTable(name)}
@@ -350,66 +364,44 @@ const DatabaseTablesPage: React.FC = () => {
           })}
         </div>
 
-        <EmptyStateSection isDarkMode={isDarkMode} searchTerm={searchTerm} filteredAndSortedTables={filteredAndSortedTables} setSearchTerm={setSearchTerm} setFilterSchema={setFilterSchema} />
+        <EmptyStateSection 
+          isDarkMode={isDarkMode} 
+          searchTerm={searchTerm} 
+          filteredAndSortedTables={filteredAndSortedTables} 
+          setSearchTerm={setSearchTerm} 
+          setFilterSchema={setFilterSchema} 
+        />
 
-        {/* Modal Criar */}
         <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Criar nova tabela">
           <CreateTableForm onCreate={handleCreateTable} onCancel={() => setIsCreateOpen(false)} schemas={schemas} />
         </Modal>
 
-        {/* Modal Editar */}
         <Modal isOpen={isEditOpen} onClose={() => { setIsEditOpen(false); setEditingTable(null); }} title={`Editar tabela ${editingTable ?? ""}`}>
           <EditTableForm tableName={editingTable} onSave={handleSaveEdit} onCancel={() => { setIsEditOpen(false); setEditingTable(null); }} getStructure={getTableStructure} />
         </Modal>
+
+        {isTransactionOpen && <DataTransactionForm onClose={() => setIsTransactionOpen(false)} />}
+
+        <Modal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} title="Backup e Restore">
+          <BackupRestoreForm
+            connectionId=""
+            onCancel={() => setIsBackupOpen(false)}
+          />
+        </Modal>
+
+        {isDeadlocksOpen && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+            <div className={`${isDarkMode ? 'bg-slate-900' : 'bg-white'} rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-auto border-2 ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+              <DeadlocksMonitor
+                onClose={() => setIsDeadlocksOpen(false)}
+                isDarkMode={isDarkMode}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default DatabaseTablesPage;
-
-/* ---------- Formulários simples usados pelos modais ---------- */
-
-const CreateTableForm: React.FC<{ onCreate: (name: string, schema?: string) => void; onCancel: () => void; schemas: string[] }> = ({ onCreate, onCancel, schemas }) => {
-  const [name, setName] = useState("");
-  const [schema, setSchema] = useState<string | undefined>(schemas?.[0]);
-  return (
-    <div>
-      <label className="block text-sm mb-1">Nome da tabela</label>
-      <input value={name} onChange={(e) => setName(e.target.value)} className="w-full p-2 rounded border mb-3" />
-      <label className="block text-sm mb-1">Schema (opcional)</label>
-      <select value={schema} onChange={(e) => setSchema(e.target.value)} className="w-full p-2 rounded mb-4">
-        <option value="">(padrão)</option>
-        {schemas.map(s => <option key={s} value={s}>{s}</option>)}
-      </select>
-      <div className="flex justify-end gap-2">
-        <button onClick={onCancel} className="px-3 py-1">Cancelar</button>
-        <button onClick={() => onCreate(name, schema)} className="px-3 py-1 bg-blue-500 text-white rounded">Criar</button>
-      </div>
-    </div>
-  );
-};
-
-const EditTableForm: React.FC<{ tableName: string | null; onSave: (newName: string, newDesc: string) => void; onCancel: () => void; getStructure: (name: string) => DBStructureOut | undefined }> = ({ tableName, onSave, onCancel, getStructure }) => {
-  const structure = tableName ? getStructure(tableName) : undefined;
-  const [name, setName] = useState(tableName ?? "");
-  const [desc, setDesc] = useState(structure?.description ?? "");
-
-  useEffect(() => {
-    setName(tableName ?? "");
-    setDesc(structure?.description ?? "");
-  }, [tableName, structure]);
-
-  return (
-    <div>
-      <label className="block text-sm mb-1">Nome</label>
-      <input value={name} onChange={(e) => setName(e.target.value)} className="w-full p-2 rounded border mb-3" />
-      <label className="block text-sm mb-1">Descrição</label>
-      <textarea value={desc} onChange={(e) => setDesc(e.target.value)} className="w-full p-2 rounded border mb-4" />
-      <div className="flex justify-end gap-2">
-        <button onClick={onCancel} className="px-3 py-1">Cancelar</button>
-        <button onClick={() => onSave(name, desc)} className="px-3 py-1 bg-blue-500 text-white rounded">Salvar</button>
-      </div>
-    </div>
-  );
-};

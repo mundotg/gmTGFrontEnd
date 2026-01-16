@@ -9,7 +9,7 @@ import { NotificationType } from "./NotificationComponent";
 import { JoinSelect } from "./BuildQueryComponent/JoinSelect";
 
 const joinTypes: JoinType[] = ["INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "FULL JOIN"];
-const operators = ["=", "!=", "<>", ">", "<", ">=", "<=", "LIKE", "NOT LIKE", "IS NULL", "IS NOT NULL"];
+const operators = ["=", "!=", "<>", ">", "<", ">=", "<=", "LIKE", "NOT LIKE", "IS NULL", "IS NOT NULL", "IN", "NOT IN"];
 
 interface JoinOptionsProps {
   advancedConditions: Record<string, AdvancedJoinOption>;
@@ -318,7 +318,7 @@ export function JoinOptions({
     // Notificar o componente pai sobre a mudança
     onBaseTableChange(newBaseTable);
 
-  }, [baseTable, joinOrder, onBaseTableChange, setAdvancedConditions, addNotification, removeJoinTable,setAdvancedConditions]);
+  }, [baseTable, joinOrder, onBaseTableChange, addNotification, removeJoinTable]);
 
 
   // Adicionar condição
@@ -388,7 +388,6 @@ export function JoinOptions({
             return c; // Manter condição original
           }
 
-          console.log(`Condição atualizada em ${tableName}:`, newCondition);
           return newCondition;
         })
       );
@@ -408,7 +407,6 @@ export function JoinOptions({
           typeJoin: joinType
         },
       }));
-      console.log(`Tipo de JOIN alterado para ${tableName}: ${joinType}`);
     },
     [setAdvancedConditions]
   );

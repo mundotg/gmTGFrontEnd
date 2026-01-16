@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { FilterType, CampoDetalhado, MetadataTableResponse, tipo_db_Options } from "@/types";
+import { FilterType, CampoDetalhado, MetadataTableResponse } from "@/types";
 import { FILTER_TYPE_MAP } from "@/constant";
 
 export const useTableColumns = (tables: MetadataTableResponse[] | undefined) => {

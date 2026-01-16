@@ -8,5 +8,5 @@ export function middleware(req: NextRequest) {
 // Define onde o middleware será aplicado
 export const config = {
   matcher: ['/','/dashboard','/auth/login','/auth/register',"/home/","/home/conexao","/home/consultas","/home/configuracao","/home/historico","/home/tabelas",
-    "/home/historico"],
+    "/home/historico","/home/ocr","/home/OCR","/home/chatGPT","/home/geradorCodigo","/home/geradorImagens","/home/sobre"],
 };

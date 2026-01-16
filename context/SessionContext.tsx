@@ -3,31 +3,66 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback,
 
 import type { Axios } from "axios";
 import api from "./axioCuston";
-import { BancoSuportado } from "@/constant";
+import { BancoSuportado, Permission } from "@/constant";
 
-export interface DbOn {
-    id_connection: number;
-    name_db: string;
-    data: string; // datetime → string em ISO
-    type: BancoSuportado;
-    num_table: number;
-    num_consultas: number;
-    ultima_execucao_ms?: number;
-    ultima_consulta_em?: string;
-    registros_analizados?: number;
+export interface DbInfoExtra {
+  id_connection: number;
+  name_db: string;
+  data: string;
+  type: BancoSuportado;
+  num_table: number;
+  num_consultas: number;
+  ultima_execucao_ms?: number;
+  ultima_consulta_em?: string;
+  registros_analizados?: number;
 }
+
+
+export interface Empresa {
+  id: number;
+  company: string;
+  companySize?: string;
+  nif?: string;
+  endereco?: string;
+}
+
+export interface Cargo {
+  id: number;
+  position: string;
+  descricao?: string;
+  nivel?: "júnior" | "pleno" | "sênior" | string;
+}
+
+
+export interface Role {
+  name: string; // ex: admin, manager, developer
+}
+
 export interface Usuario {
-    id: string;
-    nome: string;
-    email: string;
-    tipoUsuario?: String;
-    avatar_url: string;
-    datatimeSession: string;
-    exp?: number; // Expiração do token (opcional)
-    iat?: number; // Timestamp de emissão (opcional)
-    sub?: string; // Assunto do token (opcional)
-    InfPlus?: DbOn | null;
-};
+  id: string;
+  nome: string;
+  apelido?: string;
+  email: string;
+  telefone?: string;
+
+  empresa?: Empresa;
+  cargo?: Cargo;
+
+  role?: Role;
+  permissions: Permission[] | string[];
+
+  avatar_url?: string;
+  datatimeSession?: string;
+
+  // JWT
+  exp?: number;
+  iat?: number;
+  sub?: string;
+
+  // Conexão ativa
+  info_extra?: DbInfoExtra | null;
+}
+
 
 export type AuthProvider = "google" | "azure-ad" | "facebook" | "github" | "gitlab" | "credenciais";
 

@@ -19,6 +19,15 @@ export interface PaginatedResponse<T = any> {
   pages: number;
   search?: string;
 }
+export type TiposParametroPaginacaoGeral ="user" |
+  "ActiveConnection" | "ConnectionLog" |
+  "DBHealthCheck" | "QueryHistory" |
+  "DBStructure" |  "DBField" |
+  "DBEnumField" |  "DBConnection" |
+  "RefreshToken" |  "Empresa" | "Cargo"
+
+
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface PaginacaoGenericaProps<T = any> {
   Lista: PaginatedResponse<T>;
@@ -54,7 +63,7 @@ export const PaginacaoGenerica = <T,>({
   const [limit] = useState(10);
   const [search, setSearch] = useState(Lista.search || "");
   const [searchInput, setSearchInput] = useState(Lista.search || "");
-  const {api} = useSessionTask()
+  const { api } = useSessionTask()
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -160,15 +169,15 @@ export const PaginacaoGenerica = <T,>({
   const startPage = Math.max(1, Math.min(page - halfVisible, data.pages - visiblePages + 1));
   const endPage = Math.min(data.pages, startPage + visiblePages - 1);
 
- const tipoLabel = useMemo(
-  () => ({
-    user: "Usuários",
-    project: "Projetos",
-    task: "Tarefas",
-    sprint: "Sprints",
-  }[tipo]),
-  [tipo]
-);
+  const tipoLabel = useMemo(
+    () => ({
+      user: "Usuários",
+      project: "Projetos",
+      task: "Tarefas",
+      sprint: "Sprints",
+    }[tipo]),
+    [tipo]
+  );
 
   return (
     <div className="w-full overflow-clip max-w-6xl mx-auto p-3 sm:p-4 md:p-6 flex flex-col h-full max-h-[calc(100vh-200px)] m-2">
@@ -249,74 +258,73 @@ export const PaginacaoGenerica = <T,>({
       </div>
 
       {/* Paginação Fixa no Rodapé */}
-     
-        <footer className="flex-shrink-0 border-t border-gray-200 pt-4 p-2 my-3">
-          <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 select-none">
-            <p className="text-xs sm:text-sm text-gray-600 text-center px-2">
-              Página <b>{page}</b> de <b>{data.pages}</b> ({data.total} {data.total === 1 ? "registro" : "registros"})
-            </p>
 
-            <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center">
+      <footer className="flex-shrink-0 border-t border-gray-200 pt-4 p-2 my-3">
+        <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 select-none">
+          <p className="text-xs sm:text-sm text-gray-600 text-center px-2">
+            Página <b>{page}</b> de <b>{data.pages}</b> ({data.total} {data.total === 1 ? "registro" : "registros"})
+          </p>
+
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center">
+            <button
+              onClick={() => handlePageChange(1)}
+              disabled={page === 1}
+              title="Primeira página"
+              aria-label="Primeira página"
+              className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronsLeft size={16} className="sm:w-[18px] sm:h-[18px]" />
+            </button>
+
+            <button
+              onClick={() => handlePageChange(page - 1)}
+              disabled={page === 1}
+              title="Anterior"
+              aria-label="Página anterior"
+              className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={16} className="sm:w-[18px] sm:h-[18px]" />
+            </button>
+
+            {Array.from(
+              { length: endPage - startPage + 1 },
+              (_, i) => startPage + i
+            ).map((p) => (
               <button
-                onClick={() => handlePageChange(1)}
-                disabled={page === 1}
-                title="Primeira página"
-                aria-label="Primeira página"
-                className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronsLeft size={16} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
-
-              <button
-                onClick={() => handlePageChange(page - 1)}
-                disabled={page === 1}
-                title="Anterior"
-                aria-label="Página anterior"
-                className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft size={16} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
-
-              {Array.from(
-                { length: endPage - startPage + 1 },
-                (_, i) => startPage + i
-              ).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => handlePageChange(p)}
-                  className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-                    p === page
-                      ? "bg-indigo-600 text-white shadow-md"
-                      : "text-gray-700 hover:bg-gray-100"
+                key={p}
+                onClick={() => handlePageChange(p)}
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${p === page
+                    ? "bg-indigo-600 text-white shadow-md"
+                    : "text-gray-700 hover:bg-gray-100"
                   }`}
-                >
-                  {p}
-                </button>
-              ))}
-
-              <button
-                onClick={() => handlePageChange(page + 1)}
-                disabled={page === data.pages}
-                title="Próxima"
-                aria-label="Próxima página"
-                className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronRight size={16} className="sm:w-[18px] sm:h-[18px]" />
+                {p}
               </button>
+            ))}
 
-              <button
-                onClick={() => handlePageChange(data.pages)}
-                disabled={page === data.pages}
-                title="Última página"
-                aria-label="Última página"
-                className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronsRight size={16} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
-            </div>
+            <button
+              onClick={() => handlePageChange(page + 1)}
+              disabled={page === data.pages}
+              title="Próxima"
+              aria-label="Próxima página"
+              className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={16} className="sm:w-[18px] sm:h-[18px]" />
+            </button>
+
+            <button
+              onClick={() => handlePageChange(data.pages)}
+              disabled={page === data.pages}
+              title="Última página"
+              aria-label="Última página"
+              className="p-1.5 sm:p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronsRight size={16} className="sm:w-[18px] sm:h-[18px]" />
+            </button>
           </div>
-        </footer>
-     
+        </div>
+      </footer>
+
     </div>
   );
 };

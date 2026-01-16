@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // Constantes
 const MIN_SIDEBAR_WIDTH = 200;
 const MAX_SIDEBAR_WIDTH = 450;
-const COLLAPSED_WIDTH = 80;
 const DEFAULT_EXPANDED_WIDTH = 280;
 const STORAGE_KEYS = {
   COLLAPSED: "sidebar-collapsed",

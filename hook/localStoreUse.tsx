@@ -34,24 +34,24 @@ async function openDB(dbName: string, storeName: string): Promise<IDBDatabase> {
 
 // ✅ Salvar em IndexedDB (tratando null e undefined)
 // ===============================
-async function saveBinary<T>(dbName: string, storeName: string, key: string, data: T): Promise<void> {
+// ===============================
+// ✅ Salvar em IndexedDB (tratando Set, Map, Date, null e undefined)
+// ===============================
+async function saveBinary<T>(
+  dbName: string,
+  storeName: string,
+  key: string,
+  data: T
+): Promise<void> {
   try {
     const db = await openDB(dbName, storeName);
     const tx = db.transaction(storeName, "readwrite");
     const store = tx.objectStore(storeName);
 
-    let json: string;
+    // 🔹 Serializar com suporte a tipos especiais
+    const json = JSON.stringify(data, replacer);
 
-    // 🔹 Marcar null e undefined
-    if (data === null) {
-      json = JSON.stringify({ __type: "null" });
-    } else if (data === undefined) {
-      json = JSON.stringify({ __type: "undefined" });
-    } else {
-      json = JSON.stringify(data);
-    }
-
-    // Converter para binário
+    // 🔹 Converter para binário antes de salvar
     const binary = new TextEncoder().encode(json);
 
     await new Promise<void>((resolve, reject) => {
@@ -66,9 +66,39 @@ async function saveBinary<T>(dbName: string, storeName: string, key: string, dat
 }
 
 // ===============================
+// 🔁 Replacer customizado para JSON.stringify
+// ===============================
+function replacer(_key: string, value: any) {
+  if (value instanceof Set) {
+    return { __type: "Set", values: Array.from(value) };
+  }
+  if (value instanceof Map) {
+    return { __type: "Map", entries: Array.from(value.entries()) };
+  }
+  if (value instanceof Date) {
+    return { __type: "Date", value: value.toISOString() };
+  }
+  if (value === null) {
+    return { __type: "null" };
+  }
+  if (value === undefined) {
+    return { __type: "undefined" };
+  }
+  return value;
+}
+
+// ===============================
 // ✅ Ler do IndexedDB (reconvertendo null e undefined)
 // ===============================
-async function loadBinary<T>(dbName: string, storeName: string, key: string, fallback: T): Promise<T> {
+// ===============================
+// ✅ Ler do IndexedDB (reconvertendo tipos especiais, null e undefined)
+// ===============================
+async function loadBinary<T>(
+  dbName: string,
+  storeName: string,
+  key: string,
+  fallback: T
+): Promise<T> {
   try {
     const db = await openDB(dbName, storeName);
     const tx = db.transaction(storeName, "readonly");
@@ -81,21 +111,7 @@ async function loadBinary<T>(dbName: string, storeName: string, key: string, fal
         if (request.result?.value) {
           try {
             const json = new TextDecoder().decode(request.result.value);
-            const parsed = JSON.parse(json);
-
-            // 🔹 Se for marcador de null ou undefined
-            if (parsed && typeof parsed === "object" && "__type" in parsed) {
-              if (parsed.__type === "null") {
-                resolve(null as T);
-                return;
-              }
-              if (parsed.__type === "undefined") {
-                resolve(undefined as T);
-                return;
-              }
-            }
-
-            // 🔹 Retorna dados normais
+            const parsed = JSON.parse(json, reviver); // 👈 usar reviver customizado
             resolve(parsed);
           } catch (parseError) {
             console.error(`Erro ao parsear dados de ${key}:`, parseError);
@@ -116,6 +132,30 @@ async function loadBinary<T>(dbName: string, storeName: string, key: string, fal
     return fallback;
   }
 }
+
+// ===============================
+// 🔁 Reviver customizado para JSON.parse
+// ===============================
+function reviver(_key: string, value: any) {
+  if (value && typeof value === "object" && "__type" in value) {
+    switch (value.__type) {
+      case "null":
+        return null;
+      case "undefined":
+        return undefined;
+      case "Set":
+        return new Set(value.values);
+      case "Map":
+        return new Map(value.entries);
+      case "Date":
+        return new Date(value.value);
+      default:
+        return value;
+    }
+  }
+  return value;
+}
+
 
 // Limpar dados antigos (opcional)
 export async function clearOldData(dbName: string, storeName: string, maxAge: number = 30 * 24 * 60 * 60 * 1000): Promise<void> {

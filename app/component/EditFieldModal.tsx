@@ -246,14 +246,14 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
               <option value="" disabled>
                 -- Selecione o tipo --
               </option>
-              {user?.InfPlus?.type &&
-                tiposPorBanco[user?.InfPlus?.type].map((opt) => (
+              {user?.info_extra?.type &&
+                tiposPorBanco[user?.info_extra?.type].map((opt) => (
                   <option key={opt} value={opt}>
                     {opt.toUpperCase()}
                   </option>
                 ))}
-              {user?.InfPlus?.type &&
-                !tiposPorBanco[user?.InfPlus?.type].includes(form.tipo as tipo_db_Options) && (
+              {user?.info_extra?.type &&
+                !tiposPorBanco[user?.info_extra?.type].includes(form.tipo as tipo_db_Options) && (
                   <option key={"opt+" + form.tipo} value={form.tipo}>
                     {form.tipo.toUpperCase()}
                   </option>

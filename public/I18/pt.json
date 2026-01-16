@@ -4,7 +4,7 @@
     "description": "Sistema inteligente para gestão e análise de bases de dados.",
     "featuresTitle": "✅ Funcionalidades Disponíveis",
     "futureTitle": "🌱 Funcionalidades Futuras",
-    "footer": "Desenvolvido com ❤️ em Next.js + Python FastAPI"
+    "footer": "Desenvolvido com ❤️ em Next.js + Python FastAPI by Francemy Sebastião"
   },
   "features": {
     "consultas": "Consultas simplificadas: digite apenas o nome da tabela.",

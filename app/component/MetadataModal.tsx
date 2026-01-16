@@ -189,7 +189,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [onSave, hasChanges, errors, editedFields, onClose, informacaosOftables, row, selectedTables]);
+  }, [onSave, hasChanges, errors, editedFields, onClose, row, selectedTables]);
 
   // Handler para alternar edição
   const toggleEdit = useCallback((field: string) => {

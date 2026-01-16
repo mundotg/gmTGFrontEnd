@@ -3,6 +3,7 @@ import { JoinSelect } from "./JoinSelect";
 import { JoinConditionRowProps, LogicalOperators } from "./types";
 import React from "react";
 import DynamicInputByType from "../DynamicInputByType";
+import OperationINAndNOTINInput from "../InInput";
 
 // Componente para cada linha de condição
 const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
@@ -15,18 +16,24 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
   updateCondition,
   removeCondition,
 }) => {
+  function handleInValuesChange(val: string[]): void {
+    const formattedValue = val.map(v => v.trim()).filter(v => v).join(", ");
+    updateCondition(tableName, condition.id, { rightValue: formattedValue });
+  }
+  
+
   return (
     <div className="flex flex-wrap items-center gap-2 p-2 bg-white border border-gray-200 rounded w-auto">
       {/* Operador lógico */}
       {condIndex > 0 && (
         <select
           value={condition.logicalOperator || "AND"}
-          onChange={(e) => updateCondition(tableName, condition.id, { 
+          onChange={(e) => updateCondition(tableName, condition.id, {
             logicalOperator: e.target.value as LogicalOperators
           })}
           className="text-xs border-gray-300 rounded shadow-sm focus:border-blue-500 focus:ring-blue-500 font-medium"
         >
-          {["AND" , "OR"].map(op => (
+          {["AND", "OR"].map(op => (
             <option key={op} value={op}>{op}</option>
           ))}
         </select>
@@ -66,17 +73,28 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
             <span className="text-xs text-gray-600">Valor</span>
           </div>
 
-          {condition.useValue ? (
-            <DynamicInputByType
-              type={condition.valueColumnType || "text"}
-              enum_values={condition.enumValores}
-              operator={condition.operator}
-              value={condition.rightValue || ""}
-              onChange={(value) => updateCondition(tableName, condition.id, { rightValue: value })}
-              placeholder="Valor literal"
+          {condition.useValue ? 
+
+            condition.operator === "IN" || condition.operator === "NOT IN" ? 
+              // Operadores IN - múltiplos valores
+
+              <OperationINAndNOTINInput
+                type={condition.valueColumnType || "text"}
+                value={condition.rightValue?.split(",") || []}
+                onChange={handleInValuesChange}
+                placeholder="Digite um valor"
+              />
+             : 
+              <DynamicInputByType
+                type={condition.valueColumnType || "text"}
+                enum_values={condition.enumValores}
+                operator={condition.operator}
+                value={condition.rightValue || ""}
+                onChange={(value) => updateCondition(tableName, condition.id, { rightValue: value })}
+                placeholder="Valor literal"
               // className="text-xs border-gray-300 rounded shadow-sm focus:border-blue-500 focus:ring-blue-500 min-w-[100px]"
-            />
-          ) : (
+              />
+             : (
             <JoinSelect
               className="text-xs"
               buttonClassName="min-w-[120px] text-xs border px-2 py-1"

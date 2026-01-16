@@ -47,7 +47,7 @@ const Tooltip = ({ children, content }: TooltipProps) => {
   const { showTooltip, handleMouseEnter, handleMouseLeave } = useTooltip();
 
   return (
-    <div 
+    <div
       className="relative"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -70,21 +70,21 @@ interface UserAvatarProps {
   showStatus?: boolean;
 }
 
-const UserAvatar = ({ 
-  user, 
-  size = "large", 
-  showStatus = true 
+const UserAvatar = ({
+  user,
+  size = "large",
+  showStatus = true
 }: UserAvatarProps) => {
-  const isConnected = Boolean(user?.InfPlus?.name_db);
+  const isConnected = Boolean(user?.info_extra?.name_db);
   const avatarSize = size === "large" ? "w-10 h-10" : "w-8 h-8";
   const iconSize = size === "large" ? "w-5 h-5" : "w-4 h-4";
-  
+
   const avatarColor = useMemo<string>(() => {
     if (!user?.nome) return "from-gray-400 to-gray-500";
-    
+
     const colors: string[] = [
       "from-blue-400 to-blue-500",
-      "from-green-400 to-green-500", 
+      "from-green-400 to-green-500",
       "from-purple-400 to-purple-500",
       "from-pink-400 to-pink-500",
       "from-yellow-400 to-yellow-500",
@@ -92,7 +92,7 @@ const UserAvatar = ({
       "from-indigo-400 to-indigo-500",
       "from-teal-400 to-teal-500"
     ];
-    
+
     const hash = user.nome.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
     return colors[hash % colors.length];
   }, [user?.nome]);
@@ -103,9 +103,8 @@ const UserAvatar = ({
         <User className={`${iconSize} text-white`} />
       </div>
       {showStatus && (
-        <div className={`absolute -bottom-0.5 -right-0.5 ${size === "large" ? "w-3 h-3" : "w-2.5 h-2.5"} rounded-full border-2 border-white shadow-sm ${
-          isConnected ? "bg-green-500" : "bg-red-500"
-        }`} />
+        <div className={`absolute -bottom-0.5 -right-0.5 ${size === "large" ? "w-3 h-3" : "w-2.5 h-2.5"} rounded-full border-2 border-white shadow-sm ${isConnected ? "bg-green-500" : "bg-red-500"
+          }`} />
       )}
     </div>
   );
@@ -118,9 +117,9 @@ interface ConnectionStatusProps {
 }
 
 const ConnectionStatus = ({ user, collapsed = false }: ConnectionStatusProps) => {
-  const isConnected = Boolean(user?.InfPlus?.name_db);
-  const dbName = user?.InfPlus?.name_db;
-  
+  const isConnected = Boolean(user?.info_extra?.name_db);
+  const dbName = user?.info_extra?.name_db;
+
   if (collapsed) {
     return (
       <Tooltip content={isConnected ? `Conectado: ${dbName}` : "Nenhuma conexão ativa"}>
@@ -150,7 +149,7 @@ type LogoutEvent = React.MouseEvent<HTMLButtonElement> | React.KeyboardEvent<HTM
 export function SidebarFooter({ collapsed, user, onLogout }: SidebarFooterProps) {
   // Handlers memoizados
   const handleLogout = useCallback((e: LogoutEvent) => {
-  e.preventDefault();
+    e.preventDefault();
     e.preventDefault();
     if (window.confirm("Tem certeza que deseja sair?")) {
       onLogout();
@@ -158,16 +157,16 @@ export function SidebarFooter({ collapsed, user, onLogout }: SidebarFooterProps)
   }, [onLogout]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    handleLogout(e as unknown as LogoutEvent);
-  }
-}, [handleLogout]);
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleLogout(e as unknown as LogoutEvent);
+    }
+  }, [handleLogout]);
 
   // Nome do usuário com fallback
   const displayName = useMemo(() => {
     if (!user?.nome) return "Usuário";
-    
+
     // Se o nome for muito longo, mostrar apenas o primeiro nome
     const names = user.nome.trim().split(" ");
     return names.length > 1 && names[0].length > 12 ? names[0] : user.nome;
@@ -176,16 +175,16 @@ export function SidebarFooter({ collapsed, user, onLogout }: SidebarFooterProps)
   // Informações da sessão
   const sessionInfo = useMemo(() => {
     if (!user) return null;
-    
+
     return {
       tipoUsuario: user.tipoUsuario || "Usuário",
       tempoSessao: user.datatimeSession ? new Date(user.datatimeSession).toLocaleString('pt-BR') : null,
-      dbInfo: user.InfPlus ? {
-        name: user.InfPlus.name_db,
-        type: user.InfPlus.type,
-        tabelas: user.InfPlus.num_table,
-        consultas: user.InfPlus.num_consultas,
-        registros: user.InfPlus.registros_analizados
+      dbInfo: user.info_extra ? {
+        name: user.info_extra.name_db,
+        type: user.info_extra.type,
+        tabelas: user.info_extra.num_table,
+        consultas: user.info_extra.num_consultas,
+        registros: user.info_extra.registros_analizados
       } : null
     };
   }, [user]);
@@ -211,11 +210,11 @@ ${sessionInfo?.dbInfo ? `DB: ${sessionInfo.dbInfo.name} (${sessionInfo.dbInfo.ty
           <Tooltip content={tooltipContent}>
             <UserAvatar user={user} size="small" showStatus={false} />
           </Tooltip>
-          
+
           <ConnectionStatus user={user} collapsed />
-          
+
           <Tooltip content="Sair da aplicação">
-            <button 
+            <button
               onClick={handleLogout}
               onKeyDown={handleKeyDown}
               className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
@@ -234,7 +233,7 @@ ${sessionInfo?.dbInfo ? `DB: ${sessionInfo.dbInfo.name} (${sessionInfo.dbInfo.ty
     <div className="absolute bottom-0 left-0 right-0 border-t bg-white p-4">
       <div className="flex items-center space-x-3">
         <UserAvatar user={user} size="large" />
-        
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2">
             <p className="text-sm font-medium truncate text-gray-900">
@@ -244,11 +243,11 @@ ${sessionInfo?.dbInfo ? `DB: ${sessionInfo.dbInfo.name} (${sessionInfo.dbInfo.ty
               <div className="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0" />
             </Tooltip>
           </div>
-          
+
           <div className="mt-1">
             <ConnectionStatus user={user} />
           </div>
-          
+
           {/* Informações adicionais da base de dados */}
           {sessionInfo?.dbInfo && (
             <div className="mt-1 text-xs text-gray-500">
@@ -259,9 +258,9 @@ ${sessionInfo?.dbInfo ? `DB: ${sessionInfo.dbInfo.name} (${sessionInfo.dbInfo.ty
             </div>
           )}
         </div>
-        
+
         <Tooltip content="Sair da aplicação">
-          <button 
+          <button
             onClick={handleLogout}
             onKeyDown={handleKeyDown}
             className="p-2 rounded-lg hover:bg-red-50 hover:text-red-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 group"

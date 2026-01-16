@@ -115,6 +115,7 @@ export const Textarea = ({ label, ...props }: TextareaProps) => (
 export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  hint?: string;
 }
 
 export const Input = ({ label, ...props }: InputProps) => (

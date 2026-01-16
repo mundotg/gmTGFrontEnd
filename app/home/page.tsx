@@ -21,25 +21,25 @@ const DatabaseManager = () => {
   const stats = useMemo(() => [
     {
       label: t('Tabelas Conectadas'),
-      value: user?.InfPlus?.ultima_consulta_em ? "1" : "0",
+      value: user?.info_extra?.ultima_consulta_em ? "1" : "0",
       icon: TableProperties,
       color: 'text-blue-600',
     },
     {
       label: t('Consultas Hoje'),
-      value: `${user?.InfPlus?.num_consultas ?? 0}`,
+      value: `${user?.info_extra?.num_consultas ?? 0}`,
       icon: Activity,
       color: 'text-green-600',
     },
     {
       label: t('Conexões Ativas'),
-      value: user?.InfPlus?.ultima_consulta_em ? "1" : "0",
+      value: user?.info_extra?.ultima_consulta_em ? "1" : "0",
       icon: Database,
       color: 'text-purple-600',
     },
     {
       label: t('Registros Analisados'),
-      value: `${user?.InfPlus?.registros_analizados ?? 0}`,
+      value: `${user?.info_extra?.registros_analizados ?? 0}`,
       icon: TrendingUp,
       color: 'text-orange-600',
     },
@@ -54,7 +54,7 @@ const DatabaseManager = () => {
     { name: 'SQLite', icon: '⚫', type: 'sqlite', color: 'bg-gray-500' },
   ].map(db => ({
     ...db,
-    status: user?.InfPlus?.type === db.type ? t('Conectado') : t('Disponível'),
+    status: user?.info_extra?.type === db.type ? t('Conectado') : t('Disponível'),
   })), [user, t]);
 
   const features = [

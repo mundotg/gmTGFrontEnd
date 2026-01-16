@@ -2,7 +2,7 @@
 
 import api from "@/context/axioCuston";
 import { DatabaseMetadata, TableInfo } from "@/types";
-import { DBStructureOut } from "@/types/db-structure";
+import { DBStructure } from "@/types/db-structure";
 
 interface ResponseWrapper<T> {
   success: boolean;
@@ -15,23 +15,23 @@ interface ResponseWrapper<T> {
  * Busca apenas os nomes das tabelas.
  */
 export const fetchTables = async (): Promise<string[]> => {
-  const { data } = await api.get<ResponseWrapper<string[]>>("/consu/tables", { withCredentials: true });
+  const { data } = await api.get<ResponseWrapper<string[]>>("/consu/tables", { withCredentials: true ,  timeout: 65000});
   return data?.data ?? [];
 };
 
 /**
  * Busca as estruturas das tabelas com detalhes completos.
  */
-export const fetchStructures = async (): Promise<DBStructureOut[]> => {
-  const { data } = await api.get<ResponseWrapper<DBStructureOut[]>>("/consu/structures", { withCredentials: true });
+export const fetchStructures = async (): Promise<DBStructure[]> => {
+  const { data } = await api.get<ResponseWrapper<DBStructure[]>>("/consu/structures", { withCredentials: true, timeout: 65000 });
   return data?.data ?? [];
 };
 
 /**
  * Busca a estrutura de uma tabela específica.
  */
-export const fetchStructure = async (tableName: string): Promise<DBStructureOut | null> => {
-  const { data } = await api.get<ResponseWrapper<DBStructureOut>>(`/consu/structures/${tableName}`, { withCredentials: true });
+export const fetchStructure = async (tableName: string): Promise<DBStructure | null> => {
+  const { data } = await api.get<ResponseWrapper<DBStructure>>(`/consu/structures/${tableName}`, { withCredentials: true , timeout: 65000});
   return data?.data ?? null;
 };
 
@@ -39,7 +39,7 @@ export const fetchStructure = async (tableName: string): Promise<DBStructureOut 
  * Busca a contagem de registros de uma tabela específica.
  */
 export const fetchTableCount = async (tableName: string): Promise<number> => {
-  const { data } = await api.get<ResponseWrapper<number>>(`/consu/table/${tableName}/count`, { withCredentials: true });
+  const { data } = await api.get<ResponseWrapper<number>>(`/consu/table/${tableName}/count`, { withCredentials: true, timeout: 65000 });
   return data?.data ?? -1;
 };
 
@@ -47,7 +47,7 @@ export const fetchTableCount = async (tableName: string): Promise<number> => {
  * Sincroniza e retorna metadados da conexão ativa.
  */
 export const fetchSyncMetadata = async (): Promise<DatabaseMetadata> => {
-  const { data } = await api.get<ResponseWrapper<DatabaseMetadata>>("/consu/sync", { withCredentials: true });
+  const { data } = await api.get<ResponseWrapper<DatabaseMetadata>>("/consu/sync", { withCredentials: true,  timeout: 65000 });
   if (!data.success || !data.data) {
     throw new Error(data.error || "Erro ao sincronizar metadados.");
   }
@@ -165,8 +165,8 @@ const fetchTableSchema = async (tableName: string): Promise<any> => {
  * Cria uma nova estrutura de tabela.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const createStructure = async (structureData: any): Promise<DBStructureOut> => {
-  const { data } = await api.post<ResponseWrapper<DBStructureOut>>(
+const createStructure = async (structureData: any): Promise<DBStructure> => {
+  const { data } = await api.post<ResponseWrapper<DBStructure>>(
     "/consu/structures", 
     structureData, 
     { withCredentials: true }
@@ -183,8 +183,8 @@ const createStructure = async (structureData: any): Promise<DBStructureOut> => {
  * Atualiza uma estrutura de tabela existente.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const updateStructure = async (structureId: number, structureData: any): Promise<DBStructureOut> => {
-  const { data } = await api.put<ResponseWrapper<DBStructureOut>>(
+const updateStructure = async (structureId: number, structureData: any): Promise<DBStructure> => {
+  const { data } = await api.put<ResponseWrapper<DBStructure>>(
     `/consu/structures/${structureId}`, 
     structureData, 
     { withCredentials: true }

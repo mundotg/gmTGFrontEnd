@@ -4,6 +4,7 @@ import { Usuario } from "../types";
 import { Modal } from "./modalComponent";
 import { PaginatedResponse } from "./Paginacao";
 import { useSessionTask } from "../contexts/UserContext";
+import Image from "next/image";
 
 interface DelegateTaskModalProps {
   isOpen: boolean;
@@ -221,7 +222,7 @@ const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
                   {/* Avatar */}
                   <div className="flex-shrink-0">
                     {user.avatarUrl ? (
-                      <img
+                      <Image
                         src={user.avatarUrl}
                         alt={user.nome}
                         className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-sm"

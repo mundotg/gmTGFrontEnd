@@ -361,7 +361,7 @@ function TaskList({
     } catch (error) {
       console.error("❌ Erro ao validar tarefa:", error);
     }
-  }, [tasks, project.id, api, fetchTasks]);
+  }, [tasks, project.id, api]);
 
   /* -----------------------------
   

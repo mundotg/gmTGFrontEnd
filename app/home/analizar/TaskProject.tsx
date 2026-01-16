@@ -1,359 +1,289 @@
-"use client"
-import React, { useState, useEffect } from 'react';
-// Importando ícones Lucid (substitua pelos imports reais da sua biblioteca)
+"use client";
+
+import React, { useEffect, useState } from "react";
 import {
-  Folder,
   CheckCircle,
   Clock,
   AlertTriangle,
   Users,
-  Target,
-  BarChart3,
-  PieChart as PieChartIcon,
   Activity,
-  TrendingUp,
-  Calendar,
-  Filter,
-  Download
-} from 'lucide-react';
-import { AnalizeDataType } from '@/types';
+  Download,
+  Target,
+} from "lucide-react";
+import { useSession } from "@/context/SessionContext";
+import { AnalizeDataType } from "@/types";
+import { hasPermission } from "@/permissions_val";
 
-const ProjectAnalytics = () => {
-  const [timeRange, setTimeRange] = useState('month');
-  const [selectedProject, setSelectedProject] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [analyticsData, setAnalyticsData] = useState<AnalizeDataType|null>(null);
-
-  // Dados mockados baseados nos seus modelos
-  const mockData:AnalizeDataType = {
-    overview: {
-      totalProjects: 12,
-      activeProjects: 8,
-      completedProjects: 3,
-      overdueProjects: 1,
-      totalTasks: 156,
-      completedTasks: 89,
-      teamMembers: 24
+/* =======================
+   MOCK DATA
+======================= */
+const mockData: AnalizeDataType = {
+  overview: {
+    activeProjects: 12,
+    completedTasks: 48,
+    teamMembers: 24,
+    overdueProjects: 3,
+    totalProjects: 0,
+    completedProjects: 0,
+    totalTasks: 0,
+  },
+  recentActivity: [
+    {
+      id: 1,
+      user: "João Silva",
+      action: "concluiu uma task",
+      project: "Portal Admin",
+      time: "há 2h",
     },
-    projectProgress: [
-      { name: 'Projeto A', progress: 85, tasks: 23, completed: 19 },
-      { name: 'Projeto B', progress: 62, tasks: 15, completed: 9 },
-      { name: 'Projeto C', progress: 45, tasks: 18, completed: 8 },
-      { name: 'Projeto D', progress: 92, tasks: 12, completed: 11 },
-      { name: 'Projeto E', progress: 78, tasks: 20, completed: 15 }
-    ],
-    taskStatus: [
-      { name: 'Concluída', value: 89 },
-      { name: 'Em Andamento', value: 35 },
-      { name: 'Pendente', value: 20 },
-      { name: 'Em Revisão', value: 8 },
-      { name: 'Bloqueada', value: 4 }
-    ],
-    teamPerformance: [
-      { name: 'João Silva', tasks: 23, completed: 21, efficiency: 91 },
-      { name: 'Maria Santos', tasks: 18, completed: 16, efficiency: 89 },
-      { name: 'Pedro Costa', tasks: 15, completed: 12, efficiency: 80 },
-      { name: 'Ana Oliveira', tasks: 20, completed: 18, efficiency: 90 },
-      { name: 'Carlos Lima', tasks: 12, completed: 9, efficiency: 75 }
-    ],
-    weeklyActivity: [
-      { week: 'Sem 1', tasks: 45, completed: 32 },
-      { week: 'Sem 2', tasks: 38, completed: 28 },
-      { week: 'Sem 3', tasks: 52, completed: 45 },
-      { week: 'Sem 4', tasks: 41, completed: 35 }
-    ],
-    projectTypes: [
-      { name: 'Desenvolvimento', value: 6 },
-      { name: 'Manutenção', value: 3 },
-      { name: 'Consultoria', value: 2 },
-      { name: 'Pesquisa', value: 1 }
-    ],
-    recentActivity: [
-      { id: 1, user: 'João Silva', action: 'concluiu tarefa', project: 'Projeto A', time: '2 min atrás' },
-      { id: 2, user: 'Maria Santos', action: 'atribuiu tarefa', project: 'Projeto B', time: '15 min atrás' },
-      { id: 3, user: 'Pedro Costa', action: 'atualizou status', project: 'Projeto C', time: '1 hora atrás' },
-      { id: 4, user: 'Ana Oliveira', action: 'comentou', project: 'Projeto A', time: '2 horas atrás' }
-    ]
-  };
+    {
+      id: 2,
+      user: "Maria Santos",
+      action: "atualizou milestone",
+      project: "API Gateway",
+      time: "há 4h",
+    },
+    {
+      id: 3,
+      user: "Pedro Costa",
+      action: "iniciou projeto",
+      project: "Mobile App",
+      time: "há 6h",
+    },
+  ],
+  projectProgress: [
+    { name: "Portal Admin", progress: 85, tasks: 0, completed: 0 },
+    { name: "API Gateway", progress: 60, tasks: 0, completed: 0 },
+    { name: "Mobile App", progress: 45, tasks: 0, completed: 0 },
+  ],
+  weeklyActivity: [],
+  teamPerformance: [],
+  taskStatus: [],
+  projectTypes: [],
+};
+
+/* =======================
+   COMPONENT
+======================= */
+export function ProjectModule() {
+  const { user } = useSession();
+  const permissions = user?.permissions ?? [];
+
+  const canView = hasPermission(permissions, "analytics:project:view");
+  const canExport = hasPermission(permissions, "analytics:project:export");
+
+  const [timeRange, setTimeRange] = useState<"week" | "month">("month");
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<AnalizeDataType | null>(null);
 
   useEffect(() => {
-    // Simular carregamento de dados
-    setTimeout(() => {
-      setAnalyticsData(mockData);
-      setLoading(false);
-    }, 1000);
-  }, [timeRange, selectedProject]);
+    if (!canView) return;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando análise de projetos...</p>
-        </div>
-      </div>
-    );
-  }
+    setLoading(true);
+    const timer = setTimeout(() => {
+      setData(mockData);
+      setLoading(false);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [timeRange, canView]);
+
+  if (!canView) return <AccessDenied />;
+  if (loading || !data) return <SkeletonLoader />;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <BarChart3 className="w-8 h-8 text-blue-600" />
-              Análise de Projetos
-            </h1>
-            <p className="text-gray-600 mt-2">Monitoramento de desempenho e produtividade da equipe</p>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-1 w-8 bg-blue-600 rounded-full" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">
+              Analytics Engine
+            </span>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-            <Download className="w-4 h-4" />
-            Exportar Relatório
-          </button>
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+            Desempenho de Projetos
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex bg-[#1a1a1a] border border-white/5 p-1 rounded-lg">
+            <FilterBtn
+              active={timeRange === "week"}
+              label="7D"
+              onClick={() => setTimeRange("week")}
+            />
+            <FilterBtn
+              active={timeRange === "month"}
+              label="30D"
+              onClick={() => setTimeRange("month")}
+            />
+          </div>
+
+          {canExport && (
+            <button className="flex items-center gap-2 px-4 py-2 bg-white text-black text-xs font-black rounded-lg hover:bg-slate-200 transition-all uppercase tracking-tighter">
+              <Download size={14} />
+              Exportar
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex flex-wrap gap-4 items-center">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filtros:</span>
+      {/* STATS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Projetos Ativos"
+          value={data.overview.activeProjects}
+          icon={<Target className="text-blue-400" />}
+        />
+        <StatCard
+          title="Tasks Concluídas"
+          value={data.overview.completedTasks}
+          icon={<CheckCircle className="text-emerald-400" />}
+        />
+        <StatCard
+          title="Total de Membros"
+          value={data.overview.teamMembers}
+          icon={<Users className="text-purple-400" />}
+        />
+        <StatCard
+          title="Overdue Projects"
+          value={data.overview.overdueProjects}
+          icon={<AlertTriangle className="text-red-400" />}
+        />
+      </div>
+
+      {/* CONTENT */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ACTIVITY */}
+        <div className="lg:col-span-1 bg-[#0f0f0f] border border-white/5 rounded-2xl p-6">
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-6 flex items-center gap-2">
+            <Clock size={14} /> Histórico de Execução
+          </h3>
+
+          <div className="space-y-6">
+            {data.recentActivity.map((a) => (
+              <div key={a.id} className="relative pl-6 border-l border-white/10">
+                <div className="absolute -left-[4.5px] top-1 w-2 h-2 rounded-full bg-slate-700" />
+                <p className="text-xs text-slate-200 font-medium">
+                  <span className="text-blue-400">
+                    @{a.user.split(" ")[0]}
+                  </span>{" "}
+                  {a.action}
+                </p>
+                <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">
+                  {a.project} • {a.time}
+                </p>
+              </div>
+            ))}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Período</label>
-            <div className="relative">
-              <Calendar className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value)}
-                className="border border-gray-300 rounded-md pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        </div>
+
+        {/* PROGRESS */}
+        <div className="lg:col-span-2 bg-[#0f0f0f] border border-white/5 rounded-2xl p-6">
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-6 flex items-center gap-2">
+            <Activity size={14} /> Progresso das Milestones
+          </h3>
+
+          <div className="space-y-4">
+            {data.projectProgress.map((p) => (
+              <div
+                key={p.name}
+                className="p-4 bg-white/[0.02] border border-white/5 rounded-xl"
               >
-                <option value="week">Última Semana</option>
-                <option value="month">Último Mês</option>
-                <option value="quarter">Último Trimestre</option>
-                <option value="year">Último Ano</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Projeto</label>
-            <select
-              value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Todos os Projetos</option>
-              <option value="project-a">Projeto A</option>
-              <option value="project-b">Projeto B</option>
-              <option value="project-c">Projeto C</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Métricas Principais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Total de Projetos */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Folder className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total de Projetos</p>
-              <p className="text-2xl font-bold text-gray-900">{analyticsData?.overview.totalProjects}</p>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center text-sm text-green-600">
-            <TrendingUp className="w-4 h-4 mr-1" />
-            <span>+2 este mês</span>
-          </div>
-        </div>
-
-        {/* Projetos Ativos */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <Activity className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Projetos Ativos</p>
-              <p className="text-2xl font-bold text-gray-900">{analyticsData?.overview.activeProjects}</p>
-            </div>
-          </div>
-          <div className="mt-4 text-sm text-gray-500">
-            {analyticsData?.overview.completedProjects} concluídos
-          </div>
-        </div>
-
-        {/* Tarefas Concluídas */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-emerald-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-emerald-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Tarefas Concluídas</p>
-              <p className="text-2xl font-bold text-gray-900">{analyticsData?.overview.completedTasks}</p>
-            </div>
-          </div>
-          <div className="mt-4 text-sm text-gray-500">
-            de {analyticsData?.overview.totalTasks} total
-          </div>
-        </div>
-
-        {/* Projetos em Atraso */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <AlertTriangle className="w-6 h-6 text-orange-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Em Atraso</p>
-              <p className="text-2xl font-bold text-gray-900">{analyticsData?.overview.overdueProjects}</p>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center text-sm text-orange-600">
-            <Clock className="w-4 h-4 mr-1" />
-            <span>Necessita atenção</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Gráficos e Análises */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Progresso dos Projetos */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Target className="w-5 h-5 text-blue-600" />
-              Progresso dos Projetos
-            </h3>
-          </div>
-          <div className="h-80">
-            {/* <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analyticsData.projectProgress}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="progress" name="Progresso (%)" fill="#0088FE" />
-                <Bar dataKey="completed" name="Tarefas Concluídas" fill="#00C49F" />
-              </BarChart>
-            </ResponsiveContainer> */}
-          </div>
-        </div>
-
-        {/* Status das Tarefas */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <PieChartIcon className="w-5 h-5 text-green-600" />
-              Status das Tarefas
-            </h3>
-          </div>
-          <div className="h-80">
-            {/* <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={analyticsData.taskStatus}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {analyticsData.taskStatus.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name.toLowerCase()]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer> */}
-          </div>
-        </div>
-      </div>
-
-      {/* Segunda Linha de Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Desempenho da Equipe */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Users className="w-5 h-5 text-purple-600" />
-              Desempenho da Equipe
-            </h3>
-          </div>
-          <div className="h-80">
-            {/* <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analyticsData.teamPerformance} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={80} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="efficiency" name="Eficiência (%)" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer> */}
-          </div>
-        </div>
-
-        {/* Atividade Semanal */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-orange-600" />
-              Atividade Semanal
-            </h3>
-          </div>
-          <div className="h-80">
-            {/* <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={analyticsData.weeklyActivity}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="tasks" name="Tarefas Criadas" stroke="#0088FE" strokeWidth={2} />
-                <Line type="monotone" dataKey="completed" name="Tarefas Concluídas" stroke="#00C49F" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer> */}
-          </div>
-        </div>
-      </div>
-
-      {/* Última Atividade */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
-          <Clock className="w-5 h-5 text-gray-600" />
-          Atividade Recente
-        </h3>
-        <div className="space-y-4">
-          {analyticsData?.recentActivity.map((activity) => (
-            <div key={activity.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Users className="w-4 h-4 text-blue-600" />
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm font-bold text-slate-200">
+                    {p.name}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-500">
+                    {p.progress}%
+                  </span>
                 </div>
-                <div>
-                  <p className="font-medium text-gray-900">{activity.user}</p>
-                  <p className="text-sm text-gray-600">
-                    {activity.action} em <span className="font-medium">{activity.project}</span>
-                  </p>
+                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-700"
+                    style={{ width: `${p.progress}%` }}
+                  />
                 </div>
               </div>
-              <span className="text-sm text-gray-500">{activity.time}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+/* =======================
+   SMALL COMPONENTS
+======================= */
+
+type StatCardProps = {
+  title: string;
+  value?: number;
+  icon: React.ReactNode;
 };
 
-export default ProjectAnalytics;
+function StatCard({ title, value, icon }: StatCardProps) {
+  return (
+    <div className="bg-[#0f0f0f] border border-white/5 p-5 rounded-2xl flex justify-between">
+      <div>
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+          {title}
+        </p>
+        <p className="text-3xl font-bold text-white tracking-tighter">
+          {value ?? 0}
+        </p>
+      </div>
+      <div className="p-2 bg-white/5 rounded-lg">{icon}</div>
+    </div>
+  );
+}
+
+type FilterBtnProps = {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+};
+
+function FilterBtn({ active, label, onClick }: FilterBtnProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1 text-[10px] font-bold rounded-md ${
+        active
+          ? "bg-white/10 text-white"
+          : "text-slate-500 hover:text-slate-300"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function AccessDenied() {
+  return (
+    <div className="h-64 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-3xl bg-white/[0.01]">
+      <AlertTriangle className="text-amber-500 mb-3" size={32} />
+      <p className="text-sm font-bold text-slate-300">
+        Acesso Restrito ao Módulo
+      </p>
+      <p className="text-xs text-slate-500">
+        Contacte o administrador do MustaInf.
+      </p>
+    </div>
+  );
+}
+
+function SkeletonLoader() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="h-10 bg-white/5 w-1/4 rounded-lg" />
+      <div className="grid grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-24 bg-white/5 rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -14,7 +14,7 @@ import {
 import { TaskCreate, TaskModalProps, TaskPriority, TaskRepeat, TaskStatus } from "../types";
 import { useSessionTask } from "../contexts/UserContext";
 import { useTaskModalData, useDateUtils } from "../hook/useTaskModal";
-import { SelectComp } from "./select_Component";
+import { JoinSelect } from "./select_Component";
 import {
   DEFAULT_TASK_DURATION,
   PRIORITY_OPTIONS,
@@ -326,7 +326,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
               <User size={16} /> criado por a*
             </label>
-            <SelectComp
+            <JoinSelect
               value={selectedAssignedTo}
               disabled={!editingTask}
               onChange={(val) => {
@@ -343,7 +343,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
               <User size={16} /> Delegado para
             </label>
-            <SelectComp
+            <JoinSelect
               value={selectedDelegatedTo}
               onChange={(val) => {
                 setSelectedDelegatedTo(val);
@@ -359,7 +359,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
               <Layers size={16} /> Sprint
             </label>
-            <SelectComp
+            <JoinSelect
 
 
               onChange={(val) => {

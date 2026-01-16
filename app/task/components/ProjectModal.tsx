@@ -5,7 +5,7 @@ import { ProjectFormData, Usuario, DBConnection, ProjectType } from "../types";
 import { useSessionTask } from "../contexts/UserContext";
 import { safeDateTime2 } from "../utils";
 import { PaginatedResponse } from "./Paginacao";
-import { SelectComp } from "./select_Component";
+import { JoinSelect } from "./select_Component";
 import usePersistedState from "@/hook/localStoreUse";
 
 /* ------------------------------
@@ -321,7 +321,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               Tipo de Projeto
             </label>
 
-            <SelectComp
+            <JoinSelect
               value={formState.typeProject}
               disabled={false}
               onChange={(val) => {
@@ -338,7 +338,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               Conexão de Banco de Dados
             </label>
 
-            <SelectComp
+            <JoinSelect
               value={formState.connectionId}
               disabled={false}
               onChange={(val) => {
@@ -354,7 +354,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Equipe
             </label>
-            <SelectComp
+            <JoinSelect
               value=""
               onChange={toggleTeamMember}
               fetchOptions={fetchUsers}
@@ -364,7 +364,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               buttonClassName="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               autoWidth={false}
               debounceMs={400}
-              pageSize={20}
+              // pageSize={20}
             />
 
             {formState.teamMembers.length > 0 && (
