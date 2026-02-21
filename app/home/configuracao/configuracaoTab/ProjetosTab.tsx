@@ -233,7 +233,7 @@ const Stat = ({ icon, label, value }: { icon: React.ReactNode, label: string, va
   </div>
 );
 
-const CreateProjectModal = ({ onClose, onSubmit, loading }: any) => {
+const CreateProjectModal = ({ onClose, onSubmit, loading }: { onClose: () => void, onSubmit: (project: { name: string, description?: string }) => void, loading: boolean }) => {
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
 

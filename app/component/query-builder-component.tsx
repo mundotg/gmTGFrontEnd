@@ -1,11 +1,6 @@
-// "use client"
+"use client";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Search,
-  Plus,
-  Play,
-  ChevronDown,
-} from "lucide-react";
+import { Search, Plus, Play, ChevronDown } from "lucide-react";
 import FiltroCondicaoItem from "./FiltroCondicaoItem";
 import {
   AdvancedJoinOption,
@@ -24,13 +19,14 @@ import { useExecuteQuery } from "./BuildQueryComponent/onExecuteQuery";
 import HeaderBuild from "./BuildQueryComponent/headerQueryBuild";
 import NotificationSystem, { useNotifications } from "./NotificationComponent";
 import { sanitizeAdvancedConditions } from "@/util/query_build_util/validateColumnExistence";
+import { useI18n } from "@/context/I18nContext"; // 🔹 Importado
 
 const QueryBuilder: React.FC<QueryBuilderProps> = ({
   columns = [],
   onExecuteQuery,
   setAliasTables,
   aliasTables,
-  title = "Construtor de Consultas",
+  title, // O default agora será tratado via i18n
   isExecuting = false,
   maxConditions = 25,
   showLogicalOperators = true,
@@ -41,20 +37,28 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   setSelect,
   removerCacheLocalStorage,
 }) => {
+  const { t } = useI18n(); // 🔹 Instanciado
+
   // ---------------- STATES ----------------
   const [conditions, setConditions] = usePersistedState<CondicaoFiltro[]>(
     "query_conditions",
     []
   );
   const [orderBy, setOrderBy] = usePersistedState<MultiOrderByOption>(
-    "query_orderby", columns.length && columns[0].colunas.length
-    ? [{
-      column: `${columns[0].table_name}.${columns[0].colunas[0].nome}`,
-      direction: "ASC",
-    },] : []
+    "query_orderby",
+    columns.length && columns[0].colunas.length
+      ? [
+          {
+            column: `${columns[0].table_name}.${columns[0].colunas[0].nome}`,
+            direction: "ASC",
+          },
+        ]
+      : []
   );
-  const [advancedConditions, setAdvancedConditions] =
-    usePersistedState<Record<string, AdvancedJoinOption>>("query_joins", {});
+  const [advancedConditions, setAdvancedConditions] = usePersistedState<Record<string, AdvancedJoinOption>>(
+    "query_joins",
+    {}
+  );
   const [distinctList, setDistinctList] = usePersistedState<DistinctList>(
     "query_distinct",
     { useDistinct: false, distinct_columns: [] }
@@ -69,9 +73,12 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   // ---------------- DERIVED ----------------
   const lengthCondition = conditions.length;
   const validConditionsCount = useMemo(
-    () => conditions.filter((c) =>
-      c.column && (c.value?.toString().trim() || c.operator === "IS NULL" || c.operator === "IS NOT NULL")
-    ).length,
+    () =>
+      conditions.filter(
+        (c) =>
+          c.column &&
+          (c.value?.toString().trim() || c.operator === "IS NULL" || c.operator === "IS NOT NULL")
+      ).length,
     [conditions]
   );
 
@@ -85,12 +92,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     orderBy,
   });
 
-  const {
-    notifications,
-    addNotification,
-    removeNotification,
-    clearAllNotifications,
-  } = useNotifications();
+  const { notifications, addNotification, removeNotification, clearAllNotifications } = useNotifications();
 
   const { executeQuery } = useExecuteQuery({
     conditions,
@@ -129,8 +131,8 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         const tableExists = table_list.includes(condition.table_name_fil);
         if (!tableExists) return false;
 
-        const table = columns.find(col => col.table_name === condition.table_name_fil);
-        const columnExists = table?.colunas.some(col => col.nome === condition.column);
+        const table = columns.find((col) => col.table_name === condition.table_name_fil);
+        const columnExists = table?.colunas.some((col) => col.nome === condition.column);
         return columnExists;
       });
 
@@ -139,9 +141,9 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
         if (removedCount > 0) {
           addNotification(
-            'info',
-            'Condições Atualizadas',
-            `${removedCount} condição(ões) inválida(s) foram removidas devido a mudanças nas tabelas.`
+            "info",
+            t("builder.conditionsUpdated") || "Condições Atualizadas",
+            (t("builder.invalidConditionsRemoved") || "{{count}} condição(ões) inválida(s) removida(s).").replace("{{count}}", String(removedCount))
           );
         }
         return validConditions;
@@ -159,39 +161,32 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         const tableExists = table_list.includes(tableName);
         if (!tableExists) return false;
 
-        const table = columns.find(col => col.table_name === tableName);
-        const columnExists = table?.colunas.some(col => col.nome === columnName);
+        const table = columns.find((col) => col.table_name === tableName);
+        const columnExists = table?.colunas.some((col) => col.nome === columnName);
 
         return columnExists;
       });
 
       if (validorder.length !== prevOrder.length) {
         const removedCount = prevOrder.length - validorder.length;
-        console.log(`Removidas ${removedCount} condições inválidas`);
-
         if (removedCount > 0) {
           addNotification(
-            'info',
-            'Condições Atualizadas',
-            `${removedCount} condição(ões) inválida(s) foram removidas devido a mudanças nas tabelas.`
+            "info",
+            t("builder.conditionsUpdated") || "Condições Atualizadas",
+            (t("builder.invalidOrderRemoved") || "{{count}} ordenação(ões) inválida(s) removida(s).").replace("{{count}}", String(removedCount))
           );
         }
         return validorder;
       }
       return prevOrder;
     });
-
-
-  }, [columns, table_list, setConditions, hydrated, addNotification, setOrderBy]);
-
+  }, [columns, table_list, setConditions, hydrated, addNotification, setOrderBy, t]);
 
   // Validar joins quando as tabelas mudam
   useEffect(() => {
     if (!hydrated || !table_list.length) return;
 
-    //  🔹 Validar condições avançadas (JOINs)
-    // 🔹 Validar condições avançadas (JOINs)
-    setAdvancedConditions(prevCond => {
+    setAdvancedConditions((prevCond) => {
       const { newCond, removedJoins, changed } = sanitizeAdvancedConditions(
         prevCond,
         columns,
@@ -202,28 +197,24 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       if (removedJoins.length > 0) {
         addNotification(
           "info",
-          "JOINs Removidos",
-          `Os seguintes JOINs foram removidos por ficarem sem condições ON: ${removedJoins.join(", ")}.`
+          t("builder.joinsRemoved") || "JOINs Removidos",
+          `${t("builder.joinsRemovedDesc") || "Os seguintes JOINs foram removidos:"} ${removedJoins.join(", ")}.`
         );
       }
 
       return changed ? newCond : prevCond;
     });
-
-  }, [table_list, setAdvancedConditions, hydrated, addNotification,columns]);
+  }, [table_list, setAdvancedConditions, hydrated, addNotification, columns, t]);
 
   // ---------------- HANDLERS ----------------
   const addCondition = useCallback(() => {
     if (lengthCondition >= maxConditions) {
-      addNotification('warning', 'Limite Atingido',
-        `Máximo de ${maxConditions} condições permitidas.`);
+      addNotification("warning", t("builder.limitReached") || "Limite Atingido", t("builder.limitMessage") || `Máximo de ${maxConditions} condições permitidas.`);
       return;
     }
 
-    // Verificar se há colunas disponíveis
     if (!columns.length || !columns[0]?.colunas?.length) {
-      addNotification('error', 'Sem Colunas',
-        'Não há colunas disponíveis para adicionar condição.');
+      addNotification("error", t("builder.noColumns") || "Sem Colunas", t("builder.noColumnsMessage") || "Não há colunas disponíveis para adicionar condição.");
       return;
     }
 
@@ -241,11 +232,10 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       is_nullable: col.is_nullable,
     };
 
-    setConditions(prev => [...prev, newCondition]);
+    setConditions((prev) => [...prev, newCondition]);
 
-    addNotification('success', 'Condição Adicionada',
-      'Nova condição de filtro adicionada.');
-  }, [columns, lengthCondition, maxConditions, setConditions, addNotification]);
+    addNotification("success", t("builder.conditionAdded") || "Condição Adicionada", t("builder.conditionAddedMessage") || "Nova condição de filtro adicionada.");
+  }, [columns, lengthCondition, maxConditions, setConditions, addNotification, t]);
 
   const updateCondition = useCallback(
     (index: number, field: keyof CondicaoFiltro, value: string) => {
@@ -258,12 +248,9 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
             [field]: value,
           };
 
-          // Quando muda a tabela ou a coluna, atualiza metadados
           if (field === "table_name_fil" || field === "column") {
-            const targetTableName =
-              field === "table_name_fil" ? value : condition.table_name_fil;
-            const targetColumnName =
-              field === "column" ? value : condition.column;
+            const targetTableName = field === "table_name_fil" ? value : condition.table_name_fil;
+            const targetColumnName = field === "column" ? value : condition.column;
 
             const table = columns.find((t) => t.table_name === targetTableName);
             const columnMeta = table?.colunas.find((c) => c.nome === targetColumnName);
@@ -275,18 +262,13 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
                 length: columnMeta.length || 10,
                 is_nullable: columnMeta.is_nullable,
               };
-            } else {
-              // Coluna não encontrada - manter valores anteriores
-              console.warn(`Coluna ${targetColumnName} não encontrada na tabela ${targetTableName}`);
             }
           }
 
-          // Se mudar operador para IS NULL ou IS NOT NULL → força value = "null"
           if (field === "operator" && (value === "IS NULL" || value === "IS NOT NULL")) {
             updatedCondition.value = "null";
           }
 
-          // Se mudar de operador NULL para outro → limpa o valor
           if (
             condition.operator &&
             (condition.operator === "IS NULL" || condition.operator === "IS NOT NULL") &&
@@ -305,45 +287,39 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
   const removeCondition = useCallback(
     (index: number) => {
-      setConditions(prevConditions => {
+      setConditions((prevConditions) => {
         const updated = prevConditions.filter((_, i) => i !== index);
-        // Remover operador lógico da primeira condição
         if (updated.length > 0 && updated[0].logicalOperator) {
           updated[0] = { ...updated[0], logicalOperator: undefined };
         }
         return updated;
       });
-      addNotification('info', 'Condição Removida', 'Condição de filtro removida.');
+      addNotification("info", t("builder.conditionRemoved") || "Condição Removida", t("builder.conditionRemovedMessage") || "Condição de filtro removida.");
     },
-    [setConditions, addNotification]
+    [setConditions, addNotification, t]
   );
 
-  const onBaseTableChange = useCallback((newBaseTable: string) => {
-    // Verificar se a nova tabela base é diferente da atual
-    if (newBaseTable === table_list[0]) {
-      addNotification('info', 'Tabela Base Inalterada',
-        `"${newBaseTable}" já é a tabela base atual.`);
-      return;
-    }
-    if (!table_list.includes(newBaseTable)) {
-      addNotification('error', 'Tabela Não Encontrada',
-        `A tabela "${newBaseTable}" não existe na lista de tabelas disponíveis.`);
-      return;
-    }
-    const newTableOrder = [
-      newBaseTable,
-      ...table_list.filter(table => table !== newBaseTable)
-    ];
-    setTable_list(newTableOrder);
-    addNotification('success', 'Tabela Base Alterada',
-      `Tabela base alterada para "${newBaseTable}". A ordem das tabelas foi reorganizada.`);
-
-  }, [table_list, setTable_list, addNotification]);
+  const onBaseTableChange = useCallback(
+    (newBaseTable: string) => {
+      if (newBaseTable === table_list[0]) {
+        addNotification("info", t("builder.tableUnchanged") || "Tabela Base Inalterada", `"${newBaseTable}" já é a tabela base atual.`);
+        return;
+      }
+      if (!table_list.includes(newBaseTable)) {
+        addNotification("error", t("builder.tableNotFound") || "Tabela Não Encontrada", `A tabela "${newBaseTable}" não existe na lista.`);
+        return;
+      }
+      const newTableOrder = [newBaseTable, ...table_list.filter((table) => table !== newBaseTable)];
+      setTable_list(newTableOrder);
+      addNotification("success", t("builder.tableChanged") || "Tabela Base Alterada", `Tabela base alterada para "${newBaseTable}".`);
+    },
+    [table_list, setTable_list, addNotification, t]
+  );
 
   const clearAllConditions = useCallback(() => {
     setConditions([]);
-    addNotification('info', 'Condições Limpas', 'Todas as condições de filtro foram removidas.');
-  }, [setConditions, addNotification]);
+    addNotification("info", t("builder.conditionsCleared") || "Condições Limpas", t("builder.conditionsClearedMessage") || "Todas as condições foram removidas.");
+  }, [setConditions, addNotification, t]);
 
   const clearCache = useCallback(() => {
     setConditions([]);
@@ -351,22 +327,16 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     setSelect([]);
     setDistinctList({ useDistinct: false, distinct_columns: [] });
     removerCacheLocalStorage?.();
-
-    addNotification('success', 'Cache Limpo', 'Todas as configurações foram resetadas.');
-  }, [setConditions,
-    setSelect,
-    setAdvancedConditions,
-    setDistinctList,
-    removerCacheLocalStorage,
-    addNotification]);
+    addNotification("success", t("builder.cacheCleared") || "Cache Limpo", t("builder.cacheClearedMessage") || "Todas as configurações resetadas.");
+  }, [setConditions, setSelect, setAdvancedConditions, setDistinctList, removerCacheLocalStorage, addNotification, t]);
 
   // ---------------- RENDER ----------------
   if (!hydrated) {
     return (
-      <div className={`bg-white rounded-xl shadow-sm border p-4 sm:p-6 ${className}`}>
+      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 ${className}`}>
         <div className="flex items-center justify-center py-8">
           <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <span className="ml-2 text-gray-600">Carregando...</span>
+          <span className="ml-2 text-gray-600 font-medium">{t("common.loading") || "Carregando..."}</span>
         </div>
       </div>
     );
@@ -374,21 +344,21 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
   if (columns.length === 0) {
     return (
-      <div className={`bg-white rounded-xl shadow-sm border p-4 sm:p-6 ${className}`}>
-        <div className="text-center py-8 text-gray-500">
+      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 ${className}`}>
+        <div className="text-center py-10 text-gray-500">
           <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <h4 className="text-lg font-medium text-gray-700 mb-2">Nenhuma coluna disponível</h4>
-          <p className="text-gray-500">Configure as tabelas e colunas para começar a construir consultas.</p>
+          <h4 className="text-lg font-bold text-gray-900 mb-1">{t("builder.noColumnsAvailable") || "Nenhuma coluna disponível"}</h4>
+          <p className="text-sm font-medium text-gray-500">{t("builder.noColumnsHint") || "Configure as tabelas e colunas para começar."}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm border overflow-hidden ${className}`} aria-label="Query Builder">
+    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden ${className}`} aria-label="Query Builder">
       {/* HEADER */}
       <HeaderBuild
-        title={title}
+        title={title || t("builder.title") || "Construtor de Consultas"}
         lengthCondition={conditions.length}
         maxConditions={maxConditions}
         conditions={conditions}
@@ -403,22 +373,19 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
       {/* NOTIFICAÇÕES */}
       {notifications.length > 0 && (
-        <div className="border-b">
-          <div className="p-3 sm:p-4">
+        <div className="border-b border-gray-100 bg-gray-50/50">
+          <div className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-gray-700">
-                Notificações ({notifications.length})
+              <h4 className="text-sm font-bold text-gray-700">
+                {t("builder.notifications") || "Notificações"} ({notifications.length})
               </h4>
               {notifications.length > 1 && (
-                <button
-                  onClick={clearAllNotifications}
-                  className="text-xs text-gray-500 hover:text-gray-700 underline"
-                >
-                  Limpar todas
+                <button onClick={clearAllNotifications} className="text-xs font-semibold text-gray-500 hover:text-red-600 transition-colors">
+                  {t("actions.clearAll") || "Limpar todas"}
                 </button>
               )}
             </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               <NotificationSystem
                 notifications={notifications}
                 onRemove={removeNotification}
@@ -432,7 +399,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         </div>
       )}
 
-      {/* MODAL */}
+      {/* MODAL DE TABELAS */}
       {showTableModal && (
         <TableSelectModal
           allTables={[...new Set(columns.flatMap((s: MetadataTableResponse) => s.colunas.map((c) => `${s.table_name}.${c.nome}`)))]}
@@ -443,57 +410,54 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
             setSelect(items || []);
             setDistinctList({ useDistinct: !!useDistinct, distinct_columns: cols || [] });
             setAliasTables(aliases || {});
-
-            addNotification('success', 'Colunas Atualizadas',
-              `${items?.length || 0} coluna(s) selecionada(s) para a consulta.`);
+            addNotification("success", t("builder.columnsUpdated") || "Colunas Atualizadas", `${items?.length || 0} coluna(s) selecionada(s).`);
           }}
         />
       )}
 
       {/* SQL PREVIEW */}
       {showPreview && (
-        <div className="bg-gray-50 border-b p-3 sm:p-4">
-          <div className="bg-gray-900 text-green-400 p-3 rounded-lg font-mono text-xs sm:text-sm overflow-x-auto">
-            <div className="flex items-center justify-between text-gray-400 mb-1">
-              <span>-- SQL Preview</span>
+        <div className="bg-gray-50 border-b border-gray-200 p-4">
+          <div className="bg-gray-900 text-blue-300 p-4 rounded-xl font-mono text-xs sm:text-sm overflow-x-auto shadow-inner border border-gray-800">
+            <div className="flex items-center justify-between text-gray-500 mb-2">
+              <span className="font-bold tracking-wider uppercase text-[10px]">-- SQL Preview</span>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(sqlPreview);
-                  addNotification('success', 'SQL Copiado', 'Consulta SQL copiada para a área de transferência.');
+                  addNotification("success", t("builder.sqlCopied") || "SQL Copiado", t("builder.sqlCopiedMessage") || "Consulta SQL copiada.");
                 }}
-                className="px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
+                className="px-3 py-1 text-xs font-bold bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-md transition-colors border border-gray-700"
               >
-                Copiar
+                {t("actions.copy") || "Copiar"}
               </button>
             </div>
-            <pre className="whitespace-pre-wrap">{sqlPreview || "Nenhuma condição válida"}</pre>
+            <pre className="whitespace-pre-wrap leading-relaxed">{sqlPreview || t("builder.noValidCondition") || "-- Nenhuma condição válida"}</pre>
           </div>
         </div>
       )}
 
-      {/* CONTENT */}
-      <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
-        {/* Condições de filtro */}
+      {/* CONTENT (CONDIÇÕES) */}
+      <div className="p-4 lg:p-6 space-y-6">
         {lengthCondition === 0 ? (
-          <div className="text-center py-8 sm:py-12">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-              <Search className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
+          <div className="text-center py-10 sm:py-14 border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+            <div className="w-14 h-14 bg-white border border-gray-200 shadow-sm rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-6 h-6 text-blue-500" />
             </div>
-            <h4 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Nenhuma condição adicionada</h4>
-            <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6 max-w-md mx-auto px-4">
-              Clique em &quot;Adicionar&quot; para criar condições de filtro e refinar seus resultados de consulta.
+            <h4 className="text-lg font-bold text-gray-900 mb-2">{t("builder.noConditionAdded") || "Nenhuma condição adicionada"}</h4>
+            <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto font-medium">
+              {t("builder.noConditionHint") || "Clique em 'Adicionar' para criar condições de filtro e refinar seus resultados."}
             </p>
             <button
               onClick={addCondition}
               disabled={!columns.length || !columns[0]?.colunas?.length}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto font-medium transition-colors text-sm sm:text-base"
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto font-semibold transition-colors"
             >
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-              Adicionar Primeira Condição
+              <Plus className="w-4 h-4" />
+              {t("builder.addFirstCondition") || "Adicionar Primeira Condição"}
             </button>
           </div>
         ) : (
-          <div className="space-y-3 sm:space-y-4 max-h-64 sm:max-h-80 lg:max-h-[400px] overflow-y-auto pr-1 sm:pr-2">
+          <div className="space-y-4 max-h-64 sm:max-h-80 lg:max-h-[400px] overflow-y-auto pr-2">
             {conditions.map((condition, index) => (
               <FiltroCondicaoItem
                 key={`condition-${index}-${condition.table_name_fil}-${condition.column}`}
@@ -508,28 +472,26 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
           </div>
         )}
 
-        {/* Opções Avançadas - Responsivo */}
-        <div className="space-y-3 sm:space-y-4">
-          {/* Botão para mostrar/ocultar opções avançadas em mobile */}
+        {/* OPÇÕES AVANÇADAS (JOIN E ORDER BY) */}
+        <div className="space-y-4 pt-2">
           {isMobile && (
             <button
               onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-              className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors border"
+              className="w-full flex items-center justify-between p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-100 transition-colors shadow-sm"
             >
-              <span>Opções Avançadas</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showAdvancedOptions ? 'rotate-180' : ''}`} />
+              <span>{t("builder.advancedOptions") || "Opções Avançadas"}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showAdvancedOptions ? "rotate-180" : ""}`} />
             </button>
           )}
 
-          {/* Conteúdo das opções avançadas */}
-          <div className={`${isMobile && !showAdvancedOptions ? 'hidden' : 'block'} space-y-3 sm:space-y-4`}>
-            {/* JOIN Options - apenas se houver múltiplas tabelas */}
+          <div className={`${isMobile && !showAdvancedOptions ? "hidden" : "block"} space-y-4`}>
+            
             {columns.length > 1 && (
-              <div className="border p-3 sm:p-4 rounded-lg bg-gray-50">
-                <div className="text-xs sm:text-sm text-gray-500 mb-2 sm:mb-3">
-                  Configurar junções entre tabelas:
+              <div className="border border-gray-200 p-4 sm:p-5 rounded-xl bg-gray-50 shadow-sm">
+                <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">
+                  {t("builder.configureJoins") || "Configurar junções (JOINs)"}
                 </div>
-                <div className="bg-white p-2 sm:p-3 rounded border text-xs sm:text-sm overflow-x-auto">
+                <div className="bg-white p-1 rounded-lg border border-gray-200 overflow-x-auto shadow-sm">
                   <JoinOptions
                     advancedConditions={advancedConditions}
                     setAdvancedConditions={setAdvancedConditions}
@@ -542,55 +504,50 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
               </div>
             )}
 
-            {/* ORDER BY Options - sempre disponível */}
-            <div className="border p-3 sm:p-4 rounded-lg bg-gray-50">
-              <div className="text-xs sm:text-sm text-gray-500 mb-2 sm:mb-3">
-                Ordenação dos resultados:
+            <div className="border border-gray-200 p-4 sm:p-5 rounded-xl bg-gray-50 shadow-sm">
+              <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">
+                {t("builder.configureOrderBy") || "Ordenação dos resultados"}
               </div>
-              <div className="bg-white p-2 sm:p-3 rounded border text-xs sm:text-sm overflow-x-auto">
-                <OrderByOptions
-                  columns={columns}
-                  orderBy={orderBy}
-                  setOrderBy={setOrderBy}
-                />
+              <div className="bg-white p-1 rounded-lg border border-gray-200 overflow-x-auto shadow-sm">
+                <OrderByOptions columns={columns} orderBy={orderBy} setOrderBy={setOrderBy} />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* EXECUTE */}
-      <div className="border-t p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* FOOTER - EXECUTE */}
+      <div className="border-t border-gray-200 bg-gray-50 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex flex-col sm:flex-row items-center gap-4 flex-1">
           {lengthCondition > 0 && (
-            <div className="text-xs sm:text-sm text-gray-600">
-              {validConditionsCount} de {lengthCondition} condição(ões) válida(s)
+            <div className="text-sm font-medium text-gray-600 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+              <span className="font-bold text-gray-900">{validConditionsCount}</span> {t("common.of") || "de"} {lengthCondition} {t("builder.validConditions") || "condição(ões) válida(s)"}
             </div>
           )}
           {table_list.length > 0 && (
-            <div className="text-xs sm:text-sm text-gray-500">
-              Tabela base: <strong>{table_list[0]}</strong>
+            <div className="text-sm font-medium text-gray-600 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+              {t("builder.baseTable") || "Tabela base"}: <strong className="text-blue-600 ml-1">{table_list[0]}</strong>
             </div>
           )}
         </div>
 
+        {/* Botão padronizado (Blue em vez de Green) */}
         <button
           onClick={executeQuery}
           disabled={isExecuting}
-          aria-disabled={isExecuting}
-          className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium text-sm sm:text-base transition-colors min-w-[140px]"
+          className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-bold text-sm transition-colors shadow-sm focus:ring-2 focus:ring-blue-500/50"
         >
           {isExecuting ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Executando...
+              {t("builder.executing") || "Executando..."}
             </>
           ) : (
             <>
               <Play className="w-4 h-4" />
-              Executar Consulta
+              {t("builder.executeQuery") || "Executar Consulta"}
               {validConditionsCount > 0 && (
-                <span className="bg-green-700 text-white text-xs px-1.5 py-0.5 rounded-full ml-1">
+                <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-md ml-1 font-mono">
                   {validConditionsCount}
                 </span>
               )}

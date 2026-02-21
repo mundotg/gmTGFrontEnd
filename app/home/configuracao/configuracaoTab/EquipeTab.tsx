@@ -14,7 +14,7 @@ import {
   Save,
   X
 } from "lucide-react";
-import { useSession } from "@/context/SessionContext";
+// import { useSession } from "@/context/SessionContext";
 
 /* =====================
    TIPOS
@@ -45,9 +45,9 @@ interface EmpresaUser {
    COMPONENT
 ===================== */
 export const EquipeTab = () => {
-  const { user } = useSession();
+  // const { user } = useSession();
   // Fallback seguro caso user seja undefined
-  const permissionsUser = user?.permissions || [];
+  // const permissionsUser = user?.permissions || [];
   
   // Simulação de permissões para teste (pode remover se seu contexto estiver funcionando)
   const canManageRoles = true; // permissionsUser.includes("role:manage");
@@ -386,7 +386,7 @@ export const EquipeTab = () => {
                 <div className="space-y-8 pb-20"> {/* pb-20 para dar espaço ao footer flutuante */}
                    {Object.keys(permissionsGrouped).length === 0 && (
                      <div className="text-center py-10 text-slate-500">
-                       Nenhuma permissão encontrada para "{searchTerm}"
+                       Nenhuma permissão encontrada para &quot;{searchTerm}&quot;
                      </div>
                    )}
 

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+  
     "dev": "next dev --turbopack",
     "devDebug": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
     "build": "next build",

@@ -1,17 +1,17 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import clsx from "clsx";
-import { Info, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Info, AlertTriangle, CheckCircle2, XCircle, ChevronDown, X, Loader2 } from "lucide-react";
 
 // ------------------------------
-// 🔄 Spinner
+// 🔄 Spinner (Padrão Oficial)
 // ------------------------------
-export const Spinner = () => (
-  <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-blue-500 border-opacity-70" />
+export const Spinner = ({ className }: { className?: string }) => (
+  <Loader2 className={clsx("animate-spin text-blue-600", className)} size={24} />
 );
 
 // ------------------------------
-// 🔘 Button
+// 🔘 Button (Padrão Oficial)
 // ------------------------------
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "danger";
@@ -19,15 +19,15 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 export const Button = ({ variant = "primary", className, ...props }: ButtonProps) => {
   const base =
-    "px-4 py-2 rounded font-medium transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2";
+    "px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]";
 
   const variants = {
     primary:
-      "bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 focus:ring-blue-400",
+      "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500/50 border border-transparent",
     secondary:
-      "bg-gray-200 text-gray-800 hover:bg-gray-300 active:bg-gray-400 focus:ring-gray-400 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600",
+      "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400 focus:ring-gray-300",
     danger:
-      "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus:ring-red-400",
+      "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500/50 border border-transparent",
   };
 
   return (
@@ -36,7 +36,7 @@ export const Button = ({ variant = "primary", className, ...props }: ButtonProps
 };
 
 // ------------------------------
-// 🪟 Modal
+// 🪟 Modal (Padrão Oficial)
 // ------------------------------
 export interface ModalProps {
   isOpen: boolean;
@@ -49,37 +49,36 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md shadow-2xl relative">
-        {title && (
-          <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-            {title}
-          </h3>
-        )}
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition-colors"
-        >
-          ✕
-        </button>
-        {children}
+    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            {title && (
+              <h3 className="text-xl font-bold text-gray-900">
+                {title}
+              </h3>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          {children}
+        </div>
       </div>
     </div>
   );
 };
 
 // ------------------------------
-// 🧾 Card
+// 🧾 Card (Padrão Oficial)
 // ------------------------------
-export interface CardProps {
-  title?: string;
-  children: React.ReactNode;
-}
-
-export const Card = ({ title, children }: CardProps) => (
-  <div className="border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm p-4 bg-white dark:bg-gray-800">
+export const Card = ({ title, children, className }: { title?: string; children: React.ReactNode; className?: string }) => (
+  <div className={clsx("border border-gray-200 rounded-2xl shadow-sm p-6 bg-white", className)}>
     {title && (
-      <h2 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-100">
+      <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-4 pb-2 border-b border-gray-50">
         {title}
       </h2>
     )}
@@ -88,96 +87,78 @@ export const Card = ({ title, children }: CardProps) => (
 );
 
 // ------------------------------
-// 📝 Textarea
+// 📝 Textarea (Padrão Oficial)
 // ------------------------------
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label?: string;
-}
-
-export const Textarea = ({ label, ...props }: TextareaProps) => (
-  <div className="flex flex-col gap-1">
+export const Textarea = ({ label, className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }) => (
+  <div className="flex flex-col gap-1.5">
     {label && (
-      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+      <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 ml-1">
         {label}
       </label>
     )}
     <textarea
       {...props}
-      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+      className={clsx(
+        "px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 text-sm min-h-[100px] focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-gray-400",
+        className
+      )}
     />
   </div>
 );
 
 // ------------------------------
-// 🔤 Input
+// 🔤 Input (Padrão Oficial)
 // ------------------------------
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  hint?: string;
-}
-
-export const Input = ({ label, ...props }: InputProps) => (
-  <div className="flex flex-col gap-1">
+export const Input = ({ label, className, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string }) => (
+  <div className="flex flex-col gap-1.5">
     {label && (
-      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+      <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 ml-1">
         {label}
       </label>
     )}
     <input
       {...props}
-      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+      className={clsx(
+        "px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-gray-400",
+        className
+      )}
     />
   </div>
 );
 
 // ------------------------------
-// ⬇️ Dropdown
+// ⬇️ Dropdown (Padrão Oficial)
 // ------------------------------
-export interface DropdownProps {
-  label: string;
-  options: string[];
-  onSelect: (option: string) => void;
-}
-
-export const Dropdown = ({ label, options, onSelect }: DropdownProps) => {
+export const Dropdown = ({ label, options, onSelect }: { label: string; options: string[]; onSelect: (option: string) => void }) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    const clickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", clickOutside);
+    return () => document.removeEventListener("mousedown", clickOutside);
   }, []);
 
   return (
     <div className="relative inline-block text-left" ref={dropdownRef}>
       <button
         onClick={() => setOpen(!open)}
-        className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 font-bold text-sm rounded-xl hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all focus:ring-2 focus:ring-blue-500/50"
       >
         {label}
+        <ChevronDown size={16} className={clsx("transition-transform", open && "rotate-180")} />
       </button>
       {open && (
-        <div className="absolute z-10 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg">
-          {options.map((option) => (
+        <div className="absolute z-10 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+          {options.map((opt) => (
             <div
-              key={option}
-              onClick={() => {
-                onSelect(option);
-                setOpen(false);
-              }}
-              className="px-4 py-2 hover:bg-blue-100 dark:hover:bg-blue-800 cursor-pointer text-gray-700 dark:text-gray-200"
+              key={opt}
+              onClick={() => { onSelect(opt); setOpen(false); }}
+              className="px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 cursor-pointer text-sm font-medium text-gray-700 transition-colors"
             >
-              {option}
+              {opt}
             </div>
           ))}
         </div>
@@ -187,116 +168,76 @@ export const Dropdown = ({ label, options, onSelect }: DropdownProps) => {
 };
 
 // ------------------------------
-// 🧭 Tabs
+// 🧭 Tabs (Padrão Oficial)
 // ------------------------------
-export interface Tab {
-  label: string;
-  content: React.ReactNode;
-}
-
-export interface TabsProps {
-  tabs: Tab[];
-}
-
-export const Tabs = ({ tabs }: TabsProps) => {
+export const Tabs = ({ tabs }: { tabs: { label: string; content: React.ReactNode }[] }) => {
   const [activeIndex, setActiveIndex] = useState(0);
 
   return (
     <div>
-      <div className="flex border-b border-gray-300 dark:border-gray-700 mb-4">
+      <div className="flex gap-2 border-b border-gray-200 mb-6">
         {tabs.map((tab, i) => (
           <button
             key={i}
             onClick={() => setActiveIndex(i)}
             className={clsx(
-              "px-4 py-2 font-medium transition-colors",
+              "px-4 py-2.5 text-sm font-bold transition-all relative",
               activeIndex === i
-                ? "border-b-2 border-blue-500 text-blue-600 dark:text-blue-400"
-                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                ? "text-blue-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-blue-600"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-t-lg"
             )}
           >
             {tab.label}
           </button>
         ))}
       </div>
-      <div>{tabs[activeIndex].content}</div>
+      <div className="animate-in fade-in duration-300">{tabs[activeIndex].content}</div>
     </div>
   );
 };
 
-
-interface AlertProps {
-  type?: "info" | "success" | "warning" | "error";
-  title?: string;
-  message: string;
-  onClose?: () => void;
-}
-
-const iconMap = {
-  info: Info,
-  success: CheckCircle2,
-  warning: AlertTriangle,
-  error: XCircle,
-};
-
-export const Alert: React.FC<AlertProps> = ({
-  type = "info",
-  title,
-  message,
-  onClose,
-}) => {
-  const Icon = iconMap[type];
-
+// ------------------------------
+// ⚠️ Alert (Padrão Oficial)
+// ------------------------------
+export const Alert = ({ type = "info", title, message, onClose }: { type?: "info" | "success" | "warning" | "error"; title?: string; message: string; onClose?: () => void }) => {
+  const Icon = { info: Info, success: CheckCircle2, warning: AlertTriangle, error: XCircle }[type];
   const styles = {
-    info: "bg-info-bg border-info-border text-info-text",
-    success: "bg-success-bg border-success-border text-success-text",
-    warning: "bg-warning-bg border-warning-border text-warning-text",
-    error: "bg-error-bg border-error-border text-error-text",
+    info: "bg-blue-50 border-blue-200 text-blue-800",
+    success: "bg-green-50 border-green-200 text-green-800",
+    warning: "bg-amber-50 border-amber-200 text-amber-800",
+    error: "bg-red-50 border-red-200 text-red-800",
   };
 
   return (
-    <div
-      className={`flex items-start gap-3 p-4 border rounded-xl shadow-sm ${styles[type]} transition-all`}
-    >
-      <Icon className="w-5 h-5 mt-1 flex-shrink-0" />
+    <div className={clsx("flex items-start gap-3 p-4 border rounded-2xl shadow-sm transition-all animate-in slide-in-from-top-2", styles[type])}>
+      <Icon className="w-5 h-5 mt-0.5 flex-shrink-0 opacity-80" />
       <div className="flex-1">
-        {title && <p className="font-semibold">{title}</p>}
-        <p className="text-sm">{message}</p>
+        {title && <p className="font-bold text-sm mb-0.5">{title}</p>}
+        <p className="text-sm font-medium leading-relaxed">{message}</p>
       </div>
       {onClose && (
-        <button
-          onClick={onClose}
-          className="ml-2 text-sm opacity-70 hover:opacity-100"
-        >
-          ✕
+        <button onClick={onClose} className="p-1 hover:bg-black/5 rounded-lg transition-colors">
+          <X size={16} />
         </button>
       )}
     </div>
   );
 };
 
-
-
 // ------------------------------
-// 🏷️ Badge
+// 🏷️ Badge (Padrão Oficial)
 // ------------------------------
-export interface BadgeProps {
-  text: string;
-  color?: "blue" | "green" | "red" | "gray";
-}
-
-export const Badge = ({ text, color = "gray" }: BadgeProps) => {
+export const Badge = ({ text, color = "gray" }: { text: string; color?: "blue" | "green" | "red" | "gray" | "yellow" }) => {
   const colors = {
-    blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-    green: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
-    red: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
-    gray: "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+    blue: "bg-blue-50 text-blue-700 border-blue-200",
+    green: "bg-green-50 text-green-700 border-green-200",
+    red: "bg-red-50 text-red-700 border-red-200",
+    gray: "bg-gray-100 text-gray-600 border-gray-200",
+    yellow: "bg-amber-50 text-amber-700 border-amber-200",
   };
 
   return (
-    <span
-      className={`px-2 py-1 rounded text-xs font-semibold ${colors[color]}`}
-    >
+    <span className={clsx("px-2 py-0.5 border rounded-md text-[10px] font-bold uppercase tracking-wider shadow-xs", colors[color])}>
       {text}
     </span>
   );

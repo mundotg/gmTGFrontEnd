@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Building2,
   Shield,
@@ -52,7 +52,7 @@ interface Cargo {
 export const EmpresaTab = () => {
   const [saving, setSaving] = useState(false);
   const [cargoSelecionado, setCargoSelecionado] = useState<Cargo | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  // const [searchTerm, setSearchTerm] = useState("");
 
   const [empresa, setEmpresa] = useState({
     nome: "Tech Solutions Lda",
@@ -94,7 +94,26 @@ export const EmpresaTab = () => {
         ? cargoSelecionado.permissions.filter(p => p !== permId)
         : [...cargoSelecionado.permissions, permId]
     });
+
+
   };
+
+ useEffect(() => {
+    // Simula fetch dos dados da empresa e cargos
+    if (!empresa) return;
+    const fetchData = async () => {
+      // Simulação de delay
+      await new Promise(r => setTimeout(r, 800));
+      setEmpresa({
+        nome: "Tech Solutions Lda",
+        documento: "700000000",
+        email: "contato@techsolutions.com",
+        telefone: "+244 999 999 999"
+      });
+      // Aqui você faria fetch real e setaria os estados com os dados
+    };
+    fetchData();
+  }, [empresa]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">

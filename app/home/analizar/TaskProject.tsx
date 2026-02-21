@@ -9,10 +9,12 @@ import {
   Activity,
   Download,
   Target,
+  ShieldAlert,
 } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
 import { AnalizeDataType } from "@/types";
 import { hasPermission } from "@/permissions_val";
+import { useI18n } from "@/context/I18nContext";
 
 /* =======================
    MOCK DATA
@@ -66,6 +68,7 @@ const mockData: AnalizeDataType = {
 ======================= */
 export function ProjectModule() {
   const { user } = useSession();
+  const { t } = useI18n();
   const permissions = user?.permissions ?? [];
 
   const canView = hasPermission(permissions, "analytics:project:view");
@@ -87,91 +90,95 @@ export function ProjectModule() {
     return () => clearTimeout(timer);
   }, [timeRange, canView]);
 
-  if (!canView) return <AccessDenied />;
+  if (!canView) return <AccessDenied t={t} />;
   if (loading || !data) return <SkeletonLoader />;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="space-y-6 animate-in fade-in duration-500 font-sans">
+      
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="h-1 w-8 bg-blue-600 rounded-full" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">
-              Analytics Engine
-            </span>
-          </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">
-            Desempenho de Projetos
+          <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+            {t("projects.performanceTitle") || "Desempenho de Projetos"}
           </h2>
+          <p className="text-sm text-gray-500 font-medium mt-1">
+            {t("projects.performanceSubtitle") || "Visão geral e progresso das milestones"}
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex bg-[#1a1a1a] border border-white/5 p-1 rounded-lg">
+          <div className="flex bg-gray-100 border border-gray-200 p-1 rounded-lg">
             <FilterBtn
               active={timeRange === "week"}
-              label="7D"
+              label={t("projects.filter7D") || "7D"}
               onClick={() => setTimeRange("week")}
             />
             <FilterBtn
               active={timeRange === "month"}
-              label="30D"
+              label={t("projects.filter30D") || "30D"}
               onClick={() => setTimeRange("month")}
             />
           </div>
 
           {canExport && (
-            <button className="flex items-center gap-2 px-4 py-2 bg-white text-black text-xs font-black rounded-lg hover:bg-slate-200 transition-all uppercase tracking-tighter">
-              <Download size={14} />
-              Exportar
+            <button className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-200 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
+              <Download size={16} />
+              <span className="hidden sm:inline">{t("actions.export") || "Exportar"}</span>
             </button>
           )}
         </div>
       </div>
 
       {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Projetos Ativos"
+          title={t("projects.statActive") || "Projetos Ativos"}
           value={data.overview.activeProjects}
-          icon={<Target className="text-blue-400" />}
+          icon={<Target className="text-blue-600" />}
+          iconBg="bg-blue-50"
         />
         <StatCard
-          title="Tasks Concluídas"
+          title={t("projects.statCompleted") || "Tasks Concluídas"}
           value={data.overview.completedTasks}
-          icon={<CheckCircle className="text-emerald-400" />}
+          icon={<CheckCircle className="text-green-600" />}
+          iconBg="bg-green-50"
         />
         <StatCard
-          title="Total de Membros"
+          title={t("projects.statMembers") || "Total de Membros"}
           value={data.overview.teamMembers}
-          icon={<Users className="text-purple-400" />}
+          icon={<Users className="text-purple-600" />}
+          iconBg="bg-purple-50"
         />
         <StatCard
-          title="Overdue Projects"
+          title={t("projects.statOverdue") || "Atrasados"}
           value={data.overview.overdueProjects}
-          icon={<AlertTriangle className="text-red-400" />}
+          icon={<AlertTriangle className="text-red-600" />}
+          iconBg="bg-red-50"
         />
       </div>
 
       {/* CONTENT */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
         {/* ACTIVITY */}
-        <div className="lg:col-span-1 bg-[#0f0f0f] border border-white/5 rounded-2xl p-6">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-6 flex items-center gap-2">
-            <Clock size={14} /> Histórico de Execução
+        <div className="lg:col-span-1 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <Clock size={16} className="text-gray-500" /> 
+            {t("projects.activityLog") || "Histórico de Execução"}
           </h3>
 
           <div className="space-y-6">
-            {data.recentActivity.map((a) => (
-              <div key={a.id} className="relative pl-6 border-l border-white/10">
-                <div className="absolute -left-[4.5px] top-1 w-2 h-2 rounded-full bg-slate-700" />
-                <p className="text-xs text-slate-200 font-medium">
-                  <span className="text-blue-400">
-                    @{a.user.split(" ")[0]}
+            {data.recentActivity.map((a, idx) => (
+              <div key={a.id} className="relative pl-5 border-l-2 border-gray-100">
+                <div className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-white border-2 border-blue-500" />
+                <p className="text-sm text-gray-700 font-medium">
+                  <span className="text-gray-900 font-bold">
+                    {a.user.split(" ")[0]}
                   </span>{" "}
-                  {a.action}
+                  {a.action} {idx === 0 && <span className="text-emerald-500 text-xs font-bold animate-pulse">● Novo</span>}
                 </p>
-                <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">
+                <p className="text-xs text-gray-500 mt-1 font-medium">
                   {a.project} • {a.time}
                 </p>
               </div>
@@ -180,28 +187,28 @@ export function ProjectModule() {
         </div>
 
         {/* PROGRESS */}
-        <div className="lg:col-span-2 bg-[#0f0f0f] border border-white/5 rounded-2xl p-6">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-6 flex items-center gap-2">
-            <Activity size={14} /> Progresso das Milestones
+        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <Activity size={16} className="text-gray-500" /> 
+            {t("projects.milestones") || "Progresso das Milestones"}
           </h3>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {data.projectProgress.map((p) => (
-              <div
-                key={p.name}
-                className="p-4 bg-white/[0.02] border border-white/5 rounded-xl"
-              >
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm font-bold text-slate-200">
+              <div key={p.name} className="p-4 bg-gray-50 border border-gray-100 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-bold text-gray-900">
                     {p.name}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-500">
+                  <span className="text-xs font-bold text-gray-600">
                     {p.progress}%
                   </span>
                 </div>
-                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-blue-600 rounded-full transition-all duration-700"
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      p.progress >= 80 ? 'bg-green-500' : p.progress >= 50 ? 'bg-blue-500' : 'bg-amber-500'
+                    }`}
                     style={{ width: `${p.progress}%` }}
                   />
                 </div>
@@ -209,6 +216,7 @@ export function ProjectModule() {
             ))}
           </div>
         </div>
+        
       </div>
     </div>
   );
@@ -222,20 +230,21 @@ type StatCardProps = {
   title: string;
   value?: number;
   icon: React.ReactNode;
+  iconBg: string;
 };
 
-function StatCard({ title, value, icon }: StatCardProps) {
+function StatCard({ title, value, icon, iconBg }: StatCardProps) {
   return (
-    <div className="bg-[#0f0f0f] border border-white/5 p-5 rounded-2xl flex justify-between">
+    <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-sm flex items-center justify-between transition-shadow hover:shadow-md">
       <div>
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
           {title}
         </p>
-        <p className="text-3xl font-bold text-white tracking-tighter">
+        <p className="text-2xl font-bold text-gray-900">
           {value ?? 0}
         </p>
       </div>
-      <div className="p-2 bg-white/5 rounded-lg">{icon}</div>
+      <div className={`p-3 rounded-lg ${iconBg}`}>{icon}</div>
     </div>
   );
 }
@@ -250,10 +259,10 @@ function FilterBtn({ active, label, onClick }: FilterBtnProps) {
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-1 text-[10px] font-bold rounded-md ${
+      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${
         active
-          ? "bg-white/10 text-white"
-          : "text-slate-500 hover:text-slate-300"
+          ? "bg-white text-gray-900 shadow-sm"
+          : "text-gray-500 hover:text-gray-700"
       }`}
     >
       {label}
@@ -261,15 +270,17 @@ function FilterBtn({ active, label, onClick }: FilterBtnProps) {
   );
 }
 
-function AccessDenied() {
+function AccessDenied({ t }: { t: (valor: string) => string }) {
   return (
-    <div className="h-64 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-3xl bg-white/[0.01]">
-      <AlertTriangle className="text-amber-500 mb-3" size={32} />
-      <p className="text-sm font-bold text-slate-300">
-        Acesso Restrito ao Módulo
+    <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+      <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+        <ShieldAlert className="text-amber-600" size={28} />
+      </div>
+      <p className="text-lg font-bold text-gray-900 mb-1">
+        {t("projects.accessDenied") || "Acesso Restrito ao Módulo"}
       </p>
-      <p className="text-xs text-slate-500">
-        Contacte o administrador do MustaInf.
+      <p className="text-sm text-gray-500 font-medium">
+        {t("projects.accessDeniedDesc") || "Contacte o administrador do MustaInf."}
       </p>
     </div>
   );
@@ -278,11 +289,18 @@ function AccessDenied() {
 function SkeletonLoader() {
   return (
     <div className="space-y-6 animate-pulse">
-      <div className="h-10 bg-white/5 w-1/4 rounded-lg" />
-      <div className="grid grid-cols-4 gap-4">
+      <div className="flex justify-between">
+        <div className="h-8 bg-gray-200 w-1/4 rounded-lg" />
+        <div className="h-8 bg-gray-200 w-32 rounded-lg" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-24 bg-white/5 rounded-2xl" />
+          <div key={i} className="h-28 bg-gray-200 rounded-xl" />
         ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="h-64 bg-gray-200 rounded-xl" />
+        <div className="lg:col-span-2 h-64 bg-gray-200 rounded-xl" />
       </div>
     </div>
   );

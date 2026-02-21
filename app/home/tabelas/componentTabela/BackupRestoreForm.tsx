@@ -2,6 +2,7 @@
 import { useSSEStream } from "@/hook/useTransferStream";
 import { Download, Loader2, Upload } from "lucide-react";
 import { useState, useRef, useMemo } from "react";
+import { useI18n } from "@/context/I18nContext";
 
 interface BackupRestoreFormProps {
   /** Ação de cancelamento */
@@ -13,11 +14,11 @@ interface BackupRestoreFormProps {
 }
 
 export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
-
   onCancel,
   loading,
   connectionId,
 }) => {
+  const { t } = useI18n();
   const [database, setDatabase] = useState("");
   const [backupType, setBackupType] = useState("full");
   const [backupFile, setBackupFile] = useState<File | null>(null);
@@ -25,14 +26,14 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 🔹 Usa o hook SSE genérico
-  const { messages : messagesRestore1, startStream, stopStream, isRunning } = useSSEStream({
+  const { messages: messagesRestore1, startStream, stopStream, isRunning } = useSSEStream({
     url: `database/stream/${connectionId}`,
     autoStart: false,
     autoRetry: true,
     retryDelay: 2000,
   });
 
-  const { messages: messagesRestore2, startStream: startRestore} = useSSEStream({
+  const { messages: messagesRestore2, startStream: startRestore } = useSSEStream({
     url: `/database/${connectionId}/stream`,
     autoStart: false,
     autoRetry: true,
@@ -49,29 +50,29 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
   };
 
   const handleAction = async () => {
-    if (!database.trim()){
-        stopStream();
-        return
-    };
+    if (!database.trim()) {
+      stopStream();
+      return;
+    }
     if (activeTab === "backup") {
-      startStream()
+      startStream();
     } else if (backupFile) {
-      await startRestore()
+      await startRestore();
     }
   };
 
   return (
-    <div className="space-y-5 p-4 rounded-xl border bg-white shadow-sm">
+    <div className="space-y-5 p-1 bg-white dark:bg-[#1C1C1E] rounded-xl">
       {/* Tabs */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 dark:border-gray-800">
         {(["backup", "restore"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+            className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
               activeTab === tab
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:text-orange-500"
+                ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/10"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:hover:text-gray-300 dark:hover:border-gray-700"
             }`}
           >
             {tab === "backup" ? (
@@ -79,66 +80,77 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
             ) : (
               <Upload className="w-4 h-4" />
             )}
-            {tab === "backup" ? "Backup" : "Restore"}
+            {tab === "backup" ? (t("backup.backupTab") || "Backup") : (t("backup.restoreTab") || "Restore")}
           </button>
         ))}
       </div>
 
       {/* Formulário principal */}
-      <div className="space-y-4">
+      <div className="space-y-4 px-2">
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">
-            Base de Dados
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            {t("backup.databaseLabel") || "Base de Dados"}
           </label>
           <input
             value={database}
             onChange={(e) => setDatabase(e.target.value)}
-            className="w-full p-2 border rounded-md focus:ring-2 focus:ring-orange-400 focus:outline-none"
-            placeholder="Nome da base de dados"
+            className="w-full px-3 py-2 bg-white dark:bg-[#1C1C1E] border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+            placeholder={t("backup.databasePlaceholder") || "Nome da base de dados"}
           />
         </div>
 
         {activeTab === "backup" && (
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">
-              Tipo de Backup
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              {t("backup.typeLabel") || "Tipo de Backup"}
             </label>
             <select
               value={backupType}
               onChange={(e) => setBackupType(e.target.value)}
-              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-orange-400 focus:outline-none"
+              className="w-full px-3 py-2 bg-white dark:bg-[#1C1C1E] border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all appearance-none"
             >
-              <option value="full">Completo</option>
-              <option value="schema">Apenas Schema</option>
-              <option value="data">Apenas Dados</option>
+              <option value="full">{t("backup.typeFull") || "Completo"}</option>
+              <option value="schema">{t("backup.typeSchema") || "Apenas Schema"}</option>
+              <option value="data">{t("backup.typeData") || "Apenas Dados"}</option>
             </select>
           </div>
         )}
 
         {activeTab === "restore" && (
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">
-              Arquivo de Backup
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              {t("backup.fileLabel") || "Arquivo de Backup"}
             </label>
             <input
               ref={fileInputRef}
               type="file"
               accept=".sql,.backup,.dump"
               onChange={handleFileChange}
-              className="w-full p-2 border rounded-md cursor-pointer focus:ring-2 focus:ring-orange-400 focus:outline-none"
+              className="w-full px-3 py-2 bg-white dark:bg-[#1C1C1E] border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
           </div>
         )}
       </div>
 
-      {/* Botões */}
-      <div className="flex justify-end gap-3 pt-3">
+      {/* Logs em tempo real */}
+      {messages.length > 0 && (
+        <div className="mx-2 mt-4 bg-gray-900 rounded-lg p-3 h-48 overflow-y-auto border border-gray-800 shadow-inner">
+          {messages.map((msg, i) => (
+            <div key={i} className="text-green-400 font-mono text-xs mb-1 whitespace-pre-wrap">
+              <span className="text-gray-500 mr-2">{'>'}</span>{msg}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Botões de Ação */}
+      <div className="flex justify-end gap-3 pt-4 mt-2 border-t border-gray-100 dark:border-gray-800 px-2">
         <button
           onClick={onCancel}
-          className="px-4 py-2 border rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-transparent border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           disabled={loading || isRunning}
         >
-          Cancelar
+          {t("actions.cancel") || "Cancelar"}
         </button>
 
         <button
@@ -149,23 +161,14 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
             (activeTab === "restore" && !backupFile) ||
             isRunning
           }
-          className="px-4 py-2 bg-orange-500 text-white rounded-md flex items-center gap-2 disabled:opacity-50 hover:bg-orange-600 transition-colors"
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
         >
           {(loading || isRunning) && <Loader2 className="w-4 h-4 animate-spin" />}
-          {activeTab === "backup" ? "Fazer Backup" : "Fazer Restore"}
+          {activeTab === "backup" 
+            ? (t("backup.startBackup") || "Fazer Backup") 
+            : (t("backup.startRestore") || "Fazer Restore")}
         </button>
       </div>
-
-      {/* Logs em tempo real */}
-      {messages.length > 0 && (
-        <div className="mt-4 bg-gray-50 border rounded-md p-3 h-48 overflow-y-auto text-sm font-mono">
-          {messages.map((msg, i) => (
-            <div key={i} className="text-gray-700 whitespace-pre-wrap">
-              {msg}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };

@@ -1,3 +1,4 @@
+"use client";
 import React, { useMemo, useCallback } from "react";
 import {
   ChevronLeft,
@@ -6,6 +7,7 @@ import {
   ChevronsRight,
   MoreHorizontal,
 } from "lucide-react";
+import { useI18n } from "@/context/I18nContext";
 
 interface PaginationProps {
   page: number;
@@ -29,29 +31,20 @@ interface PaginationProps {
   showEllipsis?: boolean;
 }
 
-const defaultLabels = {
-  previous: "Anterior",
-  next: "Próxima",
-  first: "Primeira página",
-  last: "Última página",
-  page: "Página",
-  of: "de",
-};
-
 // 🔹 Estilos centralizados fora do componente
 const styles = {
   sizes: {
     sm: "text-xs px-2 py-1 min-w-[2rem] h-8",
-    md: "text-sm px-3 py-2 min-w-[2.5rem] h-10",
-    lg: "text-base px-4 py-3 min-w-[3rem] h-12",
+    md: "text-sm px-3 py-2 min-w-[2.5rem] h-9",
+    lg: "text-base px-4 py-3 min-w-[3rem] h-11",
   },
   variants: {
     default:
-      "text-blue-600 hover:bg-blue-50 disabled:text-gray-400 hover:text-blue-700",
+      "text-gray-600 hover:bg-gray-100 hover:text-gray-900 disabled:text-gray-400 bg-transparent",
     outline:
-      "border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:text-gray-400 disabled:bg-gray-100 disabled:border-gray-200",
+      "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 disabled:text-gray-400 disabled:bg-gray-50 disabled:border-gray-200 shadow-sm",
     filled:
-      "bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 shadow-sm",
+      "bg-blue-50 border border-blue-100 text-blue-700 hover:bg-blue-100 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 shadow-sm",
   },
 };
 
@@ -65,33 +58,39 @@ const PageButton: React.FC<{
   children: React.ReactNode;
   "aria-label"?: string;
   "aria-current"?: "page" | false;
-}> = ({ onClick, disabled, isActive, size, variant, children, ...ariaProps }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={disabled}
-    aria-current={isActive ? "page" : false}
-    className={`
-      ${styles.sizes[size]}
-      ${isActive
-        ? "bg-blue-600 text-white shadow-sm ring-1 ring-blue-600"
-        : styles.variants[variant]}
-      rounded-md transition-all duration-200 ease-in-out
-      disabled:cursor-not-allowed disabled:opacity-50
-      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 focus:ring-offset-1
-      inline-flex items-center justify-center font-medium
-      hover:scale-105 active:scale-95
-      whitespace-nowrap select-none
-    `}
-    {...ariaProps}
-  >
-    {children}
-  </button>
-);
+}> = ({ onClick, disabled, isActive, size, variant, children, ...ariaProps }) => {
+  
+  // Classe específica para o estado Ativo (Page Atual)
+  const activeClass = isActive 
+    ? "bg-blue-50 text-blue-700 border-blue-400 shadow-sm ring-1 ring-blue-500/50" 
+    : styles.variants[variant];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-current={isActive ? "page" : false}
+      className={`
+        ${styles.sizes[size]}
+        ${activeClass}
+        rounded-lg transition-all duration-200 ease-in-out
+        disabled:cursor-not-allowed disabled:opacity-60
+        focus:outline-none focus:ring-2 focus:ring-blue-500/50
+        inline-flex items-center justify-center font-bold
+        active:scale-95 whitespace-nowrap select-none
+        ${variant === "outline" && !isActive ? "border" : ""}
+      `}
+      {...ariaProps}
+    >
+      {children}
+    </button>
+  );
+};
 
 const EllipsisButton: React.FC<{ size: "sm" | "md" | "lg" }> = ({ size }) => (
   <div
-    className={`${styles.sizes[size]} inline-flex items-center justify-center text-gray-400 pointer-events-none`}
+    className={`${styles.sizes[size]} inline-flex items-center justify-center text-gray-400 pointer-events-none font-bold`}
     aria-hidden="true"
   >
     <MoreHorizontal className="w-4 h-4" />
@@ -106,13 +105,23 @@ const Pagination: React.FC<PaginationProps> = ({
   showPageNumbers = true,
   maxVisiblePages = 5,
   size = "md",
-  variant = "default",
+  variant = "outline", // Mudei o default para "outline" pois se alinha mais ao nosso Padrão
   className = "",
   labels = {},
   disabled = false,
   showEllipsis = true,
 }) => {
-  const mergedLabels = { ...defaultLabels, ...labels };
+  const { t } = useI18n();
+
+  const mergedLabels = useMemo(() => ({
+    previous: t("pagination.previous") || "Anterior",
+    next: t("pagination.next") || "Próxima",
+    first: t("pagination.first") || "Primeira página",
+    last: t("pagination.last") || "Última página",
+    page: t("pagination.page") || "Página",
+    of: t("common.of") || "de",
+    ...labels
+  }), [t, labels]);
 
   // 🔹 Callbacks
   const goToNext = useCallback(() => {
@@ -168,8 +177,8 @@ const Pagination: React.FC<PaginationProps> = ({
   return (
     <nav
       role="navigation"
-      aria-label="Paginação"
-      className={`flex flex-wrap items-center justify-center gap-1 px-2 py-2 overflow-x-auto ${disabled ? "pointer-events-none opacity-50" : ""} ${className}`}
+      aria-label={t("pagination.ariaLabel") || "Navegação por páginas"}
+      className={`flex flex-wrap items-center justify-center gap-1.5 px-2 py-2 overflow-x-auto ${disabled ? "pointer-events-none opacity-60" : ""} ${className}`}
     >
       {showFirstLast && (
         <PageButton
@@ -191,11 +200,11 @@ const Pagination: React.FC<PaginationProps> = ({
         aria-label={`${mergedLabels.previous} - ${mergedLabels.page} ${page - 1}`}
       >
         <ChevronLeft className="w-4 h-4" />
-        <span className="ml-1 hidden sm:inline">{mergedLabels.previous}</span>
+        <span className="ml-1 hidden sm:inline text-xs uppercase tracking-wider">{mergedLabels.previous}</span>
       </PageButton>
 
       {showPageNumbers ? (
-        <div className="flex items-center gap-1 mx-2 overflow-x-auto">
+        <div className="flex items-center gap-1.5 mx-1 overflow-x-auto">
           {getVisiblePages.map((p, idx) =>
             p === "ellipsis" ? (
               <EllipsisButton key={`ellipsis-${idx}`} size={size} />
@@ -215,8 +224,8 @@ const Pagination: React.FC<PaginationProps> = ({
           )}
         </div>
       ) : (
-        <span className="mx-4 text-sm text-gray-600 font-medium">
-          {mergedLabels.page} {page} {mergedLabels.of} {totalPages}
+        <span className="mx-4 text-xs font-bold text-gray-500 uppercase tracking-widest bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+          {mergedLabels.page} <span className="text-gray-900">{page}</span> {mergedLabels.of} <span className="text-gray-900">{totalPages}</span>
         </span>
       )}
 
@@ -227,7 +236,7 @@ const Pagination: React.FC<PaginationProps> = ({
         variant={variant}
         aria-label={`${mergedLabels.next} - ${mergedLabels.page} ${page + 1}`}
       >
-        <span className="mr-1 hidden sm:inline">{mergedLabels.next}</span>
+        <span className="mr-1 hidden sm:inline text-xs uppercase tracking-wider">{mergedLabels.next}</span>
         <ChevronRight className="w-4 h-4" />
       </PageButton>
 

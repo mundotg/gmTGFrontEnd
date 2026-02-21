@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { 
-  Plug, 
   Loader2, 
   AlertTriangle, 
   CheckCircle2, 
@@ -88,7 +87,7 @@ export const IntegracoesTab = () => {
       console.log(`${integration.connected ? 'Desconectando' : 'Conectando'} ${integration.id}`);
       
     } catch (e) {
-      setError(`Falha ao processar ${integration.name}. Tente novamente.`);
+      setError(`Falha ao processar ${integration.name}. Tente novamente. ${e instanceof Error ? e.message : 'Erro desconhecido'}`);
     } finally {
       setLoadingId(null);
     }

@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
    Moon, Sun, Loader2,
@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { CampoDetalhado, EditedFieldForQuery, MetadataTableResponse, TableColumnsDisplayProps } from '@/types';
 import { useTableColumns } from '@/hook/useTable';
-import { themeClassesMap } from '@/constant';
 import EditFieldModal from './EditFieldModal';
 import { ColumnSkeleton, ErrorDisplay } from '@/util';
 import CriarRegistroNovo from './criar-registro';
@@ -17,6 +16,8 @@ import { FilterableGrid } from './columns-displayComponent/FilterableGrid';
 import { FormatoRelatorio, useRelatorioAvancado } from '../services/useRelatorio';
 import { RelatorioPayload } from '@/hook/useRelatorio';
 import { FORMATS, ReportButton } from '../services/ReportButton';
+import { useI18n } from '@/context/I18nContext';
+import { themeClassesMap } from '@/constant';
 
 const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   tableNames,
@@ -27,25 +28,27 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   tabelaExistenteNaDB,
   error,
   theme = 'light',
-  // showExport = true,
   itemsPerPage = 12,
   onColumnClick,
   setSelect,
   select
 }) => {
+  const { t } = useI18n();
   const [isDarkMode, setIsDarkMode] = usePersistedState<boolean>("_theme", theme === 'dark');
   const currentTheme = isDarkMode ? 'dark' : 'light';
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [openIntermediario, setOpenIntermediario] = useState(false);
   const [modalCreateOpen, setModalCreateOpen] = usePersistedState<boolean>("_modal_Create_Open", false);
   const [selectedColumn, setSelectedColumn] = useState<CampoDetalhado & { tableName: string } | null>(null);
+  
   const [showFilters, setShowFilters] = usePersistedState<boolean>(
     "consulta_showFilterColunas",
     false
   );
   const [hydrated, setHydrated] = useState(false);
 
-  // Hook de relatório adicionado
+  // Hook de relatório
   const {
     gerarRelatorio,
     cancelarGeracao,
@@ -74,12 +77,11 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     filteredAndSortedColumns
   } = useTableColumns(columns);
 
-  // Memoize cálculos derivados
   const totalPages = useMemo(
     () => Math.ceil(filteredAndSortedColumns.length / itemsPerPage),
     [filteredAndSortedColumns, itemsPerPage]
   );
-
+const themeClasses = themeClassesMap[currentTheme === 'dark' ? 'dark' : 'light'];
   const getColumnCount = useMemo(() => {
     return filteredAndSortedColumns.length;
   }, [filteredAndSortedColumns.length]);
@@ -97,7 +99,6 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     [columns]
   );
 
-  // Callbacks memoizados
   const handleColumnClick = useCallback((col: CampoDetalhado & { tableName: string }) => {
     setIsLoading?.(true);
     setSelectedColumn(col);
@@ -134,17 +135,15 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     console.log("Campo atualizado:", updatedField);
   }, []);
 
-  // Função para gerar relatório PDF adicionada
-  const handleGerarRelatorio = useCallback(async (format : FormatoRelatorio) => {
+  const handleGerarRelatorio = useCallback(async (format: FormatoRelatorio) => {
     if (!columns || columns.length === 0) {
       console.error('Nenhuma coluna disponível para gerar relatório');
       return;
     }
 
-
-    const payload: RelatorioPayload<MetadataTableResponse[]>= {
+    const payload: RelatorioPayload<MetadataTableResponse[]> = {
       tipo: 'metadados',
-      body: columns ,
+      body: columns,
       filtros: {
         tabelas: tableNames,
         totalColunas: totalCols
@@ -158,54 +157,49 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     await gerarRelatorio(payload);
   }, [columns, tableNames, totalCols, gerarRelatorio]);
 
-  const themeClasses = themeClassesMap[currentTheme === 'dark' ? 'dark' : 'light'];
-
   if (!hydrated) {
     return (
-      <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${className}`}>
-        <div className="text-sm opacity-50">Carregando colunas...</div>
+      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 ${className}`}>
+        <div className="text-sm text-gray-500">{t('common.loadingColumns') || "Carregando colunas..."}</div>
       </div>
     );
   }
 
-  // Renderização condicional para estados
   if (error) {
     return (
-      <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${themeClasses.container} ${className}`}>
+      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 ${className}`}>
         <ErrorDisplay error={error} theme={currentTheme} />
       </div>
     );
   }
 
   function handleRowUpdate(updatedRow: EditedFieldForQuery): void {
-    console.log(updatedRow)
+    console.log(updatedRow);
   }
 
   const handleConfirm = () => {
     setModalCreateOpen(true);
   };
 
-  
-
   return (
-    <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${themeClasses.container} ${className}`} aria-label='Exibição_de_Colunas_da_Tabela'>
+    <div className={`bg-white dark:bg-[#1C1C1E] rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-5 sm:p-6 ${className}`} aria-label='Exibição_de_Colunas_da_Tabela'>
+      
       {/* Cabeçalho com controles */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4 border-b border-gray-100 dark:border-gray-800 pb-4">
+        
         {/* Nome das tabelas */}
         <div className="flex items-center gap-3 min-w-0">
-          <h3 className="text-lg font-semibold truncate max-w-[60vw] sm:max-w-[70vw] lg:max-w-[40vw]">
-            Colunas: <div className="overflow-x-auto w-full lg:w-auto">
-              <p className="text-sm text-gray-600 whitespace-nowrap">
-                {tableNames}
-              </p>
-            </div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate max-w-[60vw] sm:max-w-[70vw] lg:max-w-[40vw] flex items-center gap-2">
+            {t('common.columns') || "Colunas"}: 
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md whitespace-nowrap overflow-hidden text-ellipsis">
+              {tableNames}
+            </span>
           </h3>
 
-          {/* Botão de tema */}
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`p-2 rounded-lg transition-colors shrink-0 ${themeClasses.button}`}
-            aria-label="Alternar tema"
+            className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shrink-0"
+            title={t('actions.toggleTheme') || "Alternar tema"}
           >
             {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
@@ -235,27 +229,26 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           onSave={handleRowUpdate}
         />
 
-        <div className="flex items-center gap-2 text-sm">
-          <span className="opacity-75">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 font-medium bg-gray-50 dark:bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700">
             {isLoading ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Carregando...
-              </div>
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                {t('common.loading') || "Carregando..."}
+              </>
             ) : (
-              `${getColumnCount} de ${totalCols} colunas`
+              `${getColumnCount} ${t('common.of') || "de"} ${totalCols} ${t('common.columns') || "colunas"}`
             )}
-          </span>
+            
+            {select.length > 0 && (
+              <span className="text-blue-600 dark:text-blue-400 ml-1 border-l border-gray-300 dark:border-gray-600 pl-2">
+                {select.length} {t('common.selected') || "selecionadas"}
+              </span>
+            )}
+          </div>
 
-          {select.length > 0 && (
-            <span className="text-blue-500 font-medium">
-              ({select.length} selecionadas)
-            </span>
-          )}
-
-          {/* Botão de Gerar Relatório PDF adicionado */}
           {columns && columns.length > 0 && (
-             <ReportButton
+            <ReportButton
               onGenerate={handleGerarRelatorio}
               formats={FORMATS}
               hasResults={true}
@@ -263,59 +256,40 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
             />
           )}
 
-         
-
-          {(columns && columns.length > 0) && (
-            <>
-              <button
-                onClick={() => setOpenIntermediario(true)}
-                className={`
-                  group relative px-4 py-2 rounded-lg font-medium text-sm
-                  bg-gradient-to-r from-blue-500 to-blue-600 
-                  hover:from-blue-600 hover:to-blue-700
-                  text-white shadow-lg hover:shadow-xl
-                  transform hover:scale-105 active:scale-95
-                  transition-all duration-200 ease-in-out
-                  flex items-center gap-2
-                  border-0 outline-none focus:ring-4 focus:ring-blue-200
-                  ${themeClasses.button}
-                `}
-                title="Criar novo registro"
-              >
-                <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
-                <span className="hidden sm:inline font-semibold">Novo Registro</span>
-                <span className="sm:hidden font-semibold">Novo</span>
-                <div className="absolute inset-0 rounded-lg bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-              </button>
-            </>
+          {columns && columns.length > 0 && (
+            <button
+              onClick={() => setOpenIntermediario(true)}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+              title={t('actions.newRecord') || "Criar novo registro"}
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">{t('actions.newRecord') || "Novo Registro"}</span>
+              <span className="sm:hidden">{t('actions.new') || "Novo"}</span>
+            </button>
           )}
-        </div>
 
-        <button
-          onClick={() => setShowFilters((prev) => !prev)}
-          className={`
-            group relative px-4 py-2 rounded-lg font-medium text-sm
-            bg-gradient-to-r from-blue-500 to-blue-600 
-            hover:from-blue-600 hover:to-blue-700
-            text-white shadow-lg hover:shadow-xl
-            transform hover:scale-105 active:scale-95
-            transition-all duration-200 ease-in-out
-            flex items-center gap-2
-            border-0 outline-none focus:ring-4 focus:ring-blue-200
-            ${themeClasses.button}
-          `}
-        >
-          <Filter size={18} />
-          {showFilters ? "Esconder colunas" : "Mostrar colunas"}
-        </button>
+          <button
+            onClick={() => setShowFilters((prev) => !prev)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors border ${
+              showFilters 
+                ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800" 
+                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
+            }`}
+          >
+            <Filter size={16} />
+            <span className="hidden sm:inline">
+              {showFilters ? (t('actions.hideFilters') || "Esconder filtros") : (t('actions.showFilters') || "Mostrar filtros")}
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* Barra de progresso do relatório */}
+      {/* Alertas do Relatório (Padronizados) */}
       {isLoadingRelatorio && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex justify-between text-sm text-blue-800 mb-2">
-            <span>Gerando relatório PDF... ({progressRelatorio}%)</span>
-            <span>Tempo estimado: {tempoEstimado}s</span>
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+          <div className="flex justify-between text-sm font-medium text-blue-800 mb-3">
+            <span>{t('reports.generating') || "Gerando relatório PDF..."} ({progressRelatorio}%)</span>
+            <span>{t('reports.estimatedTime') || "Tempo estimado"}: {tempoEstimado}s</span>
           </div>
           <div className="w-full bg-blue-200 rounded-full h-2">
             <div 
@@ -325,48 +299,43 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           </div>
           <button
             onClick={cancelarGeracao}
-            className="mt-2 text-xs text-red-600 hover:text-red-800"
+            className="mt-3 text-xs font-bold text-red-600 hover:text-red-800 transition-colors"
           >
-            Cancelar
+            {t('actions.cancel') || "Cancelar"}
           </button>
         </div>
       )}
 
-      {/* Mensagem de sucesso do relatório */}
       {successRelatorio && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex justify-between items-center">
-            <span className="text-green-800 text-sm">
-              ✅ Relatório gerado com sucesso! 
-              {dadosRelatorio.geradoEm && ` em ${dadosRelatorio.geradoEm.toLocaleString()}`}
-            </span>
-            <button 
-              onClick={resetRelatorio}
-              className="text-green-800 underline text-xs"
-            >
-              Fechar
-            </button>
-          </div>
+        <div className="mb-6 p-4 bg-green-50 border border-green-100 rounded-xl flex justify-between items-center">
+          <span className="text-green-800 text-sm font-medium">
+            ✅ {t('reports.success') || "Relatório gerado com sucesso!"} 
+            {dadosRelatorio.geradoEm && ` em ${dadosRelatorio.geradoEm.toLocaleString()}`}
+          </span>
+          <button 
+            onClick={resetRelatorio}
+            className="text-green-800 text-sm font-bold hover:underline"
+          >
+            {t('actions.close') || "Fechar"}
+          </button>
         </div>
       )}
 
-      {/* Mensagem de erro do relatório */}
       {errorRelatorio && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex justify-between items-center">
-            <span className="text-red-800 text-sm">
-              ❌ Erro ao gerar relatório: {errorRelatorio}
-            </span>
-            <button 
-              onClick={resetRelatorio}
-              className="text-red-800 underline text-xs"
-            >
-              Tentar novamente
-            </button>
-          </div>
+        <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex justify-between items-center">
+          <span className="text-red-800 text-sm font-medium">
+            ❌ {t('reports.error') || "Erro ao gerar relatório"}: {errorRelatorio}
+          </span>
+          <button 
+            onClick={resetRelatorio}
+            className="text-red-800 text-sm font-bold hover:underline"
+          >
+            {t('actions.tryAgain') || "Tentar novamente"}
+          </button>
         </div>
       )}
 
+      {/* Grid Filterable */}
       {showFilters && (
         <FilterableGrid
           data={paginatedColumns}
@@ -392,10 +361,10 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           page={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
-          themeClasses={themeClasses}
+          themeClasses={themeClasses} // O FilterableGrid deve usar classes Tailwind neutras por padrão agora
           isLoading={isLoading}
           skeleton={<ColumnSkeleton theme={currentTheme} />}
-          emptyState={<p className="text-center opacity-70">Nenhuma coluna encontrada</p>}
+          emptyState={<p className="text-center text-gray-500 py-8 font-medium">{t('common.noColumnsFound') || "Nenhuma coluna encontrada"}</p>}
         />
       )}
     </div>

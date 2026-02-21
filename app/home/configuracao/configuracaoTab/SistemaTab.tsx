@@ -1,13 +1,10 @@
 import React, { useState } from "react";
 import {
-  Database,
   Shield,
   Activity,
   Server,
   Download,
-  RotateCcw,
   AlertTriangle,
-  CheckCircle2,
   Terminal,
   Cpu,
   HardDrive,
@@ -49,16 +46,16 @@ const Switch = ({ checked, onChange, disabled }: { checked: boolean; onChange: (
 );
 
 // Card de Estatística Pequeno
-const StatusCard = ({ label, value, icon: Icon, color, subtext }: any) => (
+const StatusCard = ({ label, value, icon: Icon, color, subtext }: { label: string, value: string | number, icon: React.ComponentType<{ size?: number }>, color: string, subtext?: string }) => (
   <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-start justify-between">
     <div>
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</p>
       <h4 className="text-2xl font-bold text-gray-900 mt-1">{value}</h4>
       {subtext && <p className="text-xs text-gray-400 mt-1">{subtext}</p>}
     </div>
-    <div className={`p-2 rounded-lg ${color} bg-opacity-10`}>
-      <Icon size={20} className={color.replace('bg-', 'text-')} />
-    </div>
+    <span className={`p-2 rounded-lg ${color} bg-opacity-10 flex items-center justify-center`}>
+      <Icon size={20} />
+    </span>
   </div>
 );
 

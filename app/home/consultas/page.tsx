@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Table, FilePlus2, Shield, Database,
-  Hash, FileText
+  Hash, FileText, Trash2
 } from "lucide-react";
 
 import api from "@/context/axioCuston";
@@ -26,6 +26,7 @@ import TableColumnsDisplay from "@/app/component/table-columns-display";
 import { findIdentifierField, parseErrorMessage } from "@/util/func";
 import { useDatabaseMetadata } from "@/hook/useDatabaseMetadata";
 import { useSession } from "@/context/SessionContext";
+import { useI18n } from "@/context/I18nContext";
 import { ErrorScreen, LoadingScreen } from "@/app/component/Loading_and_error-component";
 import { useQuerySSE } from "@/hook/useQuerySSE";
 import QueryStatusIndicator from "@/app/component/ResultadosQueryComponent/QueryStatusIndicator ";
@@ -34,6 +35,7 @@ import { fetchRowData } from "@/util/linhaCompletaBusca";
 
 const ConsultaPage = () => {
   const { user } = useSession();
+  const { t } = useI18n();
   const { metadata, loading: loadingMetadata, error: errorFetch } = useDatabaseMetadata();
   const {
     executeQuery, cancelQuery,
@@ -72,7 +74,6 @@ const ConsultaPage = () => {
     async (newTable: string) => {
       const normalized = newTable.trim().toLowerCase();
 
-      // Reset caso não tenha seleção
       if (normalized.length === 0) {
         setSelectColumns([]);
         setSelectedTables([]);
@@ -82,7 +83,6 @@ const ConsultaPage = () => {
       }
 
       try {
-        // Caso seja uma nova tabela
         if (!selectedTables.includes(newTable)) {
           setSelectedTables(prev => [...prev, newTable]);
 
@@ -93,13 +93,11 @@ const ConsultaPage = () => {
 
           setColumnsInfo(prev => [...prev, rs.data]);
         } else {
-          // Caso seja desmarcada (remoção)
           const remainingTables = selectedTables.filter(
             t => t.toLowerCase() !== normalized
           );
           setSelectedTables(remainingTables);
 
-          // Filtra colunas só das tabelas ainda selecionadas
           const filteredColumns = columnsInfo.filter(ci =>
             remainingTables.some(
               t => t.toLowerCase() === ci.table_name.toLowerCase()
@@ -107,7 +105,6 @@ const ConsultaPage = () => {
           );
           setColumnsInfo(filteredColumns);
 
-          // Remove colunas selecionadas que não pertencem às tabelas restantes
           setSelectColumns(prev =>
             prev.filter(s => {
               const [table] = s.split(".");
@@ -133,14 +130,14 @@ const ConsultaPage = () => {
 
   const handleRowClick = useCallback(async (row: SelectedRow) => {
     if (!row || row.index === undefined) return;
-    // console.log("row:", row)
-    const selectedTables = Array.isArray(row.tableName) ? row.tableName : [row.tableName];
-    if (selectedTables.length > 1) return openRowModal(row);
+    
+    const selectedTablesArray = Array.isArray(row.tableName) ? row.tableName : [row.tableName];
+    if (selectedTablesArray.length > 1) return openRowModal(row);
 
-    const tableName = selectedTables[0];
+    const tableName = selectedTablesArray[0];
     if (!tableName) return;
 
-    const isColumnComplete = queryResults?.tabela_coluna?.[tableName].length === row.nameColumns.length
+    const isColumnComplete = queryResults?.tabela_coluna?.[tableName]?.length === row.nameColumns.length;
     if (isColumnComplete) return openRowModal(row);
 
     const primaryKeyField = findIdentifierField(tableName, columnsInfo);
@@ -149,14 +146,12 @@ const ConsultaPage = () => {
     try {
       setLoadingFields(true);
 
-
       const pkIndex = row.nameColumns.findIndex(
         col => col === tableName + "." + primaryKeyField.nome
       );
 
       const primaryKeyValue = pkIndex !== -1 ? Object.values(row.row || {})[pkIndex] : null;
 
-      // console.log(primaryKeyValue, "\nprimaryKeyField: " + primaryKeyField)
       const fullRow = await fetchRowData(row, tableName, primaryKeyField.nome, primaryKeyField.tipo, primaryKeyValue);
 
       if (!fullRow) return openRowModal(row);
@@ -187,15 +182,12 @@ const ConsultaPage = () => {
     setError(null);
 
     try {
-      console.log("🔄 Atualizando linha...", { updatedRow, tables_primary_keys_values });
-
       await api.post(
         "/exe/update_row",
         { updatedRow, tables_primary_keys_values },
         { withCredentials: true }
       );
 
-      // Mapeia valores atualizados
       const updatedValues = Object.entries(updatedRow).reduce<Record<string, string>>(
         (acc, [, columns]) => {
           Object.entries(columns).forEach(([col, { value }]) => {
@@ -206,8 +198,6 @@ const ConsultaPage = () => {
         {}
       );
 
-      console.log("✅ Linha atualizada com sucesso:", updatedValues);
-      // Atualiza o selectedRow
       if (selectedRow) {
         const updatedSelectedRow = {
           ...selectedRow,
@@ -215,7 +205,6 @@ const ConsultaPage = () => {
         };
 
         setSelectedRow(updatedSelectedRow);
-        console.log("📝 Linha local atualizada:", updatedSelectedRow);
       }
 
     } catch (error) {
@@ -225,15 +214,12 @@ const ConsultaPage = () => {
     } finally {
       setIsEditingRow(false);
     }
-  }, [isEditingRow, selectedRow, setError, selectedRow,setIsEditingRow]);
+  }, [isEditingRow, selectedRow, setError, setIsEditingRow, setSelectedRow]);
 
-  // No componente que usa o RowDetailsModal
-  const handleDelete =useCallback( async (payload: PayloadDeleteRow, index: number) => {
+  const handleDelete = useCallback( async (payload: PayloadDeleteRow, index: number) => {
     try {
-      // Adiciona o payloadSelectedRow (estrutura da query original)
       payload.payloadSelectedRow = queryResults?.QueryPayload;
 
-      // 🚀 Requisição DELETE com corpo (data) e credenciais
       await api.delete("/delete/records", {
         data: {
           registros: [payload],
@@ -244,7 +230,6 @@ const ConsultaPage = () => {
         },
       });
 
-      // 🧹 Atualiza o estado local para remover o item da tabela
       if (queryResults) {
         const newPreview = queryResults.preview.filter((_, i) => i !== index);
         setQueryResults({
@@ -253,53 +238,49 @@ const ConsultaPage = () => {
           totalResults: Math.max(0, (queryResults.totalResults || 0) - 1),
         });
       }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Erro ao eliminar registro:", error);
-
-      // Melhor mensagem de erro para debugging
-      if (error?.response) {
-        console.error("Erro do servidor:", error?.response?.data);
-      }
-
-      // Opcional: feedback ao usuário
+      // Fix: safely access error.response using type assertion, sem usar 'any'
+      type ErrorWithResponse = { response?: { data?: { detail?: string } } };
+      const err = error as ErrorWithResponse;
+      const detail = err.response?.data?.detail;
       throw new Error(
-        error?.response?.data?.detail ||
-        "Erro inesperado ao tentar eliminar o registro."
+        detail ||
+        t("query.deleteError") || "Erro inesperado ao tentar eliminar o registro."
       );
     }
-  },[queryResults]);
+  },[queryResults, setQueryResults, t]);
 
   // ----------------- Render -----------------
   if (loadingMetadata || !mounted) {
-    return <LoadingScreen message="Carregando metadados do banco de dados..." />;
+    return <LoadingScreen message={t("query.loadingMetadata") || "Carregando metadados do banco de dados..."} />;
   }
 
-  if (error) {
-    return <ErrorScreen message={error || errorFetch || "Erro desconhecido"} />;
+  if (error && !metadata) {
+    return <ErrorScreen message={error || errorFetch || t("common.unknownError") || "Erro desconhecido"} />;
   }
 
   return (
     <div className="relative bg-gray-50 min-h-screen">
+      
+      {/* HEADER PADRÃO OFICIAL */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          {/* Container principal com melhor espaçamento */}
-          <div className="flex flex-col gap-4">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-6">
 
-            {/* Seção de título e info da conexão */}
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                  Consulta de Dados
+                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                  {t("query.title") || "Consulta de Dados"}
                 </h1>
                 <div className="flex items-center gap-2 mt-1.5">
                   <p className="text-sm text-gray-600 truncate">
-                    <span className="font-medium text-gray-700">
+                    <span className="font-medium text-gray-800">
                       {metadata?.connection_name}
                     </span>
                     {user?.info_extra?.name_db && (
                       <>
-                        <span className="mx-1.5 text-gray-400">•</span>
+                        <span className="mx-2 text-gray-300">•</span>
                         <span>{user.info_extra.name_db}</span>
                       </>
                     )}
@@ -308,86 +289,53 @@ const ConsultaPage = () => {
               </div>
             </div>
 
-            {/* Grid de cards com melhor responsividade */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              <InfoCard
-                icon={<Table className="w-4 h-4" />}
-                label="Tabelas"
-                count={metadata?.table_count}
-                color="blue"
-              />
-              <InfoCard
-                icon={<Database className="w-4 h-4" />}
-                label="Views"
-                count={metadata?.view_count}
-                color="green"
-              />
-              <InfoCard
-                icon={<FilePlus2 className="w-4 h-4" />}
-                label="Procedures"
-                count={metadata?.procedure_count}
-                color="purple"
-              />
-              <InfoCard
-                icon={<FileText className="w-4 h-4" />}
-                label="Functions"
-                count={metadata?.function_count}
-                color="orange"
-              />
-              <InfoCard
-                icon={<Shield className="w-4 h-4" />}
-                label="Triggers"
-                count={metadata?.trigger_count}
-                color="red"
-              />
-              <InfoCard
-                icon={<Hash className="w-4 h-4" />}
-                label="Indexes"
-                count={metadata?.index_count}
-                color="gray"
-              />
-
+            {/* Grid de Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <InfoCard icon={<Table className="w-4 h-4" />} label={t("stats.tables") || "Tabelas"} count={metadata?.table_count} color="blue"  />
+              <InfoCard icon={<Database className="w-4 h-4" />} label={t("stats.views") || "Views"} count={metadata?.view_count} color="green" />
+              <InfoCard icon={<FilePlus2 className="w-4 h-4" />} label={t("stats.procedures") || "Procedures"} count={metadata?.procedure_count} color="purple"  />
+              <InfoCard icon={<FileText className="w-4 h-4" />} label={t("stats.functions") || "Functions"} count={metadata?.function_count} color="orange"  />
+              <InfoCard icon={<Shield className="w-4 h-4" />} label={t("stats.triggers") || "Triggers"} count={metadata?.trigger_count} color="red"  />
+              <InfoCard icon={<Hash className="w-4 h-4" />} label={t("stats.indexes") || "Indexes"} count={metadata?.index_count} color="gray" />
             </div>
+            
           </div>
-          <InfoCard
-            icon={<Database className="w-4 h-4" />}
-            label="Versão"
-            count={metadata?.server_version}
-            color="indigo"
-          />
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-3 space-y-6">
-        {/* Status Indicator */}
+      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        
         {/* Error Display */}
         {(error || hasError) && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
             <div className="flex items-center gap-2 text-red-700">
-              <span className="text-sm font-medium">Erro:</span>
-              <span className="text-sm">{error || errorQuery || "Erro desconhecido"}</span>
+              <span className="text-sm font-bold">{t("common.error") || "Erro"}:</span>
+              <span className="text-sm font-medium">{error || errorQuery || t("common.unknownError") || "Erro desconhecido"}</span>
             </div>
           </div>
         )}
 
-        {/* Table Selection */}
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">Selecionar Tabelas</h2>
+        {/* Table Selection - Padrão Card Branco */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-bold text-gray-900">
+              {t("query.selectTables") || "Selecionar Tabelas"}
+            </h2>
             {selectedTables.length > 0 && (
               <button
                 onClick={removerCacheLocalStorage}
-                className="text-sm text-gray-500 hover:text-gray-700 underline"
+                className="text-sm font-semibold text-gray-500 hover:text-red-600 flex items-center gap-1.5 transition-colors"
               >
-                Limpar Seleção
+                <Trash2 size={16}/>
+                {t("actions.clearSelection") || "Limpar Seleção"}
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {metadata && (
               <LabeledSelect
-                label="Tabelas"
+                label={t("common.tables") || "Tabelas"}
                 value={selectedTables}
                 onChange={handleSelectTables}
                 options={metadata.table_names.map(t => ({
@@ -399,19 +347,19 @@ const ConsultaPage = () => {
             )}
 
             <LabeledSelect2
-              label="Limite de Registros"
+              label={t("query.recordLimit") || "Limite de Registros"}
               value={queryLimit}
               onChange={setQueryLimit}
               options={["1", "10", "50", "100", "500", "1000", "5000"].map(v => ({
                 value: v,
-                label: `${v} registros`
+                label: `${v} ${t("common.records") || "registros"}`
               }))}
             />
           </div>
 
           {selectedTables.length > 0 && (
-            <div className="mt-3 text-sm text-gray-600">
-              <span className="font-medium">Tabelas selecionadas:</span> {selectedTables.join(", ")}
+            <div className="mt-5 p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm text-gray-700">
+              <span className="font-bold">{t("query.selectedTables") || "Tabelas selecionadas"}:</span> {selectedTables.join(", ")}
             </div>
           )}
         </div>
@@ -446,14 +394,12 @@ const ConsultaPage = () => {
               query.limit = parseInt(queryLimit, 10);
 
               return executeQuery(query).then(() => {
-                // Criar um novo objeto com as contagens de colunas
                 const tabelaCountColuna: Record<string, CampoDetalhado[]> = {};
 
                 query.table_list?.forEach(t => {
                   tabelaCountColuna[t] = columnsInfo.find(inf => inf.table_name === t)?.colunas || [];
                 });
 
-                // Atualizar o estado com o resultado completo
                 setQueryResults((prev) => {
                   if (!prev) {
                     return {
@@ -469,12 +415,10 @@ const ConsultaPage = () => {
                     tabela_coluna: tabelaCountColuna,
                   };
                 });
-
-
               });
             }}
             removerCacheLocalStorage={removerCacheLocalStorage}
-            title={`Consulta: ${selectedTables.join(", ")}`}
+            title={`${t("query.titleConsulta") || "Consulta"}: ${selectedTables.join(", ")}`}
             isExecuting={executingQuery}
             maxConditions={25}
             showLogicalOperators
@@ -484,6 +428,7 @@ const ConsultaPage = () => {
             aliasTables={aliasTables}
           />
         )}
+
         <QueryStatusIndicator
           sseState={sseState}
           progress={progress}

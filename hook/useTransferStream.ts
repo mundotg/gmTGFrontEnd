@@ -59,6 +59,8 @@ export function useSSEStream({
     eventSourceRef.current = eventSource;
 
     eventSource.onmessage = (event) => {
+
+      console.log("Received message:", event.data);
       setState(prev => ({
         ...prev,
         messages: [...prev.messages, event.data],
@@ -79,6 +81,40 @@ export function useSSEStream({
         }, retryDelay);
       }
     };
+
+    eventSource.addEventListener("status", (e) => {
+      const data = (e as MessageEvent).data;
+      console.log("status:", data);
+    });
+
+    eventSource.addEventListener("log", (e) => {
+      const data = (e as MessageEvent).data;
+      console.log("log:", data);
+      setState(prev => ({ ...prev, messages: [...prev.messages, data] }));
+    });
+
+    eventSource.addEventListener("warning", (e) => {
+      const data = (e as MessageEvent).data;
+      console.log("warning:", data);
+    });
+
+    eventSource.addEventListener("error", (e) => {
+      const data = (e as MessageEvent).data;
+      console.log("error:", data);
+      setState(prev => ({ ...prev, error: data, isRunning: false }));
+    });
+
+    eventSource.addEventListener("done", (e) => {
+      const data = (e as MessageEvent).data;
+      console.log("done:", data);
+      setState(prev => ({ ...prev, messages: [...prev.messages, data], isRunning: false }));
+    });
+
+    eventSource.addEventListener("final", (e) => {
+      const data = (e as MessageEvent).data;
+      console.log("final:", data);
+    });
+
   }, [buildUrl, autoRetry, retryDelay, stopStream]);
 
   useEffect(() => {
@@ -87,7 +123,7 @@ export function useSSEStream({
     return () => {
       stopStream();
     };
-  }, []); // ✅ sem dependências
+  }, []);
 
   return {
     ...state,

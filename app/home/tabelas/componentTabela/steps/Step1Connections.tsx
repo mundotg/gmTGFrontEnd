@@ -2,7 +2,7 @@
 import { Server, AlertCircle } from "lucide-react";
 import { JoinSelect } from "@/app/task/components/select_Component";
 import type { DBConnection } from "@/types/db-structure";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface Step1ConnectionsProps {
     loading: boolean;
@@ -25,6 +25,7 @@ export const Step1Connections: React.FC<Step1ConnectionsProps> = ({
 
     const [connections1, setConnections1] = useState<DBConnection[]>([]);
     const [connections2, setConnections2] = useState<DBConnection[]>([]);
+    const [sentinelaDeinicializacao, setSentinelaDeinicializacao] = useState<boolean>(false);
 
     const getDatabaseIcon = (type: string) => {
         const icons: Record<string, string> = {
@@ -56,7 +57,9 @@ export const Step1Connections: React.FC<Step1ConnectionsProps> = ({
                     if (data?.data?.items) {
                         setConnections(data.data.items);
                     }
-
+                    if(!sentinelaDeinicializacao && loading === false){
+                        setSentinelaDeinicializacao(true);
+                    }
                     return {
                         options: data.options,
                         hasMore: data.hasMore,
@@ -68,7 +71,7 @@ export const Step1Connections: React.FC<Step1ConnectionsProps> = ({
                 }
             };
         },
-        [loading]
+        [loading, sentinelaDeinicializacao]
     );
 
     const FetchOptions1 = useCallback(
@@ -80,6 +83,13 @@ export const Step1Connections: React.FC<Step1ConnectionsProps> = ({
         createFetchOptions( setConnections2),
         [createFetchOptions]
     );
+
+    // inicializar os selects com as conexões atuais selecionadas
+    useEffect(() => {
+        if(connections1.length > 0 && (connections2.length ==0 || connections2 === undefined) ) {
+            setConnections2(connections1);
+        }
+    }, [connections1, connections2,setConnections1]);
 
     return (
         <div className="space-y-6">
@@ -121,7 +131,7 @@ export const Step1Connections: React.FC<Step1ConnectionsProps> = ({
                             Base de Dados Destino
                         </label>
 
-                        <JoinSelect
+                        {sentinelaDeinicializacao && <JoinSelect
                             value={String(targetDb?.id || "")}
                             onChange={value =>
                                 onTargetDbChange(
@@ -132,7 +142,7 @@ export const Step1Connections: React.FC<Step1ConnectionsProps> = ({
                             placeholder="Selecione o destino..."
                             className="w-full"
                             buttonClassName="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 hover:border-gray-400 transition-colors"
-                        />
+                        />}
 
                         {targetDb && (
                             <SelectedDbInfo db={targetDb} icon={getDatabaseIcon(targetDb.type)} color="green" />

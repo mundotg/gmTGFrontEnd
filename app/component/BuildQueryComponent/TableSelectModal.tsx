@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { X, Search, Check, Database, Info, ChevronDown } from "lucide-react";
 import { RenderDistinctColumnSelector } from "../renderDistinctColumnSelector";
 import { RenderTabContent } from "./selectTableModalComponent/RenderTabContent";
+import { useI18n } from "@/context/I18nContext";
 
 interface TableSelectModalProps {
   allTables: string[];
@@ -34,6 +35,7 @@ export function TableSelectModal({
   columnMap = [],
   initialAliases = {},
 }: TableSelectModalProps) {
+  const { t } = useI18n();
   const [localSelection, setLocalSelection] = useState<string[]>(selected);
   const [searchTerm, setSearchTerm] = useState("");
   const [useDistinct, setUseDistinct] = useState(false);
@@ -110,7 +112,7 @@ export function TableSelectModal({
     useDistinct,
     availableColumns.length,
     distinctColumns.length,
-    JSON.stringify(tableAliases) // ← Mudança aqui
+    JSON.stringify(tableAliases) 
   ]);
 
   // Handler de save otimizado
@@ -167,7 +169,7 @@ export function TableSelectModal({
       if (isCurrentlySelected) {
         setTableAliases(prevAliases => {
           const { [table]: removed, ...rest } = prevAliases;
-          console.log(removed)
+          console.log(removed);
           return rest;
         });
 
@@ -259,7 +261,7 @@ export function TableSelectModal({
   const removeAlias = useCallback((tableName: string) => {
     setTableAliases(prev => {
       const { [tableName]: removed, ...rest } = prev;
-      console.log(removed)
+      console.log(removed);
       return rest;
     });
   }, []);
@@ -271,7 +273,7 @@ export function TableSelectModal({
     const trimmedAlias = alias.trim();
 
     if (!ALIAS_REGEX.test(trimmedAlias)) {
-      return 'Apenas letras, números e _ (não pode começar com número)';
+      return t("modalTable.invalidAlias") || 'Apenas letras, números e _ (não pode começar com número)';
     }
 
     // Verificar duplicatas
@@ -281,11 +283,11 @@ export function TableSelectModal({
       .filter(alias => alias);
 
     if (otherAliases.includes(trimmedAlias)) {
-      return 'Alias duplicado';
+      return t("modalTable.duplicateAlias") || 'Alias duplicado';
     }
 
     return null;
-  }, [tableAliases, editingAlias]);
+  }, [tableAliases, editingAlias, t]);
 
   // Contadores para display
   const selectionCount = localSelection.length;
@@ -293,105 +295,106 @@ export function TableSelectModal({
   const aliasCount = Object.values(tableAliases).filter(alias => alias.trim()).length;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       role="dialog"
-      aria-label="Modal de Seleção de Tabelas"
-      aria-modal="true">
-      <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl relative max-h-[90vh] flex flex-col">
+      aria-label={t("modalTable.title") || "Modal de Seleção de Tabelas"}
+      aria-modal="true"
+    >
+      <div className="bg-white w-full max-w-4xl rounded-xl shadow-xl border border-gray-200 relative max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-4 lg:p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 lg:p-5 border-b border-gray-100 bg-gray-50 rounded-t-xl">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg" aria-hidden="true">
+            <div className="p-2 bg-blue-100 rounded-lg border border-blue-200 shadow-sm" aria-hidden="true">
               <Database className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-lg lg:text-xl font-semibold text-gray-800">
-                Selecionar Tabelas
+              <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+                {t("modalTable.title") || "Selecionar Tabelas"}
               </h2>
-              <p className="text-sm text-gray-500">
-                {selectionCount} de {allTables.length} tabelas selecionadas
+              <div className="flex items-center flex-wrap gap-2 text-sm text-gray-500 font-medium mt-0.5">
+                <span>{selectionCount} {t("common.of") || "de"} {allTables.length} {t("modalTable.tablesSelected") || "tabelas selecionadas"}</span>
                 {useDistinct && distinctCount > 0 && (
-                  <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
-                    DISTINCT: {distinctCount} colunas
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-xs font-bold tracking-wider">
+                    DISTINCT: {distinctCount}
                   </span>
                 )}
                 {aliasCount > 0 && (
-                  <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">
+                  <span className="px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded-md text-xs font-bold tracking-wider">
                     ALIAS: {aliasCount}
                   </span>
                 )}
-              </p>
+              </div>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="Fechar modal"
+            className="text-gray-400 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
+            aria-label={t("actions.close") || "Fechar modal"}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Search and Actions */}
-        <div className="p-4 lg:p-6 border-b border-gray-200 bg-gray-50">
+        <div className="p-4 lg:p-6 border-b border-gray-200 bg-white">
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Pesquisar tabelas... (digite para filtrar)"
+              placeholder={t("modalTable.searchPlaceholder") || "Pesquisar tabelas... (digite para filtrar)"}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-              aria-label="Pesquisar tabelas"
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 text-sm bg-white transition-all outline-none"
+              aria-label={t("modalTable.searchPlaceholder") || "Pesquisar tabelas"}
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                aria-label="Limpar pesquisa"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                aria-label={t("actions.clear") || "Limpar pesquisa"}
               >
                 <X className="w-4 h-4" />
               </button>
             )}
           </div>
 
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-3 mb-5">
             <button
               onClick={selectAll}
               disabled={(activeTab === 'all' ? filteredTables : allTables).length === 0}
-              className="flex-1 px-4 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2 text-sm font-semibold bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm focus:ring-2 focus:ring-blue-500/50 outline-none"
             >
               <Check className="w-4 h-4" />
-              Selecionar Todas ({activeTab === 'all' ? filteredTables.length : allTables.length})
+              {t("actions.selectAll") || "Selecionar Todas"} ({activeTab === 'all' ? filteredTables.length : allTables.length})
             </button>
             <button
               onClick={clearAll}
               disabled={selectionCount === 0}
-              className="flex-1 px-4 py-2 text-sm bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2 text-sm font-semibold bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm focus:ring-2 focus:ring-red-500/50 outline-none"
             >
               <X className="w-4 h-4" />
-              Limpar Seleção
+              {t("actions.clearSelection") || "Limpar Seleção"}
             </button>
           </div>
 
           {/* DISTINCT Option */}
-          <div className="border-t border-gray-200 pt-4">
-            <label className="flex items-center gap-3 cursor-pointer">
+          <div className="border-t border-gray-100 pt-4">
+            <label className="flex items-center gap-2 cursor-pointer w-fit group">
               <input
                 type="checkbox"
                 checked={useDistinct}
                 onChange={(e) => handleDistinctToggle(e.target.checked)}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 transition-colors cursor-pointer disabled:cursor-not-allowed"
                 disabled={selectionCount === 0}
               />
-              <span className={`text-sm font-medium ${selectionCount === 0 ? 'text-gray-400' : 'text-gray-700'}`}>
-                Usar DISTINCT
+              <span className={`text-sm font-bold ${selectionCount === 0 ? 'text-gray-400' : 'text-gray-700 group-hover:text-blue-600 transition-colors'}`}>
+                {t("modalTable.useDistinct") || "Usar DISTINCT"}
               </span>
-              <div className="group relative">
-                <Info className="w-4 h-4 text-gray-400 cursor-help" />
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                  Remove registros duplicados com base nas colunas selecionadas
+              <div className="relative ml-1">
+                <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" />
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg pointer-events-none">
+                  {t("modalTable.distinctTooltip") || "Remove registros duplicados com base nas colunas selecionadas"}
                 </div>
               </div>
               <ChevronDown
@@ -400,8 +403,8 @@ export function TableSelectModal({
             </label>
 
             {useDistinct && selectionCount === 0 && (
-              <p className="text-xs text-gray-500 mt-2 ml-7">
-                Selecione tabelas para ver as colunas disponíveis.
+              <p className="text-xs font-medium text-gray-500 mt-2 ml-6">
+                {t("modalTable.selectToViewColumns") || "Selecione tabelas para ver as colunas disponíveis."}
               </p>
             )}
           </div>
@@ -419,22 +422,23 @@ export function TableSelectModal({
         )}
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <div className="flex" role="tablist">
+        <div className="border-b border-gray-200 bg-gray-50 px-4">
+          <div className="flex gap-4" role="tablist">
             <button
               onClick={() => setActiveTab('all')}
               role="tab"
               aria-selected={activeTab === 'all'}
               aria-controls="all-tables-tab"
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'all'
-                ? 'border-blue-500 text-blue-600 bg-blue-50'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
+              className={`py-3 text-sm font-bold border-b-2 transition-colors ${
+                activeTab === 'all'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}
             >
               <div className="flex items-center gap-2">
                 <Database className="w-4 h-4" />
-                Todas as Tabelas
-                <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full text-xs">
+                {t("modalTable.tabAll") || "Todas as Tabelas"}
+                <span className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded-md text-xs">
                   {filteredTables.length}
                 </span>
               </div>
@@ -444,15 +448,16 @@ export function TableSelectModal({
               role="tab"
               aria-selected={activeTab === 'selected'}
               aria-controls="selected-tables-tab"
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'selected'
-                ? 'border-green-500 text-green-600 bg-green-50'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
+              className={`py-3 text-sm font-bold border-b-2 transition-colors ${
+                activeTab === 'selected'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}
             >
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4" />
-                Selecionadas
-                <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full text-xs">
+                {t("modalTable.tabSelected") || "Selecionadas"}
+                <span className={`px-2 py-0.5 rounded-md text-xs ${activeTab === 'selected' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-700'}`}>
                   {selectionCount}
                 </span>
               </div>
@@ -461,7 +466,7 @@ export function TableSelectModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-white">
           <RenderTabContent
             activeTab={activeTab}
             filteredTables={filteredTables}
@@ -481,46 +486,53 @@ export function TableSelectModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 lg:p-6 border-t border-gray-200 bg-gray-50">
+        <div className="p-4 lg:p-5 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+          
           {/* Validation Messages */}
           {!isValidSelection && (
-            <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-sm text-amber-700 flex items-center gap-1">
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg shadow-sm">
+              <p className="text-sm font-medium text-amber-800 flex items-center gap-2">
                 <Info className="w-4 h-4" />
                 {selectionCount === 0
-                  ? "Selecione pelo menos uma tabela."
+                  ? (t("modalTable.errSelectTable") || "Selecione pelo menos uma tabela.")
                   : useDistinct && availableColumns.length > 0 && distinctColumns.length === 0
-                    ? "Selecione colunas para DISTINCT ou desative a opção."
-                    : "Corrija os erros nos aliases."
+                    ? (t("modalTable.errSelectDistinct") || "Selecione colunas para DISTINCT ou desative a opção.")
+                    : (t("modalTable.errFixAliases") || "Corrija os erros nos aliases.")
                 }
               </p>
             </div>
           )}
 
-          <div className="flex justify-between items-center">
-            <div className="text-sm text-gray-600">
-              <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Ctrl</kbd> + <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Enter</kbd> para salvar
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="text-xs font-medium text-gray-500 hidden sm:block">
+              <kbd className="px-1.5 py-0.5 bg-gray-200 border border-gray-300 rounded font-mono text-gray-700 mr-1">Ctrl</kbd> + 
+              <kbd className="px-1.5 py-0.5 bg-gray-200 border border-gray-300 rounded font-mono text-gray-700 mx-1">Enter</kbd> 
+              {t("actions.toSave") || "para salvar"}
             </div>
-            <div className="flex gap-3">
+            
+            <div className="flex gap-3 w-full sm:w-auto">
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm lg:text-base transition-colors"
+                className="flex-1 sm:flex-none px-4 py-2.5 text-gray-700 font-bold bg-white border border-gray-300 hover:bg-gray-50 rounded-lg text-sm transition-colors focus:ring-2 focus:ring-gray-300 outline-none shadow-sm"
               >
-                Cancelar
+                {t("actions.cancel") || "Cancelar"}
               </button>
               <button
                 onClick={handleSave}
                 disabled={!isValidSelection}
-                className={`px-6 py-2 rounded-lg text-sm lg:text-base font-medium transition-colors flex items-center gap-2 ${isValidSelection
-                  ? "bg-blue-600 text-white hover:bg-blue-700"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  }`}
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 focus:ring-2 focus:ring-blue-500/50 outline-none ${
+                  isValidSelection
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                }`}
               >
                 <Check className="w-4 h-4" />
-                Salvar
-                <span className="ml-1 px-2 py-0.5 bg-blue-500 text-white rounded-full text-xs">
-                  {selectionCount}
-                </span>
+                {t("actions.save") || "Salvar"}
+                {isValidSelection && selectionCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-blue-500 border border-blue-400 text-white rounded-md text-[10px]">
+                    {selectionCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>

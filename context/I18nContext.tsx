@@ -18,7 +18,7 @@ export type Language = {
 
 interface I18nContextType {
   locale: LanguageCode;
-  t: (key: string, vars?: Record<string, string>) => string;
+  t: (key: string, vars?: Record<string, string | number>) => string;
   setLocale: (locale: LanguageCode) => void;
 }
 
@@ -34,11 +34,12 @@ const I18nContext = createContext<I18nContextType>({
 });
 
 export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
+  // Define 'pt' como padrão inicial
   const [locale, setLocaleState] = useState<LanguageCode>("pt");
 
   useEffect(() => {
     const saved = localStorage.getItem("locale");
-    if (saved && (saved === "pt" || saved === "en")) {
+    if (saved === "pt" || saved === "en") {
       setLocaleState(saved);
     }
   }, []);
@@ -49,7 +50,7 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const t = useCallback(
-    (key: string, vars?: Record<string, string>) => {
+    (key: string, vars?: Record<string, string | number>) => { // <-- Tipagem ajustada aqui
       const parts = key.split(".");
       let value: any = translations[locale];
 
@@ -62,7 +63,8 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (typeof value === "string" && vars) {
-        return value.replace(/\{\{(\w+)\}\}/g, (_, v) => vars[v] ?? "");
+        // Envolve em String() para garantir que números (como 0) não quebrem o replace
+        return value.replace(/\{\{(\w+)\}\}/g, (_, v) => String(vars[v] ?? "")); 
       }
 
       return typeof value === "string" ? value : key;

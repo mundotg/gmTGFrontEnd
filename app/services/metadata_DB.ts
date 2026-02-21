@@ -4,7 +4,7 @@ import api from "@/context/axioCuston";
 import { DatabaseMetadata, TableInfo } from "@/types";
 import { DBStructure } from "@/types/db-structure";
 
-interface ResponseWrapper<T> {
+export interface ResponseWrapper<T> {
   success: boolean;
   data?: T;
   message?: string;

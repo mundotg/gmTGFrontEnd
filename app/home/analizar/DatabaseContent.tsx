@@ -3,12 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { useSession } from "@/context/SessionContext";
 import { hasPermission } from "@/permissions_val";
-import { HardDrive, Activity, AlertOctagon, ShieldCheck, Zap, ArrowRightLeft, FileDown, FileSpreadsheet } from "lucide-react";
+import { HardDrive, Activity, AlertOctagon, ShieldCheck, Zap, ArrowRightLeft, FileDown, FileSpreadsheet, Loader2 } from "lucide-react";
 import { AuditTrailItem, MetricCard, QueryRowItem } from "./ComponentAnlytics/AnalyticsUI";
 
 export function DatabaseModule() {
-  const { api, user } = useSession();
-  const [metrics, setMetrics] = useState<any>(null);
+  const { user } = useSession();
+  const [metrics, setMetrics] = useState<Record<string, string | number> | null>(null);
   const [loading, setLoading] = useState(false);
   
   const canExport = hasPermission(user?.permissions ?? [], "analytics:db:export");
@@ -33,6 +33,12 @@ export function DatabaseModule() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-8">
+      {loading && (
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Loader2 className="animate-spin" size={16} />
+          Carregando métricas...
+        </div>
+      )}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
             <span className="bg-blue-600/20 text-blue-400 text-[10px] font-black px-2 py-0.5 rounded border border-blue-500/30 uppercase">Engine Status</span>

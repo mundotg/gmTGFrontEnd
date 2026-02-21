@@ -16,11 +16,11 @@ import {
   Moon,
   Sun,
   LogOut,
-  HelpCircle,
-  Filter,
+  HelpCircle
 } from "lucide-react";
 
 import { useSession } from "@/context/SessionContext";
+import { useI18n } from "@/context/I18nContext";
 import { matchesSearch, SettingsTab, Skeleton, TabConfig } from "./utils";
 import { UsuarioTab } from "./configuracaoTab/UsuarioTab";
 import { EmpresaTab } from "./configuracaoTab/EmpresaTab";
@@ -44,60 +44,12 @@ const TAB_COMPONENTS: Record<SettingsTab, React.FC> = {
 };
 
 /* =======================
-   CONFIGURAÇÃO DAS ABAS
-======================= */
-
-const tabs: TabConfig[] = [
-  {
-    id: "usuario",
-    label: "Usuário",
-    icon: User,
-    permission: "settings:user",
-    description: "Perfil e preferências",
-  },
-  {
-    id: "empresa",
-    label: "Empresa",
-    icon: Building,
-    permission: "settings:company",
-    description: "Dados corporativos",
-  },
-  {
-    id: "projetos",
-    label: "Projetos",
-    icon: FolderKanban,
-    permission: "settings:projects",
-    description: "Gestão de projetos",
-  },
-  {
-    id: "equipe",
-    label: "Equipe",
-    icon: Users,
-    permission: "settings:team",
-    description: "Usuários e permissões",
-  },
-  {
-    id: "integracoes",
-    label: "Integrações",
-    icon: Plug,
-    permission: "settings:integrations",
-    description: "Conexões externas",
-  },
-  {
-    id: "sistema",
-    label: "Sistema",
-    icon: Settings,
-    permission: "settings:system",
-    description: "Logs e manutenção",
-  },
-];
-
-/* =======================
    PÁGINA PRINCIPAL
 ======================= */
 
 export default function SettingsPage() {
   const { user, logout } = useSession();
+  const { t } = useI18n();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("usuario");
   const [searchQuery, setSearchQuery] = useState("");
@@ -105,6 +57,52 @@ export default function SettingsPage() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+
+  /* ===== CONFIGURAÇÃO DAS ABAS (Movido para dentro para usar useI18n) ===== */
+  const tabs: TabConfig[] = useMemo(() => [
+    {
+      id: "usuario",
+      label: t("settings.tabUser") || "Usuário",
+      icon: User,
+      permission: "settings:user",
+      description: t("settings.descUser") || "Perfil e preferências",
+    },
+    {
+      id: "empresa",
+      label: t("settings.tabCompany") || "Empresa",
+      icon: Building,
+      permission: "settings:company",
+      description: t("settings.descCompany") || "Dados corporativos",
+    },
+    {
+      id: "projetos",
+      label: t("settings.tabProjects") || "Projetos",
+      icon: FolderKanban,
+      permission: "settings:projects",
+      description: t("settings.descProjects") || "Gestão de projetos",
+    },
+    {
+      id: "equipe",
+      label: t("settings.tabTeam") || "Equipe",
+      icon: Users,
+      permission: "settings:team",
+      description: t("settings.descTeam") || "Usuários e permissões",
+    },
+    {
+      id: "integracoes",
+      label: t("settings.tabIntegrations") || "Integrações",
+      icon: Plug,
+      permission: "settings:integrations",
+      description: t("settings.descIntegrations") || "Conexões externas",
+    },
+    {
+      id: "sistema",
+      label: t("settings.tabSystem") || "Sistema",
+      icon: Settings,
+      permission: "settings:system",
+      description: t("settings.descSystem") || "Logs e manutenção",
+    },
+  ], [t]);
 
   /* ===== Tabs permitidas (RBAC) ===== */
   const allowedTabs = useMemo(
@@ -114,12 +112,11 @@ export default function SettingsPage() {
           hasPermission(user?.permissions || [], tab.permission) &&
           matchesSearch(tab, searchQuery)
       ),
-    [user?.permissions, searchQuery]
+    [user?.permissions, searchQuery, tabs]
   );
 
   /* ===== Garantir tab válida ===== */
   useEffect(() => {
-    console.log(user);
     if (!allowedTabs.find((t) => t.id === activeTab)) {
       setActiveTab(allowedTabs[0]?.id ?? "usuario");
     }
@@ -157,7 +154,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between gap-3 sm:gap-4">
             {/* Logo e Título */}
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
                 <Settings className="text-white" size={18} />
               </div>
               <div className="min-w-0">
@@ -166,10 +163,10 @@ export default function SettingsPage() {
                     darkMode ? "text-white" : "text-gray-900"
                   }`}
                 >
-                  Configurações
+                  {t("settings.title") || "Configurações"}
                 </h1>
-                <p className="text-xs text-gray-500 hidden sm:block">
-                  Painel administrativo
+                <p className="text-xs text-gray-500 hidden sm:block font-medium">
+                  {t("settings.subtitle") || "Painel administrativo"}
                 </p>
               </div>
             </div>
@@ -183,14 +180,14 @@ export default function SettingsPage() {
                 />
                 <input
                   type="text"
-                  placeholder="Buscar configurações..."
+                  placeholder={t("settings.searchPlaceholder") || "Buscar configurações..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
                     darkMode
                       ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
                       : "bg-gray-50 border-gray-200"
-                  } focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all`}
+                  } focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all`}
                 />
               </div>
             </div>
@@ -203,11 +200,11 @@ export default function SettingsPage() {
                   darkMode
                     ? "hover:bg-gray-700 text-gray-300"
                     : "hover:bg-gray-100 text-gray-700"
-                } transition-colors relative`}
-                title="Notificações"
+                } transition-colors relative border border-transparent`}
+                title={t("actions.notifications") || "Notificações"}
               >
                 <Bell size={20} />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-gray-800"></span>
               </button>
 
               {/* Ajuda */}
@@ -217,7 +214,7 @@ export default function SettingsPage() {
                     ? "hover:bg-gray-700 text-gray-300"
                     : "hover:bg-gray-100 text-gray-700"
                 } transition-colors`}
-                title="Ajuda"
+                title={t("actions.help") || "Ajuda"}
               >
                 <HelpCircle size={20} />
               </button>
@@ -227,12 +224,12 @@ export default function SettingsPage() {
                 onClick={() => setDarkMode(!darkMode)}
                 className={`p-2 rounded-lg ${
                   darkMode
-                    ? "bg-gray-700 text-yellow-400"
-                    : "bg-gray-100 text-gray-700"
+                    ? "bg-gray-700 text-yellow-400 border border-gray-600"
+                    : "bg-gray-100 text-gray-700 border border-gray-200"
                 } hover:opacity-80 transition-all`}
-                title={darkMode ? "Modo Claro" : "Modo Escuro"}
+                title={darkMode ? (t("actions.lightMode") || "Modo Claro") : (t("actions.darkMode") || "Modo Escuro")}
               >
-                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
 
               {/* User Menu */}
@@ -242,20 +239,20 @@ export default function SettingsPage() {
                     e.stopPropagation();
                     setShowUserMenu(!showUserMenu);
                   }}
-                  className={`flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-lg ${
+                  className={`flex items-center gap-2 pl-2 pr-2 py-1.5 rounded-lg border ${
                     darkMode
-                      ? "hover:bg-gray-700 text-white"
-                      : "hover:bg-gray-100 text-gray-900"
+                      ? "hover:bg-gray-700 border-gray-700 text-white"
+                      : "hover:bg-gray-50 border-gray-200 text-gray-900"
                   } transition-colors`}
                 >
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                  <div className="w-8 h-8 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0">
                     {user?.nome?.slice(0, 2) || "U"}
                   </div>
                   <div className="text-left hidden xl:block">
-                    <div className="text-sm font-medium truncate max-w-[120px]">
+                    <div className="text-sm font-bold truncate max-w-[120px]">
                       {user?.nome || "Usuário"}
                     </div>
-                    <div className="text-xs text-gray-500 truncate max-w-[120px]">
+                    <div className="text-xs text-gray-500 font-medium truncate max-w-[120px]">
                       {user?.email || "email@example.com"}
                     </div>
                   </div>
@@ -265,29 +262,31 @@ export default function SettingsPage() {
                 {/* Dropdown Menu */}
                 {showUserMenu && (
                   <div
-                    className={`absolute right-0 mt-2 w-56 rounded-lg shadow-lg ${
-                      darkMode ? "bg-gray-800 border-gray-700" : "bg-white"
+                    className={`absolute right-0 mt-2 w-56 rounded-xl shadow-lg ${
+                      darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
                     } border py-2 z-50`}
                   >
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                      <p className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-900"}`}>
+                    <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                      <p className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
                         {user?.nome || "Usuário"}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="text-xs text-gray-500 font-medium truncate">
                         {user?.email || "email@example.com"}
                       </p>
                     </div>
-                    <button
-                      onClick={handleLogout}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm ${
-                        darkMode
-                          ? "hover:bg-gray-700 text-red-400"
-                          : "hover:bg-gray-50 text-red-600"
-                      } transition-colors`}
-                    >
-                      <LogOut size={16} />
-                      Sair
-                    </button>
+                    <div className="p-1">
+                      <button
+                        onClick={handleLogout}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${
+                          darkMode
+                            ? "hover:bg-gray-700 text-red-400"
+                            : "hover:bg-red-50 text-red-600"
+                        } transition-colors`}
+                      >
+                        <LogOut size={16} />
+                        {t("actions.logout") || "Sair"}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -295,26 +294,24 @@ export default function SettingsPage() {
 
             {/* Mobile Actions */}
             <div className="flex md:hidden items-center gap-2">
-              {/* Search Toggle Mobile */}
               <button
                 onClick={() => setShowMobileSearch(!showMobileSearch)}
-                className={`p-2 rounded-lg ${
-                  darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"
+                className={`p-2 rounded-lg border ${
+                  darkMode ? "hover:bg-gray-700 border-gray-700" : "hover:bg-gray-100 border-gray-200"
                 }`}
               >
-                <Search size={20} />
+                <Search size={18} />
               </button>
 
-              {/* Mobile Menu Toggle */}
               <button
-                className={`p-2 rounded-lg ${
+                className={`p-2 rounded-lg border ${
                   darkMode
-                    ? "hover:bg-gray-700 text-white"
-                    : "hover:bg-gray-100 text-gray-900"
+                    ? "hover:bg-gray-700 text-white border-gray-700"
+                    : "hover:bg-gray-100 text-gray-900 border-gray-200"
                 }`}
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
-                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
             </div>
           </div>
@@ -329,14 +326,14 @@ export default function SettingsPage() {
                 />
                 <input
                   type="text"
-                  placeholder="Buscar configurações..."
+                  placeholder={t("settings.searchPlaceholder") || "Buscar configurações..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
                     darkMode
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-gray-50 border-gray-200"
-                  } focus:ring-2 focus:ring-blue-500 outline-none`}
+                  } focus:ring-2 focus:ring-blue-500/50 outline-none`}
                   autoFocus
                 />
               </div>
@@ -353,19 +350,16 @@ export default function SettingsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap border ${
                     isActive
-                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30"
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
                       : darkMode
-                      ? "text-gray-300 hover:bg-gray-700"
-                      : "text-gray-700 hover:bg-gray-100"
+                      ? "text-gray-300 hover:bg-gray-700 border-transparent"
+                      : "text-gray-600 hover:bg-gray-100 border-transparent"
                   }`}
                 >
-                  <Icon size={18} />
+                  <Icon size={16} />
                   <span>{tab.label}</span>
-                  {isActive && (
-                    <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                  )}
                 </button>
               );
             })}
@@ -375,15 +369,10 @@ export default function SettingsPage() {
         {/* Mobile Tabs Menu */}
         {mobileMenuOpen && (
           <div
-            className={`md:hidden border-t ${
-              darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
-            } px-4 py-3 space-y-2 max-h-[70vh] overflow-y-auto`}
+            className={`md:hidden border-t shadow-inner ${
+              darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"
+            } px-4 py-3 space-y-1.5 max-h-[70vh] overflow-y-auto`}
           >
-        
-
-            
-
-            {/* Tabs */}
             {allowedTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -395,19 +384,19 @@ export default function SettingsPage() {
                     setActiveTab(tab.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
                     isActive
-                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg"
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
                       : darkMode
-                      ? "text-gray-300 hover:bg-gray-700"
-                      : "text-gray-700 hover:bg-gray-100"
+                      ? "text-gray-300 hover:bg-gray-700 border-transparent"
+                      : "text-gray-700 bg-white border-gray-200 shadow-sm"
                   }`}
                 >
-                  <Icon size={20} />
+                  <Icon size={18} />
                   <div className="text-left flex-1">
-                    <div className="font-medium">{tab.label}</div>
+                    <div className="font-bold text-sm">{tab.label}</div>
                     <div
-                      className={`text-xs ${
+                      className={`text-xs font-medium mt-0.5 ${
                         isActive
                           ? "text-blue-100"
                           : darkMode
@@ -418,25 +407,23 @@ export default function SettingsPage() {
                       {tab.description}
                     </div>
                   </div>
-                  {isActive && (
-                    <div className="w-2 h-2 bg-white rounded-full"></div>
-                  )}
                 </button>
               );
             })}
 
-            {/* Logout Mobile */}
-            <button
-              onClick={handleLogout}
-              className={`w-full flex items-center gap-3 px-4 py-3 mt-2 rounded-lg ${
-                darkMode
-                  ? "bg-red-900/30 text-red-400 hover:bg-red-900/50"
-                  : "bg-red-50 text-red-600 hover:bg-red-100"
-              } transition-colors`}
-            >
-              <LogOut size={20} />
-              <span className="font-medium">Sair da Conta</span>
-            </button>
+            <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={handleLogout}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border ${
+                  darkMode
+                    ? "bg-red-900/20 text-red-400 border-red-900/50 hover:bg-red-900/40"
+                    : "bg-white text-red-600 border-gray-200 hover:bg-red-50 shadow-sm"
+                } transition-colors`}
+              >
+                <LogOut size={18} />
+                {t("actions.logout") || "Sair da Conta"}
+              </button>
+            </div>
           </div>
         )}
       </header>
@@ -446,16 +433,18 @@ export default function SettingsPage() {
         <div className="max-w-7xl mx-auto">
           {allowedTabs.length === 0 ? (
             <div
-              className={`text-center py-20 ${
-                darkMode ? "text-gray-400" : "text-gray-500"
+              className={`text-center py-20 bg-white border rounded-xl shadow-sm ${
+                darkMode ? "text-gray-400 border-gray-800 bg-[#1C1C1E]" : "text-gray-500 border-gray-200"
               }`}
             >
-              <Settings size={48} className="mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">
-                Nenhuma configuração disponível
+              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Settings size={28} className="opacity-50" />
+              </div>
+              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                {t("settings.emptyStateTitle") || "Nenhuma configuração disponível"}
               </p>
-              <p className="text-sm mt-2">
-                Você não tem permissões para acessar configurações no momento.
+              <p className="text-sm mt-1 font-medium">
+                {t("settings.emptyStateDesc") || "Você não tem permissões para acessar configurações no momento."}
               </p>
             </div>
           ) : (
@@ -468,11 +457,11 @@ export default function SettingsPage() {
 
       {/* Footer */}
       <footer
-        className={`mt-auto py-6 px-4 text-center text-sm ${
+        className={`mt-auto py-6 px-4 text-center text-sm font-medium ${
           darkMode ? "text-gray-500 border-gray-800" : "text-gray-500 border-gray-200"
         } border-t`}
       >
-        <p>© {new Date().getFullYear()} - Sistema de Gestão</p>
+        <p>© {new Date().getFullYear()} - {t("settings.footerText") || "Sistema de Gestão"}</p>
       </footer>
     </div>
   );

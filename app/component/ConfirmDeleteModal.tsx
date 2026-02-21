@@ -1,4 +1,6 @@
-import { AlertTriangle, Trash2, X } from "lucide-react";
+"use client";
+import { AlertTriangle, Trash2, X, Loader2, Info } from "lucide-react";
+import { useI18n } from "@/context/I18nContext";
 
 export interface ConfirmDeleteModalProps {
   isOpen: boolean;
@@ -23,18 +25,20 @@ export default function ConfirmDeleteModal({
   onClose,
   onConfirm,
 }: ConfirmDeleteModalProps) {
+  const { t } = useI18n();
+
   if (!isOpen) return null;
 
   // Função para obter a mensagem baseada no tipo
   const getMessage = () => {
     switch (type) {
       case "all":
-        return `Tem certeza que deseja eliminar todos os ${total ?? 0} registros? Esta ação não pode ser desfeita.`;
+        return (t("modals.deleteAllMsg") || `Tem certeza que deseja eliminar todos os {{total}} registros? Esta ação não pode ser desfeita.`).replace('{{total}}', String(total ?? 0));
       case "select":
-        return `Tem certeza que deseja eliminar os ${total ?? 0} registros selecionados? Esta ação não pode ser desfeita.`;
+        return (t("modals.deleteSelectedMsg") || `Tem certeza que deseja eliminar os {{total}} registros selecionados? Esta ação não pode ser desfeita.`).replace('{{total}}', String(total ?? 0));
       case "single":
       default:
-        return "Tem certeza que deseja eliminar este registro? Esta ação não pode ser desfeita.";
+        return t("modals.deleteSingleMsg") || "Tem certeza que deseja eliminar este registro? Esta ação não pode ser desfeita.";
     }
   };
 
@@ -42,12 +46,12 @@ export default function ConfirmDeleteModal({
   const getTitle = () => {
     switch (type) {
       case "all":
-        return "Eliminar Todos os Registros";
+        return t("modals.deleteAllTitle") || "Eliminar Todos os Registros";
       case "select":
-        return "Eliminar Registros Selecionados";
+        return t("modals.deleteSelectedTitle") || "Eliminar Registros Selecionados";
       case "single":
       default:
-        return "Eliminar Registro";
+        return t("modals.deleteSingleTitle") || "Eliminar Registro";
     }
   };
 
@@ -59,24 +63,26 @@ export default function ConfirmDeleteModal({
     const hasMore = lista.length > 3;
 
     return (
-      <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-        <p className="text-sm font-medium text-gray-700 mb-2">
-          Registros a eliminar ({lista.length}):
+      <div className="mt-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2.5">
+          {t("modals.recordsToDelete") || "Registros a eliminar"} ({lista.length}):
         </p>
-        <div className="space-y-1 max-h-32 overflow-y-auto">
+        <div className="space-y-2 max-h-32 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200">
           {previewItems.map((item, idx) => (
             <div 
               key={idx} 
-              className="text-xs text-gray-600 p-2 bg-white rounded border border-gray-100 truncate"
+              className="text-xs text-gray-700 p-2 bg-white rounded-lg border border-gray-200 shadow-sm truncate flex gap-2"
               title={JSON.stringify(item.row, null, 2)}
             >
-              <span className="font-medium">#{idx + 1}:</span>{" "}
-              {item.row ? Object.values(item.row).slice(0, 2).join(" | ") : "Registro"}
+              <span className="font-bold text-gray-400">#{idx + 1}</span>
+              <span className="font-medium truncate">
+                {item.row ? Object.values(item.row).slice(0, 3).join(" • ") : (t("common.record") || "Registro")}
+              </span>
             </div>
           ))}
           {hasMore && (
-            <p className="text-xs text-gray-500 text-center pt-1">
-              ... e mais {lista.length - 3} registros
+            <p className="text-xs font-medium text-gray-400 text-center pt-2">
+              ... {t("common.andMore") || "e mais"} {lista.length - 3} {t("common.records") || "registros"}
             </p>
           )}
         </div>
@@ -85,84 +91,96 @@ export default function ConfirmDeleteModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
+    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        
         {/* Botão fechar */}
         <button
           onClick={onClose}
           disabled={isDeleting}
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label={t("actions.close") || "Fechar"}
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* Cabeçalho */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-            <AlertTriangle className="w-6 h-6 text-red-600" />
+        {/* Header Content */}
+        <div className="p-6 pb-4">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-12 h-12 bg-red-100 border border-red-200 rounded-xl flex items-center justify-center shadow-sm">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+            <div className="flex-1 min-w-0 pt-1">
+              <h3 className="text-lg font-bold text-gray-900 leading-tight">
+                {getTitle()}
+              </h3>
+              <p className="text-sm font-medium text-gray-500 mt-1.5 leading-relaxed pr-6">
+                {getMessage()}
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {getTitle()}
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              {getMessage()}
-            </p>
-          </div>
+
+          {/* Preview dos registros */}
+          {renderRecordsPreview()}
+
+          {/* Barra de progresso durante a eliminação */}
+          {isDeleting && (
+            <div className="mt-5 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+              <div className="flex justify-between text-xs font-bold text-gray-500 mb-2">
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" />
+                  {t("actions.processing") || "Processando..."}
+                </span>
+                <span>{lista.length} {t("common.of") || "de"} {total}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                <div 
+                  className="bg-red-500 h-full rounded-full transition-all duration-300"
+                  style={{ width: `${(total || 0) > 0 ? Math.min(100, (lista.length / total!) * 100) : 0}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Aviso adicional */}
+          {!isDeleting && (
+            <div className="mt-5 p-3 bg-amber-50 border border-amber-200 rounded-xl flex gap-2">
+              <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs font-medium text-amber-800 leading-relaxed">
+                {t("modals.irreversibleWarning") || "Esta ação é irreversível. Certifique-se de que os dados não são mais necessários antes de confirmar."}
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Preview dos registros (apenas para seleção múltipla) */}
-        {renderRecordsPreview()}
-
-        {/* Barra de progresso durante a eliminação */}
-        {isDeleting && (
-          <div className="mt-4">
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-red-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(total || 0) > 0 ? Math.min(100, (lista.length / total!) * 100) : 0}%` }}
-              ></div>
-            </div>
-            <p className="text-xs text-gray-500 text-center mt-1">
-              Processando... {lista.length} de {total}
-            </p>
-          </div>
-        )}
-
-        {/* Ações */}
-        <div className="flex gap-3 justify-end mt-6">
+        {/* Footer Actions */}
+        <div className="p-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl flex gap-3 justify-end">
           <button
             onClick={onClose}
             disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg transition-colors"
+            className="px-5 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
           >
-            Cancelar
+            {t("actions.cancel") || "Cancelar"}
           </button>
           <button
             onClick={onConfirm}
             disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2"
+            className="px-5 py-2.5 text-sm font-bold text-white bg-red-600 border border-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:border-red-400 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-red-500/50"
           >
             {isDeleting ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                {type === "select" ? `Eliminando...` : "Eliminando..."}
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {t("actions.deleting") || "Eliminando..."}
               </>
             ) : (
               <>
                 <Trash2 className="w-4 h-4" />
-                {type === "select" ? `Eliminar ${total}` : "Eliminar"}
+                {type === "select" ? `${t("actions.delete")} ${total}` : t("actions.delete") || "Eliminar"}
               </>
             )}
           </button>
         </div>
 
-        {/* Aviso adicional para ações destrutivas */}
-        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-xs text-yellow-800 text-center">
-            ⚠️ Esta ação é irreversível. Certifique-se antes de confirmar.
-          </p>
-        </div>
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ interface Option {
 
 interface LabeledSelectProps {
   label: string;
-  value: string[];
+  value: string[] | string;
   onChange: (value: string) => Promise<void>;
   options: Option[];
   placeholder?: string;
@@ -55,7 +55,10 @@ const LabeledSelectComponent: React.FC<LabeledSelectProps> = ({
 
   // Labels selecionados
   const selectedLabels = useMemo(
-    () => value.map(val => options.find(o => o.value === val)?.label || val),
+    () => {
+      const values = Array.isArray(value) ? value : [value];
+      return values.map(val => options.find(o => o.value === val)?.label || val);
+    },
     [value, options]
   );
 

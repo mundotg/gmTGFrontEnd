@@ -21,6 +21,11 @@ import { DeadlocksMonitor } from "./componentTabela/DeadlocksMonitor";
 import { DBStructure } from "@/types/db-structure";
 import usePersistedState from "@/hook/localStoreUse";
 
+// IMPORTANTE: Importe o seu componente de paginação. Ajuste o caminho se necessário.
+import Pagination from "@/app/component/pagination-component"; 
+
+const ITEMS_PER_PAGE = 6; // <-- Definindo o limite de 6 linhas por página
+
 const DatabaseTablesPage: React.FC = () => {
   const { metadata, loading: loadingMetadata, error: errorFetch } = useDatabaseMetadata();
   const [structures, setStructures] = useState<DBStructure[]>([]);
@@ -31,12 +36,12 @@ const DatabaseTablesPage: React.FC = () => {
   const [loadingFields, setLoadingFields] = useState(false);
   const [error, setError] = useState<string | null>(errorFetch);
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [isDarkMode, setIsDarkMode] = usePersistedState("tema_menu_tabela",false);
+  const [isDarkMode, setIsDarkMode] = usePersistedState("tema_menu_tabela", false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [filterSchema, setFilterSchema] = useState("all");
   const [sortBy, setSortBy] = useState<"name" | "rows" | "schema">("name");
   const { api, user } = useSession();
-  const [colunasShow, setColunaShow] = usePersistedState<Record<string, MetadataTableResponse | undefined>>("colunasShow_menu_tabela",{});
+  const [colunasShow, setColunaShow] = usePersistedState<Record<string, MetadataTableResponse | undefined>>("colunasShow_menu_tabela", {});
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
 
   const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
@@ -47,7 +52,15 @@ const DatabaseTablesPage: React.FC = () => {
 
   const [isTransactionOpen, setIsTransactionOpen] = usePersistedState("openisTransactionOpen", false);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
-  const [isDeadlocksOpen, setIsDeadlocksOpen] = usePersistedState("isDeadlocksOpen",false);
+  const [isDeadlocksOpen, setIsDeadlocksOpen] = usePersistedState("isDeadlocksOpen", false);
+
+  // --- Estado da Paginação ---
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Toda vez que a busca ou os filtros mudam, resetamos para a página 1
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterSchema, sortBy]);
 
   const loadInitialData = useCallback(async () => {
     try {
@@ -83,7 +96,7 @@ const DatabaseTablesPage: React.FC = () => {
   }, [loadInitialData]);
 
   const handleSelectTables = useCallback(async (tableName: string) => {
-    if(colunasShow[tableName]) {
+    if (colunasShow[tableName]) {
       setLoadingColumns(prev => {
         const newSet = new Set(prev);
         newSet.delete(tableName);
@@ -94,7 +107,7 @@ const DatabaseTablesPage: React.FC = () => {
     try {
       setLoadingColumns(prev => new Set(prev).add(tableName));
       const rs = await api.get<MetadataTableResponse>(`/consu/metadata_fieds/${encodeURIComponent(tableName)}`, { withCredentials: true, timeout: 65000 });
-      setColunaShow(prev => ({...prev, [tableName]: rs.data}));
+      setColunaShow(prev => ({ ...prev, [tableName]: rs.data }));
     } catch (err) {
       const errorMsg = parseErrorMessage(err);
       setError(errorMsg);
@@ -105,7 +118,7 @@ const DatabaseTablesPage: React.FC = () => {
         return newSet;
       });
     }
-  }, [colunasShow]);
+  }, [colunasShow, api, setColunaShow]);
 
   const toggleTable = useCallback((tableName: string) => {
     setExpandedTables(prev => {
@@ -129,6 +142,7 @@ const DatabaseTablesPage: React.FC = () => {
     return Array.from(schemaSet);
   }, [structures]);
 
+  // Lista COMPLETA, filtrada e ordenada (Base de dados para a paginação)
   const filteredAndSortedTables = useMemo(() => {
     const filtered = metadata?.table_names.filter(table => {
       const tableStructure = getTableStructure(table.name);
@@ -153,6 +167,17 @@ const DatabaseTablesPage: React.FC = () => {
 
     return filtered;
   }, [metadata, searchTerm, filterSchema, sortBy, getTableStructure]);
+
+  // --- Lógica Matemática da Paginação ---
+  const totalPages = Math.ceil(filteredAndSortedTables.length / ITEMS_PER_PAGE);
+  
+  // Lista FATIADA contendo apenas os 6 itens da página atual
+  const paginatedTables = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredAndSortedTables.slice(startIndex, endIndex);
+  }, [filteredAndSortedTables, currentPage]);
+
 
   const toggleSelectTable = useCallback((tableName: string) => {
     setSelectedTables(prev => {
@@ -183,7 +208,7 @@ const DatabaseTablesPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [loadInitialData]);
+  }, [api, loadInitialData]);
 
   const handleDeleteSelectedTables = useCallback(async () => {
     const list = Array.from(selectedTables);
@@ -199,7 +224,7 @@ const DatabaseTablesPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedTables, loadInitialData]);
+  }, [selectedTables, api, loadInitialData]);
 
   const openEditModal = useCallback((tableName: string) => {
     setEditingTable(tableName);
@@ -208,7 +233,7 @@ const DatabaseTablesPage: React.FC = () => {
 
   const handleSaveEdit = useCallback(async (newName: string, newDescription: string) => {
     if (!editingTable || loadingFields) return;
-    setLoadingFields(true)
+    setLoadingFields(true);
     try {
       setIsLoading(true);
       await api.put(`/consu/table/${encodeURIComponent(editingTable)}`, { name: newName, description: newDescription }, { withCredentials: true });
@@ -219,9 +244,9 @@ const DatabaseTablesPage: React.FC = () => {
       setError(parseErrorMessage(err));
     } finally {
       setIsLoading(false);
-      setLoadingFields(false)
+      setLoadingFields(false);
     }
-  }, [editingTable, loadInitialData]);
+  }, [editingTable, loadingFields, api, loadInitialData]);
 
   const handleCreateTable = useCallback(async (name: string, schema?: string) => {
     if (!name) { alert("Nome da tabela é obrigatório."); return; }
@@ -250,29 +275,30 @@ const DatabaseTablesPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [expandedTables, handleSelectTables]);
+  }, [expandedTables, handleSelectTables, api]);
 
+  // Estilos padronizados baseados no seu "Tema Oficial"
   const themeClasses = isDarkMode 
-    ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white" 
-    : "bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 text-slate-900";
+    ? "bg-[#0A0A0A] text-gray-100" 
+    : "bg-gray-50 text-gray-900";
   
   const cardClasses = isDarkMode 
-    ? "bg-slate-800/80 backdrop-blur-xl border-slate-700/50 shadow-2xl shadow-black/20" 
-    : "bg-white/90 backdrop-blur-xl border-slate-200/60 shadow-xl shadow-slate-200/50";
+    ? "bg-[#1C1C1E] border-gray-800 shadow-sm" 
+    : "bg-white border-gray-200 shadow-sm";
 
   if (isLoading && (!metadata || metadata.table_names.length === 0)) {
     return (
       <div className={`min-h-screen ${themeClasses} flex items-center justify-center`}>
         <div className="text-center">
-          <div className="relative mb-8">
-            <div className="w-24 h-24 border-4 border-blue-200 dark:border-blue-900 border-t-blue-500 dark:border-t-blue-400 rounded-full animate-spin mx-auto"></div>
-            <Database className="w-10 h-10 text-blue-500 dark:text-blue-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          <div className="relative mb-6">
+            <div className="w-16 h-16 border-4 border-gray-200 dark:border-gray-800 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+            <Database className="w-6 h-6 text-blue-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
           </div>
-          <p className="text-2xl font-bold mb-2 bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
+          <p className="text-xl font-bold mb-2">
             Carregando Database Explorer
           </p>
-          <p className={`text-sm ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
-            Preparando informações do banco de dados
+          <p className="text-sm text-gray-500">
+            Preparando informações do banco de dados...
           </p>
         </div>
       </div>
@@ -283,19 +309,19 @@ const DatabaseTablesPage: React.FC = () => {
     return (
       <div className={`min-h-screen ${themeClasses} flex items-center justify-center p-4`}>
         <div className="max-w-md w-full">
-          <div className={`${cardClasses} border-2 rounded-3xl p-10 text-center`}>
-            <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-500/30">
-              <AlertCircle className="w-10 h-10 text-white" />
+          <div className={`${cardClasses} border rounded-xl p-8 text-center`}>
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-5">
+              <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
             </div>
-            <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-red-500 to-rose-600 bg-clip-text text-transparent">
+            <h2 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">
               Erro ao Carregar Dados
             </h2>
-            <p className={`mb-8 ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
+            <p className="mb-6 text-gray-600 dark:text-gray-400">
               {error}
             </p>
             <button 
               onClick={handleRefresh} 
-              className="px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 font-semibold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5"
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium w-full"
             >
               Tentar Novamente
             </button>
@@ -306,7 +332,7 @@ const DatabaseTablesPage: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen ${themeClasses} transition-all duration-300`}>
+    <div className={`min-h-screen ${themeClasses} transition-colors duration-200`}>
       <DatabaseHeader 
         handleRefresh={handleRefresh} 
         isDarkMode={isDarkMode}
@@ -335,9 +361,11 @@ const DatabaseTablesPage: React.FC = () => {
         filteredAndSortedTables={filteredAndSortedTables} 
       />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className={`mt-6 ${viewMode === "grid" ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : "space-y-6"}`}>
-          {filteredAndSortedTables.map((table, idx) => {
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        {/* Renderiza apenas a lista paginada (os 6 itens) */}
+        <div className={`mt-4 ${viewMode === "grid" ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : "space-y-4"}`}>
+          {paginatedTables.map((table, idx) => {
             const isExpanded = expandedTables.has(table.name);
             const isLoadingCols = loadingColumns.has(table.name);
             const tableStructure = getTableStructure(table.name);
@@ -364,6 +392,20 @@ const DatabaseTablesPage: React.FC = () => {
           })}
         </div>
 
+        {/* Componente de Paginação (Mostra apenas se houver tabelas) */}
+        {filteredAndSortedTables.length > 0 && (
+          <div className="mt-8 flex justify-center">
+            <Pagination 
+              page={currentPage} 
+              totalPages={totalPages} 
+              size="md" 
+              onPageChange={setCurrentPage} 
+              maxVisiblePages={5} 
+              showPageNumbers={true} 
+            />
+          </div>
+        )}
+
         <EmptyStateSection 
           isDarkMode={isDarkMode} 
           searchTerm={searchTerm} 
@@ -372,6 +414,7 @@ const DatabaseTablesPage: React.FC = () => {
           setFilterSchema={setFilterSchema} 
         />
 
+        {/* Modals */}
         <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Criar nova tabela">
           <CreateTableForm onCreate={handleCreateTable} onCancel={() => setIsCreateOpen(false)} schemas={schemas} />
         </Modal>
@@ -390,8 +433,8 @@ const DatabaseTablesPage: React.FC = () => {
         </Modal>
 
         {isDeadlocksOpen && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-            <div className={`${isDarkMode ? 'bg-slate-900' : 'bg-white'} rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-auto border-2 ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+            <div className={`${isDarkMode ? 'bg-[#1C1C1E] border-gray-800' : 'bg-white border-gray-200'} rounded-xl shadow-xl w-full max-w-6xl max-h-[90vh] overflow-auto border`}>
               <DeadlocksMonitor
                 onClose={() => setIsDeadlocksOpen(false)}
                 isDarkMode={isDarkMode}

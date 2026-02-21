@@ -1,9 +1,12 @@
+"use client";
+
 import React, { useState } from 'react';
-import { GripVertical, Eye, EyeOff, Plus, X, ChevronUp, ChevronDown, Code } from 'lucide-react';
+import { GripVertical, Eye, EyeOff, Plus, X, ChevronUp, ChevronDown, Code, AlertTriangle } from 'lucide-react';
 import { JoinTableItemProps } from './types';
 import { JoinType } from '@/types';
 import JoinConditionRow from './JoinConditionRow';
 import { generateOnClause } from '@/util/Joins_select';
+import { useI18n } from '@/context/I18nContext'; // 🔹 Importado
 
 const JoinTableItem: React.FC<JoinTableItemProps> = ({
   tableName,
@@ -30,11 +33,11 @@ const JoinTableItem: React.FC<JoinTableItemProps> = ({
   removeCondition,
   joinOrderLength
 }) => {
+  const { t } = useI18n(); // 🔹 Instanciado
   const hasConditions = conditions && conditions.length > 0;
   const isValidJoin = hasConditions && conditions.some(c => c.leftColumn && c.rightColumn);
   const onClause = generateOnClause(conditions || []);
 
-  // 🔥 Novo estado para controlar visualização do SQL preview
   const [showSQL, setShowSQL] = useState(false);
 
   return (
@@ -47,33 +50,35 @@ const JoinTableItem: React.FC<JoinTableItemProps> = ({
       onDrop={(e) => handleDrop(e, index)}
       onDragEnd={handleDragEnd}
       className={`
-        bg-white rounded-lg border transition-all duration-200 group
-        ${isDragging ? 'opacity-60 shadow-xl scale-[1.02] border-blue-400 bg-blue-50' : ''}
-        ${isDragOver ? 'border-blue-400 bg-blue-50 shadow-md' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}
-        ${!isValidJoin ? 'border-orange-200 bg-orange-50/30' : ''}
+        bg-white rounded-xl border transition-all duration-200 group
+        ${isDragging ? 'opacity-50 shadow-2xl scale-[1.02] border-blue-500 bg-blue-50/50' : ''}
+        ${isDragOver ? 'border-blue-500 bg-blue-50/50 shadow-md ring-2 ring-blue-200' : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'}
+        ${!isValidJoin ? 'border-red-300 bg-red-50/10' : ''}
       `}
     >
       {/* Header do JOIN */}
       <div className="p-3 sm:p-4">
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-3">
+          
           {/* Drag handle e índice */}
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <GripVertical className="h-4 w-4 text-gray-400 cursor-move flex-shrink-0" />
-            <span className="font-medium bg-gray-100 px-2 py-1 rounded text-xs">
-              {index + 1}°
+          <div className="flex items-center gap-1 sm:gap-2 text-xs text-gray-500 cursor-grab active:cursor-grabbing">
+            <GripVertical className="h-4 w-4 text-gray-400 hover:text-blue-500 transition-colors flex-shrink-0" />
+            <span className="font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-xs border border-gray-200 shadow-sm">
+              {index + 1}º
             </span>
           </div>
 
           {/* Configuração do JOIN */}
           <div className="flex-1 min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              
               {/* Tipo de JOIN */}
               <select
                 value={selectedJoin?.typeJoin || "INNER JOIN"}
                 onChange={(e) => handleJoinTypeChange(tableName, e.target.value as JoinType)}
-                className="text-xs sm:text-sm border border-gray-300 rounded-md shadow-sm 
-                         focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white
-                         min-w-[100px] flex-shrink-0"
+                className="text-xs sm:text-sm font-bold border border-gray-200 rounded-lg shadow-sm 
+                           focus:outline-none focus:ring-2 focus:ring-blue-500/50 bg-gray-50 hover:bg-white text-gray-700
+                           px-2 py-1.5 min-w-[110px] flex-shrink-0 cursor-pointer transition-colors"
                 onClick={(e) => e.stopPropagation()}
               >
                 {joinTypes.map(type => (
@@ -84,37 +89,33 @@ const JoinTableItem: React.FC<JoinTableItemProps> = ({
               </select>
 
               {/* Nome da tabela */}
-              <span className="text-xs sm:text-sm font-medium text-gray-700 flex-shrink-0">
+              <span className="text-sm font-bold text-gray-900 flex-shrink-0 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200">
                 {tableName}
               </span>
 
-              <span className="text-xs sm:text-sm text-gray-500 flex-shrink-0 hidden sm:inline">
+              <span className="text-[10px] font-bold tracking-widest text-gray-400 flex-shrink-0 hidden sm:inline px-1">
                 ON
               </span>
 
-              {/* Visualização das condições */}
+              {/* Visualização das condições (Read-only Badge) */}
               <div className={`
-                text-xs font-mono px-2 py-1 rounded border flex-1 min-w-0
+                text-xs font-mono px-3 py-1.5 rounded-lg border flex-1 min-w-0 flex items-center gap-2
                 ${isValidJoin
-                  ? 'bg-green-50 border-green-200 text-green-800'
-                  : hasConditions
-                    ? 'bg-orange-50 border-orange-200 text-orange-800'
-                    : 'bg-gray-50 border-gray-200 text-gray-600'
+                  ? 'bg-gray-50 border-gray-200 text-gray-600'
+                  : 'bg-red-50 border-red-200 text-red-700 font-medium'
                 }
               `}>
-                <div className="truncate" title={onClause || "Nenhuma condição configurada"}>
-                  {onClause || "⚠️ Configure as condições"}
+                {!isValidJoin && <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />}
+                <div className="truncate" title={onClause || t("joins.noConditionConfigured") || "Nenhuma condição configurada"}>
+                  {onClause || t("joins.configureConditionsWarning") || "Configure as condições deste Join"}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Controles */}
+          {/* Controles do Lado Direito */}
           <div className="flex items-center gap-1 flex-shrink-0">
-            {/* Botão mostrar/ocultar SQL preview */}
-
-
-
+            
             {/* Botão expandir/recolher */}
             <button
               type="button"
@@ -123,12 +124,12 @@ const JoinTableItem: React.FC<JoinTableItemProps> = ({
                 toggleExpanded(tableName);
               }}
               className={`
-                p-1.5 rounded-md transition-colors
+                p-2 rounded-lg transition-colors border
                 ${isExpanded
-                  ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}
+                  ? 'text-blue-700 bg-blue-50 border-blue-200 shadow-sm'
+                  : 'text-gray-500 bg-white border-transparent hover:bg-gray-100 hover:text-gray-700'}
               `}
-              title={isExpanded ? "Recolher condições" : "Expandir condições"}
+              title={isExpanded ? (t("actions.collapseConditions") || "Recolher condições") : (t("actions.expandConditions") || "Expandir condições")}
             >
               {isExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -142,8 +143,8 @@ const JoinTableItem: React.FC<JoinTableItemProps> = ({
                     e.stopPropagation();
                     moveTable(index, 'up');
                   }}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md transition-colors"
-                  title="Mover para cima"
+                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title={t("actions.moveUp") || "Mover para cima"}
                 >
                   <ChevronUp className="h-4 w-4" />
                 </button>
@@ -156,8 +157,8 @@ const JoinTableItem: React.FC<JoinTableItemProps> = ({
                     e.stopPropagation();
                     moveTable(index, 'down');
                   }}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md transition-colors"
-                  title="Mover para baixo"
+                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title={t("actions.moveDown") || "Mover para baixo"}
                 >
                   <ChevronDown className="h-4 w-4" />
                 </button>
@@ -167,12 +168,10 @@ const JoinTableItem: React.FC<JoinTableItemProps> = ({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  // if (window.confirm(`Remover JOIN com a tabela ${tableName}?`)) {
-                    removeJoinTable(tableName);
-                  // }
+                  removeJoinTable(tableName);
                 }}
-                className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                title="Remover JOIN"
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title={t("actions.removeJoin") || "Remover JOIN"}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -183,52 +182,53 @@ const JoinTableItem: React.FC<JoinTableItemProps> = ({
 
       {/* Condições expandidas */}
       {isExpanded && (
-        <div className="border-t border-gray-100">
-          <div className="p-3 sm:p-4 bg-gray-50/50">
-            <div className="flex items-center justify-between mb-3">
+        <div className="border-t border-gray-200">
+          <div className="p-4 sm:p-5 bg-gray-50/50 rounded-b-xl">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <h4 className="text-sm font-medium text-gray-700">
-                  Condições do JOIN
+                <h4 className="text-sm font-bold text-gray-900">
+                  {t("joins.joinConditions") || "Condições do JOIN"}
                 </h4>
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowSQL(prev => !prev);
-                }}
-                className={`
-    flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border transition-all duration-200
-    ${showSQL
-                    ? 'text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100 hover:border-purple-300'
-                    : 'text-gray-500 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                  }
-  `}
-                title={showSQL ? "Ocultar SQL preview" : "Visualizar SQL preview"}
-              >
-                <Code className="h-4 w-4" />
-                <span className="hidden sm:inline text-xs font-medium">
-                  {showSQL ? "Ocultar SQL" : "Ver SQL"}
-                </span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowSQL(prev => !prev);
+                  }}
+                  className={`
+                    flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all duration-200 shadow-sm font-bold text-xs
+                    ${showSQL
+                      ? 'text-gray-900 bg-gray-200 border-gray-300'
+                      : 'text-gray-600 bg-white border-gray-200 hover:bg-gray-50 hover:text-gray-900'
+                    }
+                  `}
+                  title={showSQL ? (t("actions.hideSql") || "Ocultar SQL") : (t("actions.showSql") || "Ver SQL")}
+                >
+                  <Code className="h-4 w-4" />
+                  <span className="hidden sm:inline">
+                    {showSQL ? (t("actions.hideSql") || "Ocultar SQL") : (t("actions.showSql") || "Ver SQL")}
+                  </span>
+                </button>
 
-
-              <button
-                type="button"
-                onClick={() => addCondition(tableName)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium 
-                         text-green-700 bg-green-50 border border-green-200 rounded-md
-                         hover:bg-green-100 hover:border-green-300 transition-colors"
-                title="Adicionar nova condição ao JOIN"
-              >
-                <Plus className="h-3 w-3" />
-                Adicionar Condição
-              </button>
+                <button
+                  type="button"
+                  onClick={() => addCondition(tableName)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold 
+                             text-blue-700 bg-white border border-gray-200 rounded-lg shadow-sm
+                             hover:bg-blue-50 hover:border-blue-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  title={t("actions.addJoinCondition") || "Adicionar nova condição ao JOIN"}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {t("actions.addCondition") || "Adicionar Condição"}
+                </button>
+              </div>
             </div>
 
             {/* Lista de condições */}
             {hasConditions ? (
-              <div className="space-y-2 ml-[10%]">
+              <div className="space-y-3 sm:ml-[5%] lg:ml-[10%]">
                 {conditions.map((condition, condIndex) => (
                   <JoinConditionRow
                     key={`${condition.id}-${condIndex}`}
@@ -244,17 +244,19 @@ const JoinTableItem: React.FC<JoinTableItemProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="text-center py-6 text-gray-500 bg-white rounded-lg border border-dashed border-gray-300">
-                <p className="text-sm">Nenhuma condição configurada</p>
+              <div className="text-center py-8 text-gray-500 bg-white rounded-xl border-2 border-dashed border-gray-200">
+                <p className="text-sm font-medium">{t("joins.noConditionConfigured") || "Nenhuma condição configurada"}</p>
               </div>
             )}
 
             {/* Preview do SQL gerado */}
             {isValidJoin && showSQL && (
-              <div className="mt-3 p-2 bg-white border border-gray-200 rounded-md">
-                <div className="text-xs text-gray-500 mb-1">SQL gerado:</div>
-                <code className="text-xs font-mono text-gray-700">
-                  {selectedJoin?.typeJoin} {tableName} ON {onClause}
+              <div className="mt-4 p-3 bg-gray-900 border border-gray-800 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">
+                  {t("joins.generatedSql") || "SQL gerado:"}
+                </div>
+                <code className="text-sm font-mono text-blue-300 break-words leading-relaxed">
+                  <span className="text-purple-400">{selectedJoin?.typeJoin}</span> {tableName} <span className="text-purple-400">ON</span> {onClause}
                 </code>
               </div>
             )}

@@ -1,12 +1,15 @@
+"use client";
+
 import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { useJoinOrderDragDrop } from "./BuildQueryComponent/useJoinOrderDragDrop";
 import { AdvancedJoinOption, JoinCondition, JoinType, MetadataTableResponse } from "@/types";
 import { generateConditionId, isDuplicateCondition } from "@/util/Joins_select";
 import { AllColumnOptions_type } from "./BuildQueryComponent/types";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, Database } from "lucide-react";
 import JoinTableItem from "./BuildQueryComponent/ListarJoinsOptionComponent";
 import { NotificationType } from "./NotificationComponent";
 import { JoinSelect } from "./BuildQueryComponent/JoinSelect";
+import { useI18n } from "@/context/I18nContext";
 
 const joinTypes: JoinType[] = ["INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "FULL JOIN"];
 const operators = ["=", "!=", "<>", ">", "<", ">=", "<=", "LIKE", "NOT LIKE", "IS NULL", "IS NOT NULL", "IN", "NOT IN"];
@@ -28,14 +31,16 @@ export function JoinOptions({
   addNotification,
   onBaseTableChange
 }: JoinOptionsProps) {
+  const { t } = useI18n();
   const [expandedJoins, setExpandedJoins] = useState<Set<string>>(new Set());
   const baseTable = useMemo(() => table_list[0], [table_list])
+  
   // ✅ Lista inicial só com a tabela base
   const tabelasLista = useMemo(
     () => columns
       .filter(t => t.table_name === baseTable)
       .map(t => t.table_name),
-    [columns]
+    [columns, baseTable]
   );
 
   const {
@@ -55,7 +60,6 @@ export function JoinOptions({
   useEffect(() => {
     if (!advancedConditions) return;
 
-    // console.log("advancedConditions não é null ")
     const tabelasJoin: string[] = [];
 
     Object.entries(advancedConditions).forEach(([tableName, joinOption]) => {
@@ -95,8 +99,8 @@ export function JoinOptions({
       const baseTableObj = columns.find(t => t.table_name === baseTable);
 
       if (!targetTable || !baseTableObj) {
-        addNotification('error', 'Erro de Configuração',
-          `Tabela não encontrada: ${!targetTable ? tableName : baseTable}`);
+        addNotification('error', t("joins.configError") || 'Erro de Configuração',
+          `${t("joins.tableNotFound") || "Tabela não encontrada:"} ${!targetTable ? tableName : baseTable}`);
         return null;
       }
 
@@ -104,8 +108,8 @@ export function JoinOptions({
       const baseCols = baseTableObj.colunas || [];
 
       if (!targetCols.length || !baseCols.length) {
-        addNotification('warning', 'Colunas Indisponíveis',
-          `Não há colunas disponíveis para criar condições entre ${baseTable} e ${tableName}`);
+        addNotification('warning', t("joins.columnsUnavailable") || 'Colunas Indisponíveis',
+          `${t("joins.noColumnsForJoin") || "Não há colunas disponíveis para criar condições entre"} ${baseTable} e ${tableName}`);
         return null;
       }
 
@@ -137,16 +141,17 @@ export function JoinOptions({
           );
 
           if (!exists) {
-            addNotification('info', 'Condição Criada',
-              `Criada condição padrão para ${tableName}: ${baseCol.nome} = ${targetCol.nome}`);
+            addNotification('info', t("joins.conditionCreated") || 'Condição Criada',
+              `${t("joins.defaultConditionCreated") || "Criada condição padrão para"} ${tableName}: ${baseCol.nome} = ${targetCol.nome}`);
             return candidate;
           }
         }
       }
 
-      addNotification('warning', 'Combinações Esgotadas',
-        `Todas as combinações de colunas já foram usadas para a tabela ${tableName}. Você precisará configurar manualmente.`,
+      addNotification('warning', t("joins.combinationsExhausted") || 'Combinações Esgotadas',
+        `${t("joins.allCombinationsUsed") || "Todas as combinações de colunas já foram usadas para a tabela"} ${tableName}.`,
         false);
+        
       // caso não tem usar o value
       const candidate: JoinCondition = {
         id: generateConditionId(),
@@ -161,7 +166,7 @@ export function JoinOptions({
       };
       return candidate;
     },
-    [columns, baseTable, advancedConditions, addNotification]
+    [columns, baseTable, advancedConditions, addNotification, t]
   );
 
   // Toggle expansão
@@ -183,8 +188,8 @@ export function JoinOptions({
       setAdvancedConditions(prevAll => {
         const current = prevAll[tableName];
         if (!current) {
-          addNotification('error', 'Erro de Estado',
-            `Configuração de JOIN não encontrada para a tabela ${tableName}`);
+          addNotification('error', t("joins.stateError") || 'Erro de Estado',
+            `${t("joins.joinConfigNotFound") || "Configuração de JOIN não encontrada para a tabela"} ${tableName}`);
           return prevAll;
         }
 
@@ -198,7 +203,7 @@ export function JoinOptions({
         };
       });
     },
-    [setAdvancedConditions, addNotification]
+    [setAdvancedConditions, addNotification, t]
   );
 
   // Adicionar nova tabela (COM VERIFICAÇÃO DE DUPLICATA)
@@ -208,11 +213,9 @@ export function JoinOptions({
       .filter(t => t.table_name !== baseTable)
       .filter(t => !joinOrder.includes(t.table_name));
 
-    console.log("Tabelas disponíveis:", availableTables.map(t => t.table_name));
-
     if (availableTables.length === 0) {
-      addNotification('info', 'Todas as Tabelas Adicionadas',
-        'Não há mais tabelas disponíveis para adicionar JOINs.');
+      addNotification('info', t("joins.allTablesAdded") || 'Todas as Tabelas Adicionadas',
+        t("joins.noTablesLeft") || 'Não há mais tabelas disponíveis para adicionar JOINs.');
       return;
     }
 
@@ -220,8 +223,8 @@ export function JoinOptions({
 
     // VERIFICAÇÃO EXTRA: garantir que a tabela não está já nos joins
     if (joinOrder.includes(newTable)) {
-      addNotification('error', 'Tabela Já Adicionada',
-        `A tabela ${newTable} já foi adicionada aos JOINs.`);
+      addNotification('error', t("joins.tableAlreadyAdded") || 'Tabela Já Adicionada',
+        `${t("joins.tableAlreadyInJoins") || "A tabela"} ${newTable} ${t("joins.alreadyInJoins") || "já foi adicionada aos JOINs."}`);
       return;
     }
 
@@ -246,43 +249,43 @@ export function JoinOptions({
     // Expandir automaticamente o novo join
     setExpandedJoins(prev => new Set([...prev, newTable]));
 
-    addNotification('success', 'JOIN Adicionado',
-      `Tabela ${newTable} foi adicionada com sucesso aos JOINs.`);
-  }, [columns, baseTable, joinOrder, createDefaultCondition, setAdvancedConditions, setJoinOrder, addNotification]);
+    addNotification('success', t("joins.joinAdded") || 'JOIN Adicionado',
+      `${t("joins.tableSuccessfullyAdded") || "Tabela"} ${newTable} ${t("joins.successfullyAdded") || "foi adicionada com sucesso aos JOINs."}`);
+  }, [columns, baseTable, joinOrder, createDefaultCondition, setAdvancedConditions, setJoinOrder, addNotification, t]);
 
   // Remover condição
   const removeCondition = React.useCallback(
     (tableName: string, conditionId: string) => {
       updateConditions(tableName, conds => {
         const filtered = conds.filter(c => c.id !== conditionId);
-        addNotification('info', 'Condição removida',
-          `Condição removida de ${tableName}. Restam ${filtered.length} condições`);
+        addNotification('info', t("joins.conditionRemoved") || 'Condição removida',
+          `${t("joins.conditionRemovedFrom") || "Condição removida de"} ${tableName}. ${t("joins.remainingConditions") || "Restam"} ${filtered.length} ${t("joins.conditions") || "condições"}`);
         return filtered;
       });
     },
-    [updateConditions, addNotification]
+    [updateConditions, addNotification, t]
   );
+  
   // Remover tabela do JOIN (ATUALIZADA)
   const removeJoinTable = React.useCallback(
     (tableName: string) => {
       // Verificar se a tabela existe nos joins
       if (!joinOrder.includes(tableName)) {
-        addNotification('warning', 'Tabela Não Encontrada',
-          `A tabela ${tableName} não está na lista de JOINs.`);
+        addNotification('warning', t("joins.tableNotFound") || 'Tabela Não Encontrada',
+          `${t("joins.tableNotInList") || "A tabela"} ${tableName} ${t("joins.notInJoinList") || "não está na lista de JOINs."}`);
         return;
       }
 
       // Remover da ordem
       setJoinOrder(prevOrder => {
         const newOrder = prevOrder.filter(name => name !== tableName);
-        console.log(`Tabela ${tableName} removida da ordem. Nova ordem:`, newOrder);
         return newOrder;
       });
 
       // Remover das condições
       setAdvancedConditions(prevConfig => {
         const { [tableName]: removed, ...rest } = prevConfig;
-        console.log(`Condições da tabela ${tableName} removidas ${removed}`);
+        console.log(removed, "Configurações removidas para", tableName);
         return rest;
       });
 
@@ -293,11 +296,12 @@ export function JoinOptions({
         return newExpanded;
       });
 
-      addNotification('info', 'JOIN Removido',
+      addNotification('info', t("joins.joinRemoved") || 'JOIN Removido',
         `JOIN com a tabela ${tableName} foi removido.`);
     },
-    [joinOrder, setJoinOrder, setAdvancedConditions, addNotification]
+    [joinOrder, setJoinOrder, setAdvancedConditions, addNotification, t]
   );
+  
   // Mudar tabela base (FUNCIONALIDADE NOVA)
   const changeBaseTable = React.useCallback((newBaseTable: string) => {
     if (newBaseTable === baseTable) {
@@ -308,8 +312,8 @@ export function JoinOptions({
     const isNewBaseInJoins = joinOrder.includes(newBaseTable);
 
     if (isNewBaseInJoins) {
-      addNotification('warning', 'Reorganização Necessária',
-        `A tabela ${newBaseTable} será removida dos JOINs para se tornar a tabela base.`);
+      addNotification('warning', t("joins.reorganizationNeeded") || 'Reorganização Necessária',
+        `${t("joins.tableWillBeRemovedFromJoins") || "A tabela"} ${newBaseTable} ${t("joins.willBeRemovedFromJoins") || "será removida dos JOINs para se tornar a tabela base."}`);
 
       // Remover a tabela dos joins
       removeJoinTable(newBaseTable);
@@ -318,7 +322,7 @@ export function JoinOptions({
     // Notificar o componente pai sobre a mudança
     onBaseTableChange(newBaseTable);
 
-  }, [baseTable, joinOrder, onBaseTableChange, addNotification, removeJoinTable]);
+  }, [baseTable, joinOrder, onBaseTableChange, addNotification, removeJoinTable, t]);
 
 
   // Adicionar condição
@@ -327,7 +331,6 @@ export function JoinOptions({
       const newCondition = createDefaultCondition(tableName);
 
       if (!newCondition) {
-
         return;
       }
 
@@ -336,10 +339,10 @@ export function JoinOptions({
         newCondition
       ]);
 
-      addNotification('success', 'Condição Adicionada',
-        `Nova condição adicionada à tabela ${tableName}.`);
+      addNotification('success', t("joins.conditionAdded") || 'Condição Adicionada',
+        `${t("joins.newConditionAddedTo") || "Nova condição adicionada à tabela"} ${tableName}.`);
     },
-    [createDefaultCondition, updateConditions, addNotification]
+    [createDefaultCondition, updateConditions, addNotification, t]
   );
 
   // Função auxiliar: atualiza lado direito baseado no lado esquerdo 
@@ -351,8 +354,8 @@ export function JoinOptions({
         ?.colunas.find(c => c.nome === columnName);
 
       if (!col) {
-        addNotification('warning', 'Coluna Não Encontrada',
-          `A coluna ${leftColumnFull} não foi encontrada nos metadados.`);
+        addNotification('warning', t("joins.columnNotFound") || 'Coluna Não Encontrada',
+          `${t("joins.columnNotInMetadata") || "A coluna"} ${leftColumnFull} ${t("joins.notInMetadata") || "não foi encontrada nos metadados."}`);
         return {};
       }
 
@@ -361,7 +364,7 @@ export function JoinOptions({
         valueColumnType: col.tipo,
       };
     },
-    [columns, addNotification]
+    [columns, addNotification, t]
   );
 
   // Atualizar condição
@@ -383,8 +386,8 @@ export function JoinOptions({
 
           // Verificar duplicatas (excluindo a condição atual)
           if (isDuplicateCondition(conds, newCondition, conditionId)) {
-            addNotification('warning', 'Condição Duplicada',
-              `Esta combinação de coluna/operador já existe. A alteração foi cancelada.`);
+            addNotification('warning', t("joins.duplicateCondition") || 'Condição Duplicada',
+              t("joins.duplicateConditionDesc") || 'Esta combinação de coluna/operador já existe. A alteração foi cancelada.');
             return c; // Manter condição original
           }
 
@@ -392,10 +395,8 @@ export function JoinOptions({
         })
       );
     },
-    [updateConditions, getRightSideUpdateForLeftColumn, addNotification]
+    [updateConditions, getRightSideUpdateForLeftColumn, addNotification, t]
   );
-
-
 
   // Atualizar tipo de JOIN
   const handleJoinTypeChange = React.useCallback(
@@ -444,68 +445,69 @@ export function JoinOptions({
   if (columns.length < 2) return null;
 
   return (
-    <div className="space-y-3">
-      {/* Seletor de Tabela Base (NOVO) */}
-      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg  border-blue-200">
-        <div className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4 text-blue-600" />
-          <span className="text-sm font-medium text-blue-800">Tabela Base:</span>
+    <div className="space-y-4">
+      {/* Seletor de Tabela Base */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-xl gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="p-1.5 bg-blue-100 rounded-md border border-blue-200">
+             <Database className="h-4 w-4 text-blue-600" />
+          </div>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">
+            {t("joins.baseTable") || "Tabela Base"}:
+          </span>
           <JoinSelect
-            className="text-xs"
-            buttonClassName="text-sm border border-blue-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 sm:flex-none min-w-[200px]"
+            buttonClassName="px-3 py-1.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm font-bold text-gray-900 shadow-sm"
             value={baseTable}
             onChange={(value) => changeBaseTable(value)}
             options={baseTableOptions}
-            placeholder="Coluna direita"
+            placeholder={t("joins.selectBaseTable") || "Selecione"}
           />
-
         </div>
-        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-          {joinOrder.length} JOIN{joinOrder.length !== 1 ? 's' : ''} configurado{joinOrder.length !== 1 ? 's' : ''}
+        <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md">
+          {joinOrder.length} JOIN{joinOrder.length !== 1 ? 's' : ''} {t("joins.configured") || "configurado(s)"}
         </span>
       </div>
 
-      <div className="flex items-center justify-between">
-        <label className="block text-sm font-semibold text-gray-800">
-          Configurações de JOIN
+      <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+        <label className="block text-sm font-bold text-gray-900">
+          {t("joins.joinConfigs") || "Configurações de JOIN"}
         </label>
 
         {availableTablesCount > 0 && (
           <button
             type="button"
             onClick={addJoinTable}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 transition-colors"
-            title={`Adicionar ${availableTablesCount} tabela${availableTablesCount !== 1 ? 's' : ''} disponível${availableTablesCount !== 1 ? 'eis' : ''}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-blue-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            title={`${t("actions.add")} ${availableTablesCount} ${t("joins.availableTables")}`}
           >
-            <Plus className="h-3.5 w-3.5" />
-            Adicionar JOIN ({availableTablesCount})
+            <Plus className="h-4 w-4" />
+            {t("joins.addJoin") || "Adicionar JOIN"} ({availableTablesCount})
           </button>
         )}
       </div>
 
       {joinOrder.length === 0 ? (
-        <div className="text-center py-6 text-gray-500 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-300">
+        <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
           <div className="space-y-2">
-            <p>Nenhuma tabela configurada para JOIN</p>
+            <p className="text-gray-500 font-medium text-sm">
+              {t("joins.noTablesConfigured") || "Nenhuma tabela configurada para JOIN"}
+            </p>
             {availableTablesCount > 0 && (
-              <p className="text-xs">
-                {availableTablesCount} tabela{availableTablesCount !== 1 ? 's' : ''} disponível{availableTablesCount !== 1 ? 'eis' : ''} para adicionar
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                {availableTablesCount} {availableTablesCount !== 1 ? (t("joins.tables") || "tabelas") : (t("joins.table") || "tabela")} {t("joins.availableToAdd") || "disponível(eis) para adicionar"}
               </p>
             )}
           </div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {joinOrder.map((tableName, index) => {
             const table = columns.find(t => t.table_name === tableName);
-            if (!table) {
-              return null;
-            }
+            if (!table) return null;
 
             const selectedJoin = advancedConditions[tableName];
-            if (!selectedJoin) {
-              return null;
-            }
+            if (!selectedJoin) return null;
 
             const conditions = selectedJoin.conditions || [];
 

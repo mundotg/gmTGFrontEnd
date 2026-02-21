@@ -14,9 +14,10 @@ import {
   BarChart3,
   Clock,
   Terminal,
-  ShieldAlert
+  ShieldAlert,
 } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
+import { useI18n } from "@/context/I18nContext";
 import { hasPermission } from "@/permissions_val";
 import { quickExportToCsv } from "@/app/services/relatorio";
 
@@ -42,6 +43,7 @@ type SortDirection = "asc" | "desc";
 
 export default function HistoricoPage() {
   const { user } = useSession();
+  const { t } = useI18n();
   const permissions = user?.permissions ?? [];
 
   // 🔐 Validação de Permissões
@@ -73,36 +75,51 @@ export default function HistoricoPage() {
     if (total === 0) return { total: 0, success: 0, error: 0, warning: 0, avgDuration: 0 };
     return {
       total,
-      success: logs.filter(l => l.status === "success").length,
-      error: logs.filter(l => l.status === "error").length,
-      warning: logs.filter(l => l.status === "warning").length,
-      avgDuration: logs.reduce((acc, l) => acc + (l.duration || 0), 0) / total
+      success: logs.filter((l) => l.status === "success").length,
+      error: logs.filter((l) => l.status === "error").length,
+      warning: logs.filter((l) => l.status === "warning").length,
+      avgDuration: logs.reduce((acc, l) => acc + (l.duration || 0), 0) / total,
     };
   }, [logs]);
 
   const filteredAndSortedLogs = useMemo(() => {
     return logs
-      .filter(log => {
-        const matchesSearch = [log.user, log.project, log.database].some(f => f.toLowerCase().includes(search.toLowerCase()));
+      .filter((log) => {
+        const matchesSearch = [log.user, log.project, log.database].some((f) =>
+          f.toLowerCase().includes(search.toLowerCase())
+        );
         const matchesAction = filter === "Todos" || log.action === filter;
         const matchesDate = !date || log.timestamp.startsWith(date);
         const matchesStatus = statusFilter === "all" || log.status === statusFilter;
         return matchesSearch && matchesAction && matchesDate && matchesStatus;
       })
       .sort((a, b) => {
-        let aVal: any = sortField === "timestamp" ? new Date(a.timestamp).getTime() : a[sortField];
-        let bVal: any = sortField === "timestamp" ? new Date(b.timestamp).getTime() : b[sortField];
-        return sortDirection === "asc" ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+        let aVal: number | string | undefined =
+          sortField === "timestamp" ? new Date(a.timestamp).getTime() : a[sortField];
+        let bVal: number | string | undefined =
+          sortField === "timestamp" ? new Date(b.timestamp).getTime() : b[sortField];
+
+        // Handle possible undefined values for sorting safely
+        if (aVal === undefined) aVal = "";
+        if (bVal === undefined) bVal = "";
+
+        return sortDirection === "asc" ? (aVal > bVal ? 1 : -1) : aVal < bVal ? 1 : -1;
       });
   }, [logs, search, filter, date, statusFilter, sortField, sortDirection]);
 
-  const paginatedLogs = filteredAndSortedLogs.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  const paginatedLogs = filteredAndSortedLogs.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
+  
+  const totalPages = Math.ceil(filteredAndSortedLogs.length / itemsPerPage) || 1;
 
   const handleRefresh = () => {
     setIsLoading(true);
     // Simulação MustaInf
     setTimeout(() => {
-      setLogs(generateMockLogs()); 
+      setLogs(generateMockLogs());
+      setPage(1); // Resetar página ao recarregar
       setIsLoading(false);
     }, 800);
   };
@@ -110,238 +127,406 @@ export default function HistoricoPage() {
   /* =======================
      GUARDS
   ======================= */
-  if (!canView) return <AccessDeniedUI />;
+  if (!canView) return <AccessDeniedUI t={t} />;
 
   return (
-    <div className="min-h-screen ] p-6 space-y-8 font-sans selection:bg-blue-500/30">
-      
-      {/* 1. HEADER INDUSTRIAL */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/5 pb-8">
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-             <div className="h-1 w-10 bg-amber-500 rounded-full" />
-             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">Security Audit Log</span>
+    // Fundo Principal do Padrão Oficial
+    <div className="min-h-screen bg-gray-50 p-6 space-y-6 font-sans">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* 1. HEADER (Estilo Painel de Conexões) */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white mr-4 shadow-sm">
+                <Terminal className="w-6 h-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                  {t("history.title") || "Histórico de Atividades"}
+                </h1>
+                <p className="text-gray-500 text-sm mt-1 font-medium">
+                  {t("history.subtitle") || "Security Audit Log"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {canExport && (
+                <button
+                  onClick={() => quickExportToCsv(filteredAndSortedLogs, "audit_log")}
+                  className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-200 text-sm font-medium rounded-lg hover:bg-gray-50 transition-all shadow-sm"
+                >
+                  <Download size={16} /> {t("actions.exportCsv") || "Exportar CSV"}
+                </button>
+              )}
+              <button
+                onClick={handleRefresh}
+                className={`p-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-all shadow-sm ${
+                  isLoading ? "animate-spin text-blue-600" : ""
+                }`}
+                title={t("history.refresh") || "Atualizar"}
+              >
+                <RefreshCcw size={18} />
+              </button>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold  tracking-tighter flex items-center gap-3">
-            <Terminal className="text-amber-500" size={28} />
-            Histórico de Atividades
-          </h1>
         </div>
 
-        <div className="flex items-center gap-3">
-          {canExport && (
-            <button 
-              onClick={() => quickExportToCsv(filteredAndSortedLogs, "audit_log")}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-black text-[11px] font-black rounded-lg hover:bg-slate-200 transition-all uppercase tracking-tighter"
-            >
-              <Download size={14} /> Exportar CSV
-            </button>
-          )}
-          <button 
-            onClick={handleRefresh}
-            className={`p-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all ${isLoading ? 'animate-spin' : ''}`}
-          >
-            <RefreshCcw size={18} />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. ESTATÍSTICAS GRAY-30 */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <MiniStat label="Total Ops" value={stats.total} icon={<BarChart3 size={16}/>} />
-        <MiniStat label="Sucesso" value={stats.success} icon={<CheckCircle2 size={16} className="text-emerald-500"/>} />
-        <MiniStat label="Falhas" value={stats.error} icon={<XCircle size={16} className="text-red-500"/>} />
-        <MiniStat label="Avisos" value={stats.warning} icon={<AlertCircle size={16} className="text-amber-500"/>} />
-        <MiniStat label="Latência Avg" value={`${Math.round(stats.avgDuration)}ms`} icon={<Clock size={16} className="text-blue-500"/>} />
-      </div>
-
-      {/* 3. FILTROS AVANÇADOS */}
-      <div className="border border-white/5 p-4 rounded-2xl grid grid-cols-1 md:grid-cols-4 gap-4 items-center shadow-2xl">
-        <div className="relative group">
-          <Search className="absolute left-3 top-2.5 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={16} />
-          <input 
-            className="w-full bg-white/[0.03] border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-blue-500/50 transition-all"
-            placeholder="Pesquisar..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+        {/* 2. ESTATÍSTICAS */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <MiniStat
+            label={t("history.statsTotal") || "Total Ops"}
+            value={stats.total}
+            icon={<BarChart3 size={18} />}
+            color="text-blue-600"
+          />
+          <MiniStat
+            label={t("history.statsSuccess") || "Sucesso"}
+            value={stats.success}
+            icon={<CheckCircle2 size={18} />}
+            color="text-green-600"
+          />
+          <MiniStat
+            label={t("history.statsFail") || "Falhas"}
+            value={stats.error}
+            icon={<XCircle size={18} />}
+            color="text-red-600"
+          />
+          <MiniStat
+            label={t("history.statsWarn") || "Avisos"}
+            value={stats.warning}
+            icon={<AlertCircle size={18} />}
+            color="text-amber-500"
+          />
+          <MiniStat
+            label={t("history.statsLatency") || "Latência Avg"}
+            value={`${Math.round(stats.avgDuration)}ms`}
+            icon={<Clock size={18} />}
+            color="text-purple-600"
           />
         </div>
-        <select 
-          className="bg-white/[0.03] border border-white/10 rounded-xl py-2 px-4 text-sm focus:outline-none"
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-        >
-          <option value="all">Todos os Status</option>
-          <option value="success">Success</option>
-          <option value="error">Error</option>
-          <option value="warning">Warning</option>
-        </select>
-        <input 
-          type="date"
-          className="bg-white/[0.03] border border-white/10 rounded-xl py-2 px-4 text-sm focus:outline-none"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-        />
-        <div className="text-[10px] font-bold text-slate-500 text-right uppercase tracking-widest">
-          {filteredAndSortedLogs.length} Entradas encontradas
-        </div>
-      </div>
 
-      {/* 4. TABELA DE DADOS */}
-      <div className="border border-white/5 rounded-2xl overflow-hidden shadow-inner">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-white/[0.02] border-b border-white/5">
-              <Th field="timestamp" current={sortField} dir={sortDirection} onSort={setSortField} onDir={setSortDirection}>Timestamp</Th>
-              <Th field="user" current={sortField} dir={sortDirection} onSort={setSortField} onDir={setSortDirection}>Identidade</Th>
-              <Th field="action" current={sortField} dir={sortDirection} onSort={setSortField} onDir={setSortDirection}>Operação</Th>
-              <th className="p-4 text-[10px] font-black uppercase text-slate-500 tracking-widest">Contexto</th>
-              <Th field="duration" current={sortField} dir={sortDirection} onSort={setSortField} onDir={setSortDirection}>Latência</Th>
-              <th className="p-4 text-[10px] font-black uppercase text-slate-500 tracking-widest text-right">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/[0.03]">
-            {paginatedLogs.map((log) => (
-              <tr 
-                key={log.id} 
-                className="hover:bg-white/[0.02] transition-colors cursor-pointer group"
-                onClick={() => setSelectedLog(log)}
-              >
-                <td className="p-4 font-mono text-[11px] text-slate-500">{log.timestamp}</td>
-                <td className="p-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center text-[10px] font-bold text-blue-400 border border-white/10 uppercase">
-                      {log.user.substring(0,2)}
-                    </div>
-                    <span className="text-xs font-semibold text-slate-200">{log.user}</span>
-                  </div>
-                </td>
-                <td className="p-4">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${getActionStyle(log.action)}`}>
-                    {log.action}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{log.project}</div>
-                  <div className="text-[10px] text-slate-600 font-mono">{log.database}</div>
-                </td>
-                <td className="p-4 font-mono text-xs text-slate-400">{log.duration}ms</td>
-                <td className="p-4 text-right">
-                  <StatusBadge status={log.status} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* 3. FILTROS AVANÇADOS */}
+        <div className="bg-white border border-gray-200 p-4 rounded-xl grid grid-cols-1 md:grid-cols-5 gap-4 items-center shadow-sm">
+          <div className="relative group md:col-span-2">
+            <Search
+              className="absolute left-3 top-2.5 text-gray-400 group-focus-within:text-blue-500 transition-colors"
+              size={18}
+            />
+            <input
+              className="w-full bg-white border border-gray-300 rounded-lg py-2 pl-10 pr-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+              placeholder={t("history.searchPlaceholder") || "Pesquisar usuário, projeto..."}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          
+          <select
+            className="bg-white border border-gray-300 rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all appearance-none"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          >
+             <option value="Todos">{t('history.allActions') || "Todas as Ações"}</option>
+             <option value="SELECT">SELECT</option>
+             <option value="UPDATE">UPDATE</option>
+             <option value="INSERT">INSERT</option>
+             <option value="DELETE">DELETE</option>
+             <option value="DROP_TABLE">DROP_TABLE</option>
+          </select>
+
+          <select
+            className="bg-white border border-gray-300 rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all appearance-none"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">{t("history.allStatus") || "Todos os Status"}</option>
+            <option value="success">{t("history.statusSuccess") || "Sucesso"}</option>
+            <option value="error">{t("history.statusError") || "Erro"}</option>
+            <option value="warning">{t("history.statusWarning") || "Aviso"}</option>
+          </select>
+          <input
+            type="date"
+            className="bg-white border border-gray-300 rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+
+        {/* 4. TABELA DE DADOS E PAGINAÇÃO */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+          <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50/50">
+             <div className="text-sm font-semibold text-gray-500">
+               {filteredAndSortedLogs.length} {t("history.entriesFound") || "Entradas encontradas"}
+             </div>
+             <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 font-medium">Itens por página:</span>
+                <select 
+                  className="bg-white border border-gray-300 rounded text-xs py-1 px-2 focus:outline-none"
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setPage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+             </div>
+          </div>
+          
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <Th field="timestamp" current={sortField} dir={sortDirection} onSort={setSortField} onDir={setSortDirection}>
+                    {t("history.colTime") || "Timestamp"}
+                  </Th>
+                  <Th field="user" current={sortField} dir={sortDirection} onSort={setSortField} onDir={setSortDirection}>
+                    {t("history.colUser") || "Identidade"}
+                  </Th>
+                  <Th field="action" current={sortField} dir={sortDirection} onSort={setSortField} onDir={setSortDirection}>
+                    {t("history.colAction") || "Operação"}
+                  </Th>
+                  <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    {t("history.colContext") || "Contexto"}
+                  </th>
+                  <Th field="duration" current={sortField} dir={sortDirection} onSort={setSortField} onDir={setSortDirection}>
+                    {t("history.colDuration") || "Latência"}
+                  </Th>
+                  <th className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">
+                    {t("history.colStatus") || "Status"}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {paginatedLogs.map((log) => (
+                  <tr
+                    key={log.id}
+                    className="hover:bg-gray-50 transition-colors cursor-pointer group"
+                    onClick={() => setSelectedLog(log)}
+                  >
+                    <td className="p-4 font-mono text-xs text-gray-500">{log.timestamp}</td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-md bg-blue-50 flex items-center justify-center text-xs font-bold text-blue-700 uppercase border border-blue-100">
+                          {log.user.substring(0, 2)}
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">{log.user}</span>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${getActionStyle(log.action)}`}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <div className="text-xs text-gray-900 font-semibold">{log.project}</div>
+                      <div className="text-xs text-gray-500 font-mono mt-0.5">{log.database}</div>
+                    </td>
+                    <td className="p-4 font-mono text-sm text-gray-600">{log.duration}ms</td>
+                    <td className="p-4 text-right">
+                      <StatusBadge status={log.status} />
+                    </td>
+                  </tr>
+                ))}
+                {paginatedLogs.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                      {t("history.noLogsFound") || "Nenhum registro encontrado."}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Controles de Paginação Básicos */}
+          {totalPages > 1 && (
+             <div className="p-4 border-t border-gray-200 flex justify-between items-center bg-gray-50/50">
+                <button 
+                  disabled={page === 1}
+                  onClick={() => setPage(p => p - 1)}
+                  className="px-3 py-1 text-sm border rounded-lg bg-white disabled:opacity-50"
+                >
+                  Anterior
+                </button>
+                <span className="text-xs text-gray-500 font-medium">Página {page} de {totalPages}</span>
+                <button 
+                  disabled={page === totalPages}
+                  onClick={() => setPage(p => p + 1)}
+                  className="px-3 py-1 text-sm border rounded-lg bg-white disabled:opacity-50"
+                >
+                  Próxima
+                </button>
+             </div>
+          )}
+        </div>
       </div>
 
       {/* 5. MODAL DE DETALHES (OVERLAY) */}
-      {selectedLog && <DetailModal log={selectedLog} onClose={() => setSelectedLog(null)} />}
-
+      {selectedLog && <DetailModal log={selectedLog} onClose={() => setSelectedLog(null)} t={t} />}
     </div>
   );
 }
 
 /* =======================
-   SUB-COMPONENTS (GRAY-30)
+   SUB-COMPONENTS (Padrão Oficial)
 ======================= */
 
-function MiniStat({ label, value, icon }: any) {
+interface MiniStatProps {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
+}
+
+function MiniStat({ label, value, icon, color }: MiniStatProps) {
   return (
-    <div className="border border-white/5 p-4 rounded-xl group hover:border-white/10 transition-all">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{label}</span>
-        <span className="opacity-40 group-hover:opacity-100 transition-opacity">{icon}</span>
+    <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-sm hover:shadow-md transition-all">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</span>
+        <span className={`${color}`}>{icon}</span>
       </div>
-      <div className="text-xl font-bold text-white tracking-tighter">{value}</div>
+      <div className="text-2xl font-bold text-gray-900">{value}</div>
     </div>
   );
 }
 
-function Th({ children, field, current, dir, onSort, onDir }: any) {
+interface ThProps {
+  children: React.ReactNode;
+  field: SortField;
+  current: SortField;
+  dir: SortDirection;
+  onSort: (field: SortField) => void;
+  onDir: (dir: SortDirection) => void;
+}
+
+function Th({ children, field, current, dir, onSort, onDir }: ThProps) {
   const isActive = current === field;
   return (
-    <th 
-      className="p-4 text-[10px] font-black uppercase text-slate-500 tracking-widest cursor-pointer hover:text-white transition-colors"
+    <th
+      className="p-4 text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
       onClick={() => {
         if (isActive) onDir(dir === "asc" ? "desc" : "asc");
         else onSort(field);
       }}
     >
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
         {children}
-        {isActive && (dir === "asc" ? <ChevronUp size={12}/> : <ChevronDown size={12}/>)}
+        {isActive &&
+          (dir === "asc" ? (
+            <ChevronUp size={14} className="text-blue-600" />
+          ) : (
+            <ChevronDown size={14} className="text-blue-600" />
+          ))}
       </div>
     </th>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const styles: any = {
-    success: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-    error: "bg-red-500/10 text-red-500 border-red-500/20",
-    warning: "bg-amber-500/10 text-amber-500 border-amber-500/20"
+function StatusBadge({ status }: { status: "success" | "error" | "warning" }) {
+  const styles: Record<"success" | "error" | "warning", string> = {
+    success: "bg-green-50 text-green-700 border-green-200",
+    error: "bg-red-50 text-red-700 border-red-200",
+    warning: "bg-amber-50 text-amber-700 border-amber-200",
   };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${styles[status]}`}>
+    <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase border ${styles[status]}`}>
       {status}
     </span>
   );
 }
 
-function DetailModal({ log, onClose }: { log: LogEntry, onClose: () => void }) {
+interface DetailModalProps {
+  log: LogEntry;
+  onClose: () => void;
+  t: (key: string) => string;
+}
+
+function DetailModal({ log, onClose, t }: DetailModalProps) {
   return (
-    <div className="fixed inset-0  backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#0f0f0f] border border-white/10 w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <Database size={18} className="text-blue-500" />
-            Audit_Internal_Record <span className="text-slate-500 font-mono text-xs">[{log.id}]</span>
+    <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 w-full max-w-2xl rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2">
+            <Database size={18} className="text-blue-600" />
+            {t("history.modalTitle") || "Registro de Auditoria"}{" "}
+            <span className="text-gray-500 font-mono text-xs">[{log.id}]</span>
           </h3>
-          <button onClick={onClose} className="text-slate-500 hover:text-white"><XCircle size={20}/></button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors">
+            <XCircle size={20} />
+          </button>
         </div>
-        <div className="p-8 grid grid-cols-2 gap-8">
-           <div className="space-y-4">
-              <DataField label="Operador" value={log.user} />
-              <DataField label="Timestamp" value={log.timestamp} />
-              <DataField label="Status Code" value={log.status.toUpperCase()} />
-           </div>
-           <div className="space-y-4">
-              <DataField label="Aplicação" value={log.project} />
-              <DataField label="IP Origem" value={log.ip_address || "Internal"} />
-              <DataField label="Linhas Afetadas" value={log.rows_affected ?? "N/A"} />
-           </div>
-           <div className="col-span-2">
-              <label className="text-[10px] font-black text-slate-600 uppercase mb-2 block">RAW SQL Snippet</label>
-              <div className="bg-black border border-white/5 p-4 rounded-xl font-mono text-xs text-blue-300 overflow-x-auto">
-                {log.query_snippet || "-- No data available --"}
-              </div>
-           </div>
+
+        <div className="p-6 grid grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <DataField label={t("history.colUser") || "Operador"} value={log.user} />
+            <DataField label={t("history.colTime") || "Timestamp"} value={log.timestamp} />
+            <DataField label="Status Code" value={log.status.toUpperCase()} />
+          </div>
+          <div className="space-y-4">
+            <DataField label={t("history.colProject") || "Aplicação"} value={log.project} />
+            <DataField label="IP Origem" value={log.ip_address || "Internal"} />
+            <DataField
+              label={t("history.colRows") || "Linhas Afetadas"}
+              value={log.rows_affected?.toString() ?? "N/A"}
+            />
+          </div>
+
+          <div className="col-span-2 mt-2">
+            <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block">
+              RAW SQL Snippet
+            </label>
+            <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl font-mono text-sm text-green-400 overflow-x-auto shadow-inner">
+              {log.query_snippet || "-- No data available --"}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-gray-100 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            {t("actions.close") || "Fechar"}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function DataField({ label, value }: any) {
+interface DataFieldProps {
+  label: string;
+  value: string;
+}
+
+function DataField({ label, value }: DataFieldProps) {
   return (
     <div>
-      <p className="text-[10px] font-black text-slate-600 uppercase mb-1 tracking-widest">{label}</p>
-      <p className="text-sm font-semibold text-slate-200">{value}</p>
+      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">{label}</p>
+      <p className="text-sm font-medium text-gray-900">{value}</p>
     </div>
   );
 }
 
-function AccessDeniedUI() {
+function AccessDeniedUI({ t }: { t: (key: string) => string }) {
   return (
-    <div className="h-screen flex flex-col items-center justify-center bg-[#050505] text-center p-6">
-       <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6 border border-red-500/20">
-          <ShieldAlert className="text-red-500" size={40} />
-       </div>
-       <h1 className="text-2xl font-bold text-white mb-2 tracking-tighter">Acesso Negado</h1>
-       <p className="text-slate-500 max-w-md text-sm">
-         O seu perfil não possui as permissões <code className="text-red-400 bg-red-400/10 px-1 rounded">logs:view</code> necessárias para aceder ao rastro de auditoria.
-       </p>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-center p-6">
+      <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 border border-red-100 shadow-sm">
+        <ShieldAlert className="text-red-600" size={32} />
+      </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        {t("history.accessDenied") || "Acesso Negado"}
+      </h1>
+      <p className="text-gray-600 max-w-md text-sm leading-relaxed">
+        {t("history.accessDeniedDesc") || "O seu perfil não possui as permissões"}{" "}
+        <code className="text-red-600 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded ml-1 mr-1 font-mono text-xs">
+          logs:view
+        </code>{" "}
+        {t("history.accessDeniedDesc2") || "necessárias para aceder ao rastro de auditoria."}
+      </p>
     </div>
   );
 }
@@ -350,10 +535,10 @@ function AccessDeniedUI() {
    HELPERS
 ======================= */
 const getActionStyle = (action: string) => {
-  if (action.includes("SELECT")) return "text-blue-400 border-blue-400/20 bg-blue-400/5";
-  if (action.includes("DELETE") || action.includes("DROP")) return "text-red-400 border-red-400/20 bg-red-400/5";
-  if (action.includes("UPDATE") || action.includes("INSERT")) return "text-amber-400 border-amber-400/20 bg-amber-400/5";
-  return "text-purple-400 border-purple-400/20 bg-purple-400/5";
+  if (action.includes("SELECT")) return "text-blue-700 border-blue-200 bg-blue-50";
+  if (action.includes("DELETE") || action.includes("DROP")) return "text-red-700 border-red-200 bg-red-50";
+  if (action.includes("UPDATE") || action.includes("INSERT")) return "text-amber-700 border-amber-200 bg-amber-50";
+  return "text-purple-700 border-purple-200 bg-purple-50";
 };
 
 const generateMockLogs = (): LogEntry[] => {
@@ -364,9 +549,9 @@ const generateMockLogs = (): LogEntry[] => {
     project: ["MustaInf ERP", "CRM Cloud", "Auth Microservice"][Math.floor(Math.random() * 3)],
     database: "PostgreSQL_Prod_01",
     timestamp: "2024-05-20 14:30:01",
-    status: ["success", "success", "error", "warning"][Math.floor(Math.random() * 4)] as any,
+    status: ["success", "success", "error", "warning"][Math.floor(Math.random() * 4)] as "success" | "error" | "warning",
     duration: Math.floor(Math.random() * 1200),
     query_snippet: "SELECT * FROM users WHERE active = true LIMIT 100;",
-    ip_address: "192.168.10.122"
+    ip_address: "192.168.10.122",
   }));
 };

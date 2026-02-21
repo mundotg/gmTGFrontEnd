@@ -1,129 +1,230 @@
-// components/steps/Step3Mapping.tsx
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Table, Columns, ArrowRight, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Search } from "lucide-react";
-import type { DBConnection, DBField } from "@/types/db-structure";
-import { ColumnMapping, TableMapping } from "@/app/task/types/transfer-types";
+"use client";
+
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  Dispatch,
+  SetStateAction,
+} from "react";
+import {
+  Columns,
+  CheckCircle2,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Search,
+} from "lucide-react";
+
+import type { DBConnection, DBStructure } from "@/types/db-structure";
+import type { ColumnMapping, TableMapping } from "@/app/task/types/transfer-types";
+
+import { useFetchColumns } from "./utils/useFetchFields";
+import { TableMappingCard } from "./component/TableMappingCard";
 import { JoinSelect } from "@/app/component/BuildQueryComponent/JoinSelect";
 
 interface Step3MappingProps {
+  setSourceConnection: Dispatch<SetStateAction<DBConnection | undefined>>;
+  setTargetConnection: Dispatch<SetStateAction<DBConnection | undefined>>;
   sourceConnection?: DBConnection;
   targetConnection?: DBConnection;
-  selectedTables: Record<string, string>;
+
+  selectedTables: Record<string, string>; // { sourceTableId: targetTableId }
+
   tableMappings: Record<string, TableMapping>;
   onTableMappingsChange: (mappings: Record<string, TableMapping>) => void;
 }
 
+const norm = (s: string) => (s ?? "").trim().toLowerCase();
+
 export const Step3Mapping: React.FC<Step3MappingProps> = ({
+  setSourceConnection,
+  setTargetConnection,
   sourceConnection,
   targetConnection,
   selectedTables,
   tableMappings,
   onTableMappingsChange,
 }) => {
+  // --- UI States ---
   const [searchTable, setSearchTable] = useState("");
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
-  const [targetColumn, setTargetColumn] = useState<Record<string, DBField[]>>({});
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 🔁 Inicializa os mapeamentos das tabelas
+  // --- 0) Índices memoizados (evita find() repetido e deps “profundas”) ---
+  const srcById = useMemo(() => {
+    const m = new Map<string, DBStructure>();
+    for (const t of sourceConnection?.structures ?? []) m.set(String(t.id), t);
+    return m;
+  }, [sourceConnection?.structures]);
+
+  const tgtById = useMemo(() => {
+    const m = new Map<string, DBStructure>();
+    for (const t of targetConnection?.structures ?? []) m.set(String(t.id), t);
+    return m;
+  }, [targetConnection?.structures]);
+
+  const getStructureById = useCallback(
+    (connSide: "src" | "tgt", id: string): DBStructure | undefined => {
+      return connSide === "src" ? srcById.get(String(id)) : tgtById.get(String(id));
+    },
+    [srcById, tgtById]
+  );
+
+  // --- 1) Hook de Sincronização (Fetch & Skeleton) ---
+  useFetchColumns({
+    selectedTables,
+    sourceConnection,
+    targetConnection,
+    setSourceConnection,
+    setTargetConnection,
+    tableMappings,
+    onTableMappingsChange,
+    setIsLoading,
+  });
+
+  // --- 2) Auto-Mapping (blindado: não apaga nem sobrescreve) ---
   useEffect(() => {
-    if (Object.keys(selectedTables).length === 0 || !sourceConnection?.structures) return;
+    if (isLoading) return;
+    if (!Object.keys(selectedTables ?? {}).length) return;
 
-    const newMappings: Record<string, TableMapping> = {};
-    const newTargetColumns: Record<string, DBField[]> = {};
+    // Se ainda não temos estruturas, não tenta
+    if (!sourceConnection?.structures?.length) return;
 
-    Object.entries(selectedTables).forEach(([tableIdSource, tableIdTarget]) => {
-      const sourceTable = sourceConnection.structures?.find(
-        (t) => String(t.id) === tableIdSource
-      );
-      const targetTable = targetConnection?.structures?.find(
-        (t) => String(t.id) === tableIdTarget
-      );
+    let changed = false;
+    const next: Record<string, TableMapping> = { ...tableMappings };
 
-      if (sourceTable && !tableMappings[tableIdSource]) {
-        newMappings[tableIdSource] = {
-          tabela_name_origem: sourceTable.table_name,
-          tabela_name_destino: targetTable?.table_name || sourceTable.table_name,
-          id_tabela_origen: sourceTable.id,
-          id_tabela_destino: targetTable?.id || 0,
-          colunas_relacionados_para_transacao:
-            sourceTable.fields?.map((sourceField) => {
-              const targetField = targetTable?.fields?.find(
-                (tf) => tf.name.toLowerCase() === sourceField.name.toLowerCase() || tf.name.toLowerCase().includes(sourceField.name.toLowerCase())
-              );
-              return {
-                coluna_origen_name: sourceField.name,
-                coluna_distino_name: targetField?.name || sourceField.name,
-                type_coluna_origem: sourceField.type,
-                type_coluna_destino: targetField?.type || sourceField.type,
-                id_coluna_origem: sourceField.id,
-                id_coluna_destino: targetField?.id || 0,
-                enabled: true,
-              };
-            }) || [],
+    for (const [sourceId, targetId] of Object.entries(selectedTables)) {
+      const current = next[sourceId];
+      if (!current) continue;
+
+      // ✅ Nunca sobrescreve se usuário já tem colunas (ou já foi auto-mapeado antes)
+      if ((current.colunas_relacionados_para_transacao?.length ?? 0) > 0) continue;
+
+      const srcStruct = getStructureById("src", sourceId);
+      const tgtStruct = targetId ? getStructureById("tgt", targetId) : undefined;
+
+      // ✅ só auto-map quando os fields de origem existirem mesmo
+      const srcFields = srcStruct?.fields ?? [];
+      if (!srcFields.length) continue;
+
+      // ✅ destino pode não existir (ou ainda não ter fields) — então mapeia com fallback
+      const tgtFields = tgtStruct?.fields ?? [];
+
+      // índice por nome do destino (mais rápido e consistente)
+      const tgtByName = new Map<string, (typeof tgtFields)[number]>();
+      for (const f of tgtFields) tgtByName.set(norm(f.name), f);
+
+      const cols: ColumnMapping[] = srcFields.map((sf) => {
+        const sfName = norm(sf.name);
+
+        // 1) match exato por nome
+        let tf = tgtByName.get(sfName);
+
+        // 2) fallback fuzzy simples (só se não achou)
+        if (!tf && tgtFields.length) {
+          tf = tgtFields.find((x) => {
+            const tn = norm(x.name);
+            if (!tn || !sfName) return false;
+            return tn === sfName || tn.includes(sfName) || sfName.includes(tn);
+          });
+        }
+
+        return {
+          coluna_origen_name: sf.name,
+          coluna_distino_name: tf?.name || sf.name,
+          type_coluna_origem: sf.type,
+          type_coluna_destino: tf?.type || "",
+          id_coluna_origem: sf.id,
+          id_coluna_destino: tf?.id || 0,
+          enabled: false,
         };
-      }
+      });
 
-      if (targetTable) {
-        newTargetColumns[tableIdSource] = targetTable.fields || [];
+      if (cols.length) {
+        next[sourceId] = {
+          ...current,
+          // ✅ apenas preenche uma vez (estava vazio)
+          colunas_relacionados_para_transacao: cols,
+        };
+        changed = true;
       }
-    });
-
-    if (Object.keys(newMappings).length > 0) {
-      onTableMappingsChange({ ...tableMappings, ...newMappings });
     }
 
-    setTargetColumn((prev) => ({ ...prev, ...newTargetColumns }));
-  }, [selectedTables, sourceConnection, targetConnection]);
+    if (changed) onTableMappingsChange(next);
+  }, [
+    isLoading,
+    selectedTables,
+    sourceConnection?.structures?.length,
+    tableMappings,
+    onTableMappingsChange,
+    getStructureById,
+  ]);
 
-  // 🧠 Atualiza colunas
+  // --- 3) UI Actions ---
   const toggleColumnMapping = useCallback(
     (tableId: string, columnIndex: number) => {
-      const updatedMappings = { ...tableMappings };
-      if (updatedMappings[tableId]) {
-        const cols = updatedMappings[tableId].colunas_relacionados_para_transacao;
-        cols[columnIndex].enabled = !cols[columnIndex].enabled;
-        updatedMappings[tableId] = { ...updatedMappings[tableId], colunas_relacionados_para_transacao: [...cols] };
-        onTableMappingsChange(updatedMappings);
-      }
+      const current = tableMappings[tableId];
+      if (!current) return;
+
+      const cols = [...(current.colunas_relacionados_para_transacao ?? [])];
+      if (!cols[columnIndex]) return;
+
+      cols[columnIndex] = { ...cols[columnIndex], enabled: !cols[columnIndex].enabled };
+
+      onTableMappingsChange({
+        ...tableMappings,
+        [tableId]: { ...current, colunas_relacionados_para_transacao: cols },
+      });
     },
     [tableMappings, onTableMappingsChange]
   );
 
   const updateColumnMapping = useCallback(
-    (tableId: string, columnIndex: number, updatesFieldId: string) => {
-      const updatedMappings = { ...tableMappings };
-      if (updatedMappings[tableId]) {
-        const cols = updatedMappings[tableId].colunas_relacionados_para_transacao;
-        const columnInfoDistino = targetColumn[tableId].find(c => String(c.id) === updatesFieldId);
-        const columnMapping: ColumnMapping = {
-          coluna_distino_name: columnInfoDistino?.name || "",
-          coluna_origen_name: cols[columnIndex].coluna_origen_name,
-          enabled: cols[columnIndex].enabled,
-          id_coluna_destino: columnInfoDistino?.id || 0,
-          id_coluna_origem: cols[columnIndex].id_coluna_origem,
-          type_coluna_destino: columnInfoDistino?.type || "",
-          type_coluna_origem: cols[columnIndex].type_coluna_origem,
-        };
-        cols[columnIndex] = columnMapping;
-        updatedMappings[tableId] = { ...updatedMappings[tableId], colunas_relacionados_para_transacao: [...cols] };
-        onTableMappingsChange(updatedMappings);
-      }
-    },
-    [tableMappings, onTableMappingsChange, targetColumn]
-  );
+    (tableId: string, columnIndex: number, targetFieldId: string) => {
+      const current = tableMappings[tableId];
+      if (!current) return;
 
-  // 🧩 Expansão
-  const toggleTableExpansion = useCallback(
-    (tableId: string) => {
-      setExpandedTables((prev) => {
-        const newSet = new Set(prev);
-        if (newSet.has(tableId)) newSet.delete(tableId);
-        else newSet.add(tableId);
-        return newSet;
+      const cols = [...(current.colunas_relacionados_para_transacao ?? [])];
+      const existing = cols[columnIndex];
+      if (!existing) return;
+
+      const targetTableId = selectedTables[tableId];
+      const targetStruct = targetTableId ? getStructureById("tgt", targetTableId) : undefined;
+      const targetField = targetStruct?.fields?.find((f) => String(f.id) === String(targetFieldId));
+
+      if (!targetField) return;
+
+      cols[columnIndex] = {
+        ...existing,
+        coluna_distino_name: targetField.name,
+        id_coluna_destino: targetField.id,
+        type_coluna_destino: targetField.type || "",
+      };
+
+      onTableMappingsChange({
+        ...tableMappings,
+        [tableId]: { ...current, colunas_relacionados_para_transacao: cols },
       });
     },
-    []
+    [tableMappings, onTableMappingsChange, selectedTables, getStructureById]
   );
+
+  const toggleTableExpansion = useCallback((tableId: string) => {
+  setExpandedTables((prev) => {
+    const next = new Set(prev);
+    
+    // Substituímos o ternário por if/else
+    if (next.has(tableId)) {
+      next.delete(tableId);
+    } else {
+      next.add(tableId);
+    }
+    
+    return next;
+  });
+}, []);
 
   const expandAllTables = useCallback(() => {
     setExpandedTables(new Set(Object.keys(tableMappings)));
@@ -133,27 +234,36 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
     setExpandedTables(new Set());
   }, []);
 
-  // 🔍 Filtro de pesquisa
-  const filteredTableMappings = Object.entries(tableMappings).filter(([, mapping]) => {
-    
-    if (!searchTable) return true;
-    return (
-      mapping.tabela_name_origem.toLowerCase().includes(searchTable.toLowerCase()) ||
-      mapping.tabela_name_destino.toLowerCase().includes(searchTable.toLowerCase())
-    );
-  });
+  // --- 4) Derived & Filters ---
+  const filteredTableMappings = useMemo(() => {
+    const term = searchTable.trim().toLowerCase();
+    const entries = Object.entries(tableMappings);
 
-  // 📊 Estatísticas com useMemo
-  const { totalColumns, enabledColumns } = useMemo(() => {
-    let total = 0, enabled = 0;
-    Object.values(tableMappings).forEach((mapping) => {
-      total += mapping.colunas_relacionados_para_transacao.length;
-      enabled += mapping.colunas_relacionados_para_transacao.filter((c) => c.enabled).length;
+    if (!term) return entries;
+
+    return entries.filter(([, mapping]) => {
+      return (
+        mapping.tabela_name_origem.toLowerCase().includes(term) ||
+        mapping.tabela_name_destino.toLowerCase().includes(term)
+      );
     });
+  }, [tableMappings, searchTable]);
+
+  const { totalColumns, enabledColumns } = useMemo(() => {
+    let total = 0;
+    let enabled = 0;
+
+    for (const mapping of Object.values(tableMappings)) {
+      const cols = mapping.colunas_relacionados_para_transacao ?? [];
+      total += cols.length;
+      enabled += cols.filter((c) => c.enabled).length;
+    }
+
     return { totalColumns: total, enabledColumns: enabled };
   }, [tableMappings]);
 
-  if (!sourceConnection || Object.keys(selectedTables).length === 0) {
+  // --- Render ---
+  if (Object.keys(selectedTables).length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
         <div className="bg-yellow-50 rounded-full p-4 mb-4">
@@ -167,10 +277,9 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
     );
   }
 
-  // 🧱 Renderização principal
   return (
     <div className="space-y-6">
-      {/* Header Card com estatísticas */}
+      {/* Header */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 sm:p-6 border border-blue-100 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -179,10 +288,12 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">Mapeamento de Colunas</h3>
-              <p className="text-sm text-gray-600">Configure as correspondências entre as tabelas</p>
+              <p className="text-sm text-gray-600">
+                {isLoading ? "Sincronizando metadados..." : "Ative e mapeie colunas por tabela"}
+              </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-3 shadow-sm">
             <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
             <div className="text-right">
@@ -193,7 +304,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
         </div>
       </div>
 
-      {/* Barra de controles */}
+      {/* Search + Actions */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -205,17 +316,20 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           />
         </div>
-        
+
         <div className="flex gap-2">
-          <button 
-            onClick={expandAllTables} 
+          <button
+            type="button"
+            onClick={expandAllTables}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
           >
             <ChevronDown className="w-4 h-4" />
             <span className="hidden sm:inline">Expandir tudo</span>
           </button>
-          <button 
-            onClick={collapseAllTables} 
+
+          <button
+            type="button"
+            onClick={collapseAllTables}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
           >
             <ChevronUp className="w-4 h-4" />
@@ -224,164 +338,29 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
         </div>
       </div>
 
-      {/* Lista de tabelas */}
+      {/* Cards */}
       <div className="space-y-4">
         {filteredTableMappings.map(([tableId, mapping]) => {
           const isExpanded = expandedTables.has(tableId);
-          const enabledCount = mapping.colunas_relacionados_para_transacao.filter(c => c.enabled).length;
-          const totalCount = mapping.colunas_relacionados_para_transacao.length;
-          
+
+          const targetTableId = selectedTables[tableId];
+          const targetStruct = targetTableId ? getStructureById("tgt", targetTableId) : undefined;
+          const targetCols = targetStruct?.fields ?? [];
+
           return (
-            <div 
-              key={tableId} 
-              className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden"
-            >
-              <button
-                onClick={() => toggleTableExpansion(tableId)}
-                className="w-full flex items-center justify-between px-4 sm:px-6 py-4 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <ArrowRight
-                    className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${
-                      isExpanded ? "rotate-90" : ""
-                    }`}
-                  />
-                  <Table className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-gray-800 text-left truncate">
-                      {mapping.tabela_name_origem}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
-                      <span className="truncate">{mapping.tabela_name_destino}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3 ml-4">
-                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-lg">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                    <span className="text-xs font-medium text-green-700">
-                      {enabledCount}/{totalCount}
-                    </span>
-                  </div>
-                </div>
-              </button>
-
-              {isExpanded && (
-                <div className="border-t border-gray-100">
-                  {/* Versão Desktop */}
-                  <div className="hidden lg:block overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-16">
-                            Ativo
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Coluna Origem
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Coluna Destino
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Tipo Origem
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Tipo Destino
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {(mapping.colunas_relacionados_para_transacao ?? []).map((column, columnIndex) => (
-                          <tr 
-                            key={`${tableId}-${column.id_coluna_origem}`}
-                            className={`hover:bg-gray-50 transition-colors ${!column.enabled ? 'opacity-50' : ''}`}
-                          >
-                            <td className="px-6 py-4">
-                              <input
-                                type="checkbox"
-                                checked={column.enabled}
-                                onChange={() => toggleColumnMapping(tableId, columnIndex)}
-                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                              />
-                            </td>
-                            <td className="px-6 py-4 font-medium text-gray-900">
-                              {column.coluna_origen_name}column
-                            </td>
-                            <td className="px-6 py-4">
-                              <JoinSelect
-                                options={(targetColumn[tableId] ?? []).map((t) => ({
-                                  label: `${t.name}${!t.is_nullable && "*"}`,
-                                  value: String(t.id),
-                                }))}
-                                value={String(column.id_coluna_destino)}
-                                onChange={(value) => updateColumnMapping(tableId, columnIndex, value)}
-                              />
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
-                                {column.type_coluna_origem}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="px-2.5 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-medium">
-                                {column.type_coluna_destino}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Versão Mobile/Tablet */}
-                  <div className="lg:hidden divide-y divide-gray-100">
-                    {(mapping.colunas_relacionados_para_transacao ?? []).map((column, columnIndex) => (
-                      <div 
-                        key={`${tableId}-${column.id_coluna_origem}`}
-                        className={`p-4 space-y-3 ${!column.enabled ? 'opacity-50 bg-gray-50' : ''}`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                            <input
-                              type="checkbox"
-                              checked={column.enabled}
-                              onChange={() => toggleColumnMapping(tableId, columnIndex)}
-                              className="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500 cursor-pointer flex-shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-gray-900 mb-1 break-words">
-                                {column.coluna_origen_name}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">
-                                  {column.type_coluna_origem}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2 pl-7 text-blue-800">
-                          <div className="text-xs text-gray-500 font-medium">COLUNA DESTINO</div>
-                          <JoinSelect
-                            options={(targetColumn[tableId] ?? []).map((t) => ({
-                              label: `${t.name}${!t.is_nullable && "*"}`,
-                              value: String(t.id),
-                            }))}
-                            value={String(column.id_coluna_destino)}
-                            onChange={(value) => updateColumnMapping(tableId, columnIndex, value)}
-                          />
-                          <span className="inline-block px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs font-medium">
-                            {column.type_coluna_destino}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <TableMappingCard
+              key={tableId}
+              tableId={tableId}
+              mapping={mapping}
+              isExpanded={isExpanded}
+              onToggleExpanded={toggleTableExpansion}
+              targetColumns={targetCols}
+              isLoading={isLoading}
+              error={undefined}
+              onToggleColumn={toggleColumnMapping}
+              onUpdateColumnMapping={updateColumnMapping}
+              JoinSelect={JoinSelect}
+            />
           );
         })}
       </div>
@@ -389,7 +368,11 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
       {filteredTableMappings.length === 0 && (
         <div className="text-center py-12">
           <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">Nenhuma tabela encontrada com o termo &ldquo;{searchTable}&rdquo;</p>
+          <p className="text-gray-500">
+            {Object.keys(tableMappings).length === 0
+              ? "Carregando tabelas..."
+              : `Nenhuma tabela encontrada com o termo "${searchTable}"`}
+          </p>
         </div>
       )}
     </div>

@@ -1,81 +1,78 @@
-// hooks/usePaginatedFetcher.ts
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useSession } from "@/context/SessionContext";
 import { PaginatedResponse } from "@/app/task/components/Paginacao";
 
-// Tipos genéricos
 export interface FetchOption {
-    value: string;
-    label: string;
+  value: string;
+  label: string;
 }
 
 export function usePaginatedFetcher<T>(mapToOptions?: (item: T) => FetchOption) {
-    const { api, user } = useSession();
-    const [loading, setLoading] = useState(false);
+  const { api, user } = useSession();
+  const [loading, setLoading] = useState(false);
 
-    const fetchPaginated = useCallback(
-        async (
-            page: number,
-            search: string = "",
-            filtro: Record<string, unknown> = {},
-            endpoint = "/geral/geral/paginate",
-            tipo = "DBConnection"
-        ) => {
-            // evita novas requisições enquanto carrega
-            if (loading) {
-                return { options: [], hasMore: false, total: 0 };
-            }
-            setLoading(true);
+  // trava de concorrência sem causar re-render e sem entrar no deps
+  const inFlightRef = useRef(false);
 
-            try {
-                // monta os filtros
-                const appliedFilter = Object.keys(filtro).length
-                    ? filtro
-                    : user
-                        ? { user_id: user.id }
-                        : {};
+  const fetchPaginated = useCallback(
+    async (
+      page: number,
+      search: string = "",
+      filtro: Record<string, unknown> = {},
+      endpoint = "/conn/paginate",
+    ) => {
+      if (inFlightRef.current) {
+        return { options: [], hasMore: false, total: 0 };
+      }
 
-                const params = new URLSearchParams({
-                    tipo,
-                    page: String(page),
-                    limit: "10",
-                    filtro: JSON.stringify(appliedFilter),
-                });
+      inFlightRef.current = true;
+      setLoading(true);
 
-                if (search?.trim()) {
-                    params.append("search", search.trim());
-                }
+      try {
+        const appliedFilter =
+          Object.keys(filtro).length ? filtro : user ? { user_id: user.id } : {};
 
-                const response = await api.get<PaginatedResponse<T>>(endpoint, {
-                    params
-                });
+        // deixa o axios serializar; evita URLSearchParams + double work
+        const params: Record<string, string | number> = {
+          page,
+          limit: 10,
+          filtro: JSON.stringify(appliedFilter),
+        };
 
-                const data = response.data;
+        const s = search?.trim();
+        if (s) params.search = s;
 
-                return {
-                    options: mapToOptions ? data.items.map(mapToOptions) : [],
-                    hasMore: data.items.length >= data.limit,
-                    total: data.total,
-                    data,
-                };
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } catch (err: any) {
-                if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
-                    console.log("⚠️ Requisição cancelada (AbortController)");
-                } else {
-                    console.error("Erro ao buscar dados:", err);
-                }
+        const response = await api.get<PaginatedResponse<T>>(endpoint, { params,timeout:10000 });
+        const data = response.data;
 
-                return { options: [], hasMore: false, total: 0 };
-            } finally {
-                setLoading(false);
-            }
-        },
-        [user, mapToOptions, loading]
-    );
+        return {
+          options: mapToOptions ? data.items.map(mapToOptions) : [],
+          hasMore: data.items.length >= data.limit,
+          total: data.total,
+          data,
+        };
+        //
+      } catch (err: { name?: string; code?: string; message?: string } | unknown ) {
+        if (
+          err &&
+          typeof err === "object" &&
+          (
+            ("name" in err && (err as { name?: string }).name === "CanceledError") ||
+            ("code" in err && (err as { code?: string }).code === "ERR_CANCELED")
+          )
+        ) {
+          console.log("⚠️ Requisição cancelada");
+        } else {
+          console.error("Erro ao buscar dados:", err);
+        }
+        return { options: [], hasMore: false, total: 0 };
+      } finally {
+        inFlightRef.current = false;
+        setLoading(false);
+      }
+    },
+    [api, user, mapToOptions] // 👈 loading saiu daqui
+  );
 
-    return {
-        fetchPaginated,
-        loading,
-    };
+  return { fetchPaginated, loading };
 }

@@ -62,7 +62,7 @@ const sidebarItems = [
   },
    {
     id: 'task',
-    label: 'gestor de projetos',
+    label: 'sidebar.gestorProjetos',
     icon: LucideProjector,
     badge: 'num_tasks',
     href: '/task',
@@ -72,7 +72,7 @@ const sidebarItems = [
 
   {
     id: 'Live_Text_Intelligence',
-    label: 'scanner texto',
+    label: 'scanner.texto',
     icon: ScanLine,
     badge: 'registros_analizados',
     href: '/home/ocr',

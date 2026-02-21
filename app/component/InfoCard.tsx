@@ -29,33 +29,39 @@ export const InfoCard: React.FC<InfoCardProps> = ({
     blue: "text-blue-600 bg-blue-50 border-blue-100",
     yellow: "text-yellow-600 bg-yellow-50 border-yellow-100",
     purple: "text-purple-600 bg-purple-50 border-purple-100",
-    gray: "text-gray-600 bg-gray-50 border-gray-100",
+    gray: "text-gray-600 bg-gray-50 border-gray-200",
     orange: "text-orange-600 bg-orange-50 border-orange-100",
     indigo: "text-indigo-600 bg-indigo-50 border-indigo-100",
   };
 
+  // Verifica se é um texto longo (como uma string de versão de banco de dados) para não quebrar o layout,
+  // substituindo a verificação hardcoded (label === "Versão") que atrapalharia a tradução.
+  const isLongText = typeof count === "string" && count.length > 10;
+
   return (
     <div
       className={clsx(
-        "flex items-center rounded-lg border bg-white shadow-sm hover:shadow-md transition-shadow",
-        compact ? "px-3 py-2 gap-2.5" : "px-4 py-3 gap-3"
+        "flex items-center rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow",
+        compact ? "px-3 py-2.5 gap-3" : "px-4 py-4 gap-4"
       )}
     >
       <div
         className={clsx(
           "flex items-center justify-center rounded-lg border shrink-0",
-          compact ? "p-1.5" : "p-2.5",
+          compact ? "w-9 h-9 p-1.5" : "w-12 h-12 p-2.5",
           colorClasses[color]
         )}
       >
         {icon}
       </div>
+      
       <div className="flex flex-col min-w-0 overflow-hidden">
         <span 
           className={clsx(
             "font-bold text-gray-900",
-            label === "Versão" ? "text-xs leading-tight break-words" : "tabular-nums",
-            compact ? "text-base leading-tight" : "text-lg"
+            isLongText ? "text-xs leading-tight break-words whitespace-normal line-clamp-2" : "tabular-nums truncate",
+            compact && !isLongText ? "text-base" : "",
+            !compact && !isLongText ? "text-xl" : ""
           )}
           title={String(countDisplay)}
         >
@@ -63,7 +69,7 @@ export const InfoCard: React.FC<InfoCardProps> = ({
         </span>
         <span className={clsx(
           "text-gray-500 truncate font-medium",
-          compact ? "text-xs leading-tight" : "text-sm"
+          compact ? "text-xs mt-0.5" : "text-sm mt-1"
         )}>
           {label}
         </span>

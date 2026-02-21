@@ -6,61 +6,69 @@ import api from "./axioCuston";
 import { BancoSuportado, Permission } from "@/constant";
 
 export interface DbInfoExtra {
-  id_connection: number;
-  name_db: string;
-  data: string;
-  type: BancoSuportado;
-  num_table: number;
-  num_consultas: number;
-  ultima_execucao_ms?: number;
-  ultima_consulta_em?: string;
-  registros_analizados?: number;
+    id_connection: number;
+    name_db: string;
+    data: string;
+    type: BancoSuportado;
+    num_table: number;
+    num_consultas: number;
+    ultima_execucao_ms?: number;
+    ultima_consulta_em?: string;
+    registros_analizados?: number;
 }
 
 
 export interface Empresa {
-  id: number;
-  company: string;
-  companySize?: string;
-  nif?: string;
-  endereco?: string;
+    id: number;
+    company: string;
+    companySize?: string;
+    nif?: string;
+    endereco?: string;
 }
 
 export interface Cargo {
-  id: number;
-  position: string;
-  descricao?: string;
-  nivel?: "júnior" | "pleno" | "sênior" | string;
+    id: number;
+    position: string;
+    descricao?: string;
+    nivel?: "júnior" | "pleno" | "sênior" | string;
 }
 
 
 export interface Role {
-  name: string; // ex: admin, manager, developer
+    name: string; // ex: admin, manager, developer
 }
 
 export interface Usuario {
-  id: string;
-  nome: string;
-  apelido?: string;
-  email: string;
-  telefone?: string;
+    id: string;
+    nome: string;
+    apelido?: string;
+    email: string;
+    telefone?: string;
+    status?: "ativo" | "inativo" | "suspenso";
+    createdAt?: string;
+    lastLogin?: string;
+    projects_participating?: string[];
+    created_projects?: string[];
+    assigned_tasks?: string[];
+    delegated_tasks?: string[];
+    created_tasks?: string[];
+   
+    empresa?: Empresa;
+    cargo?: Cargo;
 
-  empresa?: Empresa;
-  cargo?: Cargo;
+    roles?: Role[];
+    permissions: Permission[] | string[];
 
-  role?: Role;
-  permissions: Permission[] | string[];
+    avatar_url?: string;
+    datatimeSession?: string;
 
-  avatar_url?: string;
-  datatimeSession?: string;
+    // JWT
+    exp?: number;
+    iat?: number;
+    sub?: string;
 
-  // JWT
-  exp?: number;
-  iat?: number;
-  sub?: string;
-
-  // Conexão ativa
-  info_extra?: DbInfoExtra | null;
+    // Conexão ativa
+    info_extra?: DbInfoExtra | null;
 }
 
 
@@ -93,7 +101,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const isAuthenticated = useMemo(() => !!user, [user]);
- 
+
 
     // const route = useRouter();
 

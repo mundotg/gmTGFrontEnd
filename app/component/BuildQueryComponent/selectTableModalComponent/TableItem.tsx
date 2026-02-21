@@ -1,6 +1,7 @@
 "use client";
 import React, { ChangeEvent, KeyboardEvent, useCallback, memo } from "react";
-import { Info, X, Tag } from "lucide-react";
+import { Info, X, Tag, Check } from "lucide-react";
+import { useI18n } from "@/context/I18nContext";
 
 export type TableItemProps = {
   table: string;
@@ -37,6 +38,7 @@ export const TableItem: React.FC<TableItemProps> = memo(({
   onRemoveAlias,
   getAliasError,
 }) => {
+  const { t } = useI18n();
   const isSelected = selected.includes(table);
   const alias = tableAliases[table] || "";
   const aliasError = getAliasError(alias);
@@ -82,13 +84,13 @@ export const TableItem: React.FC<TableItemProps> = memo(({
   return (
     <div
       className={`
-        flex items-center justify-between p-3 border rounded-lg transition-all
-        hover:shadow-sm group
+        flex items-center justify-between p-3 border rounded-xl transition-all
+        group focus:outline-none focus:ring-2 focus:ring-blue-500/50
         ${isSelected 
-          ? "border-blue-300 bg-blue-50 hover:bg-blue-100" 
-          : "border-gray-200 bg-white hover:bg-gray-50"
+          ? "border-blue-500 bg-blue-50/30 shadow-sm" 
+          : "border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50"
         }
-        ${isEditing ? "ring-2 ring-green-500 ring-opacity-50" : ""}
+        ${isEditing ? "ring-2 ring-blue-500/30" : ""}
       `}
       data-table={table}
       data-selected={isSelected}
@@ -97,19 +99,28 @@ export const TableItem: React.FC<TableItemProps> = memo(({
     >
       {/* Checkbox e nome da tabela */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={handleToggle}
-          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 transition-colors cursor-pointer"
-          aria-label={`${isSelected ? 'Desmarcar' : 'Selecionar'} tabela ${table}`}
-          id={`checkbox-${table}`}
-        />
+        
+        {/* Checkbox Customizado */}
+        <div
+          className="relative flex items-center justify-center cursor-pointer"
+          onClick={handleToggle}
+        >
+           <div
+            className={`w-5 h-5 rounded flex items-center justify-center transition-all border ${
+              isSelected
+                ? "bg-blue-600 border-blue-600 text-white"
+                : "bg-white border-gray-300 text-transparent group-hover:border-blue-400"
+            }`}
+          >
+            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+          </div>
+        </div>
         
         <label 
           htmlFor={`checkbox-${table}`}
-          className="text-sm font-medium text-gray-800 flex-1 truncate cursor-pointer select-none"
+          className={`text-sm flex-1 truncate cursor-pointer select-none ${isSelected ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}
           title={table}
+          onClick={handleToggle}
         >
           {table}
         </label>
@@ -117,7 +128,7 @@ export const TableItem: React.FC<TableItemProps> = memo(({
         {/* Badge do alias quando não está editando */}
         {alias && !isEditing && (
           <span 
-            className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-mono border border-green-200 flex-shrink-0"
+            className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold rounded-md font-mono tracking-wide flex-shrink-0"
             title={`Alias: ${alias}`}
           >
             as {alias}
@@ -138,14 +149,14 @@ export const TableItem: React.FC<TableItemProps> = memo(({
                   onChange={handleAliasChange}
                   onBlur={handleBlur}
                   onKeyDown={handleKeyDown}
-                  placeholder="Digite o alias..."
+                  placeholder={t("modalTable.typeAlias") || "Digite o alias..."}
                   autoFocus
                   className={`
-                    w-24 px-2 py-1 text-xs border rounded focus:ring-2 focus:ring-green-500 
-                    focus:border-transparent transition-colors font-mono
+                    w-28 px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2
+                    transition-colors font-mono font-medium shadow-sm
                     ${aliasError 
-                      ? "border-red-300 bg-red-50 text-red-900 placeholder-red-300" 
-                      : "border-gray-300 bg-white text-gray-900"
+                      ? "border-red-300 bg-red-50 text-red-900 placeholder-red-300 focus:ring-red-500/50" 
+                      : "border-blue-300 bg-white text-gray-900 focus:ring-blue-500/50"
                     }
                   `}
                   aria-invalid={!!aliasError}
@@ -153,13 +164,13 @@ export const TableItem: React.FC<TableItemProps> = memo(({
                 />
                 {aliasError && (
                   <div 
-                    className="absolute -top-1 -right-1 transform translate-x-1/2 -translate-y-1/2 group/error relative"
+                    className="absolute -top-1.5 -right-1.5 transform translate-x-1/2 -translate-y-1/2 group/error"
                     role="alert"
                   >
-                    <Info className="w-3 h-3 text-red-500" />
+                    <Info className="w-4 h-4 text-red-500 bg-white rounded-full" />
                     <div 
                       id={`error-${table}`}
-                      className="absolute bottom-full right-0 mb-1 px-2 py-1 bg-red-800 text-white text-xs rounded opacity-0 pointer-events-none group-hover/error:opacity-100 transition-opacity whitespace-nowrap z-10 max-w-xs"
+                      className="absolute bottom-full right-0 mb-1.5 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 pointer-events-none group-hover/error:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg"
                     >
                       {aliasError}
                     </div>
@@ -172,44 +183,44 @@ export const TableItem: React.FC<TableItemProps> = memo(({
                 <button
                   onClick={onFinishEditing}
                   disabled={!!aliasError}
-                  className="p-1 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Confirmar alias"
-                  aria-label="Confirmar alias"
+                  className="p-1.5 text-green-600 bg-white border border-transparent hover:border-green-200 hover:bg-green-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-500/50 shadow-sm"
+                  title={t("actions.confirmAlias") || "Confirmar alias"}
+                  aria-label={t("actions.confirmAlias") || "Confirmar alias"}
                 >
-                  <Tag className="w-3 h-3" />
+                  <Check className="w-3.5 h-3.5" strokeWidth={3} />
                 </button>
                 <button
                   onClick={onCancelEditing}
-                  className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded transition-colors"
-                  title="Cancelar edição"
-                  aria-label="Cancelar edição"
+                  className="p-1.5 text-gray-500 bg-white border border-transparent hover:border-gray-200 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 shadow-sm"
+                  title={t("actions.cancelEditing") || "Cancelar edição"}
+                  aria-label={t("actions.cancelEditing") || "Cancelar edição"}
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" strokeWidth={3} />
                 </button>
               </div>
             </div>
           ) : (
             // Modo visualização
-            <>
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {alias && (
                 <button
                   onClick={handleRemoveAlias}
-                  className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-                  title={`Remover alias "${alias}"`}
-                  aria-label={`Remover alias ${alias} da tabela ${table}`}
+                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                  title={`${t("actions.removeAlias") || "Remover alias"} "${alias}"`}
+                  aria-label={t("actions.removeAlias") || "Remover alias"}
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-4 h-4" />
                 </button>
               )}
               <button
                 onClick={handleStartEditing}
-                className="p-1 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
-                title={alias ? `Editar alias "${alias}"` : "Adicionar alias"}
-                aria-label={alias ? `Editar alias ${alias}` : `Adicionar alias para tabela ${table}`}
+                className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                title={alias ? (`${t("actions.editAlias") || "Editar alias"} "${alias}"`) : (t("actions.addAlias") || "Adicionar alias")}
+                aria-label={t("actions.addAlias") || "Adicionar alias"}
               >
                 <Tag className="w-4 h-4" />
               </button>
-            </>
+            </div>
           )}
         </div>
       )}

@@ -177,7 +177,7 @@ export function SidebarFooter({ collapsed, user, onLogout }: SidebarFooterProps)
     if (!user) return null;
 
     return {
-      tipoUsuario: user.tipoUsuario || "Usuário",
+      tipoUsuario: user.cargo || "Usuário",
       tempoSessao: user.datatimeSession ? new Date(user.datatimeSession).toLocaleString('pt-BR') : null,
       dbInfo: user.info_extra ? {
         name: user.info_extra.name_db,

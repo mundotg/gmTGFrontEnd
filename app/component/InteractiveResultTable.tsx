@@ -8,6 +8,7 @@ import { ConfirmDeleteModalType } from "./ResultadosQueryComponent/types";
 import api from "@/context/axioCuston";
 import { useDeleteOperations } from "@/hook/useDeleteOperations";
 import { createLogger } from "@/util/logger";
+import { useI18n } from "@/context/I18nContext";
 
 const logger = createLogger({ component: "InteractiveResultTable" });
 
@@ -25,6 +26,8 @@ function ResultTable({
   columnsInfo = [],
   setSelectedRow,
 }: ResultTableProps) {
+  const { t } = useI18n();
+
   const [confirmDelete, setConfirmDelete] = useState<ConfirmDeleteModalType>({
     isOpen: false,
     type: "single",
@@ -294,7 +297,7 @@ function ResultTable({
     });
 
     setSelectedItems(newSelection);
-  }, [ selectedItems.size,queryResults.preview]);
+  }, [selectedItems.size, queryResults.preview]);
 
   const clearSelection = useCallback(() => {
     logger.debug("Limpando seleção", {
@@ -356,13 +359,12 @@ function ResultTable({
   });
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-200 animate-fade-in">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 animate-in fade-in zoom-in-95 duration-200">
       <ResultsHeader
         queryResults={queryResults}
         isSelectionMode={isSelectionMode}
         isDeleting={isDeleting}
         deleteProgress={deleteProgress}
-        // selectedItems={selectedItems}
         selectedCount={selectedCount}
         isAllSelected={isAllSelected}
         isSomeSelected={isSomeSelected}
@@ -380,15 +382,17 @@ function ResultTable({
       />
 
       {isSelectionMode && selectedCount > 0 && (
-        <div className="sm:hidden mt-3 flex items-center justify-between bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
-          <span className="text-sm text-blue-700 font-medium">
-            {selectedCount} registro{selectedCount > 1 ? "s" : ""} selecionado{selectedCount > 1 ? "s" : ""}
+        <div className="sm:hidden mt-2 mx-3 flex items-center justify-between bg-blue-50/50 px-4 py-2.5 rounded-lg border border-blue-100">
+          <span className="text-sm font-bold text-blue-700">
+            {selectedCount} {selectedCount > 1 ? (t("common.recordsSelected") || "registros selecionados") : (t("common.recordSelected") || "registro selecionado")}
           </span>
           <button
             onClick={selectAll}
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+            className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors focus:outline-none"
           >
-            {selectedCount === queryResults.preview.length ? "Desmarcar" : "Selecionar"} Todos
+            {selectedCount === queryResults.preview.length 
+              ? (t("actions.deselectAll") || "Desmarcar Todos") 
+              : (t("actions.selectAll") || "Selecionar Todos")}
           </button>
         </div>
       )}

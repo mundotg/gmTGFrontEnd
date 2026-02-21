@@ -5,13 +5,16 @@ import React from "react";
 import clsx from "clsx";
 import { CampoDetalhado } from "@/types";
 
-
 interface RenderItemProps {
   column: CampoDetalhado & { tableName: string };
   index: number;
   isSelected: boolean;
-  currentTheme: "light" | "dark";
-  themeClasses: { card: string; cardSelected: string };
+  
+  // Propriedades mantidas para compatibilidade de assinatura, mas ignoradas no visual
+  currentTheme?: "light" | "dark";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  themeClasses?: any; 
+  
   onColumnClick?: (col: CampoDetalhado & { tableName: string }) => void;
   handleColumnClick: (col: CampoDetalhado & { tableName: string }) => void;
   handleColumnSelect: (col: CampoDetalhado & { tableName: string }, e: React.MouseEvent) => void;
@@ -22,8 +25,7 @@ export function RenderItem({
   column,
   index,
   isSelected,
-  currentTheme,
-  themeClasses,
+  currentTheme = "light", // Fallback seguro
   onColumnClick,
   handleColumnClick,
   handleColumnSelect,
@@ -34,9 +36,11 @@ export function RenderItem({
       key={`${column.nome}-${index}-pa`}
       onClick={() => handleColumnClick(column)}
       className={clsx(
-        "relative p-3 rounded-lg border transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400",
-        isSelected ? themeClasses.cardSelected : themeClasses.card,
-        onColumnClick && "hover:shadow-md hover:scale-[1.02]"
+        "relative p-4 rounded-xl border transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/50 overflow-hidden",
+        isSelected 
+          ? "bg-blue-50/30 border-blue-500 shadow-sm" 
+          : "bg-white border-gray-200 hover:border-blue-300 hover:bg-gray-50",
+        onColumnClick && "hover:shadow-md hover:-translate-y-0.5"
       )}
       role="button"
       tabIndex={0}
@@ -44,119 +48,106 @@ export function RenderItem({
       aria-label={`Coluna ${column.nome}`}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
           onColumnClick?.(column);
         }
       }}
     >
-      {/* Checkbox de seleção */}
+      {/* Checkbox de seleção customizado (Padrão Oficial) */}
       <div
-        className="absolute top-2 right-2 z-10"
+        className="absolute top-3 right-3 z-10 p-1"
         onClick={(e) => handleColumnSelect(column, e)}
       >
         <div
           className={clsx(
-            "w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer",
+            "w-5 h-5 rounded flex items-center justify-center transition-all cursor-pointer border",
             isSelected
-              ? currentTheme === "dark"
-                ? "bg-blue-600 border-blue-600"
-                : "bg-blue-500 border-blue-500"
-              : currentTheme === "dark"
-              ? "border-gray-500 hover:border-blue-500 bg-gray-800"
-              : "border-gray-300 hover:border-blue-400 bg-white"
+              ? "bg-blue-600 border-blue-600 text-white"
+              : "bg-white border-gray-300 text-transparent hover:border-blue-400"
           )}
         >
-          {isSelected && <Check className="w-3 h-3 text-white" />}
+          <Check className="w-3.5 h-3.5" strokeWidth={3} />
         </div>
       </div>
 
-      {/* Indicador visual de seleção */}
+      {/* Indicador visual de seleção (Topo colorido) */}
       {isSelected && (
-        <div
-          className={clsx(
-            "absolute top-0 left-0 w-full h-1 rounded-t-lg",
-            currentTheme === "dark" ? "bg-blue-500" : "bg-blue-400"
-          )}
-        />
+        <div className="absolute top-0 left-0 w-full h-1 bg-blue-600 rounded-t-xl" />
       )}
 
       <div className="flex items-start gap-3 pr-8">
-        {getColumnIcon(column, currentTheme)}
+        {/* Container do ícone */}
+        <div className="mt-0.5 p-2 bg-gray-50 rounded-lg border border-gray-100 text-gray-500 shrink-0">
+          {getColumnIcon(column, currentTheme)}
+        </div>
 
         <div className="flex-1 min-w-0">
-          {/* Nome da coluna */}
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium truncate" title={column.nome}>
+          
+          {/* Nome da coluna e Chave Primária */}
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="font-bold text-gray-900 truncate" title={column.nome}>
               {column.nome}
             </span>
             {column.is_primary_key && (
-              <Key
-                className="w-3 h-3 text-yellow-500 flex-shrink-0"
-                aria-label="Chave primária"
-              />
+              <div className="bg-amber-50 p-1 rounded border border-amber-200 flex-shrink-0" title="Chave Primária">
+                <Key className="w-3 h-3 text-amber-600" aria-label="Chave primária" />
+              </div>
             )}
           </div>
 
           {/* Tipo + Nullability */}
-          <div className="flex flex-wrap items-center gap-2 text-xs mb-1">
+          <div className="flex flex-wrap items-center gap-2 text-xs mb-2">
             <span
-              className={clsx(
-                "font-mono px-1.5 py-0.5 rounded truncate max-w-[120px] sm:max-w-[80px]",
-                currentTheme === "dark" ? "bg-gray-700" : "bg-gray-200"
-              )}
+              className="font-mono bg-gray-100 text-gray-700 border border-gray-200 px-1.5 py-0.5 rounded truncate max-w-[120px] sm:max-w-[80px]"
               title={column.tipo.toUpperCase()}
             >
               {column.tipo.toUpperCase()}
             </span>
 
             {column.is_nullable ? (
-              <span className="text-green-500 flex items-center gap-1 sm:text-[10px]">
-                <CheckCircle className="w-3 h-3 sm:w-2 sm:h-2" /> NULL
+              <span className="text-gray-500 flex items-center gap-1 font-medium bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                <CheckCircle className="w-3 h-3 text-gray-400" /> NULL
               </span>
             ) : (
-              <span className="text-red-500 flex items-center gap-1 sm:text-[10px]">
-                <XCircle className="w-3 h-3 sm:w-2 sm:h-2" /> NOT NULL
+              <span className="text-gray-700 flex items-center gap-1 font-medium bg-red-50 border border-red-100 px-1.5 py-0.5 rounded">
+                <XCircle className="w-3 h-3 text-red-500" /> NOT NULL
               </span>
             )}
           </div>
 
           {/* Valor padrão */}
           {column.default != null && (
-            <div className="text-xs opacity-75 mb-1 break-words">
-              <span className="mr-1">Padrão:</span>
-              <code
-                className={clsx(
-                  "px-1 py-0.5 rounded font-mono text-xs break-all",
-                  currentTheme === "dark" ? "bg-gray-700" : "bg-gray-200"
-                )}
-              >
+            <div className="text-xs text-gray-500 mb-2 break-words bg-gray-50 p-1.5 rounded-md border border-gray-100">
+              <span className="mr-1 font-semibold">Padrão:</span>
+              <code className="font-mono text-gray-700 break-all bg-white px-1 rounded border border-gray-200">
                 {String(column.default)}
               </code>
             </div>
           )}
 
           {/* ENUM valores */}
-          {column.enum_valores_encontrados &&
-            column.enum_valores_encontrados.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {column.enum_valores_encontrados.map((valor, idx) => (
-                  <span
-                    key={`${valor}-${idx}-enum`}
-                    className="text-xs sm:text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded font-mono truncate max-w-[100px]"
-                    title={valor}
-                  >
-                    {valor}
-                  </span>
-                ))}
-              </div>
-            )}
+          {column.enum_valores_encontrados && column.enum_valores_encontrados.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {column.enum_valores_encontrados.map((valor, idx) => (
+                <span
+                  key={`${valor}-${idx}-enum`}
+                  className="text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded truncate max-w-[100px]"
+                  title={valor}
+                >
+                  {valor}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Foreign Key */}
           {column.is_foreign_key && (
-            <span className="text-xs text-green-500 flex items-center gap-1 mt-1">
-              <Lock className="w-3 h-3" />
+            <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-md flex items-center gap-1.5 mt-2 w-fit">
+              <Lock className="w-3 h-3 text-indigo-500" />
               {column.referenced_table} - {column.field_references}
             </span>
           )}
+          
         </div>
       </div>
     </div>

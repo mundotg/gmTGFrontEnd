@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -16,6 +16,7 @@ import {
 import TableColumnsDisplay from "@/app/component/table-columns-display";
 import { MetadataTableResponse, TableInfo } from "@/types";
 import { DBStructure } from "@/types/db-structure";
+import { useI18n } from "@/context/I18nContext";
 
 interface PropsTableCard {
   table: TableInfo;
@@ -52,20 +53,19 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
   onRequestDelete,
   onRequestDeleteSelectedColumns,
 }) => {
-
-  const [selectList, setSelectList] = useState<string[]>([]);
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    setSelectList(Array.from(seletColunaForTable?.[table.name] ?? []));
-  }, [table.name]);
+  // 1. Derivar o valor diretamente do estado global do pai (sem useEffects!)
+  const selectListAsArray = Array.from(seletColunaForTable?.[table.name] ?? []);
 
-  useEffect(() => {
+  // 2. Criar uma função callback limpa para lidar com mudanças vindas do TableColumnsDisplay
+  const handleColumnsSelectionChange = useCallback((newSelectionAsArray: string[]) => {
     setSeleColunaForTable(prev => ({
       ...(prev ?? {}),
-      [table.name]: new Set(selectList),
+      [table.name]: new Set(newSelectionAsArray),
     }));
-  }, [selectList, setSeleColunaForTable, table.name]);
+  }, [setSeleColunaForTable, table.name]);
 
   const copyTableName = useCallback(() => {
     navigator.clipboard.writeText(table.name);
@@ -77,95 +77,86 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
     const cols = Array.from(seletColunaForTable?.[table.name] ?? []);
     if (cols.length === 0) return;
 
-    if (!confirm(`Remover ${cols.length} coluna(s) da tabela "${table.name}"?`)) return;
+    const confirmMessage = t('actions.confirmDeleteCols') 
+      ? t('actions.confirmDeleteCols').replace('{{count}}', cols.length.toString()).replace('{{table}}', table.name)
+      : `Remover ${cols.length} coluna(s) da tabela "${table.name}"?`;
+
+    if (!confirm(confirmMessage)) return;
 
     onRequestDeleteSelectedColumns?.(table.name, cols);
-  }, [seletColunaForTable, table.name, onRequestDeleteSelectedColumns]);
+  }, [seletColunaForTable, table.name, onRequestDeleteSelectedColumns, t]);
 
   const selectedColsCount = seletColunaForTable?.[table.name]?.size ?? 0;
 
+  const cardBgClass = selected 
+    ? (isDarkMode ? "bg-blue-900/20 border-blue-500/50" : "bg-blue-50 border-blue-300")
+    : (isDarkMode ? "bg-[#1C1C1E] border-gray-800" : "bg-white border-gray-200");
+
   return (
     <div 
-      className={`rounded-2xl border-2 transition-all duration-300 ${
-        selected 
-          ? isDarkMode 
-            ? "border-blue-500/50 bg-blue-950/20 shadow-lg shadow-blue-500/20" 
-            : "border-blue-400/50 bg-blue-50/50 shadow-lg shadow-blue-400/20"
-          : isDarkMode 
-            ? "border-slate-700/50 bg-slate-800/50 hover:border-slate-600/50" 
-            : "border-slate-200/60 bg-white/80 hover:border-slate-300/60"
-      } backdrop-blur-xl hover:shadow-2xl ${
-        isExpanded ? "shadow-xl" : ""
-      }`}
+      className={`rounded-xl border shadow-sm transition-all duration-200 ${cardBgClass} ${isExpanded ? "shadow-md" : "hover:shadow-md"}`}
     >
-      {/* Header do Card */}
-      <div className="p-6">
-        <div className="flex justify-between items-start gap-4">
+      <div className="p-5 sm:p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           
-          {/* Lado Esquerdo - Info da Tabela */}
-          <div className="flex items-start gap-3 flex-1 min-w-0">
-            {/* Checkbox de Seleção */}
+          <div className="flex items-start gap-3 w-full sm:w-auto flex-1 min-w-0">
             <button
               onClick={() => onToggleSelect?.(table.name)}
-              className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${
+              className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 border ${
                 selected 
-                  ? "bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/30 scale-110" 
+                  ? "bg-blue-600 text-white border-blue-600" 
                   : isDarkMode
-                    ? "bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-300"
-                    : "bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+                    ? "bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-gray-300"
+                    : "bg-gray-50 border-gray-300 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
               }`}
             >
-              {selected ? <CheckCircle2 size={18} /> : <Square size={18} />}
+              {selected ? <CheckCircle2 size={16} /> : <Square size={16} />}
             </button>
 
-            {/* Botão Expandir/Colapsar */}
             <button 
               onClick={() => toggleTable(table.name)}
-              className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${
+              className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors border ${
                 isDarkMode
-                  ? "bg-slate-700/50 hover:bg-slate-700 text-slate-300"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                  ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
+                  : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
             >
               {isLoadingCols ? (
-                <Loader2 className="animate-spin text-blue-500" size={18} />
+                <Loader2 className="animate-spin text-blue-600" size={16} />
               ) : isExpanded ? (
-                <ChevronDown size={18} />
+                <ChevronDown size={16} />
               ) : (
-                <ChevronRight size={18} />
+                <ChevronRight size={16} />
               )}
             </button>
 
-            {/* Ícone e Info da Tabela */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="flex-shrink-0 p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg shadow-lg shadow-blue-500/30">
-                  <Database className="text-white" size={20} />
+              <div className="flex items-center gap-3 mb-1">
+                <div className={`flex-shrink-0 p-2 rounded-lg ${selected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>
+                  <Database size={18} />
                 </div>
                 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-lg truncate">{table.name}</h3>
-                    <button
-                      onClick={copyTableName}
-                      className={`flex-shrink-0 p-1.5 rounded-lg transition-all ${
-                        copied
-                          ? "bg-green-500 text-white"
-                          : isDarkMode
-                            ? "hover:bg-slate-700 text-slate-400"
-                            : "hover:bg-slate-100 text-slate-500"
-                      }`}
-                      title="Copiar nome"
-                    >
-                      {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-                    </button>
-                  </div>
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                  <h3 className={`font-bold text-lg truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {table.name}
+                  </h3>
+                  <button
+                    onClick={copyTableName}
+                    className={`flex-shrink-0 p-1 rounded-md transition-colors ${
+                      copied
+                        ? "text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400"
+                        : "text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+                    }`}
+                    title={t("actions.copyName") || "Copiar nome"}
+                  >
+                    {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
+                  </button>
                   
                   {tableStructure?.schema_name && (
-                    <span className={`inline-block px-2 py-0.5 rounded-md text-xs font-medium ${
+                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${
                       isDarkMode 
-                        ? "bg-slate-700/50 text-slate-300" 
-                        : "bg-slate-100 text-slate-600"
+                        ? "bg-gray-800 border-gray-700 text-gray-300" 
+                        : "bg-gray-100 border-gray-200 text-gray-600"
                     }`}>
                       {tableStructure.schema_name}
                     </span>
@@ -174,85 +165,75 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
               </div>
 
               {tableStructure?.description && (
-                <p className={`text-sm mt-1 ${
-                  isDarkMode ? "text-slate-400" : "text-slate-600"
-                }`}>
+                <p className={`text-sm mt-1 ml-11 line-clamp-2 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
                   {tableStructure.description}
                 </p>
               )}
 
-              {/* Estatísticas */}
-              <div className="flex items-center gap-4 mt-3">
+              <div className="flex items-center gap-4 mt-3 ml-11">
                 {table.rowcount !== undefined && (
                   <div className="flex items-center gap-1.5">
-                    <BarChart3 size={14} className="text-blue-500" />
-                    <span className={`text-xs font-semibold ${
-                      isDarkMode ? "text-slate-300" : "text-slate-700"
-                    }`}>
-                      {table.rowcount.toLocaleString()} linhas
+                    <BarChart3 size={14} className="text-blue-600" />
+                    <span className={`text-xs font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+                      {table.rowcount.toLocaleString()} {t('common.rows') || "linhas"}
                     </span>
                   </div>
                 )}
                 {colunasShow?.colunas && (
-                  <div className={`text-xs font-semibold ${
-                    isDarkMode ? "text-slate-400" : "text-slate-600"
-                  }`}>
-                    {colunasShow.colunas.length} colunas
+                  <div className={`text-xs font-medium ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    {colunasShow.colunas.length} {t('common.columns') || "colunas"}
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Lado Direito - Botões de Ação */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto w-full sm:w-auto justify-end mt-4 sm:mt-0">
             {selectedColsCount > 0 && (
-              <div className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+              <div className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border ${
                 isDarkMode
-                  ? "bg-blue-900/30 text-blue-400 border border-blue-500/30"
-                  : "bg-blue-100 text-blue-700 border border-blue-300"
+                  ? "bg-blue-900/30 text-blue-400 border-blue-800"
+                  : "bg-blue-50 text-blue-700 border-blue-200"
               }`}>
-                {selectedColsCount} {selectedColsCount === 1 ? "coluna" : "colunas"}
+                {selectedColsCount} {selectedColsCount === 1 ? (t('common.column') || "coluna") : (t('common.columns') || "colunas")}
               </div>
             )}
 
             <button
               disabled={selectedColsCount === 0}
               onClick={handleDeleteSelectedCols}
-              className={`p-2.5 rounded-xl transition-all duration-300 ${
+              className={`p-2 rounded-lg border transition-colors ${
                 selectedColsCount === 0
-                  ? "opacity-40 cursor-not-allowed"
-                  : "hover:scale-110"
-              } ${
-                isDarkMode
-                  ? "bg-rose-900/30 text-rose-400 hover:bg-rose-900/50 border border-rose-500/30"
-                  : "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-300"
+                  ? "opacity-50 cursor-not-allowed border-gray-200 text-gray-400 dark:border-gray-700 dark:text-gray-600"
+                  : isDarkMode
+                    ? "bg-red-900/20 text-red-400 hover:bg-red-900/40 border-red-900/50"
+                    : "bg-red-50 text-red-600 hover:bg-red-100 border-red-200"
               }`}
-              title="Eliminar colunas selecionadas"
+              title={t("actions.deleteSelectedCols") || "Eliminar colunas selecionadas"}
             >
               <Trash2 size={16} />
             </button>
 
             <button
               onClick={() => onRequestEdit?.(table.name)}
-              className={`p-2.5 rounded-xl transition-all duration-300 hover:scale-110 ${
+              className={`p-2 rounded-lg border transition-colors ${
                 isDarkMode
-                  ? "bg-amber-900/30 text-amber-400 hover:bg-amber-900/50 border border-amber-500/30"
-                  : "bg-amber-100 text-amber-600 hover:bg-amber-200 border border-amber-300"
+                  ? "bg-amber-900/20 text-amber-400 hover:bg-amber-900/40 border-amber-900/50"
+                  : "bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200"
               }`}
-              title="Editar tabela"
+              title={t("actions.editTable") || "Editar tabela"}
             >
               <Edit2 size={16} />
             </button>
 
             <button
               onClick={() => onRequestDelete?.(table.name)}
-              className={`p-2.5 rounded-xl transition-all duration-300 hover:scale-110 ${
+              className={`p-2 rounded-lg border transition-colors ${
                 isDarkMode
-                  ? "bg-red-900/30 text-red-400 hover:bg-red-900/50 border border-red-500/30"
-                  : "bg-red-100 text-red-600 hover:bg-red-200 border border-red-300"
+                  ? "bg-red-900/20 text-red-400 hover:bg-red-900/40 border-red-900/50"
+                  : "bg-red-50 text-red-600 hover:bg-red-100 border-red-200"
               }`}
-              title="Eliminar tabela"
+              title={t("actions.deleteTable") || "Eliminar tabela"}
             >
               <Trash2 size={16} />
             </button>
@@ -260,13 +241,10 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
         </div>
       </div>
 
-      {/* Corpo Expandido - Colunas */}
       {isExpanded && (
-        <div className={`border-t-2 ${
-          isDarkMode ? "border-slate-700/50" : "border-slate-200/60"
-        }`}>
+        <div className={`border-t ${isDarkMode ? "border-gray-800" : "border-gray-200"} bg-gray-50/50 dark:bg-black/20 rounded-b-xl`}>
           {colunasShow?.colunas ? (
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <TableColumnsDisplay
                 tableNames={table.name}
                 columns={[colunasShow]}
@@ -277,21 +255,23 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
                 tabelaExistenteNaDB={[table.name]}
                 showExport
                 itemsPerPage={12}
-                select={selectList}
-                setSelect={setSelectList}
+                select={selectListAsArray} // <-- Passando o Array
+                setSelect={handleColumnsSelectionChange} // <-- Passando a função sem loops
               />
             </div>
           ) : (
-            <div className={`px-6 py-12 text-center ${
-              isDarkMode ? "text-slate-400" : "text-slate-500"
-            }`}>
-              <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
-                isDarkMode ? "bg-slate-700/30" : "bg-slate-100"
+            <div className={`px-6 py-10 text-center ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+              <div className={`w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                isDarkMode ? "bg-gray-800" : "bg-gray-100"
               }`}>
-                <AlertCircle size={32} className="opacity-50" />
+                <AlertCircle size={24} className={isDarkMode ? "text-gray-500" : "text-gray-400"} />
               </div>
-              <p className="font-semibold">Nenhuma coluna encontrada</p>
-              <p className="text-sm mt-1 opacity-70">Esta tabela não possui colunas visíveis</p>
+              <p className={`font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
+                {t('messages.noColumnsFound') || "Nenhuma coluna encontrada"}
+              </p>
+              <p className="text-sm mt-1">
+                {t('messages.noVisibleColumns') || "Esta tabela não possui colunas visíveis"}
+              </p>
             </div>
           )}
         </div>

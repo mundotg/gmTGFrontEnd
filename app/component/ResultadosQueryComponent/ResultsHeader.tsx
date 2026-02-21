@@ -1,6 +1,6 @@
 "use client";
 
-import React, { RefObject, useCallback, useEffect, useRef, useMemo } from "react";
+import React, { RefObject, useCallback, useEffect, useMemo } from "react";
 import { 
   Trash2, 
   X, 
@@ -8,14 +8,16 @@ import {
   AlertTriangle, 
   Loader2, 
   File,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CheckSquare,
+  Square
 } from "lucide-react";
 import { QueryResultType } from "@/types";
 import { ConfirmDeleteModalType } from "./types";
 import { FormatoRelatorio, useRelatorioAvancado } from "@/app/services/useRelatorio";
 import { RelatorioPayload } from "@/hook/useRelatorio";
-import { BUTTON_STYLES, MOBILE_MENU_STYLES } from "@/constant";
 import { FORMATS, ReportButton } from "@/app/services/ReportButton";
+import { useI18n } from "@/context/I18nContext";
 
 // ============================================================
 // 🔹 TIPOS E INTERFACES
@@ -47,33 +49,45 @@ interface PreviewInfo {
   size: string;
 }
 
-
-
 interface FormatoOption {
   value: FormatoRelatorio;
-  label: string;
+  labelKey: string;
   icon: React.ReactNode;
-  description: string;
+  descriptionKey: string;
 }
 
 // ============================================================
-// 🔹 CONSTANTES
+// 🔹 CONSTANTES (Atualizadas para o Padrão Oficial)
 // ============================================================
 
 const FORMATOS_DISPONIVEIS: FormatoOption[] = [
   {
     value: "pdf",
-    label: "PDF",
+    labelKey: "reports.formatPdf",
     icon: <File className="w-4 h-4" />,
-    description: "Relatório em PDF"
+    descriptionKey: "reports.descPdf"
   },
   {
     value: "excel",
-    label: "Excel",
+    labelKey: "reports.formatExcel",
     icon: <FileSpreadsheet className="w-4 h-4" />,
-    description: "Planilha Excel"
+    descriptionKey: "reports.descExcel"
   }
 ];
+
+const NEW_BUTTON_STYLES = {
+  base: "inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-colors focus:outline-none focus:ring-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed",
+  secondary: "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 focus:ring-blue-500/50",
+  primary: "bg-blue-600 text-white border border-transparent hover:bg-blue-700 focus:ring-blue-500/50",
+  danger: "bg-white border border-gray-300 text-red-600 hover:bg-red-50 hover:border-red-300 focus:ring-red-500/50",
+  activeSelection: "bg-blue-50 border border-blue-300 text-blue-700 focus:ring-blue-500/50",
+};
+
+const NEW_MOBILE_MENU_STYLES = {
+  button: "w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b border-gray-50 last:border-0 font-medium text-sm text-gray-700",
+  danger: "text-red-600 hover:bg-red-50 hover:text-red-700",
+  disabled: "disabled:opacity-50 disabled:cursor-not-allowed"
+};
 
 // ============================================================
 // 🔹 COMPONENTE PRINCIPAL
@@ -97,25 +111,16 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
   setConfirmDelete,
   setShowMobileMenu,
 }) => {
-  // ============================================================
-  // 🔸 HOOKS E ESTADO
-  // ============================================================
+  const { t } = useI18n();
 
-  const exportDropdownRef = useRef<HTMLDivElement>(null);
-  const reportDropdownRef = useRef<HTMLDivElement>(null);
-  // const [showExportOptions, setShowExportOptions] = useState(false);
-  // const [showReportDropdown, setShowReportDropdown] = useState(false);
+  // const exportDropdownRef = useRef<HTMLDivElement>(null);
+  // const reportDropdownRef = useRef<HTMLDivElement>(null);
 
   const {
     gerarRelatorio,
-    // cancelarGeracao,
     isLoading: isLoadingRelatorio,
-    // error: errorRelatorio,
-    // success: successRelatorio,
     progress: exportProgress,
     tempoEstimado,
-    // dadosRelatorio,
-    // reset: resetRelatorio,
   } = useRelatorioAvancado<QueryResultType>();
 
   // ============================================================
@@ -125,12 +130,12 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
   const previewInfo = useMemo<PreviewInfo | null>(() => {
     if (!queryResults.preview?.length || !columns?.length) return null;
 
-    const columnsText = `${columns.length} coluna${columns.length !== 1 ? "s" : ""}`;
+    const columnsText = `${columns.length} ${columns.length !== 1 ? (t("common.columns") || "colunas") : (t("common.column") || "coluna")}`;
     const sizeInKB = (JSON.stringify(queryResults.preview).length / 1024).toFixed(1);
     const sizeText = `${sizeInKB} KB`;
 
     return { columns: columnsText, size: sizeText };
-  }, [queryResults.preview, columns]);
+  }, [queryResults.preview, columns, t]);
 
   const hasResults = queryResults?.preview?.length > 0;
 
@@ -144,7 +149,6 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
       return;
     }
 
-    // Clone para evitar mutação
     const resultsCopy = { ...queryResults };
     resultsCopy.totalResults = queryResults.preview?.length || 0;
 
@@ -162,7 +166,6 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
     };
 
     await gerarRelatorio(payload);
-    // setShowReportDropdown(false);
   }, [queryResults, columns, gerarRelatorio]);
 
   const handleDeleteAll = useCallback(() => {
@@ -185,15 +188,6 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(target)) {
-        // setShowExportOptions(false);
-      }
-
-      if (reportDropdownRef.current && !reportDropdownRef.current.contains(target)) {
-        // setShowReportDropdown(false);
-      }
-
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
         setShowMobileMenu(false);
       }
@@ -211,39 +205,37 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
     <button
       onClick={isMobile ? undefined : toggleSelectionMode}
       className={`
-        ${isMobile ? MOBILE_MENU_STYLES.button : BUTTON_STYLES.base}
-        ${isSelectionMode && !isMobile ? BUTTON_STYLES.selection : ""}
-        ${!isSelectionMode && !isMobile ? `${BUTTON_STYLES.primary} border` : ""}
+        ${isMobile ? NEW_MOBILE_MENU_STYLES.button : NEW_BUTTON_STYLES.base}
+        ${isSelectionMode && !isMobile ? NEW_BUTTON_STYLES.activeSelection : ""}
+        ${!isSelectionMode && !isMobile ? NEW_BUTTON_STYLES.secondary : ""}
       `}
       disabled={isDeleting}
-      aria-label={isSelectionMode ? "Desativar modo de seleção" : "Ativar modo de seleção"}
+      aria-label={isSelectionMode ? (t("actions.disableSelection") || "Desativar modo de seleção") : (t("actions.enableSelection") || "Ativar modo de seleção")}
     >
-      <input
-        type="checkbox"
-        checked={isSelectionMode}
-        onChange={() => {}}
-        className="w-4 h-4 text-purple-600 rounded border-gray-300 pointer-events-none"
-        aria-hidden="true"
-      />
-      {isMobile ? "Modo Seleção" : "Seleção"}
+      {isSelectionMode ? (
+        <CheckSquare className={`w-4 h-4 ${isMobile ? "text-blue-600" : ""}`} />
+      ) : (
+        <Square className={`w-4 h-4 ${isMobile ? "text-gray-400" : "text-gray-400"}`} />
+      )}
+      {isMobile ? (t("actions.selectionMode") || "Modo Seleção") : (t("actions.selection") || "Seleção")}
     </button>
   );
 
   const SelectionCounter = ({ inline = false }: { inline?: boolean }) => {
     if (!isSelectionMode || selectedCount === 0) return null;
 
-    const text = `${selectedCount} selecionado${selectedCount !== 1 ? "s" : ""}`;
+    const text = `${selectedCount} ${selectedCount !== 1 ? (t("common.selectedPlural") || "selecionados") : (t("common.selectedSingle") || "selecionado")}`;
 
     if (inline) {
       return (
-        <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-medium">
+        <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider">
           {text}
         </span>
       );
     }
 
     return (
-      <span className="text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded-lg">
+      <span className="text-sm font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg shadow-sm">
         {text}
       </span>
     );
@@ -258,32 +250,32 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
 
         <button
           onClick={selectAll}
-          className={`${BUTTON_STYLES.base} ${BUTTON_STYLES.primary}`}
+          className={`${NEW_BUTTON_STYLES.base} ${NEW_BUTTON_STYLES.secondary}`}
           disabled={isDeleting}
-          aria-label={isAllSelected ? "Desmarcar todos" : "Selecionar todos"}
+          aria-label={isAllSelected ? (t("actions.deselectAll") || "Desmarcar todos") : (t("actions.selectAll") || "Selecionar todos")}
         >
-          {isAllSelected ? "Desmarcar" : "Selecionar"} Todos
+          {isAllSelected ? (t("actions.deselect") || "Desmarcar") : (t("actions.select") || "Selecionar")} {t("common.all") || "Todos"}
         </button>
 
         {selectedCount > 0 && (
           <>
             <button
               onClick={clearSelection}
-              className={`${BUTTON_STYLES.base} ${BUTTON_STYLES.primary}`}
+              className={`${NEW_BUTTON_STYLES.base} ${NEW_BUTTON_STYLES.secondary}`}
               disabled={isDeleting}
-              aria-label="Limpar seleção"
+              aria-label={t("actions.clearSelection") || "Limpar seleção"}
             >
-              Limpar
+              {t("actions.clear") || "Limpar"}
             </button>
 
             <button
               onClick={handleDeleteSelection}
               disabled={isDeleting}
-              className={`${BUTTON_STYLES.base} ${BUTTON_STYLES.danger} ${BUTTON_STYLES.disabled}`}
-              aria-label={`Eliminar ${selectedCount} item${selectedCount !== 1 ? "s" : ""} selecionado${selectedCount !== 1 ? "s" : ""}`}
+              className={`${NEW_BUTTON_STYLES.base} ${NEW_BUTTON_STYLES.danger}`}
+              aria-label={`${t("actions.delete")} ${selectedCount} ${selectedCount !== 1 ? (t("common.items") || "itens") : (t("common.item") || "item")}`}
             >
               <Trash2 className="w-4 h-4" aria-hidden="true" />
-              Eliminar ({selectedCount})
+              {t("actions.delete")} ({selectedCount})
             </button>
           </>
         )}
@@ -293,36 +285,40 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
 
 
   const DesktopActions = () => (
-    <div className="hidden sm:flex items-center gap-3">
+    <div className="hidden sm:flex items-center gap-2">
       <SelectionToggle />
       <SelectionActions />
 
-      <button
-        onClick={handleDeleteAll}
-        disabled={isDeleting || !hasResults}
-        className={`${BUTTON_STYLES.base} ${BUTTON_STYLES.danger} ${BUTTON_STYLES.disabled}`}
-        aria-label="Eliminar todos os resultados"
-      >
-        <Trash2 className="w-4 h-4" aria-hidden="true" />
-        Eliminar Todos
-      </button>
+      {!isSelectionMode && (
+        <>
+          <button
+            onClick={handleDeleteAll}
+            disabled={isDeleting || !hasResults}
+            className={`${NEW_BUTTON_STYLES.base} ${NEW_BUTTON_STYLES.danger}`}
+            aria-label={t("actions.deleteAll") || "Eliminar todos os resultados"}
+          >
+            <Trash2 className="w-4 h-4" aria-hidden="true" />
+            {t("actions.deleteAll") || "Eliminar Todos"}
+          </button>
 
-       <ReportButton
-        onGenerate={handleGerarRelatorio}
-        formats={FORMATS}
-        hasResults={true}
-        isLoading={false}
-      />
+          <ReportButton
+            onGenerate={handleGerarRelatorio}
+            formats={FORMATS}
+            hasResults={true}
+            isLoading={false}
+          />
 
-      <button
-        onClick={handleClose}
-        disabled={isDeleting}
-        className={`${BUTTON_STYLES.base} ${BUTTON_STYLES.close} ${BUTTON_STYLES.disabled}`}
-        aria-label="Fechar resultados"
-      >
-        <X className="w-4 h-4" aria-hidden="true" />
-        Fechar
-      </button>
+          <button
+            onClick={handleClose}
+            disabled={isDeleting}
+            className={`${NEW_BUTTON_STYLES.base} ${NEW_BUTTON_STYLES.secondary}`}
+            aria-label={t("actions.closeResults") || "Fechar resultados"}
+          >
+            <X className="w-4 h-4" aria-hidden="true" />
+            {t("actions.close") || "Fechar"}
+          </button>
+        </>
+      )}
     </div>
   );
 
@@ -330,9 +326,8 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
     if (!isSelectionMode || selectedCount === 0) return null;
 
     return (
-      <div className="px-4 py-2 text-xs text-gray-500 border-t border-b border-gray-100">
-        {selectedCount} item{selectedCount !== 1 ? "s" : ""} selecionado
-        {selectedCount !== 1 ? "s" : ""}
+      <div className="px-4 py-2.5 text-xs font-bold text-blue-700 bg-blue-50 border-b border-gray-100">
+        {selectedCount} {selectedCount !== 1 ? (t("common.itemsSelected") || "itens selecionados") : (t("common.itemSelected") || "item selecionado")}
       </div>
     );
   };
@@ -342,8 +337,8 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
 
     return (
       <>
-        <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase border-t border-b border-gray-100">
-          Gerar Relatório
+        <div className="px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-t border-b border-gray-100 bg-gray-50">
+          {t("reports.generateReport") || "Gerar Relatório"}
         </div>
         {FORMATOS_DISPONIVEIS.map((formato) => (
           <button
@@ -353,15 +348,15 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
               setShowMobileMenu(false);
             }}
             disabled={isLoadingRelatorio}
-            className={`${MOBILE_MENU_STYLES.button} ${MOBILE_MENU_STYLES.disabled}`}
+            className={`${NEW_MOBILE_MENU_STYLES.button} ${NEW_MOBILE_MENU_STYLES.disabled}`}
             role="menuitem"
           >
-            <div className="text-green-600">
+            <div className="text-blue-600 bg-blue-50 p-1.5 rounded-md">
               {formato.icon}
             </div>
-            <div className="flex-1 text-left">
-              <div className="font-medium">{formato.label}</div>
-              <div className="text-xs text-gray-500">{formato.description}</div>
+            <div className="flex-1 text-left min-w-0">
+              <div className="font-bold text-gray-900 truncate">{t(formato.labelKey) || formato.labelKey}</div>
+              <div className="text-xs text-gray-500 font-medium truncate">{t(formato.descriptionKey) || formato.descriptionKey}</div>
             </div>
           </button>
         ))}
@@ -373,8 +368,8 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
     <div className="sm:hidden" ref={mobileMenuRef}>
       <button
         onClick={() => setShowMobileMenu(!showMobileMenu)}
-        className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-lg transition-all"
-        aria-label="Abrir menu de opções"
+        className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 p-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm"
+        aria-label={t("actions.openOptions") || "Abrir menu de opções"}
         aria-expanded={showMobileMenu}
       >
         <MoreVertical className="w-5 h-5" aria-hidden="true" />
@@ -382,7 +377,7 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
 
       {showMobileMenu && (
         <div
-          className="absolute right-4 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-20 max-h-[80vh] overflow-y-auto"
+          className="absolute right-4 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-xl z-20 max-h-[80vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
           role="menu"
         >
           <div className="py-2">
@@ -392,18 +387,16 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
                 toggleSelectionMode();
                 setShowMobileMenu(false);
               }}
-              className={`${MOBILE_MENU_STYLES.button} ${MOBILE_MENU_STYLES.disabled}`}
+              className={`${NEW_MOBILE_MENU_STYLES.button} ${NEW_MOBILE_MENU_STYLES.disabled}`}
               disabled={isDeleting}
               role="menuitem"
             >
-              <input
-                type="checkbox"
-                checked={isSelectionMode}
-                onChange={() => {}}
-                className="w-4 h-4 text-purple-600 rounded border-gray-300 pointer-events-none"
-                aria-hidden="true"
-              />
-              Modo Seleção
+              {isSelectionMode ? (
+                <CheckSquare className="w-4 h-4 text-blue-600" />
+              ) : (
+                <Square className="w-4 h-4 text-gray-400" />
+              )}
+              {t("actions.selectionMode") || "Modo Seleção"}
             </button>
 
             {/* Ações de Seleção */}
@@ -416,11 +409,12 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
                     selectAll();
                     setShowMobileMenu(false);
                   }}
-                  className={`${MOBILE_MENU_STYLES.button} ${MOBILE_MENU_STYLES.disabled}`}
+                  className={`${NEW_MOBILE_MENU_STYLES.button} ${NEW_MOBILE_MENU_STYLES.disabled}`}
                   disabled={isDeleting}
                   role="menuitem"
                 >
-                  {isAllSelected ? "🗑️ Desmarcar" : "✓ Selecionar"} Todos
+                  <CheckSquare className="w-4 h-4 text-gray-500" />
+                  {isAllSelected ? (t("actions.deselectAll") || "Desmarcar Todos") : (t("actions.selectAll") || "Selecionar Todos")}
                 </button>
 
                 {selectedCount > 0 && (
@@ -430,11 +424,12 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
                         clearSelection();
                         setShowMobileMenu(false);
                       }}
-                      className={`${MOBILE_MENU_STYLES.button} ${MOBILE_MENU_STYLES.disabled}`}
+                      className={`${NEW_MOBILE_MENU_STYLES.button} ${NEW_MOBILE_MENU_STYLES.disabled}`}
                       disabled={isDeleting}
                       role="menuitem"
                     >
-                      🗑️ Limpar Seleção
+                      <X className="w-4 h-4 text-gray-500" />
+                      {t("actions.clearSelection") || "Limpar Seleção"}
                     </button>
 
                     <button
@@ -443,47 +438,54 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
                         setShowMobileMenu(false);
                       }}
                       disabled={isDeleting}
-                      className={`${MOBILE_MENU_STYLES.button} ${MOBILE_MENU_STYLES.danger} ${MOBILE_MENU_STYLES.disabled}`}
+                      className={`${NEW_MOBILE_MENU_STYLES.button} ${NEW_MOBILE_MENU_STYLES.danger} ${NEW_MOBILE_MENU_STYLES.disabled}`}
                       role="menuitem"
                     >
                       <Trash2 className="w-4 h-4" aria-hidden="true" />
-                      Eliminar ({selectedCount})
+                      {t("actions.delete")} ({selectedCount})
                     </button>
                   </>
                 )}
               </>
             )}
 
-            {/* Eliminar Todos */}
-            <button
-              onClick={() => {
-                handleDeleteAll();
-                setShowMobileMenu(false);
-              }}
-              disabled={isDeleting || !hasResults}
-              className={`${MOBILE_MENU_STYLES.button} ${MOBILE_MENU_STYLES.danger} ${MOBILE_MENU_STYLES.disabled} ${MOBILE_MENU_STYLES.divider}`}
-              role="menuitem"
-            >
-              <Trash2 className="w-4 h-4" aria-hidden="true" />
-              Eliminar Todos
-            </button>
+            {/* Ações Gerais (Apenas se não estiver no modo seleção) */}
+            {!isSelectionMode && (
+              <>
+                <div className="px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-t border-b border-gray-100 bg-gray-50">
+                  {t("actions.generalActions") || "Ações Gerais"}
+                </div>
+                <button
+                  onClick={() => {
+                    handleDeleteAll();
+                    setShowMobileMenu(false);
+                  }}
+                  disabled={isDeleting || !hasResults}
+                  className={`${NEW_MOBILE_MENU_STYLES.button} ${NEW_MOBILE_MENU_STYLES.danger} ${NEW_MOBILE_MENU_STYLES.disabled}`}
+                  role="menuitem"
+                >
+                  <Trash2 className="w-4 h-4" aria-hidden="true" />
+                  {t("actions.deleteAll") || "Eliminar Todos"}
+                </button>
 
-            {/* Opções de Relatório */}
-            <MobileReportOptions />
+                <MobileReportOptions />
 
-            {/* Fechar */}
-            <button
-              onClick={() => {
-                handleClose();
-                setShowMobileMenu(false);
-              }}
-              disabled={isDeleting}
-              className={`${MOBILE_MENU_STYLES.button} ${MOBILE_MENU_STYLES.disabled} ${MOBILE_MENU_STYLES.divider}`}
-              role="menuitem"
-            >
-              <X className="w-4 h-4" aria-hidden="true" />
-              Fechar
-            </button>
+                <div className="border-t border-gray-100 my-1"></div>
+
+                <button
+                  onClick={() => {
+                    handleClose();
+                    setShowMobileMenu(false);
+                  }}
+                  disabled={isDeleting}
+                  className={`${NEW_MOBILE_MENU_STYLES.button} ${NEW_MOBILE_MENU_STYLES.disabled}`}
+                  role="menuitem"
+                >
+                  <X className="w-4 h-4" aria-hidden="true" />
+                  {t("actions.close") || "Fechar"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -494,23 +496,26 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
     if (!isLoadingRelatorio && !isDeleting) return null;
 
     const progress = isLoadingRelatorio ? exportProgress : deleteProgress;
-    const label = isLoadingRelatorio ? "Gerando relatório..." : "Eliminando registros...";
+    const label = isLoadingRelatorio ? (t("reports.generatingReport") || "Gerando relatório...") : (t("actions.deletingRecords") || "Eliminando registros...");
     const colorClass = isLoadingRelatorio ? "bg-green-500" : "bg-red-500";
+    const bgClass = isLoadingRelatorio ? "bg-green-50" : "bg-red-50";
+    const textClass = isLoadingRelatorio ? "text-green-700" : "text-red-700";
+    const iconColorClass = isLoadingRelatorio ? "text-green-600" : "text-red-500";
 
     return (
-      <div className="px-4 sm:px-6 py-3 bg-gray-50 border-b border-gray-200">
-        <div className="flex justify-between text-sm text-gray-700 mb-2">
+      <div className={`px-4 sm:px-5 py-3 border-t border-gray-200 ${bgClass}`}>
+        <div className={`flex justify-between text-sm font-bold mb-2 ${textClass}`}>
           <span className="flex items-center gap-2">
-            {isDeleting && <AlertTriangle className="w-4 h-4 text-red-500" aria-hidden="true" />}
-            {isLoadingRelatorio && <Loader2 className="w-4 h-4 animate-spin text-green-600" aria-hidden="true" />}
+            {isDeleting && <AlertTriangle className={`w-4 h-4 ${iconColorClass}`} aria-hidden="true" />}
+            {isLoadingRelatorio && <Loader2 className={`w-4 h-4 animate-spin ${iconColorClass}`} aria-hidden="true" />}
             {label}
           </span>
-          <span className="font-medium" aria-label={`Progresso: ${progress} por cento`}>
+          <span aria-label={`Progresso: ${progress} por cento`}>
             {progress}%
           </span>
         </div>
         <div 
-          className="w-full bg-gray-200 rounded-full h-2 overflow-hidden" 
+          className="w-full bg-white/50 rounded-full h-2 overflow-hidden border border-gray-200/50" 
           role="progressbar" 
           aria-valuenow={progress} 
           aria-valuemin={0} 
@@ -522,8 +527,8 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
           />
         </div>
         {isLoadingRelatorio && tempoEstimado && (
-          <div className="text-xs text-gray-500 mt-1 text-right">
-            Tempo estimado: {tempoEstimado}s
+          <div className={`text-xs font-medium mt-1.5 text-right opacity-80 ${textClass}`}>
+            {t("reports.estimatedTime") || "Tempo estimado:"} {tempoEstimado}s
           </div>
         )}
       </div>
@@ -535,28 +540,28 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
   // ============================================================
 
   return (
-    <div className="p-4 sm:p-6 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
-      <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+    <div className="bg-white rounded-t-xl border-b border-gray-200">
+      <div className="p-4 sm:p-5 flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
-            Resultados da Consulta
+          <h3 className="text-lg font-bold text-gray-900 truncate">
+            {t("results.title") || "Resultados da Consulta"}
           </h3>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 mt-1 text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 mt-1 text-sm text-gray-500 font-medium">
             <span className="flex items-center gap-1">
-              <span className="font-medium text-blue-600">
+              <span className="font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">
                 {queryResults.preview?.length.toLocaleString("pt-BR") || 0}
               </span>
-              de
-              <span className="font-medium">
+              {t("common.of") || "de"}
+              <span className="font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded-md border border-gray-200">
                 {queryResults.totalResults?.toLocaleString("pt-BR") || "..."}
               </span>
-              registros
+              {t("common.records") || "registros"}
             </span>
 
             {previewInfo && (
-              <span className="hidden sm:inline text-gray-500">
-                {previewInfo.columns} • {previewInfo.size}
+              <span className="hidden sm:inline-flex items-center text-gray-400 before:content-['•'] before:mr-3 before:opacity-50">
+                {previewInfo.columns} <span className="opacity-50 mx-1.5">•</span> {previewInfo.size}
               </span>
             )}
 
@@ -569,8 +574,9 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
       </div>
 
       {previewInfo && (
-        <div className="sm:hidden mt-2 text-sm text-gray-500">
-          {previewInfo.columns} • {previewInfo.size}
+        <div className="sm:hidden px-4 pb-3 text-xs font-medium text-gray-500 flex items-center gap-2">
+          <span className="bg-gray-100 px-2 py-1 rounded-md">{previewInfo.columns}</span>
+          <span className="bg-gray-100 px-2 py-1 rounded-md">{previewInfo.size}</span>
           <SelectionCounter inline />
         </div>
       )}

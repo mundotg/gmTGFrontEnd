@@ -1,6 +1,8 @@
+"use client";
 import { Check, Database, Search } from "lucide-react";
-import { TableItem } from "./TableItem";
 import { JSX, memo } from "react";
+import { useI18n } from "@/context/I18nContext";
+import { TableItem } from "./TableItem";
 
 type RenderTabContentParams = {
   activeTab: "all" | "selected";
@@ -19,43 +21,58 @@ type RenderTabContentParams = {
   setActiveTab: (tab: "all" | "selected") => void;
 };
 
-// Componentes de estado vazio memoizados para performance
-const EmptyStateAll = memo(({  }: { setActiveTab: (tab: "all" | "selected") => void }) => (
-  <div className="text-center py-8 text-gray-500">
-    <Database className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-    <p>Nenhuma tabela encontrada {}</p>
-  </div>
-));
+// Componentes de estado vazio memoizados e padronizados
+const EmptyStateAll = memo(() => {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm mb-3">
+        <Database className="w-6 h-6 text-gray-400" />
+      </div>
+      <p className="text-gray-600 font-medium">{t("modalTable.emptyAll") || "Nenhuma tabela encontrada"}</p>
+    </div>
+  );
+});
+EmptyStateAll.displayName = "EmptyStateAll";
 
-EmptyStateAll.displayName = 'EmptyStateAll';
+const EmptyStateSelected = memo(({ setActiveTab }: { setActiveTab: (tab: "all" | "selected") => void }) => {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm mb-3">
+        <Check className="w-6 h-6 text-gray-400" />
+      </div>
+      <p className="text-gray-900 font-bold mb-1">{t("modalTable.emptySelectedTitle") || "Nenhuma tabela selecionada"}</p>
+      <p className="text-sm text-gray-500 mb-4">{t("modalTable.emptySelectedDesc") || "Você ainda não selecionou nenhuma tabela para a consulta."}</p>
+      <button
+        onClick={() => setActiveTab("all")}
+        className="text-sm font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors border border-blue-200"
+      >
+        {t("modalTable.goToAllTables") || "Ir para Todas as Tabelas"}
+      </button>
+    </div>
+  );
+});
+EmptyStateSelected.displayName = "EmptyStateSelected";
 
-const EmptyStateSelected = memo(({ setActiveTab }: { setActiveTab: (tab: "all" | "selected") => void }) => (
-  <div className="text-center py-8 text-gray-500">
-    <Check className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-    <p>Nenhuma tabela selecionada</p>
-    <button
-      onClick={() => setActiveTab("all")}
-      className="mt-2 text-blue-600 hover:text-blue-700 text-sm transition-colors"
-    >
-      Ir para aba &quot;Todas as Tabelas&quot;
-    </button>
-  </div>
-));
-
-EmptyStateSelected.displayName = 'EmptyStateSelected';
-
-const EmptyStateSearch = memo(() => (
-  <div className="text-center py-8 text-gray-500">
-    <Search className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-    <p>Nenhuma tabela selecionada encontrada na pesquisa</p>
-  </div>
-));
-
-EmptyStateSearch.displayName = 'EmptyStateSearch';
+const EmptyStateSearch = memo(() => {
+  const { t } = useI18n();
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm mb-3">
+        <Search className="w-6 h-6 text-gray-400" />
+      </div>
+      <p className="text-gray-600 font-medium text-center">
+        {t("modalTable.emptySearch") || "Nenhuma tabela selecionada encontrada na pesquisa"}
+      </p>
+    </div>
+  );
+});
+EmptyStateSearch.displayName = "EmptyStateSearch";
 
 // Componente TableList memoizado para evitar re-renders desnecessários
-const TableList = memo(({ 
-  tables, 
+const TableList = memo(({
+  tables,
   isSelectedTab,
   localSelection,
   tableAliases,
@@ -66,7 +83,7 @@ const TableList = memo(({
   finishEditingAlias,
   setEditingAlias,
   removeAlias,
-  getAliasError 
+  getAliasError,
 }: {
   tables: string[];
   isSelectedTab: boolean;
@@ -101,8 +118,7 @@ const TableList = memo(({
     ))}
   </div>
 ));
-
-TableList.displayName = 'TableList';
+TableList.displayName = "TableList";
 
 // Componente principal memoizado
 export const RenderTabContent = memo(({
@@ -121,11 +137,11 @@ export const RenderTabContent = memo(({
   getAliasError,
   setActiveTab,
 }: RenderTabContentParams): JSX.Element => {
-  
+
   // Renderização para aba "Todas as Tabelas"
   if (activeTab === "all") {
     if (filteredTables.length === 0) {
-      return <EmptyStateAll setActiveTab={setActiveTab} />;
+      return <EmptyStateAll />;
     }
 
     return (
@@ -173,7 +189,7 @@ export const RenderTabContent = memo(({
   );
 });
 
-RenderTabContent.displayName = 'RenderTabContent';
+RenderTabContent.displayName = "RenderTabContent";
 
 // Alias para manter compatibilidade com código existente
 export const renderTabContent = RenderTabContent;
