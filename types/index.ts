@@ -8,6 +8,29 @@ export type DatabaseOption = {
   port: string;
 };
 
+export type FieldDDLRequestPayload = {
+  connection_id?: number;         // backend pode ignorar, mas é útil
+  table_name: string;
+  schema_name?: string | null;
+  name: string;
+  type: string;
+  is_nullable?: boolean;
+  is_unique?: boolean;
+  is_primary_key?: boolean;
+  is_auto_increment?: boolean;
+  default_value?: string | null;
+  comment?: string | null;
+  length?: number | null;
+  precision?: number | null;
+  scale?: number | null;
+  is_foreign_key?: boolean;
+  referenced_table?: string | null;
+  referenced_field?: string | null;
+  fk_on_delete?: string | null;
+  fk_on_update?: string | null;
+  original_name?: string | null;
+};
+
 export interface QueryBuilderProps {
   columns: MetadataTableResponse[];
   table_list: string[];
@@ -32,6 +55,18 @@ export interface TableInfo {
   rowcount: number;
 }
 
+
+export interface TableInfoCreate {
+  name: string;
+  schema?: string;
+  comment?: string;
+
+  // Advanced (opcional)
+  engine?: string; // mysql/mariadb
+  charset?: string; // mysql/mariadb
+  collation?: string; // mysql/mariadb
+  temporary?: boolean; // alguns bancos suportam
+}
 export interface DatabaseMetadata {
   connection_name: string;
   database_name: string;
@@ -366,11 +401,27 @@ export type ConnectionFormData = {
 
 
 export type FilterType = typeof FILTER_OPTIONS[number]['value'];
+export interface NamecachesValue  {
+    _thema: string,
+    _modal_Create_Open: string,
+    _modal_Edit_Open: string,
+    consulta_showFilterColunas: string,
+    consulta_showSortColunas: string
+  }
 
+export const defaultNameCachesValue: NamecachesValue = {
+  _thema: "_thema",
+  _modal_Create_Open: "_modal_Create_Open",
+  _modal_Edit_Open: "_modal_Edit_Open",
+  consulta_showFilterColunas: "_consulta_showFilterColunas",
+  consulta_showSortColunas: "_consulta_showSortColunas"
+};
 export interface TableColumnsDisplayProps {
   tableNames: string;
+  names_caches_value: NamecachesValue;
   tabelaExistenteNaDB: string[];
   columns?: MetadataTableResponse[];
+  setColumns?: React.Dispatch<React.SetStateAction<MetadataTableResponse[]>>;
   className?: string;
   isLoading?: boolean;
   setIsLoading?: (loading: boolean) => void;
@@ -409,47 +460,47 @@ export type EditedFieldForQuery = {
 export type Tables_primary_keys_values = Record<string, Record<string, string>>;
 
 export interface AnalizeDataType {
-    overview: {
-        totalProjects: number;
-        activeProjects: number;
-        completedProjects: number;
-        overdueProjects: number;
-        totalTasks: number;
-        completedTasks: number;
-        teamMembers: number;
-    };
-    projectProgress: {
-        name: string;
-        progress: number;
-        tasks: number;
-        completed: number;
-    }[];
-    taskStatus: {
-        name: string;
-        value: number;
-    }[];
-    teamPerformance: {
-        name: string;
-        tasks: number;
-        completed: number;
-        efficiency: number;
-    }[];
-    weeklyActivity: {
-        week: string;
-        tasks: number;
-        completed: number;
-    }[];
-    projectTypes: {
-        name: string;
-        value: number;
-    }[];
-    recentActivity: {
-        id: number;
-        user: string;
-        action: string;
-        project: string;
-        time: string;
-    }[];
+  overview: {
+    totalProjects: number;
+    activeProjects: number;
+    completedProjects: number;
+    overdueProjects: number;
+    totalTasks: number;
+    completedTasks: number;
+    teamMembers: number;
+  };
+  projectProgress: {
+    name: string;
+    progress: number;
+    tasks: number;
+    completed: number;
+  }[];
+  taskStatus: {
+    name: string;
+    value: number;
+  }[];
+  teamPerformance: {
+    name: string;
+    tasks: number;
+    completed: number;
+    efficiency: number;
+  }[];
+  weeklyActivity: {
+    week: string;
+    tasks: number;
+    completed: number;
+  }[];
+  projectTypes: {
+    name: string;
+    value: number;
+  }[];
+  recentActivity: {
+    id: number;
+    user: string;
+    action: string;
+    project: string;
+    time: string;
+  }[];
 }
 
 export interface CampoDetalhado {
@@ -480,7 +531,7 @@ export interface MetadataTableResponse {
   colunas: CampoDetalhado[];
 }
 
-export type RowDelete ={
+export type RowDelete = {
   primaryKey: string;
   primaryKeyValue?: string;
   keyType: tipo_db_Options;

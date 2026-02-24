@@ -193,6 +193,12 @@
   "dbType": "TIPO DE BANCO DE DADOS",
   "selectDatabase": "Selecione o tipo...",
   "connectionName": "NOME DA CONEXÃO",
+  "dbConnections": "Conexões de Banco de Dados",
+  "savedConnections": "Conexões Salvas",
+  "connectionHistory": "Histórico de Conexões",
+  "noSavedConnections": "Nenhuma conexão salva disponível",
+  "dbConnectionsSubtitle": "Gerencie suas conexões de banco de dados para acesso rápido e seguro.",
+  "noHistory": "Nenhum histórico disponível",
   "connectionNamePlaceholder": "Ex: Produção DB",
   "host": "HOST / IP",
   "port": "PORTA",
@@ -264,9 +270,9 @@
     "functions": "Functions",
     "triggers": "Triggers",
     "indexes": "Indexes"
-    
   },
   "actions": {
+    "stop": "Parar",
     "toggleTheme": "Alternar tema",
     "refresh": "Atualizar dados",
     "selectAll": "Selecionar todos",
@@ -363,11 +369,12 @@
     "entering": "Entrando...",
     "createAccount": "Criar conta",
     "creatingAccount": "Criando conta..."
-    
   },
   "common": {
     "table": "tabela",
     "tables": "tabelas",
+    "operationFailed": "Falha ao executar operação.",
+    "unsavedClose": "Tens alterações não salvas. Fechar mesmo assim?",
     "updating": "Atualizando...",
     "rows": "linhas",
     "column": "coluna",
@@ -421,7 +428,24 @@
     "schemaLabel": "Schema (opcional)",
     "defaultSchema": "(padrão)",
     "descLabel": "Descrição",
-    "descPlaceholder": "Adicione uma descrição para esta tabela..."
+    "descPlaceholder": "Adicione uma descrição para esta tabela...",
+    "main": "Definição Principal",
+    "options": "Opções",
+    "advanced": "Configurações Avançadas",
+    "required": "Campos obrigatórios",
+    "commentPlaceholder": "Ex: Tabela de usuários do sistema",
+    "noSpaces": "O nome não deve conter espaços.",
+    "invalidName": "Preencha o nome corretamente (sem espaços).",
+    "missingOldName": "Tabela atual não informada.",
+    "selectToEdit": "Selecione uma tabela para editar.",
+    "onlyCreate": "Só disponível ao criar.",
+    "ifNotExistsHint": "Evita erro se a tabela já existir.",
+    "temporaryHint": "Alguns bancos suportam tabelas temporárias.",
+    "showAdvanced": "Mostrar Avançado",
+    "hideAdvanced": "Ocultar Avançado",
+    "advancedHint": "Engine/Charset/Collation (principalmente MySQL/MariaDB)",
+    "advancedTip": "Dica: Engine/Charset/Collation são mais relevantes em MySQL/MariaDB. Em outros bancos, pode ser ignorado pelo backend (sem drama).",
+    "confirmDelete": "Eliminar a tabela '{full}'? Isso é destrutivo."
   },
   "backup": {
     "backupTab": "Backup",
@@ -553,7 +577,6 @@
     "formatExcel": "Excel",
     "descExcel": "Planilha Excel",
     "generatingReport": "Gerando relatório..."
-    
   },
   "grid": {
     "searchPlaceholder": "Buscar colunas...",
@@ -764,7 +787,14 @@
     "deleteSingleTitle": "Eliminar Registro",
     "recordsToDelete": "Registros a eliminar",
     "rowDetails": "Detalhes da Linha",
-    "irreversibleWarning": "Esta ação é irreversível. Certifique-se de que os dados não são mais necessários antes de confirmar."
+    "irreversibleWarning": "Esta ação é irreversível. Certifique-se de que os dados não são mais necessários antes de confirmar.",
+    "editField": "Editar Campo",
+    "editFieldDesc": "Configure os metadados universais e relacionamentos desta coluna.",
+    "createField": "Criar Campo",
+    "createTable": "Criar Tabela",
+    "editTable": "Editar Tabela",
+    "createTableDesc": "Crie uma nova tabela no schema selecionado.",
+    "editTableDesc": "Altere metadados e configurações desta tabela."
   },
   "pagination": {
     "previous": "Anterior",
@@ -821,6 +851,17 @@
       "features": "Funcionalidades Core",
       "advanced": "Avançado"
     }
+  },
+  "fields": {
+    "columnName": "Nome da Coluna",
+    "dataType": "Tipo de Dado",
+    "length": "Tamanho",
+    "scale": "Escala",
+    "defaultValue": "Valor Padrão (Default)",
+    "comment": "Dicionário de Dados (Comentário)",
+    "precision": "Precisão"
+  },
+  "results": {
+    "title": "Resultados da Consulta"
   }
-
 }

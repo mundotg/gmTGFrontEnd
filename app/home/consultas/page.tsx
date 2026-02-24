@@ -13,6 +13,7 @@ import RowDetailsModal from "@/app/component/MetadataModal";
 
 import {
   CampoDetalhado,
+  defaultNameCachesValue,
   EditedFieldForQuery,
   MetadataTableResponse,
   PayloadDeleteRow,
@@ -367,8 +368,10 @@ const ConsultaPage = () => {
         {/* Table Columns Display */}
         {selectedTables.length > 0 && (
           <TableColumnsDisplay
+            names_caches_value={defaultNameCachesValue}
             tableNames={selectedTables.join(", ")}
             columns={columnsInfo}
+            setColumns={setColumnsInfo}
             isLoading={loadingFields}
             setIsLoading={setLoadingFields}
             error={error}

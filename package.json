@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  
     "dev": "next dev --turbopack",
     "devDebug": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
     "build": "next build",
@@ -15,9 +14,11 @@
     "axios": "^1.10.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.514.0",
-    "next": "15.3.3",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwind-scrollbar": "^4.0.2",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -32,6 +33,9 @@
     "postcss": "^8.5.5",
     "tailwindcss": "^4.1.10",
     "typescript": "^5"
+  },
+  "overrides": {
+    "minimatch": "^10.2.1"
   },
   "description": "``` /src │ ├── app/                     → Rotas (Next.js 13+) │   ├── dashboard/           → Página principal (home do usuário logado) │   ├── consultas/           → Módulo de consultas simplificadas │   ├── tabelas/             → Listagem e detalhes de tabelas │   ├── sql/                 → Editor de SQL avançado │   ├── historico/           → Histórico de consultas │   ├── conexoes/            → Gerenciador de conexões │   ├── login/               → Página de autenticação │   ├── settings/            → Configurações gerais │   └── layout.tsx          → Layout base para navegação │ ├── components/              → Componentes reutilizáveis (inputs, tabelas, modais, etc) │   ├── TableViewer.tsx │   ├── SQLConsole.tsx │   ├── Sidebar.tsx │   ├── Header.tsx │   └── Modal.tsx │ ├── lib/                     → Funções utilitárias │   ├── api.ts               → Cliente Axios ou Fetch │   ├── databaseHelpers.ts   → Helpers para manipulação de dados │ ├── services/                → Comunicação com o backend (API) │   ├── queryService.ts │   ├── tableService.ts │   └── authService.ts │ ├── hooks/                   → Custom hooks │   └── useAuth.ts │ ├── store/                   → Zustand ou Redux para estado global │ ├── styles/                  → Estilização global (Tailwind ou CSS modules) │ ├── types/                   → Tipagens globais TypeScript │ └── middleware.ts            → Proteção de rotas com autenticação ```",
   "main": "index.js",

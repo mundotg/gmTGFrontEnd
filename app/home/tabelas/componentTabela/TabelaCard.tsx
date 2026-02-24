@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -25,6 +25,7 @@ interface PropsTableCard {
   isLoadingCols?: boolean;
   toggleTable: (tableName: string) => void;
   colunasShow?: MetadataTableResponse;
+  setColunasShow?: React.Dispatch<React.SetStateAction<Record<string, MetadataTableResponse | undefined>>>;
   loadingFields: boolean;
   isDarkMode?: boolean;
   seletColunaForTable?: Record<string, Set<string>>;
@@ -43,6 +44,7 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
   isLoadingCols = false,
   toggleTable,
   colunasShow,
+  setColunasShow,
   loadingFields,
   isDarkMode = false,
   seletColunaForTable,
@@ -55,6 +57,14 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
 }) => {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
+  const [auxColunasShow, setAuxColunasShow] = useState< MetadataTableResponse[]>(colunasShow ? [colunasShow] : []);
+
+  useEffect(() => {
+    setColunasShow?.(prev => ({
+      ...prev,
+      [table.name]: auxColunasShow ? auxColunasShow[0] : undefined,
+    }));
+  }, [auxColunasShow, setColunasShow, table.name]);
 
   // 1. Derivar o valor diretamente do estado global do pai (sem useEffects!)
   const selectListAsArray = Array.from(seletColunaForTable?.[table.name] ?? []);
@@ -101,7 +111,7 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
           
           <div className="flex items-start gap-3 w-full sm:w-auto flex-1 min-w-0">
             <button
-              onClick={() => onToggleSelect?.(table.name)}
+              onClick={() => onToggleSelect?.(tableStructure?.schema_name + "." +table.name)}
               className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 border ${
                 selected 
                   ? "bg-blue-600 text-white border-blue-600" 
@@ -114,7 +124,7 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
             </button>
 
             <button 
-              onClick={() => toggleTable(table.name)}
+              onClick={() => toggleTable(tableStructure?.schema_name + "." + table.name)}
               className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors border ${
                 isDarkMode
                   ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
@@ -246,8 +256,11 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
           {colunasShow?.colunas ? (
             <div className="p-4 sm:p-6">
               <TableColumnsDisplay
+              names_caches_value={ {_modal_Create_Open: "_modal_Create_Open_TB",_thema: "_thema_tb", _modal_Edit_Open:"_modal_Edit_Open_tb", 
+                consulta_showFilterColunas: "consulta_showFilterColunas_tg",consulta_showSortColunas:"consulta_showSortColunas_tg"}}
                 tableNames={table.name}
                 columns={[colunasShow]}
+                setColumns={setAuxColunasShow}
                 isLoading={loadingFields}
                 setIsLoading={() => {}}
                 error={null}

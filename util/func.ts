@@ -1,4 +1,5 @@
 import { DatabaseType, DisplayFormat, ForeignKeyOption, MetadataTableResponse } from "@/types";
+import { DBStructure } from "@/types/db-structure";
 
 export const findIdentifierField = (tableName: string, columnsInfo: MetadataTableResponse[]) => {
   const table = columnsInfo.find(col => col.table_name === tableName);
@@ -125,5 +126,43 @@ export const parseErrorMessage = (err: any): string =>
   err?.response?.data ||
   err?.message ||
   "Erro inesperado. Tente novamente.";
+
+
+export const separatedSelectedTablesNameAndSchema = (tableList: string[],getTableStructure: (name: string) => DBStructure  | undefined) => {
+  // 1. Explicitly type the arrays so TypeScript doesn't assume they are 'never[]'
+  const tables: string[] = [];
+  const schemas: string[] = []; // Renamed to 'schemas' for consistency, change back to 'schema' if needed
+
+  tableList.forEach((fullName) => {
+    const split = fullName.split(".");
+
+    // 2. Logic fix: Standard SQL is "schema.table". 
+    // If your input is actually "table.schema", swap the indices below.
+    let tableName: string;
+    let schemaName: string | undefined;
+
+    if (split.length > 1) {
+      schemaName = split[0];
+      tableName = split[1];
+    } else {
+      tableName = split[0];
+      schemaName = undefined;
+    }
+
+    // 3. Populate arrays
+    if (schemaName) {
+      schemas.push(schemaName);
+      tables.push(tableName);
+    } else {
+      tables.push(tableName);
+      // Fallback logic for missing schema
+      const structure = getTableStructure(tableName);
+      schemas.push(structure?.schema_name || "");
+    }
+  });
+
+  // 4. Return the object AFTER the loop finishes
+  return { tables, schema_name: schemas };
+};
 
 

@@ -25,6 +25,7 @@ export function RenderItem({
   column,
   index,
   isSelected,
+  // themeClasses,
   currentTheme = "light", // Fallback seguro
   onColumnClick,
   handleColumnClick,

@@ -1,8 +1,14 @@
-// tailwind.config.ts
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
+  // 🔹 A MÁGICA DO DARK MODE ACONTECE AQUI
+  darkMode: "class", 
+  
+  content: [
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}", // Adicionado por segurança (Next.js App Router)
+    "./components/**/*.{js,ts,jsx,tsx,mdx}", // Adicionado por segurança
+  ],
   theme: {
     extend: {
       colors: {
@@ -48,7 +54,11 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Descomente os plugins abaixo após instalá-los para ativar o design completo do Padrão 2026:
+    // require("tailwindcss-animate"),
+    // require("tailwind-scrollbar")({ nocompatible: true }),
+  ],
 };
 
 export default config;
