@@ -1,14 +1,25 @@
 "use client";
-import React, { useMemo, useCallback, useState, useRef } from "react";
+
+import React, {
+  useMemo,
+  useCallback,
+  useState,
+  useRef,
+  useEffect,
+} from "react";
 import { MetadataTableResponse, QueryResultType, SelectedRow } from "@/types";
 import ScrollableTable from "./ScrollableTable";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import ResultsHeader from "./ResultadosQueryComponent/ResultsHeader";
-import { ConfirmDeleteModalType } from "./ResultadosQueryComponent/types";
+import {
+  ConfirmDeleteModalType,
+  PayloadDeleteRow,
+} from "./ResultadosQueryComponent/types";
 import api from "@/context/axioCuston";
 import { useDeleteOperations } from "@/hook/useDeleteOperations";
 import { createLogger } from "@/util/logger";
 import { useI18n } from "@/context/I18nContext";
+import { usePrimaryKeyExtractor } from "@/hook/getPrimarykeyValorOfRow";
 
 const logger = createLogger({ component: "InteractiveResultTable" });
 
@@ -18,10 +29,20 @@ interface ResultTableProps {
   setQueryResults: (value: QueryResultType | null) => void;
   setSelectedRow?: (row: SelectedRow) => void;
   selectedRow?: SelectedRow | null;
+  setModalFetchOpen: (t: boolean) => void;
+  optionModalTable?: string;
+  setOptionModalTable: (s: string) => void;
+  modalFetchOpen: boolean;
+  responseModal?: string[];
+  setResponseModal: (r?: string[]) => void;
 }
 
 function ResultTable({
   queryResults,
+  responseModal,
+  modalFetchOpen,
+  setOptionModalTable,
+  setModalFetchOpen,
   setQueryResults,
   columnsInfo = [],
   setSelectedRow,
@@ -32,12 +53,17 @@ function ResultTable({
     isOpen: false,
     type: "single",
     lista: [],
+    payloadSelectedRow: undefined,
   });
 
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [openModalConfirmeDelete, setOpenModalConfirmeDele] = useState(false);
+
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  const { getPrimaryKeysInfo } = usePrimaryKeyExtractor(columnsInfo);
 
   const {
     eliminarRegistrosSelecionados,
@@ -47,33 +73,30 @@ function ResultTable({
     setIsDeleting,
   } = useDeleteOperations();
 
-  /** 🔹 Colunas da tabela */
   const columns = useMemo(
     () => Object.keys(queryResults.preview[0] || {}),
     [queryResults.preview]
   );
 
-  /** 🔹 Cabeçalhos formatados */
   const headers = useMemo(() => {
-    return logger.measureSync('Formatar cabeçalhos da tabela', () => {
-      logger.debug("Iniciando formatação de cabeçalhos", {
-        columnsCount: columns.length,
-        columnsInfoCount: columnsInfo.length,
-        queryResultsColumnsCount: queryResults.columns?.length
-      });
-
+    return logger.measureSync("Formatar cabeçalhos da tabela", () => {
       const columnLookup = new Map<string, { tipo: string; table: string }>();
 
       columnsInfo.forEach((info) =>
         info.colunas.forEach((col) =>
-          columnLookup.set(col.nome, { tipo: col.tipo, table: info.table_name })
+          columnLookup.set(col.nome, {
+            tipo: col.tipo,
+            table: info.table_name,
+          })
         )
       );
 
-      const headersResult = columns.map((col, index) => {
+      return columns.map((col, index) => {
+        const currentColumn = queryResults.columns?.[index];
         const nameColOriginal =
-          queryResults.columns[index]?.split(".")[1] ||
-          queryResults.columns[index] ||
+          currentColumn?.split(".")[2] ||
+          currentColumn?.split(".")[1] ||
+          currentColumn ||
           col;
 
         const info = columnLookup.get(nameColOriginal);
@@ -84,77 +107,45 @@ function ResultTable({
             ? `/detalhes/${info?.table}/${col}`
             : undefined;
 
-        logger.trace(`Coluna processada`, {
-          coluna: col,
-          nameColOriginal,
-          tipo,
-          hasRedirect: !!redirectUrl
-        });
-
-        return { name: col, type: tipo, redirectUrl };
+        return {
+          name: col?.substring?.(col?.indexOf?.(".") + 1) || col,
+          type: tipo,
+          redirectUrl,
+        };
       });
-
-      columnLookup.clear();
-      
-      logger.debug("Cabeçalhos formatados com sucesso", {
-        totalHeaders: headersResult.length,
-        headersWithRedirect: headersResult.filter(h => h.redirectUrl).length
-      });
-
-      return headersResult;
     });
   }, [columns, columnsInfo, queryResults.columns]);
 
-  /** 🔹 Confirmação de exclusão */
   const handleConfirmDelete = useCallback(async () => {
-    return logger.measure('Operação de exclusão confirmada', async () => {
-      logger.info("Iniciando operação de exclusão", {
-        type: confirmDelete.type,
-        total: confirmDelete.total,
-        listaCount: confirmDelete.lista.length
-      });
-
+    return logger.measure("Operação de exclusão confirmada", async () => {
       setIsDeleting(true);
 
       try {
         if (confirmDelete.type === "all") {
-          logger.debug("Executando eliminação de todos os registros");
           await eliminarTodosRegistros(queryResults, setQueryResults);
         } else if (confirmDelete.type === "select") {
-          logger.debug("Executando eliminação de registros selecionados", {
-            selectedCount: confirmDelete.lista.length,
-            indices: confirmDelete.lista.map(item => item.index)
-          });
-          await eliminarRegistrosSelecionados(confirmDelete.lista, queryResults, setQueryResults);
+          await eliminarRegistrosSelecionados(
+            confirmDelete.lista,
+            queryResults,
+            setQueryResults
+          );
+
           setSelectedItems(new Set());
           setIsSelectionMode(false);
         }
 
         setDeleteProgress(100);
-        logger.success("Operação de exclusão concluída com sucesso", {
-          type: confirmDelete.type,
-          registrosAfetados: confirmDelete.total
-        });
-
       } catch (error) {
-        logger.error("Erro na operação de exclusão", error, {
-          type: confirmDelete.type,
-          total: confirmDelete.total
-        });
-        
-        // Re-lançar o erro para tratamento adicional se necessário
+        logger.error("Erro na operação de exclusão", error);
         throw error;
       } finally {
         setTimeout(() => {
           setConfirmDelete((prev) => ({ ...prev, isOpen: false }));
           setIsDeleting(false);
           setDeleteProgress(0);
-          logger.debug("Estado da modal de confirmação resetado");
+          setOpenModalConfirmeDele(false);
         }, 300);
       }
-    }, {
-      operation: 'confirmed_delete',
-      deleteType: confirmDelete.type
     });
   }, [
     confirmDelete,
@@ -166,49 +157,34 @@ function ResultTable({
     setIsDeleting,
   ]);
 
-  /** 🔹 Clique na linha */
   const handleRowClick = useCallback(
     (row: Record<string, unknown>, index: number) => {
-      logger.trace("Clique na linha da tabela", {
-        index,
-        isSelectionMode,
-        rowKeys: Object.keys(row || {})
-      });
-
       if (isSelectionMode) {
         setSelectedItems((prev) => {
-          const newSelected = new Set(prev);
-          const wasSelected = newSelected.has(index);
-          
-          if (wasSelected) {
-            newSelected.delete(index);
-            logger.debug("Linha desmarcada", { index });
-          } else {
-            newSelected.add(index);
-            logger.debug("Linha selecionada", { index });
-          }
-          
-          return newSelected;
+          const next = new Set(prev);
+          if (next.has(index)) next.delete(index);
+          else next.add(index);
+          return next;
         });
         return;
       }
 
-      // Processamento para seleção normal (não em modo de seleção)
       const tabelasAssociadas = new Set<string>();
+
       Object.keys(row).forEach((campo, idx) => {
-        const tableName = queryResults.columns[idx]?.split(".")[0] || campo.split(".")[0];
-        if (tableName && tableName.trim() !== "") {
+        const fullColumnName = queryResults.columns[idx] || campo;
+        if (!fullColumnName) return;
+
+        const parts = fullColumnName.split(".");
+        const tableName =
+          parts.length >= 3 ? parts.slice(0, -1).join(".") : parts[0];
+
+        if (tableName?.trim()) {
           tabelasAssociadas.add(tableName.trim());
         }
       });
 
       const tabelas = Array.from(tabelasAssociadas);
-      
-      logger.debug("Linha selecionada para detalhes", {
-        index,
-        tabelas,
-        tabelasCount: tabelas.length
-      });
 
       setSelectedRow?.({
         row,
@@ -218,126 +194,107 @@ function ResultTable({
         tableName: tabelas,
       });
     },
-    [isSelectionMode, queryResults.columns, queryResults.QueryPayload, setSelectedRow, columns]
+    [
+      isSelectionMode,
+      queryResults.columns,
+      queryResults.QueryPayload,
+      setSelectedRow,
+      columns,
+    ]
   );
 
-  /** 🔹 Carregar mais linhas */
   const carregarMaisLinhas = useCallback(async () => {
     const query = queryResults.QueryPayload;
-    if (!query) {
-      logger.warn("Tentativa de carregar mais linhas sem query payload");
-      return;
-    }
+    if (!query) return;
 
-    return logger.measure('Carregar mais linhas', async () => {
-      logger.info("Carregando mais linhas", {
-        offsetAtual: queryResults.preview.length,
-        totalAtual: queryResults.totalResults
-      });
-
+    return logger.measure("Carregar mais linhas", async () => {
       query.offset = queryResults.preview.length;
       query.isCountQuery = false;
 
       try {
-        const { data } = await api.post<QueryResultType>("/exe/execute_query/", query, {
-          withCredentials: true,
-        });
+        const { data } = await api.post<QueryResultType>(
+          "/exe/execute_query/",
+          query,
+          { withCredentials: true }
+        );
 
         if (data.success) {
-          const newPreview = [...queryResults.preview, ...data.preview];
           setQueryResults({
             ...queryResults,
-            preview: newPreview,
-          });
-          
-          logger.success("Mais linhas carregadas com sucesso", {
-            linhasAdicionadas: data.preview.length,
-            totalAgora: newPreview.length
-          });
-        } else {
-          logger.warn("Resposta da API sem sucesso ao carregar mais linhas", {
-            success: data.success,
-            message: data?.query || "No message provided"
+            preview: [...queryResults.preview, ...data.preview],
           });
         }
       } catch (error) {
-        logger.error("Erro ao carregar mais linhas", error, {
-          offset: query.offset,
-          endpoint: "/exe/execute_query/"
-        });
+        logger.error("Erro ao carregar mais linhas", error);
       }
-    }, {
-      operation: 'load_more_rows',
-      currentOffset: queryResults.preview.length
     });
   }, [queryResults, setQueryResults]);
 
-  /** 🔹 Controle de seleção */
   const toggleSelectionMode = useCallback(() => {
-    const newMode = !isSelectionMode;
-    logger.info("Alternando modo de seleção", {
-      modoAnterior: isSelectionMode,
-      modoNovo: newMode
-    });
-    
-    setIsSelectionMode(newMode);
+    setIsSelectionMode((prev) => !prev);
     setSelectedItems(new Set());
-  }, [isSelectionMode]);
+  }, []);
 
   const selectAll = useCallback(() => {
     const allSelected = selectedItems.size === queryResults.preview.length;
-    const newSelection = allSelected 
-      ? new Set<number>() 
-      : new Set(queryResults.preview.map((_, i) => i));
-
-    logger.debug("Ação selecionar/desselecionar todos", {
-      acao: allSelected ? "Desselecionar todos" : "Selecionar todos",
-      totalItens: queryResults.preview.length,
-      itensSelecionados: newSelection.size
-    });
-
-    setSelectedItems(newSelection);
+    setSelectedItems(
+      allSelected ? new Set() : new Set(queryResults.preview.map((_, i) => i))
+    );
   }, [selectedItems.size, queryResults.preview]);
 
   const clearSelection = useCallback(() => {
-    logger.debug("Limpando seleção", {
-      itensSelecionadosAnteriormente: selectedItems.size
-    });
     setSelectedItems(new Set());
-  }, [selectedItems.size]);
+  }, []);
 
-  /** 🔹 Estado de seleção */
   const selectionState = useMemo(() => {
-    return logger.measureSync('Calcular estado de seleção', () => {
-      const totalItems = queryResults.preview.length;
-      const selectedCount = selectedItems.size;
+    const totalItems = queryResults.preview.length;
+    const selectedCount = selectedItems.size;
 
-      const state = {
-        selectedCount,
-        isAllSelected: selectedCount > 0 && selectedCount === totalItems,
-        isSomeSelected: selectedCount > 0 && selectedCount < totalItems,
-        isEmpty: selectedCount === 0,
-        selectedRecords: Array.from(selectedItems).map((index) => ({
-          row: queryResults.preview[index],
-          index,
-        })),
-      };
+    return {
+      selectedCount,
+      isAllSelected: selectedCount > 0 && selectedCount === totalItems,
+      isSomeSelected: selectedCount > 0 && selectedCount < totalItems,
+      isEmpty: selectedCount === 0,
+      selectedRecords: Array.from(selectedItems).map((index) => ({
+        row: queryResults.preview[index] as Record<string, unknown>,
+        index,
+        tableName: [],
+        nameColumns: [],
+        orderBy: queryResults.QueryPayload?.orderBy,
+      })),
+    };
+  }, [selectedItems, queryResults.preview, queryResults.QueryPayload]);
 
-      logger.trace("Estado de seleção calculado", state);
-      return state;
-    });
-  }, [selectedItems, queryResults.preview]);
+ 
+
+  const confirmeDelet_open_modal_for_selection_table = useCallback(() => {
+    setOptionModalTable("oneDelet");
+    setModalFetchOpen(true);
+    setOpenModalConfirmeDele(true);
+  }, [setOptionModalTable, setModalFetchOpen]);
 
   const handleDeleteSelection = useCallback(() => {
-    const selectedLista = selectionState.selectedRecords.map((item) => ({
-      row: item.row as Record<string, string>,
-      index: item.index,
-      table: columnsInfo.map((c) => c.table_name),
-    }));
+    const tablesForDelete = responseModal || [];
 
-    logger.info("Solicitando confirmação para eliminar seleção", {
+    if (!tablesForDelete.length) {
+      logger.warn("Nenhuma tabela foi selecionada para exclusão.");
+      return;
+    }
+
+    const selectedLista: PayloadDeleteRow[] = getPrimaryKeysInfo(
+      selectionState.selectedRecords,
+      tablesForDelete
+    );
+
+    if (!selectedLista.length) {
+      logger.warn("Nenhum registro válido foi montado para exclusão.");
+      return;
+    }
+
+    logger.info("Solicitando confirmação para eliminar seleção em lote", {
       selectedCount: selectionState.selectedCount,
-      indices: selectedLista.map(item => item.index)
+      indices: selectedLista.map((item) => item.rowDeletes),
+      tablesForDelete,
     });
 
     setConfirmDelete({
@@ -345,18 +302,24 @@ function ResultTable({
       type: "select",
       total: selectionState.selectedCount,
       lista: selectedLista,
+      payloadSelectedRow: queryResults.QueryPayload,
     });
-  }, [selectionState, columnsInfo]);
+  }, [
+    responseModal,
+    getPrimaryKeysInfo,
+    selectionState.selectedRecords,
+    selectionState.selectedCount,
+    queryResults.QueryPayload,
+  ]);
+
+   useEffect(() => {
+    if (openModalConfirmeDelete && !modalFetchOpen) {
+      handleDeleteSelection();
+      setOpenModalConfirmeDele(false);
+    }
+  }, [openModalConfirmeDelete, modalFetchOpen, handleDeleteSelection]);
 
   const { selectedCount, isAllSelected, isSomeSelected } = selectionState;
-
-  // Log quando o componente renderiza
-  logger.debug("Componente ResultTable renderizado", {
-    previewCount: queryResults.preview?.length,
-    selectedCount,
-    isSelectionMode,
-    isDeleting
-  });
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 animate-in fade-in zoom-in-95 duration-200">
@@ -374,7 +337,7 @@ function ResultTable({
         toggleSelectionMode={toggleSelectionMode}
         selectAll={selectAll}
         clearSelection={clearSelection}
-        handleDeleteSelection={handleDeleteSelection}
+        handleDeleteSelection={confirmeDelet_open_modal_for_selection_table}
         setConfirmDelete={setConfirmDelete}
         setShowMobileMenu={setShowMobileMenu}
         columns={columns}
@@ -384,15 +347,18 @@ function ResultTable({
       {isSelectionMode && selectedCount > 0 && (
         <div className="sm:hidden mt-2 mx-3 flex items-center justify-between bg-blue-50/50 px-4 py-2.5 rounded-lg border border-blue-100">
           <span className="text-sm font-bold text-blue-700">
-            {selectedCount} {selectedCount > 1 ? (t("common.recordsSelected") || "registros selecionados") : (t("common.recordSelected") || "registro selecionado")}
+            {selectedCount}{" "}
+            {selectedCount > 1
+              ? t("common.recordsSelected") || "registros selecionados"
+              : t("common.recordSelected") || "registro selecionado"}
           </span>
           <button
             onClick={selectAll}
             className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors focus:outline-none"
           >
-            {selectedCount === queryResults.preview.length 
-              ? (t("actions.deselectAll") || "Desmarcar Todos") 
-              : (t("actions.selectAll") || "Selecionar Todos")}
+            {selectedCount === queryResults.preview.length
+              ? t("actions.deselectAll") || "Desmarcar Todos"
+              : t("actions.selectAll") || "Selecionar Todos"}
           </button>
         </div>
       )}
@@ -417,10 +383,7 @@ function ResultTable({
         total={confirmDelete.total}
         lista={confirmDelete.lista}
         isDeleting={isDeleting}
-        onClose={() => {
-          logger.debug("Modal de confirmação fechado pelo usuário");
-          setConfirmDelete((prev) => ({ ...prev, isOpen: false }));
-        }}
+        onClose={() => setConfirmDelete((prev) => ({ ...prev, isOpen: false }))}
         onConfirm={handleConfirmDelete}
       />
     </div>

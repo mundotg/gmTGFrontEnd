@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Moon, Sun, Loader2, Plus, Filter } from "lucide-react";
+import { Moon, Sun, Loader2, Plus, Filter, X } from "lucide-react";
 import {
   CampoDetalhado,
   EditedFieldForQuery,
@@ -80,6 +80,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
 
   const [showFilters, setShowFilters] = usePersistedState<boolean>(names_caches_value.consulta_showFilterColunas, false);
   const [hydrated, setHydrated] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // ✅ ALERTAS INLINE
   const [alert, setAlert] = useState<AlertState>(null);
@@ -342,8 +343,9 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
               ...c,
               colunas: c.colunas.filter((col) => col.nome !== columnName)
             };
-          }          return c;
-         }) || []);
+          }
+          return c;
+        }) || []);
       }).catch((err) => {
         const msg = extractApiErrorMessage(err);
         showAlert("error", msg);
@@ -422,15 +424,17 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
 
   if (!hydrated) {
     return (
-      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 ${className}`}>
-        <div className="text-sm text-gray-500">{t("common.loadingColumns") || "Carregando colunas..."}</div>
+      <div className={`bg-white dark:bg-[#1C1C1E] rounded-lg xs:rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-3 xs:p-4 sm:p-6 ${className}`}>
+        <div className="text-xs xs:text-sm text-gray-500 dark:text-gray-400">
+          {t("common.loadingColumns") || "Carregando colunas..."}
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 ${className}`}>
+      <div className={`bg-white dark:bg-[#1C1C1E] rounded-lg xs:rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-3 xs:p-4 sm:p-6 ${className}`}>
         <ErrorDisplay error={error} theme={currentTheme} />
       </div>
     );
@@ -444,23 +448,24 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
 
   return (
     <div
-      className={`bg-white dark:bg-[#1C1C1E] rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-5 sm:p-6 transition-colors duration-300 ${className}`}
+      className={`bg-white dark:bg-[#1C1C1E] rounded-lg xs:rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-3 xs:p-4 sm:p-5 md:p-6 transition-colors duration-300 ${className}`}
       aria-label="Exibição_de_Colunas_da_Tabela"
     >
       {/* ✅ ALERTA INLINE */}
       {alert && (
         <div
-          className={`mb-5 p-3 rounded-xl border text-sm font-semibold flex items-center justify-between gap-3 ${alert.type === "success"
+          className={`mb-3 xs:mb-4 sm:mb-5 p-2 xs:p-3 sm:p-4 rounded-lg xs:rounded-xl border text-xs xs:text-sm font-semibold flex items-center justify-between gap-2 xs:gap-3 animate-in fade-in slide-in-from-top ${
+            alert.type === "success"
               ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300"
               : alert.type === "error"
                 ? "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300"
                 : "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300"
-            }`}
+          }`}
         >
-          <span className="truncate">{alert.message}</span>
+          <span className="truncate flex-1">{alert.message}</span>
           <button
             onClick={() => setAlert(null)}
-            className="text-[11px] uppercase tracking-wider font-bold hover:underline shrink-0"
+            className="text-[10px] xs:text-[11px] uppercase tracking-wider font-bold hover:underline shrink-0 flex-shrink-0"
           >
             {t("actions.close") || "Fechar"}
           </button>
@@ -468,81 +473,76 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
       )}
 
       {/* Cabeçalho */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4 border-b border-gray-100 dark:border-gray-800 pb-4">
-        {/* Nome + Tema */}
-        <div className="flex items-center gap-3 min-w-0">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate max-w-[60vw] sm:max-w-[70vw] lg:max-w-[40vw] flex items-center gap-2 transition-colors">
-            {t("common.columns") || "Colunas"}:
-            <span className="text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md whitespace-nowrap overflow-hidden text-ellipsis transition-colors">
+      <div className="flex flex-col gap-3 xs:gap-4 sm:gap-4 mb-4 xs:mb-5 sm:mb-6 pb-3 xs:pb-4 sm:pb-4 border-b border-gray-100 dark:border-gray-800">
+        {/* Linha 1: Nome + Tema */}
+        <div className="flex items-center justify-between gap-2 xs:gap-3">
+          <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
+            <h3 className="text-base xs:text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">
+              {t("common.columns") || "Colunas"}:
+            </h3>
+            <span className="text-xs xs:text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 xs:px-3 py-1 xs:py-1.5 rounded-md whitespace-nowrap overflow-hidden text-ellipsis flex-shrink-0 transition-colors">
               {tableNames}
             </span>
-          </h3>
+          </div>
 
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shrink-0 outline-none focus:ring-2 focus:ring-blue-500/50"
+            className="p-1.5 xs:p-2 rounded-lg xs:rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-shrink-0 outline-none focus:ring-2 focus:ring-blue-500/50"
             title={t("actions.toggleTheme") || "Alternar tema"}
+            aria-label={t("actions.toggleTheme") || "Alternar tema"}
           >
-            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {isDarkMode ? (
+              <Sun className="w-4 h-4 xs:w-4 xs:h-4" />
+            ) : (
+              <Moon className="w-4 h-4 xs:w-4 xs:h-4" />
+            )}
           </button>
         </div>
 
-        {/* ✅ Modal 3-em-1 */}
-        <FieldModal
-          key={`${fieldModalMode}-${fieldModalMode === "create" ? selectedTableForCreate : selectedColumn?.tableName}-${selectedColumn?.nome || "new"}`}
-          isOpen={fieldModalOpen}
-          mode={fieldModalMode}
-          field={selectedColumn}
-          tableName={fieldModalMode === "create" ? selectedTableForCreate : selectedColumn?.tableName}
-          tabelaExistenteNaDB={tabelaExistenteNaDB}
-          onClose={() => setFieldModalOpen(false)}
-          onCreate={async (newField) => {
-            await createColumn(newField);
-          }}
-          onUpdate={async (updated) => {
-            if (!selectedColumn) throw new Error("Coluna original não definida.");
-            await updateColumn(selectedColumn.nome, updated);
-          }}
-          onDelete={async ({ tableName, columnName }) => {
-            await deleteColumn(tableName, columnName);
-          }}
-        />
-
-        {/* Modais existentes */}
-        <ModalAutoCreate
-          isOpen={openIntermediario}
-          setModelDeCriacaoDeRegistro={handleConfirm}
-          onClose={() => setOpenIntermediario(false)}
-          onConfirm={(configs) => console.log("Config recebida do intermediário:", configs)}
-          metadataList={columns || []}
-        />
-
-        <CriarRegistroNovo
-          isOpen={modalCreateOpen}
-          onClose={() => setModalCreateOpen(false)}
-          informacaosOftables={columns || []}
-          onSave={handleRowUpdate}
-        />
-
-        {/* Controles */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 font-medium bg-gray-50 dark:bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700 transition-colors">
+        {/* Linha 2: Status + Menu Mobile Toggle */}
+        <div className="flex items-center justify-between gap-2 xs:gap-3">
+          <div className="flex items-center gap-2 text-xs xs:text-sm text-gray-600 dark:text-gray-400 font-medium bg-gray-50 dark:bg-gray-800 px-2 xs:px-3 py-1 xs:py-1.5 rounded-lg border border-gray-100 dark:border-gray-700 transition-colors min-w-0">
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
-                {t("common.loading") || "Carregando..."}
+                <Loader2 className="w-3 xs:w-4 h-3 xs:h-4 animate-spin text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <span className="truncate">{t("common.loading") || "Carregando..."}</span>
               </>
             ) : (
-              `${getColumnCount} ${t("common.of") || "de"} ${totalCols} ${t("common.columns") || "colunas"}`
+              <>
+                <span className="truncate">{getColumnCount}</span>
+                <span className="hidden xs:inline text-gray-500 dark:text-gray-500">/</span>
+                <span className="hidden xs:inline truncate">{totalCols}</span>
+              </>
             )}
 
             {safeSelect.length > 0 && (
-              <span className="text-blue-600 dark:text-blue-400 ml-1 border-l border-gray-300 dark:border-gray-600 pl-2">
-                {safeSelect.length} {t("common.selected") || "selecionadas"}
+              <span className="text-blue-600 dark:text-blue-400 ml-1 border-l border-gray-300 dark:border-gray-600 pl-1 xs:pl-2 whitespace-nowrap text-xs">
+                {safeSelect.length} ✓
               </span>
             )}
           </div>
 
+          {/* Mobile Menu Toggle */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-1.5 xs:p-2 rounded-lg xs:rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-shrink-0"
+            title={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+            aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+          >
+            {mobileMenuOpen ? (
+              <X className="w-4 h-4 xs:w-4 xs:h-4" />
+            ) : (
+              <Filter className="w-4 h-4 xs:w-4 xs:h-4" />
+            )}
+          </button>
+        </div>
+
+        {/* Linha 3: Botões (Desktop ou Mobile Expandido) */}
+        <div
+          className={`flex flex-wrap items-center gap-2 xs:gap-2 sm:gap-3 transition-all duration-200 ${
+            mobileMenuOpen ? "flex" : "hidden md:flex"
+          }`}
+        >
           {columns && columns.length > 0 && (
             <ReportButton
               onGenerate={handleGerarRelatorio}
@@ -555,10 +555,10 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           {columns && columns.length > 0 && (
             <button
               onClick={() => setOpenIntermediario(true)}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-blue-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               title={t("actions.newRecord") || "Criar novo registro"}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 xs:w-4 h-3.5 xs:h-4 flex-shrink-0" />
               <span className="hidden sm:inline">{t("actions.newRecord") || "Novo Registro"}</span>
               <span className="sm:hidden">{t("actions.new") || "Novo"}</span>
             </button>
@@ -567,21 +567,23 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           {/* ✅ Criar coluna */}
           <button
             onClick={openCreateColumnModal}
-            className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-            title="Criar nova coluna"
+            className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-emerald-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            title={t("actions.addColumn") || "Criar nova coluna"}
           >
-            <Plus className="w-4 h-4" />
-            Nova Coluna
+            <Plus className="w-3.5 xs:w-4 h-3.5 xs:h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">{t("actions.addColumn") || "Coluna"}</span>
+            <span className="sm:hidden">+Col</span>
           </button>
 
           {/* ✅ Eliminar selecionada */}
           {selectedColumn && (
             <button
               onClick={handleDeleteSelectedColumn}
-              className="px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-colors flex items-center gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
-              title="Eliminar coluna selecionada"
+              className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-red-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+              title={t("actions.delete") || "Eliminar coluna selecionada"}
             >
-              {t("actions.delete") || "Eliminar"}
+              <span className="hidden xs:inline">{t("actions.delete") || "Eliminar"}</span>
+              <span className="xs:hidden">Del</span>
             </button>
           )}
 
@@ -589,42 +591,80 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           {selectedColumn && (
             <button
               onClick={openEditSelectedColumnModal}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              title="Editar coluna selecionada"
+              className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-blue-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              title={t("actions.edit") || "Editar coluna selecionada"}
             >
-              {t("actions.edit") || "Editar"}
+              <span className="hidden xs:inline">{t("actions.edit") || "Editar"}</span>
+              <span className="xs:hidden">✎</span>
             </button>
           )}
 
           <button
             onClick={() => setShowFilters((prev) => !prev)}
-            className={`px-4 py-2 text-sm font-bold rounded-xl flex items-center gap-2 transition-colors border focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${showFilters
+            className={`flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl flex items-center justify-center gap-1.5 xs:gap-2 transition-colors border focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
+              showFilters
                 ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
                 : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
-              }`}
+            }`}
+            title={showFilters ? "Esconder filtros" : "Mostrar filtros"}
           >
-            <Filter size={16} />
+            <Filter size={16} className="flex-shrink-0" />
             <span className="hidden sm:inline">
               {showFilters
-                ? t("actions.hideFilters") || "Esconder filtros"
-                : t("actions.showFilters") || "Mostrar filtros"}
+                ? t("actions.hideFilters") || "Esconder"
+                : t("actions.showFilters") || "Filtros"}
             </span>
           </button>
         </div>
       </div>
 
+      {/* Modal 3-em-1 */}
+      <FieldModal
+        key={`${fieldModalMode}-${fieldModalMode === "create" ? selectedTableForCreate : selectedColumn?.tableName}-${selectedColumn?.nome || "new"}`}
+        isOpen={fieldModalOpen}
+        mode={fieldModalMode}
+        field={selectedColumn}
+        tableName={fieldModalMode === "create" ? selectedTableForCreate : selectedColumn?.tableName}
+        tabelaExistenteNaDB={tabelaExistenteNaDB}
+        onClose={() => setFieldModalOpen(false)}
+        onCreate={async (newField) => {
+          await createColumn(newField);
+        }}
+        onUpdate={async (updated) => {
+          if (!selectedColumn) throw new Error("Coluna original não definida.");
+          await updateColumn(selectedColumn.nome, updated);
+        }}
+        onDelete={async ({ tableName, columnName }) => {
+          await deleteColumn(tableName, columnName);
+        }}
+      />
+
+      {/* Modais existentes */}
+      <ModalAutoCreate
+        isOpen={openIntermediario}
+        setModelDeCriacaoDeRegistro={handleConfirm}
+        onClose={() => setOpenIntermediario(false)}
+        onConfirm={(configs) => console.log("Config recebida do intermediário:", configs)}
+        metadataList={columns || []}
+      />
+
+      <CriarRegistroNovo
+        isOpen={modalCreateOpen}
+        onClose={() => setModalCreateOpen(false)}
+        informacaosOftables={columns || []}
+        onSave={handleRowUpdate}
+      />
+
       {/* Alertas do Relatório */}
       {isLoadingRelatorio && (
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl transition-colors">
-          <div className="flex justify-between text-sm font-bold text-blue-800 dark:text-blue-300 mb-3">
-            <span>
-              {t("reports.generating") || "Gerando relatório PDF..."} ({progressRelatorio}%)
-            </span>
-            <span>
+        <div className="mb-4 xs:mb-5 sm:mb-6 p-3 xs:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg xs:rounded-xl transition-colors">
+          <div className="flex flex-col xs:flex-row justify-between xs:items-center text-xs xs:text-sm font-bold text-blue-800 dark:text-blue-300 gap-2 xs:gap-3 mb-2 xs:mb-3">
+            <span>{t("reports.generating") || "Gerando relatório PDF..."} ({progressRelatorio}%)</span>
+            <span className="whitespace-nowrap">
               {t("reports.estimatedTime") || "Tempo estimado"}: {tempoEstimado}s
             </span>
           </div>
-          <div className="w-full bg-blue-200 dark:bg-blue-950 rounded-full h-2">
+          <div className="w-full bg-blue-200 dark:bg-blue-950 rounded-full h-2 mb-2 xs:mb-3">
             <div
               className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${progressRelatorio}%` }}
@@ -632,7 +672,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           </div>
           <button
             onClick={cancelarGeracao}
-            className="mt-3 text-[11px] uppercase tracking-wider font-bold text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors focus:outline-none"
+            className="text-[10px] xs:text-[11px] uppercase tracking-wider font-bold text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors focus:outline-none"
           >
             {t("actions.cancel") || "Cancelar"}
           </button>
@@ -640,14 +680,14 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
       )}
 
       {successRelatorio && (
-        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl flex justify-between items-center transition-colors">
-          <span className="text-green-800 dark:text-green-300 text-sm font-bold">
+        <div className="mb-4 xs:mb-5 sm:mb-6 p-3 xs:p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg xs:rounded-xl flex flex-col xs:flex-row justify-between xs:items-center gap-2 xs:gap-3 transition-colors">
+          <span className="text-green-800 dark:text-green-300 text-xs xs:text-sm font-bold">
             ✅ {t("reports.success") || "Relatório gerado com sucesso!"}
-            {dadosRelatorio?.geradoEm && ` em ${dadosRelatorio.geradoEm.toLocaleString()}`}
+            {dadosRelatorio?.geradoEm && ` (${new Date(dadosRelatorio.geradoEm).toLocaleTimeString()})`}
           </span>
           <button
             onClick={resetRelatorio}
-            className="text-green-800 dark:text-green-300 text-[11px] uppercase tracking-wider font-bold hover:underline focus:outline-none"
+            className="text-green-800 dark:text-green-300 text-[10px] xs:text-[11px] uppercase tracking-wider font-bold hover:underline focus:outline-none"
           >
             {t("actions.close") || "Fechar"}
           </button>
@@ -655,13 +695,13 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
       )}
 
       {errorRelatorio && (
-        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex justify-between items-center transition-colors">
-          <span className="text-red-800 dark:text-red-300 text-sm font-bold">
+        <div className="mb-4 xs:mb-5 sm:mb-6 p-3 xs:p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg xs:rounded-xl flex flex-col xs:flex-row justify-between xs:items-start xs:items-center gap-2 xs:gap-3 transition-colors">
+          <span className="text-red-800 dark:text-red-300 text-xs xs:text-sm font-bold line-clamp-2">
             ❌ {t("reports.error") || "Erro ao gerar relatório"}: {errorRelatorio}
           </span>
           <button
             onClick={resetRelatorio}
-            className="text-red-800 dark:text-red-300 text-[11px] uppercase tracking-wider font-bold hover:underline focus:outline-none"
+            className="text-red-800 dark:text-red-300 text-[10px] xs:text-[11px] uppercase tracking-wider font-bold hover:underline focus:outline-none whitespace-nowrap"
           >
             {t("actions.tryAgain") || "Tentar novamente"}
           </button>
@@ -698,7 +738,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           isLoading={isLoading}
           skeleton={<ColumnSkeleton theme={currentTheme} />}
           emptyState={
-            <p className="text-center text-gray-500 dark:text-gray-400 py-8 font-medium">
+            <p className="text-center text-gray-500 dark:text-gray-400 py-6 xs:py-8 text-xs xs:text-sm font-medium">
               {t("common.noColumnsFound") || "Nenhuma coluna encontrada"}
             </p>
           }

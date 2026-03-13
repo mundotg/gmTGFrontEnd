@@ -1,16 +1,15 @@
 "use client";
+
+import { useEffect, useMemo } from "react";
 import { AlertTriangle, Trash2, X, Loader2, Info } from "lucide-react";
 import { useI18n } from "@/context/I18nContext";
+import { PayloadDeleteRow } from "./ResultadosQueryComponent/types";
 
 export interface ConfirmDeleteModalProps {
   isOpen: boolean;
   type: "single" | "all" | "select";
   total?: number;
-  lista?: {
-    row?: Record<string, string>;
-    index?: number;
-    table?: string[];
-  }[];
+  lista?: PayloadDeleteRow[];
   isDeleting: boolean;
   onClose: () => void;
   onConfirm: () => void;
@@ -27,22 +26,46 @@ export default function ConfirmDeleteModal({
 }: ConfirmDeleteModalProps) {
   const { t } = useI18n();
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen || isDeleting) return;
 
-  // Função para obter a mensagem baseada no tipo
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isOpen, isDeleting, onClose]);
+
+  
+
+  const safeTotal = total ?? lista.length ?? 0;
+
   const getMessage = () => {
     switch (type) {
       case "all":
-        return (t("modals.deleteAllMsg") || `Tem certeza que deseja eliminar todos os {{total}} registros? Esta ação não pode ser desfeita.`).replace('{{total}}', String(total ?? 0));
+        return (
+          t("modals.deleteAllMsg") ||
+          "Tem certeza que deseja eliminar todos os {{total}} registros? Esta ação não pode ser desfeita."
+        ).replace("{{total}}", String(safeTotal));
+
       case "select":
-        return (t("modals.deleteSelectedMsg") || `Tem certeza que deseja eliminar os {{total}} registros selecionados? Esta ação não pode ser desfeita.`).replace('{{total}}', String(total ?? 0));
+        return (
+          t("modals.deleteSelectedMsg") ||
+          "Tem certeza que deseja eliminar os {{total}} registros selecionados? Esta ação não pode ser desfeita."
+        ).replace("{{total}}", String(safeTotal));
+
       case "single":
       default:
-        return t("modals.deleteSingleMsg") || "Tem certeza que deseja eliminar este registro? Esta ação não pode ser desfeita.";
+        return (
+          t("modals.deleteSingleMsg") ||
+          "Tem certeza que deseja eliminar este registro? Esta ação não pode ser desfeita."
+        );
     }
   };
 
-  // Função para obter o título baseado no tipo
   const getTitle = () => {
     switch (type) {
       case "all":
@@ -55,34 +78,67 @@ export default function ConfirmDeleteModal({
     }
   };
 
-  // Função para mostrar preview dos registros (apenas para tipo "select")
-  const renderRecordsPreview = () => {
-    if (type !== "select" || lista.length === 0) return null;
+  const formatPreviewItem = (item: PayloadDeleteRow, fallbackIndex: number) => {
+    const entries = Object.entries(item.rowDeletes || {});
 
-    const previewItems = lista.slice(0, 3); // Mostra apenas os primeiros 3
-    const hasMore = lista.length > 3;
+    if (entries.length === 0) {
+      return `${t("common.record") || "Registro"} #${fallbackIndex + 1}`;
+    }
+
+    
+
+    return entries
+      .slice(0, 3)
+      .map(([tableName, config]) => {
+        console.log("primaryKey:",config?.primaryKey ,"primaryKeyValue:", config?.primaryKeyValue)
+        const pk = config?.primaryKey || "id";
+        const value = config?.primaryKeyValue ?? "undefined";
+        const uniqueFlag =
+          config?.isPrimarykeyOrUnique === true
+            ? "PK/Unique"
+            : config?.isPrimarykeyOrUnique === false
+            ? "Sem PK/Unique"
+            : "Não identificado";
+
+        return `${tableName}.${pk}: ${value} (${uniqueFlag})`;
+      })
+      .join(" • ");
+  };
+
+  const shouldShowPreview = useMemo(() => {
+    return lista.length > 0 && (type === "select" || type === "single");
+  }, [lista.length, type]);
+
+  const renderRecordsPreview = () => {
+    if (!shouldShowPreview) return null;
+
+    const previewItems = type === "single" ? lista.slice(0, 1) : lista.slice(0, 3);
+    const hasMore = type !== "single" && lista.length > 3;
 
     return (
       <div className="mt-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
         <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2.5">
           {t("modals.recordsToDelete") || "Registros a eliminar"} ({lista.length}):
         </p>
+
         <div className="space-y-2 max-h-32 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200">
           {previewItems.map((item, idx) => (
-            <div 
-              key={idx} 
+            <div
+              key={`delete-${idx}`}
               className="text-xs text-gray-700 p-2 bg-white rounded-lg border border-gray-200 shadow-sm truncate flex gap-2"
-              title={JSON.stringify(item.row, null, 2)}
+              title={JSON.stringify(item.rowDeletes, null, 2)}
             >
               <span className="font-bold text-gray-400">#{idx + 1}</span>
               <span className="font-medium truncate">
-                {item.row ? Object.values(item.row).slice(0, 3).join(" • ") : (t("common.record") || "Registro")}
+                {formatPreviewItem(item, idx)}
               </span>
             </div>
           ))}
+
           {hasMore && (
             <p className="text-xs font-medium text-gray-400 text-center pt-2">
-              ... {t("common.andMore") || "e mais"} {lista.length - 3} {t("common.records") || "registros"}
+              ... {t("common.andMore") || "e mais"} {lista.length - 3}{" "}
+              {t("common.records") || "registros"}
             </p>
           )}
         </div>
@@ -90,11 +146,22 @@ export default function ConfirmDeleteModal({
     );
   };
 
+  const progressPercent =
+    isDeleting && safeTotal > 0
+      ? Math.min(100, (lista.length / safeTotal) * 100)
+      : 0;
+
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col animate-in fade-in zoom-in-95 duration-200">
-        
-        {/* Botão fechar */}
+    <div
+      className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={!isDeleting ? onClose : undefined}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           onClick={onClose}
           disabled={isDeleting}
@@ -104,12 +171,12 @@ export default function ConfirmDeleteModal({
           <X className="w-5 h-5" />
         </button>
 
-        {/* Header Content */}
         <div className="p-6 pb-4">
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0 w-12 h-12 bg-red-100 border border-red-200 rounded-xl flex items-center justify-center shadow-sm">
               <AlertTriangle className="w-6 h-6 text-red-600" />
             </div>
+
             <div className="flex-1 min-w-0 pt-1">
               <h3 className="text-lg font-bold text-gray-900 leading-tight">
                 {getTitle()}
@@ -120,10 +187,8 @@ export default function ConfirmDeleteModal({
             </div>
           </div>
 
-          {/* Preview dos registros */}
           {renderRecordsPreview()}
 
-          {/* Barra de progresso durante a eliminação */}
           {isDeleting && (
             <div className="mt-5 p-4 bg-gray-50 border border-gray-200 rounded-xl">
               <div className="flex justify-between text-xs font-bold text-gray-500 mb-2">
@@ -131,29 +196,31 @@ export default function ConfirmDeleteModal({
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-red-500" />
                   {t("actions.processing") || "Processando..."}
                 </span>
-                <span>{lista.length} {t("common.of") || "de"} {total}</span>
+                <span>
+                  {Math.min(lista.length, safeTotal)} {t("common.of") || "de"} {safeTotal}
+                </span>
               </div>
+
               <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                <div 
+                <div
                   className="bg-red-500 h-full rounded-full transition-all duration-300"
-                  style={{ width: `${(total || 0) > 0 ? Math.min(100, (lista.length / total!) * 100) : 0}%` }}
+                  style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </div>
           )}
 
-          {/* Aviso adicional */}
           {!isDeleting && (
             <div className="mt-5 p-3 bg-amber-50 border border-amber-200 rounded-xl flex gap-2">
               <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
               <p className="text-xs font-medium text-amber-800 leading-relaxed">
-                {t("modals.irreversibleWarning") || "Esta ação é irreversível. Certifique-se de que os dados não são mais necessários antes de confirmar."}
+                {t("modals.irreversibleWarning") ||
+                  "Esta ação é irreversível. Certifique-se de que os dados não são mais necessários antes de confirmar."}
               </p>
             </div>
           )}
         </div>
 
-        {/* Footer Actions */}
         <div className="p-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl flex gap-3 justify-end">
           <button
             onClick={onClose}
@@ -162,6 +229,7 @@ export default function ConfirmDeleteModal({
           >
             {t("actions.cancel") || "Cancelar"}
           </button>
+
           <button
             onClick={onConfirm}
             disabled={isDeleting}
@@ -175,12 +243,13 @@ export default function ConfirmDeleteModal({
             ) : (
               <>
                 <Trash2 className="w-4 h-4" />
-                {type === "select" ? `${t("actions.delete")} ${total}` : t("actions.delete") || "Eliminar"}
+                {type === "select" || type === "all"
+                  ? `${t("actions.delete") || "Eliminar"} ${safeTotal}`
+                  : t("actions.delete") || "Eliminar"}
               </>
             )}
           </button>
         </div>
-
       </div>
     </div>
   );

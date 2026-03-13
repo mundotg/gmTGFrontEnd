@@ -20,6 +20,8 @@ export const config = {
     '/home/chatGPT',
     '/home/geradorCodigo',
     '/home/geradorImagens',
-    '/home/sobre'
+    '/home/sobre',
+    '/home/test',
+    '/home/tester'
   ],
 };

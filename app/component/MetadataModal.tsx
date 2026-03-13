@@ -4,23 +4,27 @@ import {
   EditedField,
   EditedFieldForQuery,
   MetadataTableResponse,
-  RowDetailsModalProps,
   Tables_primary_keys_values,
 } from "@/types";
-import { Lock, Key, Pencil, X, Save, AlertCircle, Search, Trash2, Loader2 } from "lucide-react";
-import { validateField, Badge } from "@/util";
+import { X, AlertCircle } from "lucide-react";
+import { validateField } from "@/util";
 import { usePopupReference } from "../services/popups";
 import { findIdentifierField } from "@/util/func";
 import { useRowDelete } from "@/hook/useRowDelete";
 import { createLogger } from "@/util/logger";
-import DynamicInputByTypeWithNullable from "./DynamicInputByTypeWithNullable";
 import ConfirmDeleteModal from "./ConfirmDeleteModal"; // 🔹 Importado o modal padronizado
 import { useI18n } from "@/context/I18nContext"; // 🔹 Importado
+import { FieldEditor } from "./ResultadosQueryComponent/FieldEditor";
+import ModalFooter from "./ResultadosQueryComponent/ModalFooter";
+import { RowDetailsModalProps } from "./ResultadosQueryComponent/types";
 
 const logger = createLogger({ component: "RowDetailsModal" });
 
 const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   isOpen,
+  setModalFetchOpen,
+  responseModal, setResponseModal,
+  modalFetchOpen, setOptionModalTable,
   onClose,
   row,
   informacaosOftables,
@@ -34,21 +38,62 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { openReferencePopup: viewReferenceTable } = usePopupReference();
-
   // Memoização das tabelas selecionadas
   const selectedTables = useMemo<MetadataTableResponse[]>(() => {
     if (!row?.tableName || !informacaosOftables) return [];
 
     return Object.entries(informacaosOftables)
-      .filter(([tableName]) => row.tableName?.includes(tableName))
-      .map(([tableName, colunas]) => ({
+      .filter(([keyName]) => {
+        return row?.tableName?.some((tName) => {
+          if (!tName) return false;
+
+          // 1. Possibilidade: Match exato ("public.users" === "public.users")
+          if (tName === keyName) return true;
+
+          // 2. Possibilidade: tName tem uma coluna pendurada ("public.users.id" vs "public.users")
+          if (tName.startsWith(`${keyName}.`)) return true;
+
+          // Desmontamos as strings para analisar a fundo
+          const tParts = tName.split(".");
+          const kParts = keyName.split(".");
+
+          // Extraímos a base da tabela (sempre o último elemento do array)
+          // Ex: "public.db_fields" vira "db_fields"
+          const tBase = tParts[tParts.length - 1];
+          const kBase = kParts[kParts.length - 1];
+
+          // Se as tabelas base NÃO são iguais, verificamos um último fallback
+          if (tBase !== kBase) {
+            // Fallback: e se tName for "tabela.coluna" (ex: "users.id") e keyName for "users"?
+            if (tParts.length >= 2 && tParts[tParts.length - 2] === kBase) {
+              return true;
+            }
+            return false;
+          }
+
+          // 3. Possibilidade: As tabelas base são IGUAIS (ex: "db_fields" e "db_fields").
+          // Agora verificamos a segurança: há conflito de schema?
+          const tSchema = tParts.length > 1 ? tParts[tParts.length - 2] : null;
+          const kSchema = kParts.length > 1 ? kParts[kParts.length - 2] : null;
+
+          // Se AMBOS forneceram um schema, eles DEVEM ser iguais. 
+          // (Isso impede que "audit.users" dê match com "public.users")
+          if (tSchema && kSchema && tSchema !== kSchema) {
+            return false;
+          }
+
+          // 4. Possibilidade: Base igual, e apenas um (ou nenhum) tem schema (ex: "db_fields" === "public.db_fields")
+          return true;
+        });
+      })
+      .map(([keyName, colunas]) => ({
         message: "",
         executado_em: "",
         connection_id: 0,
-        schema_name: "",
-        table_name: tableName,
-        total_colunas: colunas.length,
-        colunas,
+        schema_name: keyName.includes(".") ? keyName.split(".")[0] : "",
+        table_name: keyName,
+        total_colunas: colunas?.length || 0,
+        colunas: colunas || [],
       }));
   }, [row, informacaosOftables]);
 
@@ -56,6 +101,9 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   const { handleDelete, showDeleteConfirm, setShowDeleteConfirm, isDeleting } = useRowDelete({
     row,
     selectedTables,
+    responseModal,
+    setResponseModal,
+
     onDelete,
     onClose,
   });
@@ -64,6 +112,10 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   const hasChanges = useMemo(() => {
     return Object.values(editedFields).some((field) => field.hasChanged);
   }, [editedFields]);
+
+  const handleViewReference = useCallback((refTable: string, refField: string, refValue: string, name: string) => {
+    viewReferenceTable({ table: refTable, field: refField, value: refValue }, { name });
+  }, [viewReferenceTable]);
 
   // Reset do modal quando abrir/fechar
   useEffect(() => {
@@ -81,34 +133,51 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     const rowEntries = Object.entries(row.row);
     const nameColumns = row.nameColumns || [];
     const mainTableName = row.tableName?.[0] || "unknown_table";
-    
+
     rowEntries.forEach(([key, value], index) => {
-      let columnName: string;
+      let fullColumnName: string;
       let tableName: string;
+      let pureColumnName: string = key; // <-- Nova variável para guardar o nome limpo
 
       if (index < nameColumns.length && nameColumns[index]) {
-        columnName = nameColumns[index];
-        if (typeof columnName === "string" && columnName.includes(".")) {
-          tableName = columnName.split(".")[0];
+        fullColumnName = nameColumns[index];
+        // console.log("fullColumnName:", fullColumnName);
+
+        if (typeof fullColumnName === "string" && fullColumnName.includes(".")) {
+          const parts = fullColumnName.split(".");
+
+          // O último elemento é SEMPRE a coluna, não importa quantos schemas tenha
+          pureColumnName = parts[parts.length - 1];
+
+          // Se tiver 3 ou mais partes (ex: schema.tabela.coluna)
+          if (parts.length >= 3) {
+            tableName = parts.slice(0, -1).join("."); // Junta tudo exceto a coluna
+          } else {
+            // Se tiver 2 partes (ex: tabela.coluna)
+            tableName = parts[0];
+          }
         } else {
           tableName = mainTableName;
+          pureColumnName = fullColumnName; // Se for só "name", ele mesmo é o puro
         }
       } else {
-        columnName = key;
+        fullColumnName = key;
         tableName = mainTableName;
       }
 
-      const safeColumnName = typeof columnName === "string" ? columnName : key;
+      const safeColumnName = typeof fullColumnName === "string" ? fullColumnName : key;
+      // console.log("safeColumnName:", safeColumnName);
 
       initialEditedFields[safeColumnName] = {
         value: value !== null && value !== undefined ? String(value) : "",
         tableName,
+        // columnName: pureColumnName, // <-- Agora o nome limpo da coluna vai junto no state!
         hasChanged: false,
         type_column: typeof value,
       };
       initialEnabledFields[safeColumnName] = false;
     });
-
+    // console.log(initialEditedFields)
     setEditedFields(initialEditedFields);
     setEnabledFields(initialEnabledFields);
   }, [row, isOpen, informacaosOftables, setShowDeleteConfirm]);
@@ -179,9 +248,21 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       const updatedRow = Object.entries(editedFields)
         .filter(([, field]) => field.hasChanged)
         .reduce<EditedFieldForQuery>((acc, [key, field]) => {
-          const [tableName, column] = key?.split(".");
+
+          // 1. Usa o tableName seguro que já garantimos no useEffect
+          const tableName = field.tableName;
+
+          // 2. Extrai a coluna pegando SEMPRE o último elemento da chave
+          const keyParts = key.split(".");
+          const column = keyParts[keyParts.length - 1];
+
           if (!acc[tableName]) acc[tableName] = {};
-          acc[tableName][column] = { value: String(field.value), type_column: field.type_column };
+
+          acc[tableName][column] = {
+            value: String(field.value),
+            type_column: field.type_column
+          };
+
           return acc;
         }, {});
 
@@ -201,6 +282,25 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     setEnabledFields((prev) => ({ ...prev, [field]: !prev[field] }));
   }, []);
 
+  const [openModalConfirmeDelete, setOpenModalConfirmeDele] = useState(false)
+  useEffect(() => {
+    if (openModalConfirmeDelete)
+      if (!modalFetchOpen)
+        setShowDeleteConfirm(true)
+
+  }, [openModalConfirmeDelete, modalFetchOpen])
+
+
+  const confirmeDelet_open_modal_for_selection_table = useCallback(() => {
+
+    setOptionModalTable("oneDelet")
+
+    setModalFetchOpen(true)
+
+    setOpenModalConfirmeDele(true)
+
+  }, [])
+
   // Handler para fechar modal
   const handleClose = useCallback(() => {
     if (hasChanges) {
@@ -219,9 +319,10 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     },
     [handleClose]
   );
-
+  // console.log(selectedTables)
   // Early return se modal não deve ser exibido
   if (!isOpen || !row || selectedTables.length === 0) {
+
     return null;
   }
 
@@ -235,7 +336,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       onClick={handleOverlayClick}
     >
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
-        
+
         {/* Header */}
         <header className="flex justify-between items-center border-b border-gray-200 p-5 bg-gray-50 rounded-t-2xl">
           <div className="flex items-center gap-3">
@@ -265,124 +366,50 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
               <div key={`${metadata.table_name}_${tableIndex}`} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2 pb-3 border-b border-gray-100">
                   <span className="w-2.5 h-2.5 bg-blue-600 rounded-full"></span>
-                  {t("common.table") || "Tabela"}: {metadata.table_name}
+                  {t("common.table") || "Tabela"}: {metadata.table_name.substring(metadata.table_name.indexOf(".",) + 1)}
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {metadata.colunas.map((col, index) => {
-                    const qualifiedName = `${metadata.table_name}.${col.nome}`;
-                    const editedField = editedFields[qualifiedName];
+                    // 1. Extrai apenas o nome da tabela (remove o schema, se houver)
+                    const justTable = metadata.table_name.includes(".")
+                      ? metadata.table_name.split(".").pop()
+                      : metadata.table_name;
 
+                    // 2. Monta as 3 possíveis chaves que podem estar no nosso State
+                    const keyWithSchema = `${metadata.table_name}.${col.nome}`; // Ex: public.users.name
+                    const keyWithTable = `${justTable}.${col.nome}`;            // Ex: users.name
+                    const keyJustColumn = col.nome;                             // Ex: name
+
+                    // 3. Descobre qual é a chave correta procurando no objeto (do mais específico pro mais genérico)
+                    const correctKey = editedFields[keyWithSchema] ? keyWithSchema :
+                      editedFields[keyWithTable] ? keyWithTable :
+                        editedFields[keyJustColumn] ? keyJustColumn :
+                          null;
+
+                    // 4. Agora sim, pegamos os valores corretamente e separados!
+                    const editedField = correctKey ? editedFields[correctKey] : null;
+
+                    // console.log("Chave encontrada:", correctKey);
+                    // console.log("Estado do campo:", editedField);
                     if (!editedField) return null;
 
-                    const isEnabled = enabledFields[qualifiedName] ?? false;
-                    const hasError = errors[qualifiedName];
-                    const hasChanged = editedField.hasChanged;
+                    const isEnabled = correctKey ? enabledFields[correctKey] : false;
+                    const hasError = correctKey ? errors[correctKey] : "";
 
                     return (
-                      <div 
-                        key={`${qualifiedName}_${index}`} 
-                        className={`bg-gray-50 rounded-xl p-4 border transition-colors ${
-                          hasChanged ? "border-blue-300 bg-blue-50/30 ring-2 ring-blue-50" : "border-gray-200"
-                        }`}
-                      >
-                        <label
-                          htmlFor={qualifiedName}
-                          className="flex flex-wrap items-center gap-2 mb-3"
-                        >
-                          <span className={`text-sm ${hasChanged ? "text-blue-700 font-bold" : "text-gray-900 font-semibold"}`}>
-                            {col.nome}{!col.is_nullable && <span className="text-red-500 ml-0.5">*</span>}
-                          </span>
-
-                          {col.is_primary_key && (
-                            <Badge color="yellow" icon={<Key className="w-3.5 h-3.5" />} text="PK" />
-                          )}
-
-                          {col.is_foreign_key && (
-                            <div className="flex items-center gap-1.5">
-                              <Badge
-                                color="green"
-                                icon={<Key className="w-3.5 h-3.5" />}
-                                text={`→ ${col.referenced_table}.${col.field_references}`}
-                              />
-                              <button
-                                type="button"
-                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={!editedField.value}
-                                onClick={() => {
-                                  viewReferenceTable({
-                                    table: col.referenced_table!,
-                                    field: col.field_references!,
-                                    value: editedField.value,
-                                  }, {
-                                    name: `${metadata.table_name}_${col.nome}_to_${col.referenced_table}_${col.field_references}`
-                                  });
-                                }}
-                                aria-label={`${t("actions.viewRef") || "Ver referência de"} ${col.referenced_table}.${col.field_references}`}
-                                title={`${t("actions.openRefTable") || "Abrir tabela de referência:"} ${col.referenced_table}.${col.field_references}`}
-                              >
-                                <Search className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          )}
-
-                          <Badge color="gray" text={col.tipo} />
-
-                          {hasChanged && (
-                            <Badge color="blue" text={t("common.changed") || "Alterado"} />
-                          )}
-                        </label>
-
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1">
-                            <DynamicInputByTypeWithNullable
-                              enum_values={col.enum_valores_encontrados}
-                              type={col.tipo}
-                              is_nullable={col.is_nullable}
-                              value={editedField.value}
-                              onChange={(newVal) =>
-                                handleFieldChange(qualifiedName, newVal, metadata.table_name, col.tipo, col.is_nullable)
-                              }
-                              disabled={!isEnabled}
-                              aria-invalid={!!hasError}
-                            />
-                            {hasError && (
-                              <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1">
-                                <AlertCircle className="w-3.5 h-3.5" />
-                                {hasError}
-                              </p>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            disabled={col.is_auto_increment}
-                            onClick={() => toggleEdit(qualifiedName)}
-                            className={`p-2 rounded-lg transition-all focus:outline-none focus:ring-2 shadow-sm
-                              ${col.is_auto_increment
-                                ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
-                                : isEnabled
-                                  ? "bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 focus:ring-red-500/50"
-                                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-blue-600 focus:ring-blue-500/50"
-                              }`}
-                            title={
-                              col.is_auto_increment
-                                ? (t("forms.errAutoIncrement") || "Não podes modificar porque é um autoincremento")
-                                : isEnabled
-                                  ? (t("actions.disableEdit") || "Bloquear edição")
-                                  : (t("actions.enableEdit") || "Habilitar edição")
-                            }
-                          >
-                            {col.is_auto_increment ? (
-                              <Lock className="w-4 h-4 opacity-50" />
-                            ) : isEnabled ? (
-                              <Lock className="w-4 h-4" />
-                            ) : (
-                              <Pencil className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
+                      <FieldEditor
+                        key={`${correctKey}_${index}`}
+                        col={col}
+                        qualifiedName={correctKey as string}
+                        metadata={metadata}
+                        editedField={editedField}
+                        isEnabled={isEnabled}
+                        hasError={hasError}
+                        onFieldChange={handleFieldChange}
+                        onToggleEdit={toggleEdit}
+                        onViewReference={handleViewReference}
+                      />
                     );
                   })}
                 </div>
@@ -392,46 +419,15 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
         </main>
 
         {/* Footer */}
-        <footer className="flex flex-col sm:flex-row justify-between items-center gap-4 p-5 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
-          {/* Botão de Delete - Lado esquerdo */}
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={isLoading || isDeleting}
-            className="w-full sm:w-auto px-5 py-2.5 text-sm font-bold rounded-xl bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-red-500/50"
-            title={t("actions.deleteRecord") || "Eliminar este registro"}
-          >
-            <Trash2 className="w-4 h-4" />
-            {t("actions.delete") || "Eliminar"}
-          </button>
-
-          {/* Botões de Save/Cancel - Lado direito */}
-          <div className="flex w-full sm:w-auto gap-3">
-            <button
-              onClick={handleClose}
-              className="flex-1 sm:flex-none px-5 py-2.5 text-sm font-bold rounded-xl bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-sm"
-              disabled={isLoading || isDeleting}
-            >
-              {t("actions.cancel") || "Cancelar"}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!hasChanges || isLoading || isDeleting || Object.values(errors).some(error => error)}
-              className="flex-1 sm:flex-none px-6 py-2.5 text-sm font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {t("actions.saving") || "Salvando..."}
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  {t("actions.saveChanges") || "Salvar Alterações"}
-                </>
-              )}
-            </button>
-          </div>
-        </footer>
+        <ModalFooter
+          onDelete={confirmeDelet_open_modal_for_selection_table} // Tira essa linha se for um modal de "Criar Novo"
+          onCancel={handleClose}
+          onSave={handleSave}
+          isLoading={isLoading}
+          isDeleting={isDeleting}
+          isSaving={isLoading}
+          disableSave={!hasChanges || isLoading || isDeleting || Object.values(errors).some(error => error)}
+        />
 
         {/* Modal de Confirmação de Delete (Componente Padronizado) */}
         <ConfirmDeleteModal

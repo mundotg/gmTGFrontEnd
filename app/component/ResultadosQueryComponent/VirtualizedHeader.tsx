@@ -96,12 +96,12 @@ const VirtualizedHeaderR = ({
             tabIndex={0}
             role="button"
             aria-label={`${t("table.sortBy") || "Ordenar por"} ${key}`}
-            title={`${t("table.clickToSort") || "Clique para ordenar por"} ${key}`}
+            title={`${t("table.clickToSort") || "Clique para ordenar por"} ${key?.substring?.(key.indexOf?.(".")+1) || key}`}
           >
             <div className="flex items-start justify-between gap-3 w-full h-full whitespace-nowrap">
               <div className="min-w-0 flex-1 flex flex-col gap-1 pr-14">
                 <div className="font-bold text-sm text-gray-900 truncate">
-                  {key}
+                  {key?.substring?.(key.indexOf?.(".")+1) || key}
                 </div>
                 
                 {columnInfo?.type && (

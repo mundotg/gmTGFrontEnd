@@ -7,6 +7,7 @@ import { AuthProvider, LoginOptions, useSession } from "@/context/SessionContext
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/context/I18nContext";
+import { aes_encrypt } from "@/service";
 
 type Toast = { type: "error" | "success"; message: string } | null;
 
@@ -91,7 +92,7 @@ const LoginPage = () => {
       setIsLoading(true);
       try {
         const ok = await login("credenciais", {
-          credenciais: { email, senha: password },
+          credenciais: { email, senha: aes_encrypt(password) },
           redirect: "/dashboard",
         });
 

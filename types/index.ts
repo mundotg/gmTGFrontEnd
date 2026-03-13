@@ -1,3 +1,4 @@
+
 import { FILTER_OPTIONS } from "@/constant";
 
 export type DatabaseOption = {
@@ -311,16 +312,10 @@ export interface QueryPayload {
   limit?: number;
   offset?: number;
   isCountQuery?: boolean;
+  select? : string[];
 }
 
-export interface RowDetailsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  row: SelectedRow | null;
-  informacaosOftables?: Record<string, CampoDetalhado[]>;
-  onSave?: (updatedRow: EditedFieldForQuery, tables_primary_keys_values: Record<string, Record<string, any>>, index: number) => void;
-  onDelete: (payload: PayloadDeleteRow, index: number) => Promise<void>
-}
+
 
 export interface RowDetailsModalCreateProps {
   isOpen: boolean;
@@ -531,17 +526,9 @@ export interface MetadataTableResponse {
   colunas: CampoDetalhado[];
 }
 
-export type RowDelete = {
-  primaryKey: string;
-  primaryKeyValue?: string;
-  keyType: tipo_db_Options;
-  isPrimarykeyOrUnique?: boolean;
-}
-export type PayloadDeleteRow = {
-  index: number
-  payloadSelectedRow?: QueryPayload;
-  rowDeletes: Record<string, RowDelete>;
-}
+
+
+
 
 
 

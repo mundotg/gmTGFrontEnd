@@ -174,6 +174,7 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
       type: "all",
       total: queryResults.totalResults || 0,
       lista: [],
+      payloadSelectedRow:{}
     });
   }, [queryResults.totalResults, setConfirmDelete]);
 

@@ -185,7 +185,7 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
                   <div className="flex items-center gap-1.5">
                     <BarChart3 size={14} className="text-blue-600" />
                     <span className={`text-xs font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
-                      {table.rowcount.toLocaleString()} {t('common.rows') || "linhas"}
+                      {table?.rowcount?.toLocaleString()} {t('common.rows') || "linhas"}
                     </span>
                   </div>
                 )}
@@ -256,8 +256,8 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
           {colunasShow?.colunas ? (
             <div className="p-4 sm:p-6">
               <TableColumnsDisplay
-              names_caches_value={ {_modal_Create_Open: "_modal_Create_Open_TB",_thema: "_thema_tb", _modal_Edit_Open:"_modal_Edit_Open_tb", 
-                consulta_showFilterColunas: "consulta_showFilterColunas_tg",consulta_showSortColunas:"consulta_showSortColunas_tg"}}
+              names_caches_value={ {_modal_Create_Open: "_modal_Create_Open_TB"+colunasShow.table_name,_thema: "_thema_tb"+colunasShow.table_name, _modal_Edit_Open:"_modal_Edit_Open_tb"+colunasShow.table_name, 
+                consulta_showFilterColunas: "consulta_showFilterColunas_tg"+colunasShow.table_name,consulta_showSortColunas:"consulta_showSortColunas_tg"+colunasShow.table_name}}
                 tableNames={table.name}
                 columns={[colunasShow]}
                 setColumns={setAuxColunasShow}

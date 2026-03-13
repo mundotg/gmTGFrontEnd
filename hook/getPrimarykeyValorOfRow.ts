@@ -1,103 +1,190 @@
 import { useCallback } from "react";
-import { MetadataTableResponse, PayloadDeleteRow, SelectedRow } from "@/types";
+import { MetadataTableResponse, SelectedRow, tipo_db_Options } from "@/types";
 import { findIdentifierField } from "@/util/func";
-import { createLogger } from '@/util/logger';
-const logger = createLogger({ hook: 'usePrimaryKeyExtractor' });
+import { createLogger } from "@/util/logger";
+import { PayloadDeleteRow, RowDelete } from "@/app/component/ResultadosQueryComponent/types";
 
-/**
- * Hook reutilizável que extrai informações da chave primária
- * de um registro, garantindo que não haja sobrescrita e
- * que todas as tabelas envolvidas sejam corretamente mapeadas.
- */
+const logger = createLogger({ hook: "usePrimaryKeyExtractor" });
+
 export const usePrimaryKeyExtractor = (
-  row: SelectedRow | null,
   selectedTables: MetadataTableResponse[]
 ) => {
-  const getPrimaryKeyInfo = useCallback((): PayloadDeleteRow => {
+  const buildPayloadFromRow = useCallback(
+  (row: SelectedRow, tablesForDelete: string[]): PayloadDeleteRow => {
     return logger.measureSync("Extrair informações da chave primária", () => {
       logger.debug("Iniciando extração de chaves primárias", {
         hasRow: !!row,
         selectedTablesCount: selectedTables.length,
         rowIndex: row?.index,
         tableNames: row?.tableName,
+        tablesForDelete,
       });
 
-      if (!row || selectedTables.length === 0) {
+      if (!row || !row.row || selectedTables.length === 0) {
         const error = new Error("Dados insuficientes para identificar o registro");
         logger.error("Falha na validação inicial", error, {
-          row: row ? Object.keys(row) : null,
+          row: row ? Object.keys(row.row || {}) : null,
           selectedTablesCount: selectedTables.length,
         });
         throw error;
       }
 
       const payload: PayloadDeleteRow = {
-        index: row.index ?? -1,
+        tableForDelete: tablesForDelete,
         rowDeletes: {},
       };
 
-      const rowEntries = Object.entries(row.row || {});
-      const nameColumns = row.nameColumns || [];
-      const mainTableName = row.tableName?.[0] || "unknown_table";
+      const rowData = row.row || {};
 
-      rowEntries.forEach(([key, value], index) => {
-        let columnName = key;
-        let tableName = mainTableName;
+      tablesForDelete.forEach((targetTable) => {
+        const defaultDelete: RowDelete = {
+          index: row.index ?? -1,
+        };
 
-        if (index < nameColumns.length && nameColumns[index]) {
-          columnName = nameColumns[index];
-          if (columnName.includes(".")) {
-            const [tbl, col] = columnName.split(".");
-            tableName = tbl;
-            columnName = col;
-          }
+        const tableMeta = selectedTables.find(
+          (t) =>
+            t.table_name === targetTable ||
+            t.table_name.split(".").pop() === targetTable.split(".").pop()
+        );
+
+        if (!tableMeta) {
+          payload.rowDeletes[targetTable] = defaultDelete;
+          logger.warn(
+            `Metadados não encontrados para a tabela ${targetTable}. Usando fallback.`
+          );
+          return;
         }
 
-        if (!payload.rowDeletes[tableName]) {
-          const primaryKeyField = findIdentifierField(tableName, selectedTables);
-          payload.rowDeletes[tableName] = primaryKeyField
-            ? {
-              primaryKey: primaryKeyField.nome,
-              primaryKeyValue: "",
-              keyType: primaryKeyField.tipo || "text",
-            }
-            : {
-              primaryKey: "",
-              primaryKeyValue: "",
-              keyType: "text",
-            };
+        const pkField = findIdentifierField(tableMeta.table_name, selectedTables);
+
+        if (!pkField) {
+          payload.rowDeletes[targetTable] = {
+            ...defaultDelete,
+            primaryKey: "id",
+            primaryKeyValue: undefined,
+            isPrimarykeyOrUnique: false,
+          };
+
+          logger.warn(
+            `Não foi encontrada PK/Unique para a tabela ${targetTable}. Retornando fallback com primaryKey='id'.`
+          );
+          return;
         }
 
-        const tableConfig = payload.rowDeletes[tableName];
-        const primaryKeyField = findIdentifierField(tableName, selectedTables);
+        const justTable = tableMeta.table_name.includes(".")
+          ? tableMeta.table_name.split(".").pop()!
+          : tableMeta.table_name;
 
-        if (!tableConfig.primaryKey && primaryKeyField) {
-          tableConfig.primaryKey = primaryKeyField.nome;
-          tableConfig.keyType = primaryKeyField.tipo || "text";
-          tableConfig.isPrimarykeyOrUnique = primaryKeyField.is_primary_key || primaryKeyField.is_unique;
+        const targetTableJustName = targetTable.includes(".")
+          ? targetTable.split(".").pop()!
+          : targetTable;
+
+        const keyWithSchema = `${tableMeta.table_name}.${pkField.nome}`;
+        const keyWithTargetTable = `${targetTable}.${pkField.nome}`;
+        const keyWithTable = `${justTable}.${pkField.nome}`;
+        const keyWithTargetJustTable = `${targetTableJustName}.${pkField.nome}`;
+        const keyJustColumn = pkField.nome;
+
+        const possibleKeys = [
+          keyWithSchema,
+          keyWithTargetTable,
+          keyWithTable,
+          keyWithTargetJustTable,
+          keyJustColumn,
+        ];
+
+        let correctKey =
+          possibleKeys.find((key) =>
+            Object.prototype.hasOwnProperty.call(rowData, key)
+          ) ?? null;
+
+        if (!correctKey) {
+          const rowKeys = Object.keys(rowData);
+
+          correctKey =
+            rowKeys.find((key) => key === `${targetTable}.${pkField.nome}`) ||
+            rowKeys.find((key) => key === `${tableMeta.table_name}.${pkField.nome}`) ||
+            rowKeys.find(
+              (key) =>
+                key.endsWith(`.${pkField.nome}`) && key.includes(justTable)
+            ) ||
+            rowKeys.find(
+              (key) =>
+                key.endsWith(`.${pkField.nome}`) &&
+                key.includes(targetTableJustName)
+            ) ||
+            rowKeys.find((key) => key.split(".").pop() === pkField.nome) ||
+            null;
         }
 
-        if (
-          primaryKeyField &&
-          columnName === primaryKeyField.nome &&
-          !tableConfig.primaryKeyValue
-        ) {
-          tableConfig.primaryKeyValue = value !== null && value !== undefined ? String(value) : "";
-          tableConfig.isPrimarykeyOrUnique = primaryKeyField.is_primary_key || primaryKeyField.is_unique;
+        console.log("rowData:", rowData);
+        console.log("possibleKeys:", possibleKeys);
+        console.log("correctKey:", correctKey);
+
+        const isPrimarykeyOrUnique = !!(
+          pkField.is_primary_key || pkField.is_unique
+        );
+
+        if (!correctKey) {
+          payload.rowDeletes[targetTable] = {
+            ...defaultDelete,
+            primaryKey: pkField.nome,
+            primaryKeyValue: undefined,
+            keyType: pkField.tipo as tipo_db_Options,
+            isPrimarykeyOrUnique,
+          };
+
+          logger.warn(
+            `Campo identificador '${pkField.nome}' não encontrado na row para a tabela ${targetTable}.`
+          );
+          return;
         }
+
+        const pkValue = rowData[correctKey];
+
+        payload.rowDeletes[targetTable] = {
+          ...defaultDelete,
+          primaryKey: pkField.nome,
+          primaryKeyValue:
+            pkValue !== null && pkValue !== undefined
+              ? String(pkValue)
+              : undefined,
+          keyType: pkField.tipo as tipo_db_Options,
+          isPrimarykeyOrUnique,
+        };
       });
 
-      const validTables = Object.entries(payload.rowDeletes)
-        .filter(([_, cfg]) => cfg.primaryKey && cfg.primaryKeyValue)
-        .map(([t]) => t);
-
-      if (validTables.length === 0) {
-        throw new Error("Não foi possível identificar uma chave única para eliminação");
-      }
-
+      logger.debug("Extração concluída com sucesso", { payload });
       return payload;
     });
-  }, [row, selectedTables]);
+  },
+  [selectedTables]
+);
 
-  return { getPrimaryKeyInfo };
+  const getPrimaryKeyInfo = useCallback(
+    (row: SelectedRow | null, tablesForDelete: string[]): PayloadDeleteRow => {
+      if (!row) {
+        throw new Error("Nenhum registro selecionado.");
+      }
+
+      return buildPayloadFromRow(row, tablesForDelete);
+    },
+    [buildPayloadFromRow]
+  );
+
+  const getPrimaryKeysInfo = useCallback(
+    (rows: SelectedRow[], tablesForDelete: string[]): PayloadDeleteRow[] => {
+      if (!rows || rows.length === 0) {
+        return [];
+      }
+
+      return rows.map((row) => buildPayloadFromRow(row, tablesForDelete));
+    },
+    [buildPayloadFromRow]
+  );
+
+  return {
+    getPrimaryKeyInfo,
+    getPrimaryKeysInfo,
+  };
 };

@@ -1,13 +1,21 @@
 import { AlertCircle, Database, RefreshCw, Save, Trash2, X } from "lucide-react";
-import { FieldEditor } from "./FieldEditor";
+import { FieldEditor } from "../../component/ResultadosQueryComponent/FieldEditor";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { EditedField, EditedFieldForQuery, MetadataTableResponse, PayloadDeleteRow, QueryPayload, QueryResultType, SelectedRow, Tables_primary_keys_values } from "@/types";
+import {
+  EditedField, EditedFieldForQuery, MetadataTableResponse,
+  QueryPayload, QueryResultType,
+  SelectedRow, Tables_primary_keys_values
+} from "@/types";
 import { usePopupReference } from "@/app/services/popups";
 import api from "@/context/axioCuston";
 import { validateField } from "@/util";
 import { findIdentifierField } from "@/util/func";
 import { useRowDelete } from "@/hook/useRowDelete";
+import { useI18n } from "@/context/I18nContext";
+import ConfirmDeleteModal from "@/app/component/ConfirmDeleteModal";
+import ModalFooter from "@/app/component/ResultadosQueryComponent/ModalFooter";
+import { PayloadDeleteRow } from "@/app/component/ResultadosQueryComponent/types";
 
 const FieldSkeleton = () => (
   <div className="bg-white rounded-lg p-4 border border-gray-200 animate-pulse">
@@ -15,12 +23,15 @@ const FieldSkeleton = () => (
     <div className="h-10 bg-gray-200 rounded"></div>
   </div>
 );
+
 // Componente principal do popup
 export const ReferencePopup = () => {
   const searchParams = useSearchParams();
   const table = useMemo(() => searchParams.get("table"), [searchParams]);
   const field = useMemo(() => searchParams.get("field"), [searchParams]);
   const value = useMemo(() => searchParams.get("value"), [searchParams]);
+
+  const { t } = useI18n();
 
   // Estados principais
   const [informacaosOftables, setInformacaosOftables] = useState<MetadataTableResponse[]>([]);
@@ -41,13 +52,13 @@ export const ReferencePopup = () => {
 
   // Dados computados
   const selectedTables = useMemo(() => {
-    return informacaosOftables.filter((table) =>
-      selectColumns.some((col) => col.startsWith(`${table.table_name}.`))
+    return informacaosOftables.filter((t_meta) =>
+      selectColumns.some((col) => col.startsWith(`${t_meta.table_name}.`))
     );
   }, [selectColumns, informacaosOftables]);
 
   const hasChanges = useMemo(() => {
-    return Object.values(editedFields).some(field => field.hasChanged);
+    return Object.values(editedFields).some(f => f.hasChanged);
   }, [editedFields]);
 
   const hasValidationErrors = useMemo(() => {
@@ -55,13 +66,13 @@ export const ReferencePopup = () => {
   }, [errors]);
 
   const changedFieldsCount = useMemo(() => {
-    return Object.values(editedFields).filter(field => field.hasChanged).length;
+    return Object.values(editedFields).filter(f => f.hasChanged).length;
   }, [editedFields]);
 
   // Carregamento inicial dos dados
   useEffect(() => {
     if (!table || !field || !value) {
-      setLoadError('Parâmetros inválidos: table, field e value são obrigatórios');
+      setLoadError(t("referencePopup.invalidParams") || 'Parâmetros inválidos: table, field e value são obrigatórios');
       return;
     }
 
@@ -79,7 +90,7 @@ export const ReferencePopup = () => {
         );
 
         const metadata = metadataResponse.data;
-        const selectColumns: Record<string, string> = metadata.colunas.reduce((acc, col) => {
+        const selectCols: Record<string, string> = metadata.colunas.reduce((acc, col) => {
           acc[`${table}.${col.nome}`] = `${table}.${col.nome}`;
           return acc;
         }, {} as Record<string, string>);
@@ -87,7 +98,7 @@ export const ReferencePopup = () => {
         // Construir query para buscar o registro
         const query: QueryPayload = {
           baseTable: table,
-          aliaisTables: selectColumns,
+          aliaisTables: selectCols,
           table_list: [table],
           joins: {},
           where: [{
@@ -110,25 +121,23 @@ export const ReferencePopup = () => {
         );
 
         if (!queryResponse.data.preview[0]) {
-          setLoadError('Registro não encontrado');
+          setLoadError(t("referencePopup.notFound") || 'Registro não encontrado');
           return;
         }
-        console.log(queryResponse.data.preview[0])
 
         const selectedRow: SelectedRow = {
           row: queryResponse.data.preview[0],
-          nameColumns: Object.keys(selectColumns),
+          nameColumns: Object.keys(selectCols),
           tableName: [table],
         };
 
         setRow(selectedRow);
         setInformacaosOftables([metadata]);
-        setSelectColumns(Object.keys(selectColumns));
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setSelectColumns(Object.keys(selectCols));
       } catch (error: any) {
         if (error.name !== "CanceledError") {
           console.error("Erro ao carregar dados:", error);
-          setLoadError(error.response?.data?.message || 'Erro ao carregar dados');
+          setLoadError(error.response?.data?.message || t("referencePopup.loadError") || 'Erro ao carregar dados');
         }
       } finally {
         setIsLoading(false);
@@ -137,25 +146,41 @@ export const ReferencePopup = () => {
 
     fetchData();
     return () => controller.abort();
-  }, [table, field, value, setRow, setInformacaosOftables, setSelectColumns]);
+  }, [table, field, value, t]);
 
   // Hook customizado para deletar registro
-
-  const onDelete = useCallback(async (payload: PayloadDeleteRow,index: number)  => {
+  const onDelete = useCallback(async (payload: PayloadDeleteRow, index: number) => {
     try {
-      // Chamar sua API de delete
-      payload.index = payload.index || index
+      const firstTable = payload.tableForDelete?.[0];
+
+      if (!firstTable) {
+        throw new Error("Nenhuma tabela foi informada para exclusão.");
+      }
+
+      const rowDelete = payload.rowDeletes[firstTable];
+
+      if (!rowDelete) {
+        throw new Error(`Nenhuma configuração de exclusão encontrada para a tabela '${firstTable}'.`);
+      }
+
+      const normalizedPayload: PayloadDeleteRow = {
+        ...payload,
+        rowDeletes: {
+          ...payload.rowDeletes,
+          [firstTable]: {
+            ...rowDelete,
+            index: rowDelete.index ?? index,
+          },
+        },
+      };
+
       await api.delete("/delete/records", {
-        data: {
-          registros: [payload],
-        },
+        data: { registros: [normalizedPayload] },
         withCredentials: true,
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
     } catch (error) {
-      console.error('Erro ao eliminar registro:', error);
+      console.error("Erro ao eliminar registro:", error);
       throw error;
     }
   }, []);
@@ -168,8 +193,9 @@ export const ReferencePopup = () => {
   } = useRowDelete({
     row,
     selectedTables,
+
     onDelete,
-    onClose: window.close
+    onClose: typeof window !== "undefined" ? () => window.close() : () => { }
   });
 
   // Inicializar campos editáveis
@@ -179,9 +205,9 @@ export const ReferencePopup = () => {
     const initialEditedFields: Record<string, EditedField> = {};
     const initialEnabledFields: Record<string, boolean> = {};
 
-    Object.entries(row.row).forEach(([key, value]) => {
+    Object.entries(row.row).forEach(([key, val]) => {
       initialEditedFields[key] = {
-        value: String(value ?? ''),
+        value: String(val ?? ''),
         tableName: table || row.tableName?.[0] || "",
         hasChanged: false,
         type_column: "text"
@@ -191,81 +217,69 @@ export const ReferencePopup = () => {
 
     setEditedFields(initialEditedFields);
     setEnabledFields(initialEnabledFields);
-    setErrors({}); // Limpar erros ao reinicializar
+    setErrors({});
   }, [row, informacaosOftables, table]);
 
   // Handlers
-  // Handler para mudanças nos campos
-  const handleFieldChange = useCallback((key: string, value: string, tableName: string, columnType: string, isNullable?: boolean) => {
-    // Validação
-    let error = validateField(columnType, String(value));
-    // Valida NOT NULL
-    if (!isNullable && (value === "" || value === null || value === undefined)) {
-      error = "Este campo é obrigatório.";
+  const handleFieldChange = useCallback((key: string, val: string, tableName: string, columnType: string, isNullable?: boolean) => {
+    let error = validateField(columnType, String(val));
+    if (!isNullable && (val === "" || val === null || val === undefined)) {
+      error = t("validation.required") || "Este campo é obrigatório.";
     }
-    setErrors(prev => ({
-      ...prev,
-      [key]: error || ''
-    }));
+    setErrors(prev => ({ ...prev, [key]: error || '' }));
 
-    // Atualizar campo editado
     setEditedFields(prev => {
       const originalValue = row?.row?.[key] ?? '';
-      const hasChanged = String(originalValue) !== value;
+      const hasChanged = String(originalValue) !== val;
 
       return {
         ...prev,
-        [key]: {
-          value,
-          tableName,
-          hasChanged,
-          type_column: columnType
-        }
+        [key]: { value: val, tableName, hasChanged, type_column: columnType }
       };
     });
-  }, [row?.row]);
+  }, [row?.row, t]);
 
-  const handleToggleEdit = useCallback((field: string) => {
-    setEnabledFields(prev => ({ ...prev, [field]: !prev[field] }));
+  const handleToggleEdit = useCallback((fieldName: string) => {
+    setEnabledFields(prev => ({ ...prev, [fieldName]: !prev[fieldName] }));
   }, []);
 
-  const handleViewReference = useCallback((table: string, field: string, value: string, name: string) => {
-    viewReferenceTable({ table, field, value }, { name });
+  const handleViewReference = useCallback((refTable: string, refField: string, refValue: string, name: string) => {
+    viewReferenceTable({ table: refTable, field: refField, value: refValue }, { name });
   }, [viewReferenceTable]);
 
   const handleSave = useCallback(async () => {
     if (!hasChanges || hasValidationErrors) return;
-    if (!window.confirm("Tens a certeza que queres editar?")) return;
+    if (!window.confirm(t("modals.confirmEdit") || "Tens a certeza que queres editar?")) return;
+
     setIsSaving(true);
     try {
-      // Preparar dados para salvar
       const tables_primary_keys_values = Object.entries(editedFields)
-        .filter(([, field]) => field.hasChanged)
-        .reduce((acc, [key, field]) => {
-          const table = informacaosOftables.find(t => t.table_name === field.tableName);
-          if (!table) return acc;
+        .filter(([, f]) => f.hasChanged)
+        .reduce((acc, [key, f]) => {
+          const t_meta = informacaosOftables.find(t => t.table_name === f.tableName);
+          if (!t_meta) return acc;
 
-          if (!acc[table.table_name]) {
-            const primaryKeyField = findIdentifierField(table.table_name, informacaosOftables)?.nome;
-            const primary_key_name = `${table.table_name}.${primaryKeyField}`;
-            acc[table.table_name] = {
+          if (!acc[t_meta.table_name]) {
+            const primaryKeyField = findIdentifierField(t_meta.table_name, informacaosOftables)?.nome;
+            const primary_key_name = `${t_meta.table_name}.${primaryKeyField}`;
+            acc[t_meta.table_name] = {
               primaryKey: primary_key_name,
               valor: String(row?.row?.[primary_key_name]) ?? "null",
             };
           }
 
-          acc[table.table_name][key] = field.value;
+          acc[t_meta.table_name][key] = f.value;
           return acc;
         }, {} as Tables_primary_keys_values);
 
       const updatedRow = Object.entries(editedFields)
-        .filter(([, field]) => field.hasChanged)
-        .reduce<EditedFieldForQuery>((acc, [key, field]) => {
+        .filter(([, f]) => f.hasChanged)
+        .reduce<EditedFieldForQuery>((acc, [key, f]) => {
           const [tableName, column] = key.split(".");
           if (!acc[tableName]) acc[tableName] = {};
           acc[tableName][column] = {
-            value: String(field.value),
-            type_column: field.type_column
+            value: String(f.value),
+            type_column: f.type_column
           };
           return acc;
         }, {});
@@ -275,43 +289,41 @@ export const ReferencePopup = () => {
         tables_primary_keys_values
       }, { withCredentials: true });
 
-      // Mostrar sucesso e fechar
       setTimeout(() => window.close(), 500);
 
     } catch (error) {
       console.error("Erro ao salvar:", error);
-      alert("Erro ao salvar as alterações. Tente novamente.");
+      alert(t("modals.saveError") || "Erro ao salvar as alterações. Tente novamente.");
     } finally {
       setIsSaving(false);
     }
-  }, [hasChanges, hasValidationErrors, editedFields, informacaosOftables, row?.row]);
+  }, [hasChanges, hasValidationErrors, editedFields, informacaosOftables, row?.row, t]);
 
   const handleClose = useCallback(() => {
     if (hasChanges) {
-      const confirm = window.confirm("Você tem alterações não salvas. Deseja realmente sair?");
+      const confirm = window.confirm(t("modals.unsavedWarning") || "Você tem alterações não salvas. Deseja realmente sair?");
       if (!confirm) return;
     }
-    window.close();
-  }, [hasChanges]);
+    if (typeof window !== "undefined") {
+      window.close();
+    }
+  }, [hasChanges, t]);
 
-  // Loading state
+  // Render: Loading
   if (isLoading) {
     return (
       <div className="w-full h-screen bg-white flex flex-col">
         <header className="flex justify-between items-center border-b border-gray-200 p-4">
           <div className="flex items-center gap-3">
             <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <h2 className="text-xl font-bold text-gray-800">Carregando...</h2>
+            <h2 className="text-xl font-bold text-gray-800">{t("referencePopup.loading") || "Carregando..."}</h2>
           </div>
         </header>
-
         <main className="flex-1 overflow-y-auto p-6">
           <div className="bg-gray-50 rounded-lg p-5">
             <div className="h-6 bg-gray-200 rounded mb-4 animate-pulse"></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <FieldSkeleton key={i} />
-              ))}
+              {Array.from({ length: 6 }).map((_, i) => <FieldSkeleton key={i} />)}
             </div>
           </div>
         </main>
@@ -319,34 +331,34 @@ export const ReferencePopup = () => {
     );
   }
 
-  // Error state
+  // Render: Error
   if (loadError) {
     return (
       <div className="w-full h-screen bg-white flex flex-col items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Erro ao Carregar</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">{t("referencePopup.errorTitle") || "Erro ao Carregar"}</h2>
           <p className="text-gray-600 mb-4">{loadError}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 mx-auto"
           >
             <RefreshCw className="w-4 h-4" />
-            Tentar Novamente
+            {t("actions.tryAgain") || "Tentar Novamente"}
           </button>
         </div>
       </div>
     );
   }
 
-  // No data state
+  // Render: No Data
   if (!row || selectedTables.length === 0) {
     return (
       <div className="w-full h-screen bg-white flex flex-col items-center justify-center">
         <div className="text-center">
           <Database className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Nenhum Dado Encontrado</h2>
-          <p className="text-gray-600">Não foi possível carregar os dados solicitados.</p>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">{t("referencePopup.noDataTitle") || "Nenhum Dado Encontrado"}</h2>
+          <p className="text-gray-600">{t("referencePopup.noDataDesc") || "Não foi possível carregar os dados solicitados."}</p>
         </div>
       </div>
     );
@@ -357,12 +369,12 @@ export const ReferencePopup = () => {
       {/* Header */}
       <header className="flex justify-between items-center border-b border-gray-200 p-4 shadow-sm bg-white sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold text-gray-800">Detalhes da Linha</h2>
+          <h2 className="text-xl font-bold text-gray-800">{t("referencePopup.headerTitle") || "Detalhes da Linha"}</h2>
           {hasChanges && (
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1 text-amber-600 text-sm">
                 <AlertCircle className="w-4 h-4" />
-                {changedFieldsCount} campo{changedFieldsCount !== 1 ? 's' : ''} alterado{changedFieldsCount !== 1 ? 's' : ''}
+                {changedFieldsCount} {t("common.field") || "campo"}{changedFieldsCount !== 1 ? 's' : ''} {t("common.changed") || "alterado"}{changedFieldsCount !== 1 ? 's' : ''}
               </span>
             </div>
           )}
@@ -371,7 +383,7 @@ export const ReferencePopup = () => {
         <button
           onClick={handleClose}
           className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
-          title="Fechar"
+          title={t("actions.close") || "Fechar"}
         >
           <X className="w-6 h-6" />
         </button>
@@ -383,30 +395,48 @@ export const ReferencePopup = () => {
           <div key={`${metadata.table_name}_${tableIndex}`} className="bg-white rounded-lg p-6 mb-6 shadow-sm border border-gray-200">
             <h3 className="text-lg font-semibold text-gray-700 mb-6 flex items-center gap-2">
               <span className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0"></span>
-              <span>Tabela: {metadata.table_name}</span>
+              <span>{t("common.table") || "Tabela"}: {metadata.table_name}</span>
               <span className="text-sm text-gray-500 font-normal">
-                ({metadata.colunas.length} campos)
+                ({metadata.colunas.length} {t("common.fields") || "campos"})
               </span>
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {metadata.colunas.map((col, index) => {
-                const qualifiedName = `${metadata.table_name}.${col.nome}`;
-                const editedField = editedFields[col.nome];
+                // 1. Extrai apenas o nome da tabela (remove o schema, se houver)
+                const justTable = metadata.table_name.includes(".")
+                  ? metadata.table_name.split(".").pop()
+                  : metadata.table_name;
 
-                if (!editedField) {
-                  // console.log(editedField,editedFields)
-                  return null
-                };
+                // 2. Monta as 3 possíveis chaves que podem estar no nosso State
+                const keyWithSchema = `${metadata.table_name}.${col.nome}`; // Ex: public.users.name
+                const keyWithTable = `${justTable}.${col.nome}`;            // Ex: users.name
+                const keyJustColumn = col.nome;                             // Ex: name
+
+                // 3. Descobre qual é a chave correta procurando no objeto
+                const correctKey = editedFields[keyWithSchema] ? keyWithSchema :
+                  editedFields[keyWithTable] ? keyWithTable :
+                    editedFields[keyJustColumn] ? keyJustColumn :
+                      null;
+
+                // 4. Pega os valores
+                const editedField = correctKey ? editedFields[correctKey] : null;
+
+                if (!editedField) return null;
+
+                // Como editField existe, sabemos que correctKey é uma string!
+                const isEnabled = enabledFields[correctKey as string] ?? false;
+                const hasError = errors[correctKey as string] ?? "";
 
                 return (
                   <FieldEditor
-                    key={`${qualifiedName}_${index}`}
+                    key={`${correctKey}_${index}`}
                     col={col}
+                    qualifiedName={correctKey as string}
                     metadata={metadata}
                     editedField={editedField}
-                    isEnabled={enabledFields[qualifiedName] ?? false}
-                    hasError={errors[qualifiedName] || ''}
+                    isEnabled={isEnabled}
+                    hasError={hasError}
                     onFieldChange={handleFieldChange}
                     onToggleEdit={handleToggleEdit}
                     onViewReference={handleViewReference}
@@ -419,97 +449,25 @@ export const ReferencePopup = () => {
       </main>
 
       {/* Footer */}
-      <footer className="flex justify-between items-center p-4 border-t border-gray-200 bg-white">
-        <div className="flex items-center gap-4 text-sm text-gray-600">
-          {hasValidationErrors && (
-            <span className="flex items-center gap-1 text-red-600">
-              <AlertCircle className="w-4 h-4" />
-              Corrija os erros antes de salvar
-            </span>
-          )}
-        </div>
+      <ModalFooter
+        onDelete={() => setShowDeleteConfirm(true)} // Tira essa linha se for um modal de "Criar Novo"
+        onCancel={handleClose}
+        onSave={handleSave}
+        isLoading={isLoading}
+        isDeleting={isDeleting}
+        isSaving={isSaving}
+        disableSave={!hasChanges || isLoading || isDeleting || Object.values(errors).some(error => error)}
+      />
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={isLoading || isDeleting}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-red-400"
-            title="Eliminar este registro"
-          >
-            <Trash2 className="w-4 h-4" />
-            Eliminar
-          </button>
+      {/* Modal de Confirmação de Delete */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteConfirm}
+        type="single"
+        isDeleting={isDeleting}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => handleDelete()}
+      />
 
-          <button
-            onClick={handleClose}
-            className="px-6 py-2 text-sm font-medium rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            {hasChanges ? 'Cancelar' : 'Fechar'}
-          </button>
-
-          <button
-            onClick={handleSave}
-            disabled={!hasChanges || hasValidationErrors || isSaving}
-            className="px-6 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isSaving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Salvando...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Salvar {changedFieldsCount > 0 ? `(${changedFieldsCount})` : ''}
-              </>
-            )}
-          </button>
-        </div>
-      </footer>
-        {/* Modal de Confirmação de Delete */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-fade-in">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                  <Trash2 className="w-5 h-5 text-red-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800">Confirmar Eliminação</h3>
-              </div>
-              
-              <p className="text-gray-600 mb-6">
-                Tem a certeza que deseja eliminar este registro? Esta ação não pode ser desfeita.
-              </p>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                  disabled={isDeleting}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors flex items-center gap-2"
-                >
-                  {isDeleting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Eliminando...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="w-4 h-4" />
-                      Sim, Eliminar
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
     </div>
   );
 };
