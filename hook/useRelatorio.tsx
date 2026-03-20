@@ -1,6 +1,7 @@
 // import { useSessionTask } from '@/app/task/contexts/UserContext';
 import { useSession } from '@/context/SessionContext';
 import { useState, useCallback } from 'react';
+import axios from 'axios'; // Importante para verificar se o erro é do Axios
 
 export interface ApiResponseError {
     erro: string;
@@ -26,7 +27,7 @@ export interface UseRelatorioReturn<T> {
 }
 
 /**
- * Hook genérico para geração e download de relatórios PDF.
+ * Hook genérico para geração e download de relatórios PDF/Excel.
  * Suporta diferentes tipos de relatórios via payload tipado.
  */
 export const useRelatorio = <T = any>(): UseRelatorioReturn<T> => {
@@ -71,7 +72,6 @@ export const useRelatorio = <T = any>(): UseRelatorioReturn<T> => {
         try {
             setProgress(25);
 
-            // Define dinamicamente o endpoint conforme o tipo de relatório
             const endpointMap: Record<string, string> = {
                 query: '/relatorio/gerar-relatorio-query',
                 metadados: '/relatorio/gerar-relatorio',
@@ -83,27 +83,17 @@ export const useRelatorio = <T = any>(): UseRelatorioReturn<T> => {
 
             const endpoint = endpointMap[payload.tipo || 'metadados'];
 
-            const response = await api.post(endpoint, payload, { responseType: 'blob' });
-
-            if (response.status < 200 || response.status >= 300) {
-                let message = 'Erro desconhecido no servidor.';
-                try {
-                    if (response.data instanceof Blob) {
-                        const errorText = await new Response(response.data).text();
-                        const parsed = JSON.parse(errorText) as ApiResponseError;
-                        message = parsed.mensagem || parsed.erro || message;
-                    }
-                } catch {
-                    message = `Erro ${response.status}: ${response.statusText || 'Falha ao gerar PDF'}`;
-                }
-                throw new Error(message);
-            }
+            // 🚀 CORREÇÃO 1: Timeout aumentado para 60s (ou removido)
+            const response = await api.post(endpoint, payload, { 
+                responseType: 'blob', 
+                timeout: 60000 
+            });
 
             setProgress(60);
 
             const blob = response.data;
             if (!blob || blob.size === 0) {
-                throw new Error('O arquivo PDF retornado está vazio ou corrompido.');
+                throw new Error('O arquivo retornado está vazio ou corrompido.');
             }
 
             // Extrai o nome do arquivo, se informado pelo backend
@@ -119,10 +109,27 @@ export const useRelatorio = <T = any>(): UseRelatorioReturn<T> => {
             baixarArquivo(blob, filename);
             setSuccess(true);
             setProgress(100);
+            
         } catch (err) {
             console.error('Erro ao gerar relatório:', err);
-            const message = err instanceof Error ? err.message : 'Erro inesperado ao gerar relatório.';
-            setError(message);
+            let errorMessage = 'Erro inesperado ao gerar relatório.';
+
+            // 🚀 CORREÇÃO 2: Lidar com o Blob de erro do Axios
+            if (axios.isAxiosError(err) && err.response?.data instanceof Blob) {
+                try {
+                    // Como pedimos um Blob, o Axios converteu o JSON de erro do backend num Blob. 
+                    // Temos de o ler de volta para texto para mostrar ao utilizador!
+                    const errorText = await err.response.data.text();
+                    const parsedError = JSON.parse(errorText) as ApiResponseError;
+                    errorMessage = parsedError.mensagem || parsedError.erro || `Erro ${err.response.status}`;
+                } catch (parseErr) {
+                    errorMessage = `Erro ${err.response?.status}: Falha na requisição.`;
+                }
+            } else if (err instanceof Error) {
+                errorMessage = err.message;
+            }
+
+            setError(errorMessage);
             setSuccess(false);
         } finally {
             setIsLoading(false);

@@ -21,12 +21,11 @@ import { DeadlocksMonitor } from "./componentTabela/DeadlocksMonitor";
 
 import { DBStructure } from "@/types/db-structure";
 import TableModal from "./componentTabela/CreateTableForm";
-import { get } from "http";
 
 const ITEMS_PER_PAGE = 6;
 
 const DatabaseTablesPage: React.FC = () => {
-  const { metadata,setMetadata, loading: loadingMetadata, error: errorFetch } = useDatabaseMetadata();
+  const { metadata, setMetadata, loading: loadingMetadata, error: errorFetch } = useDatabaseMetadata();
   const { api, user } = useSession();
 
   const [structures, setStructures] = useState<DBStructure[]>([]);
@@ -66,11 +65,17 @@ const DatabaseTablesPage: React.FC = () => {
 
   useEffect(() => setCurrentPage(1), [searchTerm, filterSchema, sortBy]);
 
+  // useEffect(()=>{
+  //   console.log("metadata: ",metadata)
+
+  // },[metadata])
+
   const loadInitialData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
       const [structuresData, healthData] = await Promise.all([fetchStructures(), fetchHealthCheck()]);
+      // console.log("structuresData:", structuresData)
       setStructures(structuresData);
       setHealthStatus(healthData);
     } catch (err) {
@@ -220,12 +225,12 @@ const DatabaseTablesPage: React.FC = () => {
     [api, loadInitialData]
   );
 
-const handleDeleteSelectedTables = useCallback(async () => {
+  const handleDeleteSelectedTables = useCallback(async () => {
     const list = Array.from(selectedTables);
     if (list.length === 0) return alert("Nenhuma tabela selecionada.");
-    
+
     if (!confirm(`Eliminar ${list.length} tabelas selecionadas? Essa ação é irreversível.`)) return;
-  
+
     // 1. Get the separated data
     const { tables, schema_name } = separatedSelectedTablesNameAndSchema(list, getTableStructure);
 
@@ -246,11 +251,11 @@ const handleDeleteSelectedTables = useCallback(async () => {
         url: "/database/table/bulk",
         // 3. PASS PAYLOAD DIRECTLY
         // Don't use { payload }, or it nests it under a "payload" key again.
-        data: payload, 
+        data: payload,
         withCredentials: true,
       });
-      
-      setMetadata((prev: DatabaseMetadata | null ) => {
+
+      setMetadata((prev: DatabaseMetadata | null) => {
         if (!prev) return null;
         const filteredTables = prev.table_names.filter(t => !(tables.includes(t.name)));
         return { ...prev, tables: filteredTables };
@@ -360,7 +365,7 @@ const handleDeleteSelectedTables = useCallback(async () => {
           },
           { withCredentials: true }
         );
-        
+
         closeTableModal();
         await loadInitialData();
       } catch (err) {
@@ -386,7 +391,7 @@ const handleDeleteSelectedTables = useCallback(async () => {
           },
           withCredentials: true,
         });
-        setMetadata((prev: DatabaseMetadata | null ) => {
+        setMetadata((prev: DatabaseMetadata | null) => {
           if (!prev) return null;
           const filteredTables = prev.table_names.filter(t => t.name !== ctx.name);
 
@@ -581,7 +586,7 @@ const handleDeleteSelectedTables = useCallback(async () => {
         </Modal>
 
         {isDeadlocksOpen && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-9999 flex items-center justify-center p-4">
             <div
               className={`${isDarkMode ? "bg-[#1C1C1E] border-gray-800" : "bg-white border-gray-200"
                 } rounded-xl shadow-xl w-full max-w-6xl max-h-[90vh] overflow-auto border`}

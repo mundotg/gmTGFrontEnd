@@ -220,9 +220,8 @@ export const useDeleteOperations = (): DeleteOperations => {
             setDeleteProgress(30);
 
             const response = await api.delete("/delete/delete_all", {
-              data: {
-                query_payload: queryResults.QueryPayload,
-              },
+              data: queryResults.QueryPayload,
+
               withCredentials: true,
             });
 

@@ -56,7 +56,9 @@ export function useDatabaseMetadata(op?: string): UseDatabaseMetadataResult {
 
   // 🔹 Consome SSE para atualizar contagem de linhas das tabelas
   useEffect(() => {
-    if (!user || !initmetadata) return;
+    console.info("aviso no ficheiro useDatabaseMetadata desabilitei a contagem de registro das tabelas por erros linha 59")
+    let cancel = true
+    if (!user || !initmetadata || cancel) return;
 
     const eventSource = new EventSource(
       `${process.env.NEXT_PUBLIC_BACKEND_URL}consu/stream/tables/counts`, {withCredentials: true}
@@ -91,7 +93,7 @@ export function useDatabaseMetadata(op?: string): UseDatabaseMetadataResult {
 
     eventSource.onerror = (err) => {
       console.error("❌ Erro SSE:", err);
-      setError(JSON.stringify(err));
+      // setError(JSON.stringify(err));
       eventSource.close();
     };
 
