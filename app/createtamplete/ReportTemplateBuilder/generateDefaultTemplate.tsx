@@ -2,77 +2,141 @@ import { Section } from "../types";
 import { generateId } from "../ultils";
 
 /**
- * Gera o template padrão de relatório do OrionForgeNexus (oFn).
- * Compatível com o tipo discriminado Section.
+ * Template padrão premium do OrionForgeNexus (oFn)
+ * Focado em relatórios executivos profissionais
  */
 export const generateDefaultTemplate = (): Section[] => [
   {
     id: generateId(),
     type: "header",
     data: {
-      title: "Relatório Executivo",
-      subtitle: "Análise de Desempenho - Q4 2025",
+      title: "RELATÓRIO EXECUTIVO",
+      subtitle: "Análise de Desempenho • Q4 2025",
+      align: "center",
     },
   },
+
+  {
+    id: generateId(),
+    type: "spacer",
+    data: { height: 0.3 },
+  },
+
   {
     id: generateId(),
     type: "text",
     data: {
       value:
-        "Este relatório apresenta uma visão consolidada dos principais indicadores de desempenho do período.",
+        "Este relatório apresenta uma visão consolidada dos principais indicadores de desempenho da organização, destacando resultados, oportunidades e pontos de melhoria.",
+      align: "justify",
     },
   },
+
   {
     id: generateId(),
     type: "spacer",
+    data: { height: 0.5 },
+  },
+
+  {
+    id: generateId(),
+    type: "text",
     data: {
-      height: 0.5,
+      value: "Resumo de Performance",
+      bold: true,
     },
   },
+
+  {
+    id: generateId(),
+    type: "line",
+    data: {},
+  },
+
   {
     id: generateId(),
     type: "table",
     data: {
       columns: ["Departamento", "Meta", "Realizado", "% Atingido"],
       rows: [
-        ["Vendas", "R$ 800.000", "R$ 850.000", "106%"],
-        ["Marketing", "R$ 200.000", "R$ 195.000", "97%"],
-        ["Operações", "R$ 250.000", "R$ 205.000", "82%"],
+        ["Vendas", "800.000 Kz", "850.000 Kz", "106%"],
+        ["Marketing", "200.000 Kz", "195.000 Kz", "97%"],
+        ["Operações", "250.000 Kz", "205.000 Kz", "82%"],
       ],
     },
   },
+
   {
     id: generateId(),
     type: "spacer",
-    data: {
-      height: 0.5,
-    },
+    data: { height: 0.6 },
   },
+
   {
     id: generateId(),
     type: "text",
     data: {
-      value: "Próximas Ações:",
+      value: "Análise Geral",
+      bold: true,
     },
   },
+
+  {
+    id: generateId(),
+    type: "text",
+    data: {
+      value:
+        "Observa-se um desempenho positivo no setor de vendas, superando as metas estabelecidas. No entanto, áreas como operações requerem atenção estratégica para melhoria de eficiência.",
+      align: "justify",
+    },
+  },
+
+  {
+    id: generateId(),
+    type: "spacer",
+    data: { height: 0.5 },
+  },
+
+  {
+    id: generateId(),
+    type: "text",
+    data: {
+      value: "Próximas Ações",
+      bold: true,
+    },
+  },
+
   {
     id: generateId(),
     type: "list",
     data: {
       items: [
-        "Expandir equipe comercial",
-        "Implementar novo CRM",
-        "Otimizar processos operacionais",
+        "Expandir a equipe comercial para suportar crescimento",
+        "Implementar um novo sistema de CRM",
+        "Reestruturar processos operacionais críticos",
       ],
     },
   },
+
+  {
+    id: generateId(),
+    type: "spacer",
+    data: { height: 1 },
+  },
+
+  {
+    id: generateId(),
+    type: "line",
+    data: {},
+  },
+
   {
     id: generateId(),
     type: "footer",
     data: {
       left: "OrionForgeNexus (oFn)",
-      center: "Confidencial",
-      right: new Date().toLocaleDateString("pt-BR"),
+      center: "Documento Confidencial",
+      right: new Date().toLocaleDateString("pt-PT"),
     },
   },
 ];

@@ -31,8 +31,9 @@ import { validateTemplate } from "./validateTemplate";
 import { generateId, STORAGE_KEY } from "../ultils";
 import { generateDefaultTemplate } from "./generateDefaultTemplate";
 import usePersistedState from "@/hook/localStoreUse";
-import { getSectionPreview, IconButton, PreviewRenderer, ToolButton } from "./SUBCOMPONENTS";
+import { IconButton, PreviewRenderer, ToolButton } from "./SUBCOMPONENTS";
 import { useSectionsManager } from "../hooks/useSectionsManager";
+import { getSectionPreview } from "./previewElement";
 
 
 export default function OrionForgeTemplateStudio() {
@@ -57,7 +58,7 @@ export default function OrionForgeTemplateStudio() {
         setValidationErrors(validateTemplate(sections));
     }, [sections]);
 
-    const { addSection,duplicateSection,moveSection,removeSection,updateSection} = useSectionsManager( setSections, setSelectedId)
+    const { addSection,duplicateSection,moveSection,removeSection,updateSection,updateSectionStyle} = useSectionsManager( setSections, setSelectedId)
     // ============================================================================
     // DRAG & DROP HANDLERS
     // ============================================================================
@@ -153,7 +154,7 @@ export default function OrionForgeTemplateStudio() {
             {/* =========================================================
           LEFT SIDEBAR — SECTIONS
       ========================================================== */}
-            <aside className="w-80 bg-white border-r border-slate-200 flex flex-col shadow-md">
+            <aside className="w-80 bg-gradient-to-b from-white to-slate-50 border-r border-slate-200 flex flex-col shadow-md">
                 {/* Header */}
                 <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
                     <h1 className="text-white font-bold text-lg flex items-center gap-2">
@@ -430,7 +431,7 @@ export default function OrionForgeTemplateStudio() {
                             )}
                         </div>
                     ) : (
-                        <div className="max-w-4xl mx-auto bg-white shadow-2xl rounded-lg p-12">
+                        <div className="max-w-4xl mx-auto bg-white shadow-[0_20px_60px_rgba(0,0,0,0.15)] rounded-xl p-16 border border-slate-200">
                             <PreviewRenderer sections={sections} />
                         </div>
                     )}
@@ -458,6 +459,7 @@ export default function OrionForgeTemplateStudio() {
                         <PropertyEditor
                             section={selectedSection}
                             onUpdate={(data) => updateSection(selectedSection.id, data)}
+                            onUpdateStyle={(data) =>updateSectionStyle(selectedSection.id, data)}
                         />
                     ) : (
                         <div className="p-6 text-center text-slate-400">

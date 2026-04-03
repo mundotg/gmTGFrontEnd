@@ -1,55 +1,80 @@
 import { useCallback } from "react";
-import { Section, SectionType } from "../types";
+import { Section, SectionType, BaseStyle } from "../types";
 import { generateId } from "../ultils";
 import { defaultSectionData } from "../ReportTemplateBuilder/defaultSectionData";
 
-// ============================================================================
-// 🧩 Gerenciamento de seções do template
-// ============================================================================
+// 🔥 Helper tipado por tipo
+type SectionOfType<T extends SectionType> = Extract<Section, { type: T }>;
 
 export function useSectionsManager(
   setSections: React.Dispatch<React.SetStateAction<Section[]>>,
   setSelectedId: React.Dispatch<React.SetStateAction<string | null>>
 ) {
-  // ------------------------------------------------------------
-  // Adiciona uma nova seção
-  // ------------------------------------------------------------
+  // ============================================================
+  // ADD
+  // ============================================================
   const addSection = useCallback(
-    (type: SectionType) => {
-      const newSection = {
+    <T extends SectionType>(type: T) => {
+      const newSection: SectionOfType<T> = {
         id: generateId(),
         type,
         data: defaultSectionData(type),
+        style: {}, // 🔥 importante já iniciar
       };
 
-      setSections((prev) => [...prev, newSection as Section]);
+      setSections((prev) => [...prev, newSection]);
       setSelectedId(newSection.id);
     },
     [setSections, setSelectedId]
   );
 
-  // ------------------------------------------------------------
-  // Atualiza dados de uma seção existente
-  // ------------------------------------------------------------
-const updateSection = useCallback(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any 
-  (id: string, data: any) => {
-    setSections((prev) =>
-      prev.map((s) => {
-        if (s.id !== id) return s;
-        return {
-          ...s,
-          data: { ...s.data, ...data },
-        };
-      })
-    );
-  },
-  [setSections]
-);
+  // ============================================================
+  // UPDATE DATA
+  // ============================================================
+  const updateSection = useCallback(
+    (id: string, data: Partial<Section["data"]>) => {
+      setSections((prev) =>
+        prev.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                data: {
+                  ...s.data,
+                  ...data,
+                },
+              }
+            : s
+        )
+      );
+    },
+    [setSections]
+  );
 
-  // ------------------------------------------------------------
-  // Remove uma seção
-  // ------------------------------------------------------------
+  // ============================================================
+  // 🔥 UPDATE STYLE (AQUI ESTÁ O QUE FALTAVA)
+  // ============================================================
+  const updateSectionStyle = useCallback(
+    (id: string, style: Partial<BaseStyle>) => {
+      setSections((prev) =>
+        prev.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                style: {
+                  ...(s.style ?? {}), // 🔥 mantém o existente
+                  ...style,           // 🔥 aplica update
+                },
+              }
+            : s
+        )
+      );
+    },
+    [setSections]
+  );
+
+  // ============================================================
+  // REMOVE
+  // ============================================================
   const removeSection = useCallback(
     (id: string) => {
       setSections((prev) => prev.filter((s) => s.id !== id));
@@ -58,9 +83,9 @@ const updateSection = useCallback(
     [setSections, setSelectedId]
   );
 
-  // ------------------------------------------------------------
-  // Duplica uma seção existente
-  // ------------------------------------------------------------
+  // ============================================================
+  // DUPLICATE
+  // ============================================================
   const duplicateSection = useCallback(
     (id: string) => {
       setSections((prev) => {
@@ -68,14 +93,17 @@ const updateSection = useCallback(
         if (index === -1) return prev;
 
         const original = prev[index];
-        const newSection = {
+
+        const newSection: Section = {
+          ...original,
           id: generateId(),
-          type: original.type,
-          data: structuredClone(original.data), // evita referências
+          data: structuredClone(original.data),
+          style: structuredClone(original.style ?? {}), // 🔥 inclui style
         };
 
         const updated = [...prev];
-        updated.splice(index + 1, 0, newSection as Section);
+        updated.splice(index + 1, 0, newSection);
+
         setSelectedId(newSection.id);
         return updated;
       });
@@ -83,19 +111,20 @@ const updateSection = useCallback(
     [setSections, setSelectedId]
   );
 
-  // ------------------------------------------------------------
-  // Move seção (drag & drop, setas, etc.)
-  // ------------------------------------------------------------
+  // ============================================================
+  // MOVE
+  // ============================================================
   const moveSection = useCallback(
     (from: number, to: number) => {
       setSections((prev) => {
         if (from < 0 || to < 0 || from >= prev.length || to >= prev.length) {
-          console.warn("Índice inválido em moveSection:", { from, to });
           return prev;
         }
+
         const updated = [...prev];
         const [moved] = updated.splice(from, 1);
         updated.splice(to, 0, moved);
+
         return updated;
       });
     },
@@ -105,6 +134,7 @@ const updateSection = useCallback(
   return {
     addSection,
     updateSection,
+    updateSectionStyle, // 🔥 EXPORTA ISSO
     removeSection,
     duplicateSection,
     moveSection,

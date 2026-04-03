@@ -171,7 +171,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }, [isRefreshing, isLoggingOut, refreshAccessToken, logout]);
 
     useEffect(() => {
-        let interval: NodeJS.Timeout;
+        
 
         const refresh = async () => {
             try {
@@ -183,7 +183,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         };
 
         // chama refresh a cada 13 minutos (antes dos 15 min)
-        interval = setInterval(refresh, 13 * 60 * 1000);
+        const interval: NodeJS.Timeout = setInterval(refresh, 13 * 60 * 1000);
 
         // chama uma vez logo ao montar (garantir sincronização inicial)
         refresh();
@@ -230,8 +230,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             setIsLoading(false);
             return true;
         }
-
+            
         try {
+
+            console.log("Tentando login com credenciais:", options?.credenciais);
             const response = await api.post("/auth/login", options?.credenciais ?? {});
             // console.log("Login bem-sucedido:", response.data.user);
             storeLoginData(response.data.user);

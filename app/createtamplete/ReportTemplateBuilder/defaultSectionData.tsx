@@ -1,56 +1,96 @@
-import { SectionType } from "../types";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const defaultSectionData = (type: SectionType): Record<SectionType, any> => {
+import {
+  SectionType,
+  HeaderSectionData,
+  TextSectionData,
+  TableSectionData,
+  ImageSectionData,
+  ListSectionData,
+  LineSectionData,
+  SpacerSectionData,
+  FooterSectionData,
+  PageBreakSectionData,
+} from "../types";
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const defaults: Record<SectionType, any> = {
+// 🔥 MAPEAMENTO TIPADO
+type SectionDataMap = {
+  header: HeaderSectionData;
+  text: TextSectionData;
+  table: TableSectionData;
+  image: ImageSectionData;
+  list: ListSectionData;
+  line: LineSectionData;
+  spacer: SpacerSectionData;
+  footer: FooterSectionData;
+  pagebreak: PageBreakSectionData;
+};
+
+// ✅ FUNÇÃO CORRETA (GENÉRICA)
+export function defaultSectionData<T extends SectionType>(
+  type: T
+): SectionDataMap[T] {
+  const defaults: SectionDataMap = {
     header: {
       title: "Novo Relatório",
       subtitle: "Subtítulo do documento",
       logo: false,
       title_size: 20,
       subtitle_size: 12,
+      align: "left",
     },
+
     text: {
       value: "Digite seu texto aqui...",
       align: "left",
       size: 11,
       bold: false,
+      italic: false,
+      underline: false,
       color: "#334155",
     },
+
     table: {
-      columns: ["Coluna 1", "Coluna 2", "Coluna 3"],
-      rows: [
-        ["Valor A1", "Valor B1", "Valor C1"],
-        ["Valor A2", "Valor B2", "Valor C2"],
-      ],
-      col_widths: null,
-      header_color: "#1e3a8a",
-      row_colors: ["#ffffff", "#f8fafc"],
+      columns: ["Coluna 1", "Coluna 2"],
+      rows: [["A", "B"]],
+      header: true,
+      border: true,
+      colWidths: [],
     },
+
     image: {
-      path: "https://via.placeholder.com/400x200",
+      path: "",
       width: 10,
       height: 5,
-      align: "center",
+      fit: "contain",
+      opacity: 1,
     },
+
     list: {
-      items: ["Item 1", "Item 2", "Item 3"],
+      items: ["Item 1"],
       bullet: "•",
+      spacing: 1,
     },
+
     line: {
+      style: "solid",
       color: "#cbd5e1",
-      width: 1,
+      thickness: 1,
     },
+
     spacer: {
       height: 1,
     },
+
     footer: {
-      left: "OrionForgeNexus",
-      center: "Documento Confidencial",
-      right: new Date().toLocaleDateString("pt-BR"),
+      left: "",
+      center: "",
+      right: "",
+      size: 10,
     },
-    pagebreak: {},
+
+    pagebreak: {
+      label: "",
+    },
   };
-  return defaults[type] || {};
-};
+
+  return defaults[type];
+}
