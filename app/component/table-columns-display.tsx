@@ -20,7 +20,7 @@ import { FORMATS, ReportButton } from "../services/ReportButton";
 import { useI18n } from "@/context/I18nContext";
 import { themeClassesMap } from "@/constant";
 import { useSession } from "@/context/SessionContext";
-import FieldModal from "./EditFieldModal";
+import FieldModal from "./fieldModalComponent/EditFieldModal";
 
 type TypesAlert = "success" | "error" | "info";
 type AlertState = { type: TypesAlert; message: string } | null;
@@ -219,6 +219,9 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
       if (!tableInf?.table_name) throw new Error(`Tabela não encontrada no metadata: '${f.tableName}'`);
       if (!tableInf?.connection_id) throw new Error("connection_id não encontrado para esta tabela.");
 
+      // 🔥 MELHORIA: Variável para validar se realmente é uma FK antes de enviar
+      const isFk = !!(f.referenced_table && f.field_references);
+
       const payload: FieldDDLRequestPayload = {
         connection_id: tableInf.connection_id,
         schema_name: tableInf.schema_name || null,
@@ -226,23 +229,27 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
         name: f.nome,
         type: String(f.tipo || "").toUpperCase(),
 
-        length: (f as any).length ?? null,
-        precision: (f as any).precision ?? null,
-        scale: (f as any).scale ?? null,
+        // 🔥 ADEUS 'any'! O TypeScript agora reconhece todos estes campos nativamente
+        length: f.length ?? null,
+        precision: f.precision ?? null,
+        scale: f.scale ?? null,
 
         is_nullable: !!f.is_nullable,
         is_unique: !!f.is_unique,
         is_primary_key: !!f.is_primary_key,
         is_auto_increment: !!f.is_auto_increment,
+        is_unsigned: !!f.is_unsigned,
 
-        default_value: (f as any).default ?? null,
-        comment: (f as any).comentario ?? null,
+        default_value: f.default ?? null,
+        comment: f.comentario ?? null,
+        enum_values: f.enum_valores_encontrados || [],
 
-        referenced_table: (f as any).referenced_table || null,
-        referenced_field: (f as any).field_references || null,
-        is_foreign_key: !!((f as any).referenced_table && (f as any).field_references),
-        fk_on_delete: (f as any).on_delete_action || "NO ACTION",
-        fk_on_update: (f as any).on_update_action || "NO ACTION",
+        // Limpa os dados se não for uma FK válida
+        referenced_table: isFk ? f.referenced_table! : null,
+        referenced_field: isFk ? f.field_references! : null,
+        is_foreign_key: isFk,
+        fk_on_delete: isFk ? (f.on_delete_action || "NO ACTION") : "NO ACTION",
+        fk_on_update: isFk ? (f.on_update_action || "NO ACTION") : "NO ACTION",
       };
 
       if (opts?.original_name) payload.original_name = opts.original_name;
@@ -269,21 +276,31 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
 
   const createColumn = useCallback(
     async (field: CampoDetalhado & { tableName: string }) => {
-      await withLoading(async () => {
-        const payload = buildDDLRequestFromField(field);
-        await api.post(`/database/field/`, payload);
+      try {
+        await withLoading(async () => {
+          const payload = buildDDLRequestFromField(field);
+          await api.post(`/database/field/`, payload);
 
-        showAlert("success", `Coluna '${payload.name}' criada em ${payload.table_name}.`);
-        window.dispatchEvent(new CustomEvent("schema:changed", { detail: { table: field.tableName } }));
-        setColumns?.(columns?.map((c) => (c.table_name === field.tableName ? { ...c, colunas: [...c.colunas, field] } : c)) || []);
-      }).catch((err) => {
+          showAlert("success", `Coluna '${payload.name}' criada em ${payload.table_name}.`);
+          window.dispatchEvent(new CustomEvent("schema:changed", { detail: { table: field.tableName } }));
+
+          setColumns?.((prevColumns) =>
+            prevColumns.map((c) =>
+              c.table_name === field.tableName
+                ? { ...c, colunas: [...c.colunas, field] }
+                : c
+            )
+          );
+        });
+      } catch (err: unknown) {
+        // 🔥 MELHORIA: Uso de 'unknown' em vez de 'any'
         const msg = extractApiErrorMessage(err);
         showAlert("error", msg);
         console.error("createColumn error:", err);
         throw err;
-      });
+      }
     },
-    [api, buildDDLRequestFromField, showAlert, withLoading]
+    [api, buildDDLRequestFromField, showAlert, withLoading, setColumns]
   );
 
   const updateColumn = useCallback(
@@ -454,13 +471,12 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
       {/* ✅ ALERTA INLINE */}
       {alert && (
         <div
-          className={`mb-3 xs:mb-4 sm:mb-5 p-2 xs:p-3 sm:p-4 rounded-lg xs:rounded-xl border text-xs xs:text-sm font-semibold flex items-center justify-between gap-2 xs:gap-3 animate-in fade-in slide-in-from-top ${
-            alert.type === "success"
-              ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300"
-              : alert.type === "error"
-                ? "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300"
-                : "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300"
-          }`}
+          className={`mb-3 xs:mb-4 sm:mb-5 p-2 xs:p-3 sm:p-4 rounded-lg xs:rounded-xl border text-xs xs:text-sm font-semibold flex items-center justify-between gap-2 xs:gap-3 animate-in fade-in slide-in-from-top ${alert.type === "success"
+            ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300"
+            : alert.type === "error"
+              ? "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300"
+              : "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300"
+            }`}
         >
           <span className="truncate flex-1">{alert.message}</span>
           <button
@@ -539,9 +555,8 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
 
         {/* Linha 3: Botões (Desktop ou Mobile Expandido) */}
         <div
-          className={`flex flex-wrap items-center gap-2 xs:gap-2 sm:gap-3 transition-all duration-200 ${
-            mobileMenuOpen ? "flex" : "hidden md:flex"
-          }`}
+          className={`flex flex-wrap items-center gap-2 xs:gap-2 sm:gap-3 transition-all duration-200 ${mobileMenuOpen ? "flex" : "hidden md:flex"
+            }`}
         >
           {columns && columns.length > 0 && (
             <ReportButton
@@ -601,11 +616,10 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
 
           <button
             onClick={() => setShowFilters((prev) => !prev)}
-            className={`flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl flex items-center justify-center gap-1.5 xs:gap-2 transition-colors border focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
-              showFilters
-                ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
-                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
-            }`}
+            className={`flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl flex items-center justify-center gap-1.5 xs:gap-2 transition-colors border focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${showFilters
+              ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
+              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
+              }`}
             title={showFilters ? "Esconder filtros" : "Mostrar filtros"}
           >
             <Filter size={16} className="flex-shrink-0" />

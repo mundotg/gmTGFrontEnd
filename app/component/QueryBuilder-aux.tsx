@@ -4,6 +4,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, Plus, Play, ChevronDown } from "lucide-react";
 import FiltroCondicaoItem from "./FiltroCondicaoItem";
+import { GenericSelectModal } from "./BuildQueryComponent/TableSelectModal";
 import {
   AdvancedJoinOption,
   CondicaoFiltro,
@@ -14,7 +15,6 @@ import {
 } from "@/types";
 import { JoinOptions } from "./JoinOptions";
 import { OrderByOptions } from "./OrderByOptions";
-import { TableSelectModal } from "./BuildQueryComponent/TableSelectModal";
 import usePersistedState from "@/hook/localStoreUse";
 import { useGenerateSQL } from "./BuildQueryComponent/useGenerateSQL";
 import { useExecuteQuery } from "./BuildQueryComponent/onExecuteQuery";
@@ -96,11 +96,11 @@ const QueryBuilderAux: React.FC<Props> = ({
     "query_orderby",
     columns.length && columns[0].colunas.length
       ? [
-          {
-            column: `${columns[0].table_name}.${columns[0].colunas[0].nome}`,
-            direction: "ASC",
-          },
-        ]
+        {
+          column: `${columns[0].table_name}.${columns[0].colunas[0].nome}`,
+          direction: "ASC",
+        },
+      ]
       : []
   );
 
@@ -445,12 +445,22 @@ const QueryBuilderAux: React.FC<Props> = ({
       )}
 
       {showTableModal && (
-        <TableSelectModal
-          allTables={[
+        <GenericSelectModal
+          items={[
             ...new Set(columns.flatMap((s) => s.colunas.map((c) => `${s.table_name}.${c.nome}`))),
           ]}
           initialAliases={aliasTables}
-          selected={select}
+          selectedItems={select}
+          db_type_on=""
+          enableAliases
+          enableDistinct
+          itemLabelPlural=""
+          itemLabelSingular=""
+          icon={<Search className="w-4 h-4" />}
+          title=""
+          tableSelected={table_list}
+          useDistinct={distinctList?.useDistinct}
+
           onClose={() => setShowTableModal(false)}
           onSave={(items, useDistinct, cols, aliases) => {
             setSelect(items || []);

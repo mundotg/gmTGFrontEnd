@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from 'react';
+import { SimilarityMetric } from '../types';
 
-export type SimilarityMetric = "cosine" | "euclidean" | "dot_product";
+
 
 const useConfiguration = () => {
   // Safely get values from localStorage
@@ -25,7 +26,7 @@ const useConfiguration = () => {
   const [normalMode, setNormalMode] = useState(() => getLocalStorageValue('normalMode', false));
   const [criticalMode, setCriticalMode] = useState(() => getLocalStorageValue('criticalMode', false));
 
-  const setConfiguration = (rag: boolean, llm: string, similarityMetric: SimilarityMetric,trainingMode_:boolean,normalMode_:boolean,criticalMode_:boolean) => {
+  const setConfiguration = (rag: boolean, llm: string, similarityMetric: SimilarityMetric, trainingMode_: boolean, normalMode_: boolean, criticalMode_: boolean) => {
     setUseRag(rag);
     setLlm(llm);
     setSimilarityMetric(similarityMetric);
@@ -40,11 +41,11 @@ const useConfiguration = () => {
       localStorage.setItem('useRag', JSON.stringify(useRag));
       localStorage.setItem('llm', llm);
       localStorage.setItem('similarityMetric', similarityMetric);
-      localStorage.setItem('trainingMode',trainingMode)
-      localStorage.setItem('normalMode',normalMode)
-      localStorage.setItem('criticalMode',criticalMode)
+      localStorage.setItem('trainingMode', trainingMode)
+      localStorage.setItem('normalMode', normalMode)
+      localStorage.setItem('criticalMode', criticalMode)
     }
-  }, [useRag, llm, similarityMetric,criticalMode,normalMode,trainingMode]);
+  }, [useRag, llm, similarityMetric, criticalMode, normalMode, trainingMode]);
 
   return {
     useRag,

@@ -150,7 +150,7 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
     }
 
     const resultsCopy = { ...queryResults };
-    resultsCopy.preview = {};
+    resultsCopy.preview = [];
     resultsCopy.totalResults = queryResults.preview?.length || 0;
 
     const payload: RelatorioPayload<QueryResultType> = {

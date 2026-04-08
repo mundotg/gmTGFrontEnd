@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Plus, Play, ChevronDown } from "lucide-react";
+import { Search, Plus, Play, ChevronDown, Shield } from "lucide-react";
 import FiltroCondicaoItem from "./FiltroCondicaoItem";
 import {
   AdvancedJoinOption,
@@ -12,7 +12,7 @@ import {
 } from "@/types";
 import { JoinOptions } from "./JoinOptions";
 import { OrderByOptions } from "./OrderByOptions";
-import { TableSelectModal } from "./BuildQueryComponent/TableSelectModal";
+import { GenericSelectModal } from "./BuildQueryComponent/TableSelectModal";
 import usePersistedState from "@/hook/localStoreUse";
 import { useGenerateSQL } from "./BuildQueryComponent/useGenerateSQL";
 import { useExecuteQuery } from "./BuildQueryComponent/onExecuteQuery";
@@ -20,6 +20,7 @@ import HeaderBuild from "./BuildQueryComponent/headerQueryBuild";
 import NotificationSystem, { useNotifications } from "./NotificationComponent";
 import { sanitizeAdvancedConditions } from "@/util/query_build_util/validateColumnExistence";
 import { useI18n } from "@/context/I18nContext"; // 🔹 Importado
+import { useSession } from "@/context/SessionContext";
 
 const QueryBuilder: React.FC<QueryBuilderProps> = ({
   columns = [],
@@ -38,6 +39,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
   removerCacheLocalStorage,
 }) => {
   const { t } = useI18n(); // 🔹 Instanciado
+  const { user } = useSession()
 
   // ---------------- STATES ----------------
   const [conditions, setConditions] = usePersistedState<CondicaoFiltro[]>(
@@ -48,11 +50,11 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     "query_orderby",
     columns.length && columns[0].colunas.length
       ? [
-          {
-            column: `${columns[0].table_name}.${columns[0].colunas[0].nome}`,
-            direction: "ASC",
-          },
-        ]
+        {
+          column: `${columns[0].table_name}.${columns[0].colunas[0].nome}`,
+          direction: "ASC",
+        },
+      ]
       : []
   );
   const [advancedConditions, setAdvancedConditions] = usePersistedState<Record<string, AdvancedJoinOption>>(
@@ -278,6 +280,46 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
             updatedCondition.value = "";
           }
 
+          if (field === "value" && (condition.operator === "Contém" || condition.operator === "Não Contém")) {
+
+            const hasPrefix = value.startsWith("%");
+            const hasSuffix = value.length > 1 && value.endsWith("%");
+
+            let clean = value;
+
+            // 🔥 remove só se existir prefixo
+            if (hasPrefix) {
+              clean = clean.slice(1);
+            }
+
+            // 🔥 remove só se existir sufixo
+            if (hasSuffix) {
+              clean = clean.slice(0, -1);
+            }
+
+            updatedCondition = {
+              ...updatedCondition,
+              value: clean,
+              pattern: {
+                prefix: hasPrefix ? "%" : "",
+                suffix: hasSuffix ? "%" : "",
+              }
+            };
+
+          }
+
+
+          if (field === "operator" && (value === "Contém" || value === "Não Contém")) {
+            updatedCondition = {
+              ...updatedCondition,
+              value: "", // continua limpo
+              pattern: {
+                prefix: "%",
+                suffix: "%",
+              },
+            };
+          }
+
           return updatedCondition;
         })
       );
@@ -401,11 +443,20 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
       {/* MODAL DE TABELAS */}
       {showTableModal && (
-        <TableSelectModal
-          allTables={[...new Set(columns.flatMap((s: MetadataTableResponse) => s.colunas.map((c) => `${s.table_name}.${c.nome}`)))]}
+        <GenericSelectModal
+          title="Atribuir Permissões"
+          useDistinct={distinctList.useDistinct}
+          itemLabelSingular="permissão"
+          db_type_on={user?.info_extra?.type}
+          itemLabelPlural="permissões"
+          icon={<Shield className="w-5 h-5 text-blue-600" />}
+          tableSelected={table_list}
+          items={[...new Set(columns.flatMap((s: MetadataTableResponse) => s.colunas.map((c) => `${s.table_name}.${c.nome}`)))]}
+          selectedItems={select}
           initialAliases={aliasTables}
-          selected={select}
           onClose={() => setShowTableModal(false)}
+          enableAliases={true} // Não precisamos de aliases para permissões
+          enableDistinct={true} // Não precisamos de distinct para permissões
           onSave={(items, useDistinct, cols, aliases) => {
             setSelect(items || []);
             setDistinctList({ useDistinct: !!useDistinct, distinct_columns: cols || [] });
@@ -485,7 +536,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
           )}
 
           <div className={`${isMobile && !showAdvancedOptions ? "hidden" : "block"} space-y-4`}>
-            
+
             {columns.length > 1 && (
               <div className="border border-gray-200 p-4 sm:p-5 rounded-xl bg-gray-50 shadow-sm">
                 <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">

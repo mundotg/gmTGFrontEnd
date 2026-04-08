@@ -1,28 +1,35 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+"use server";
 
-const apiKey = process.env.GEMINI_API_KEY;
-console.log(apiKey)
-if (!apiKey) {
-  throw new Error("A variável de ambiente GEMINI_API_KEY não está configurada.");
+import { GoogleGenAI } from "@google/genai";
+
+let ai: GoogleGenAI | null = null;
+
+function getClient() {
+  if (!ai) {
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY não configurada");
+    }
+
+    ai = new GoogleGenAI({ apiKey });
+  }
+
+  return ai;
 }
 
-// Inicializa o SDK
-const genAI = new GoogleGenerativeAI(apiKey);
-
-// Seleciona o modelo a utilizar
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-/**
- * Função utilitária para gerar texto a partir de um prompt
- */
 export async function gerarTexto(prompt: string): Promise<string> {
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  } catch (error) {
-    console.error("Erro na API do Gemini:", error);
-    console.error("Erro detalhado da API:", error?.message || error);
+    const ai = getClient();
+     const modelName = process.env.MODEL_NAME;
+    const response = await ai.models.generateContent({
+      model: modelName || "gemini-2.5-flash-lite",
+      contents: prompt,
+    });
+
+    return response.text || "";
+  } catch (error: any) {
+    console.error("❌ Gemini error:", error?.message || error);
     throw new Error("Falha ao gerar o conteúdo.");
   }
 }

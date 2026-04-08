@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
+  CampoDetalhado,
   EditedField,
   EditedFieldForQuery,
   ForeignKeyOption,
@@ -12,6 +13,7 @@ import { ForeignKeySelect } from "./ForeignKeySelect";
 import api from "@/context/axioCuston";
 import DynamicInputByTypeWithNullable from "./DynamicInputByTypeWithNullable";
 import { useI18n } from "@/context/I18nContext";
+import OCRButton from "./ocrComponent";
 
 const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
   isOpen,
@@ -59,6 +61,53 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
     setEditedFields(initialFields);
   }, [isOpen, informacaosOftables]);
 
+
+
+
+
+  const handleOcrResult = useCallback(
+    (mappedValues: Record<string, EditedField>) => {
+
+      setEditedFields((prev) => {
+        const updated = { ...prev };
+
+        Object.entries(mappedValues).forEach(([rawKey, fieldData]) => {
+          if (!fieldData.hasChanged) return;
+
+          const key = rawKey.includes(".")
+            ? rawKey
+            : `${fieldData.tableName}.${rawKey}`;
+
+          if (updated[key]) {
+            updated[key] = {
+              ...updated[key],
+              value: fieldData.value,
+              hasChanged: true,
+            };
+          }
+        });
+
+        return updated;
+      });
+
+      setErrors((prev) => {
+        const updated = { ...prev };
+
+        Object.entries(mappedValues).forEach(([rawKey, fieldData]) => {
+          const key = rawKey.includes(".")
+            ? rawKey
+            : `${fieldData.tableName}.${rawKey}`;
+
+          if (fieldData.value && updated[key]) {
+            updated[key] = "";
+          }
+        });
+
+        return updated;
+      });
+    },
+    []
+  );
   // Atualiza campo
   const handleFieldChange = useCallback(
     (
@@ -106,6 +155,50 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
     [handleFieldChange]
   );
 
+  const ocrFields = useMemo<CampoDetalhado[]>(() => {
+    // 1. Prevenção: Se os estados ainda não carregaram
+    if (Object.keys(editedFields).length === 0 || selectedTables.length === 0) {
+      return [];
+    }
+
+    return Object.entries(editedFields)
+      .map(([key, field]) => {
+        // 2. CORREÇÃO: Remove o "nome_da_tabela." do início da key para sobrar apenas a coluna
+        // Ex: "dbo.t_aluno.nome" -> tira "dbo.t_aluno." -> sobra "nome"
+        const colName = key.replace(`${field.tableName}.`, "");
+
+        // 3. Procura a tabela
+        const table = selectedTables.find(
+          (t) => t.table_name === field.tableName
+        );
+
+        if (!table) {
+          console.warn(`❌ Tabela '${field.tableName}' não encontrada.`);
+          return null;
+        }
+
+        // 4. Procura a coluna
+        const coluna = table.colunas?.find(
+          (c: any) => c.nome === colName
+        );
+
+        if (!coluna) {
+          console.warn(`❌ Coluna '${colName}' não encontrada na tabela '${table.table_name}'`);
+          return null;
+        }
+
+        // Encontrou tudo com sucesso!
+        return {
+          nome: key, // Tem de ser a key original (ex: "dbo.t_aluno.nome") para o Modal atualizar o campo certo
+          tipo: coluna?.tipo || field.type_column || "text",
+          is_nullable: coluna?.is_nullable,
+          enum_valores_encontrados: coluna?.enum_valores_encontrados,
+          tableName: field.tableName,
+        } as CampoDetalhado;
+      })
+      .filter(Boolean) as CampoDetalhado[]; // Remove os nulls
+  }, [editedFields, selectedTables]);
+
   // Salvar novo registro
   const handleSave = useCallback(async () => {
     if (!onSave || !hasChanges) return;
@@ -114,7 +207,7 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
       console.warn("Não é possível salvar: existem erros de validação");
       return;
     }
-    
+
     if (!window.confirm(t("actions.confirmCreate") || "Tem certeza que deseja criar este registro?")) return;
 
     setIsLoading(true);
@@ -175,7 +268,7 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
       onClick={handleOverlayClick}
     >
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
-        
+
         {/* Header - Padrão Cinza Claro */}
         <header className="flex justify-between items-center border-b border-gray-200 p-6 bg-gray-50 rounded-t-2xl">
           <div className="flex items-center gap-4">
@@ -197,6 +290,11 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
               </span>
             )}
           </div>
+          {ocrFields.length > 0 && (
+            <div className="mb-6 flex justify-end">
+              <OCRButton formFields={ocrFields} valuesDefault={editedFields} onResult={handleOcrResult} />
+            </div>
+          )}
           <button
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-700 hover:bg-gray-200 p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
@@ -240,13 +338,12 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
                     return (
                       <div
                         key={`${qualifiedName}_${index}`}
-                        className={`bg-gray-50 rounded-xl p-5 border transition-all duration-200 ${
-                          hasChanged
-                            ? "border-blue-300 bg-blue-50/30 ring-2 ring-blue-50"
-                            : hasError
+                        className={`bg-gray-50 rounded-xl p-5 border transition-all duration-200 ${hasChanged
+                          ? "border-blue-300 bg-blue-50/30 ring-2 ring-blue-50"
+                          : hasError
                             ? "border-red-300 bg-red-50/30 ring-2 ring-red-50"
                             : "border-gray-200"
-                        }`}
+                          }`}
                       >
                         <label
                           htmlFor={qualifiedName}
@@ -254,9 +351,8 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
                         >
                           <div className="flex flex-wrap items-center gap-2 mb-2">
                             <span
-                              className={`text-sm ${
-                                hasChanged ? "text-blue-700 font-bold" : "text-gray-900 font-semibold"
-                              }`}
+                              className={`text-sm ${hasChanged ? "text-blue-700 font-bold" : "text-gray-900 font-semibold"
+                                }`}
                             >
                               {col.nome}
                               {!col.is_nullable && <span className="text-red-500 ml-0.5">*</span>}
@@ -275,7 +371,7 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
                             {hasChanged && <Badge color="blue" text={t("common.changed") || "Alterado"} />}
                           </div>
                         </label>
-                        
+
                         <div className="text-gray-900">
                           <DynamicInputByTypeWithNullable
                             is_nullable={col.is_nullable}
@@ -332,7 +428,7 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
           >
             {t("actions.cancel") || "Cancelar"}
           </button>
-          
+
           <button
             onClick={handleSave}
             disabled={!hasChanges || isLoading || Object.values(errors).some((e) => e)}

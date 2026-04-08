@@ -13,6 +13,7 @@ import React, { useMemo, useCallback } from "react";
 import OperationINAndNOTINInput from "./InInput";
 import { JoinSelect } from "./BuildQueryComponent/JoinSelect";
 import { useI18n } from "@/context/I18nContext"; // 🔹 Importado
+import LikeInputGroup from "./BuildQueryComponent/selectTableModalComponent/renderLikeInput";
 
 interface FiltroCondicaoItemProps {
   index: number;
@@ -58,9 +59,9 @@ function FiltroCondicaoItem({
       return t("condition.placeholderContains") || "texto para buscar...";
     if (operator === "Entre" || operator === "Não Entre")
       return t("condition.placeholderBetween") || "ex: 10 e 20";
-    if (operator === "Antes de" || operator === "Depois de") 
+    if (operator === "Antes de" || operator === "Depois de")
       return "YYYY-MM-DD";
-    if (column_type.includes("date")) 
+    if (column_type.includes("date"))
       return "YYYY-MM-DD";
     if (column_type.includes("int") || column_type.includes("decimal"))
       return t("condition.placeholderNumber") || "Número";
@@ -116,7 +117,7 @@ function FiltroCondicaoItem({
 
   return (
     <div key={`condition-${index}-${condition.table_name_fil}-${condition.column}`} className="group relative">
-      
+
       {/* Operador lógico */}
       {index > 0 && showLogicalOperator && (
         <div className="flex justify-center mb-2 -mt-1 relative z-10">
@@ -133,7 +134,7 @@ function FiltroCondicaoItem({
 
       {/* Linha de condição */}
       <div className="flex flex-col sm:flex-row gap-4 p-4 lg:p-5 bg-white border border-gray-200 rounded-xl transition-all shadow-sm group-hover:border-blue-300 group-hover:shadow-md">
-        
+
         {/* Tabela */}
         <div className="min-w-[140px] flex-1">
           <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 ml-1">
@@ -195,7 +196,7 @@ function FiltroCondicaoItem({
               {t("condition.value") || "Valor"}
             </label>
             <div className="w-full px-3 py-2 bg-gray-100 border border-gray-200 text-sm font-medium text-gray-500 rounded-lg cursor-not-allowed">
-               {condition.operator === "IS NULL" ? (t("condition.isNull") || "Nulo") : (t("condition.isNotNull") || "Não nulo")}
+              {condition.operator === "IS NULL" ? (t("condition.isNull") || "Nulo") : (t("condition.isNotNull") || "Não nulo")}
             </div>
           </div>
         ) : condition.operator === "Entre" || condition.operator === "Não Entre" ? (
@@ -226,7 +227,7 @@ function FiltroCondicaoItem({
         ) : condition.operator === "IN" || condition.operator === "NOT IN" ? (
           <div className="flex-1 min-w-[160px]">
             <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 ml-1">
-               {t("condition.valuesList") || "Lista de Valores"}
+              {t("condition.valuesList") || "Lista de Valores"}
             </label>
             <OperationINAndNOTINInput
               type={condition.column_type}
@@ -235,20 +236,25 @@ function FiltroCondicaoItem({
               placeholder={t("condition.typeValue") || "Digite um valor e dê Enter"}
             />
           </div>
-        ) : (
-          <div className="flex-1 min-w-[160px]">
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 ml-1">
-              {t("condition.value") || "Valor"}
-            </label>
-            <DynamicInputByType
-              enum_values={colunaDetalhe?.enum_valores_encontrados}
-              type={getInputType(condition.column_type, condition.operator)}
-              value={value}
-              onChange={handleSingleValueChange}
-              placeholder={getPlaceholder()}
-            />
-          </div>
-        )}
+        ) :
+          ["Contém", "Não Contém", "LIKE", "NOT LIKE"].includes(condition.operator) ? (
+            <LikeInputGroup value={value} condition={condition} typeInput={getInputType(condition.column_type, condition.operator)} placeholder={getPlaceholder()} onChange={handleSingleValueChange} t={t} />
+          )
+
+            : (
+              <div className="flex-1 min-w-[160px]">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 ml-1">
+                  {t("condition.value") || "Valor"}
+                </label>
+                <DynamicInputByType
+                  enum_values={colunaDetalhe?.enum_valores_encontrados}
+                  type={getInputType(condition.column_type, condition.operator)}
+                  value={value}
+                  onChange={handleSingleValueChange}
+                  placeholder={getPlaceholder()}
+                />
+              </div>
+            )}
 
         {/* Botão Remover */}
         <div className="flex items-end pb-0.5">

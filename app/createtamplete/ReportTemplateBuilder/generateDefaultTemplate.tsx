@@ -15,29 +15,16 @@ export const generateDefaultTemplate = (): Section[] => [
       align: "center",
     },
   },
-
   {
     id: generateId(),
     type: "spacer",
     data: { height: 0.3 },
   },
-
-  {
-    id: generateId(),
-    type: "text",
-    data: {
-      value:
-        "Este relatório apresenta uma visão consolidada dos principais indicadores de desempenho da organização, destacando resultados, oportunidades e pontos de melhoria.",
-      align: "justify",
-    },
-  },
-
   {
     id: generateId(),
     type: "spacer",
     data: { height: 0.5 },
   },
-
   {
     id: generateId(),
     type: "text",
@@ -46,13 +33,11 @@ export const generateDefaultTemplate = (): Section[] => [
       bold: true,
     },
   },
-
   {
     id: generateId(),
     type: "line",
     data: {},
   },
-
   {
     id: generateId(),
     type: "table",
@@ -65,13 +50,11 @@ export const generateDefaultTemplate = (): Section[] => [
       ],
     },
   },
-
   {
     id: generateId(),
     type: "spacer",
     data: { height: 0.6 },
   },
-
   {
     id: generateId(),
     type: "text",
@@ -80,23 +63,11 @@ export const generateDefaultTemplate = (): Section[] => [
       bold: true,
     },
   },
-
-  {
-    id: generateId(),
-    type: "text",
-    data: {
-      value:
-        "Observa-se um desempenho positivo no setor de vendas, superando as metas estabelecidas. No entanto, áreas como operações requerem atenção estratégica para melhoria de eficiência.",
-      align: "justify",
-    },
-  },
-
   {
     id: generateId(),
     type: "spacer",
     data: { height: 0.5 },
   },
-
   {
     id: generateId(),
     type: "text",
@@ -105,7 +76,6 @@ export const generateDefaultTemplate = (): Section[] => [
       bold: true,
     },
   },
-
   {
     id: generateId(),
     type: "list",
@@ -117,19 +87,44 @@ export const generateDefaultTemplate = (): Section[] => [
       ],
     },
   },
+  {
+    id: generateId(),
+    type: "spacer",
+    data: { height: 1 },
+  },
+  
+  // 🔥 NOVO: Container de Assinaturas (Exemplo de filhos aninhados)
+  {
+    id: generateId(),
+    type: "container",
+    data: { 
+      direction: "row", // Coloca os itens lado a lado
+      gap: 16 
+    },
+    children: [
+      {
+        id: generateId(),
+        type: "text",
+        data: { value: "__________________________\nPreparado por", align: "center", bold: true },
+      },
+      {
+        id: generateId(),
+        type: "text",
+        data: { value: "__________________________\nAprovado por", align: "center", bold: true },
+      }
+    ]
+  },
 
   {
     id: generateId(),
     type: "spacer",
     data: { height: 1 },
   },
-
   {
     id: generateId(),
     type: "line",
     data: {},
   },
-
   {
     id: generateId(),
     type: "footer",

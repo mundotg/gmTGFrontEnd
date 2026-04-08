@@ -54,6 +54,10 @@
     "integracao": "Integração com Sistemas Legados."
   },
   "sidebar": {
+    "ai": "IA",
+    "templates": "Templates",
+    "test": "Testes",
+    "apiTester": "API Tester",
     "overview": "Visão Geral",
     "connections": "Conexões",
     "tables": "Tabelas",
@@ -228,6 +232,14 @@
   "connecting": "A conectar...",
   "connect": "Salvar & Conectar",
   "modal": {
+    "duplicateAlias": "Este alias já existe para outra tabela.",
+    "typeAlias": "Digite um alias para a tabela",
+    "all": "Todas as tabelas",
+    "selectedPlural": "tabelas selecionadas",
+    "selectedSingle": "tabela selecionada",
+    "selectedCount": "{{count}} {{count, plural, one {tabela selecionada} other {tabelas selecionadas} }}",
+    "noSelection": "Nenhuma tabela selecionada",
+    "selected": "Selecionado",
     "selectTablesTitle": "Selecionar Tabelas",
     "selectTablesMsg": "Este registro envolve múltiplas tabelas. Selecione em quais delas deseja aplicar esta ação.",
     "selectTablesWarning": "A ação será executada apenas nas tabelas marcadas acima. As demais serão ignoradas.",
@@ -289,7 +301,13 @@
     "indexes": "Indexes"
   },
   "actions": {
+    "clearDistinct": "Limpar Distinct",
+    "selectAllDistinct": "Selecionar todos como Distinct",
     "stop": "Parar",
+    "darkMode": "Modo Escuro",
+    "help": "Ajuda",
+    "export": "Exportar",
+    "notifications": "Notificações",
     "toggleTheme": "Alternar tema",
     "refresh": "Atualizar dados",
     "selectAll": "Selecionar todos",
@@ -405,6 +423,8 @@
     "btnConfirmDelete": "Sim, Eliminar"
   },
   "common": {
+    "confirm": "Confirmar",
+    "understood": "Entendi",
     "field": "campo",
     "table": "tabela",
     "tables": "tabelas",
@@ -496,6 +516,7 @@
     "startRestore": "Fazer Restore"
   },
   "history": {
+    "allActions": "Todas as Ações",
     "title": "Histórico de Atividades",
     "subtitle": "Security Audit Log",
     "statsTotal": "Total Ops",
@@ -686,6 +707,8 @@
     }
   },
   "ocr": {
+    "processing": "Processando ficheiro...",
+    "scan": "Escanear",
     "title": "Scanner Inteligente.",
     "subtitle": "Extraia dados de documentos com precisão nativa.",
     "dataLabel": "Data",
@@ -1017,5 +1040,61 @@
   },
   "results": {
     "title": "Resultados da Consulta"
+  },
+  "tokenMapper": {
+    "autoFill": "Preenchimento automático",
+    "title": "Mapeador de Texto",
+    "howToUse": "Como usar",
+    "merge": "juntar",
+    "copy": "copiar",
+    "clear": "limpar",
+    "dragHere": "arraste aqui",
+    "actions": {
+      "merge": "juntar"
+    },
+    "help": {
+      "title": "Como usar",
+      "dragTokenTitle": "Arrastar tokens:",
+      "dragTokenDesc": "arrasta palavras individuais para os campos.",
+      "dragLineTitle": "Arrastar linha:",
+      "dragLineDesc": "arrasta uma linha inteira para preencher rapidamente um campo.",
+      "editTokenTitle": "Editar token:",
+      "editTokenDesc": "dá duplo clique num token para editar.",
+      "mergeTitle": "Juntar tokens:",
+      "mergeDesc": "seleciona vários tokens e clica em",
+      "copyTitle": "Copiar:",
+      "copyDesc": "copia o conteúdo de um campo com o botão copiar.",
+      "clearTitle": "Limpar:",
+      "clearDesc": "remove todos os tokens de um campo.",
+      "autoInputTitle": "Input automático:",
+      "autoInputDesc": "o valor do input é gerado automaticamente com base nos tokens."
+    }
+  },
+  "chat": {
+    "assistant": "Assistente IA",
+    "newConversation": "Nova conversa",
+    "today": "Hoje",
+    "previous": "Anteriores",
+    "noConversations": "Nenhuma conversa ainda.",
+    "user": "Utilizador",
+    "planPro": "Plano Pro",
+    "conversation": "Conversa",
+    "online": "online",
+    "clearConversation": "Limpar conversa",
+    "howCanIHelp": "Como posso ajudar?",
+    "startMessage": "Escreve uma mensagem ou escolhe uma sugestão abaixo para começar.",
+    "placeholder": "Escreve uma mensagem… (Enter para enviar, Shift+Enter para nova linha)",
+    "attachFile": "Anexar ficheiro",
+    "warning": "O FrancysBot pode cometer erros. Confirma as informações geradas.",
+    "confirmClear": "Limpar toda a conversa? Isto irá apagar o histórico atual.",
+    "errorApi": "⚠️ Erro ao comunicar com o servidor. A API pode estar indisponível.",
+    "prompts": {
+      "ml": "Explica machine learning",
+      "summarize": "Resume um texto",
+      "code": "Ajuda com código",
+      "email": "Escreve um e-mail",
+      "data": "Analisa dados",
+      "plan": "Cria um plano"
+    }
   }
 }

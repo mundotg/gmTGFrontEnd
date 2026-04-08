@@ -20,10 +20,12 @@ export type FieldDDLRequestPayload = {
   is_primary_key?: boolean;
   is_auto_increment?: boolean;
   default_value?: string | null;
+  is_unsigned?: boolean;
   comment?: string | null;
   length?: number | null;
   precision?: number | null;
   scale?: number | null;
+  enum_values?: string[]; // para tipos ENUM
   is_foreign_key?: boolean;
   referenced_table?: string | null;
   referenced_field?: string | null;
@@ -210,6 +212,13 @@ export interface CondicaoFiltro {
   table_name_fil: string
   column: string;           // Nome da coluna
   operator: OperatorType;         // Operador (ex: '=', 'LIKE', 'IN'...)
+
+  // 🔥 novo (substitui a necessidade de % manual)
+  pattern?: {
+    prefix?: "%" | "_" | ""; // % para wildcard, _ para single char, "" para nenhum
+    suffix?: "%" | "_" | "";
+  };
+
   value: string;   // Valor inserido pelo usuário~
   value2?: string;  // Segundo valor para condições "Entre" e "Não Entre"
   logicalOperator?: 'AND' | 'OR'; // Para combinar com outras condições
@@ -236,11 +245,21 @@ export interface JoinConditionPayload {
   collation?: string        // # ex: "utf8_general_ci"
   functionLeft?: string     // # ex: UPPER, LOWER, TRIM
   functionRight?: string
+  // 🔥 novo (substitui a necessidade de % manual)
+  pattern?: {
+    prefix?: "%" | "_" | ""; // % para wildcard, _ para single char, "" para nenhum
+    suffix?: "%" | "_" | "";
+  };
 }
 export interface JoinCondition {
   id: string;
   table?: string;
   leftColumn: string;
+  // 🔥 novo (substitui a necessidade de % manual)
+  pattern?: {
+    prefix?: "%" | "_" | ""; // % para wildcard, _ para single char, "" para nenhum
+    suffix?: "%" | "_" | "";
+  };
   // leftColumnType?: tipo_db_Options;
   enumValores?: string[]
   operator: string;
@@ -312,7 +331,7 @@ export interface QueryPayload {
   limit?: number;
   offset?: number;
   isCountQuery?: boolean;
-  select? : string[];
+  select?: string[];
 }
 
 
@@ -396,13 +415,13 @@ export type ConnectionFormData = {
 
 
 export type FilterType = typeof FILTER_OPTIONS[number]['value'];
-export interface NamecachesValue  {
-    _thema: string,
-    _modal_Create_Open: string,
-    _modal_Edit_Open: string,
-    consulta_showFilterColunas: string,
-    consulta_showSortColunas: string
-  }
+export interface NamecachesValue {
+  _thema: string,
+  _modal_Create_Open: string,
+  _modal_Edit_Open: string,
+  consulta_showFilterColunas: string,
+  consulta_showSortColunas: string
+}
 
 export const defaultNameCachesValue: NamecachesValue = {
   _thema: "_thema",
@@ -499,6 +518,7 @@ export interface AnalizeDataType {
 }
 
 export interface CampoDetalhado {
+  tableName?: string;
   nome: string;
   tipo: tipo_db_Options;
   is_nullable: boolean;
@@ -510,12 +530,19 @@ export interface CampoDetalhado {
   is_unique: boolean;
   default?: string | null;
   comentario?: string | null;
+
+  // 🔥 ADICIONADOS: Para varchar/char e decimal/numeric
   length?: number | null;
+  precision?: number | null;
+  scale?: number | null;
+
+  // 🔥 ADICIONADO: Para suporte a MySQL/MariaDB unsigned
+  is_unsigned?: boolean;
+
   enum_valores_encontrados?: string[];
   on_delete_action?: string;
   on_update_action?: string;
 }
-
 export interface MetadataTableResponse {
   message: string;
   executado_em: string; // ou `Date` se você for converter depois

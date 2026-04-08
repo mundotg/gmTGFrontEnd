@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
+  CampoDetalhado,
   EditedField,
   EditedFieldForQuery,
   MetadataTableResponse,
@@ -17,6 +18,7 @@ import { useI18n } from "@/context/I18nContext"; // 🔹 Importado
 import { FieldEditor } from "./ResultadosQueryComponent/FieldEditor";
 import ModalFooter from "./ResultadosQueryComponent/ModalFooter";
 import { RowDetailsModalProps } from "./ResultadosQueryComponent/types";
+import OCRButton from "./ocrComponent";
 
 const logger = createLogger({ component: "RowDetailsModal" });
 
@@ -291,6 +293,95 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   }, [openModalConfirmeDelete, modalFetchOpen])
 
 
+  const ocrFields = useMemo<CampoDetalhado[]>(() => {
+    // 1. Prevenção: Se os estados ainda não carregaram
+    if (Object.keys(editedFields).length === 0 || selectedTables.length === 0) {
+      return [];
+    }
+
+    return Object.entries(editedFields)
+      .map(([key, field]) => {
+        // 2. CORREÇÃO: Remove o "nome_da_tabela." do início da key para sobrar apenas a coluna
+        // Ex: "dbo.t_aluno.nome" -> tira "dbo.t_aluno." -> sobra "nome"
+        const colName = key.replace(`${field.tableName}.`, "");
+
+        // 3. Procura a tabela
+        const table = selectedTables.find(
+          (t) => t.table_name === field.tableName
+        );
+
+        if (!table) {
+          console.warn(`❌ Tabela '${field.tableName}' não encontrada.`);
+          return null;
+        }
+
+        // 4. Procura a coluna
+        const coluna = table.colunas?.find(
+          (c: any) => c.nome === colName
+        );
+
+        if (!coluna) {
+          console.warn(`❌ Coluna '${colName}' não encontrada na tabela '${table.table_name}'`);
+          return null;
+        }
+
+        // Encontrou tudo com sucesso!
+        return {
+          nome: key, // Tem de ser a key original (ex: "dbo.t_aluno.nome") para o Modal atualizar o campo certo
+          tipo: coluna?.tipo || field.type_column || "text",
+          is_nullable: coluna?.is_nullable,
+          enum_valores_encontrados: coluna?.enum_valores_encontrados,
+          tableName: field.tableName,
+        } as CampoDetalhado;
+      })
+      .filter(Boolean) as CampoDetalhado[]; // Remove os nulls
+  }, [editedFields, selectedTables]);
+
+
+  const handleOcrResult = useCallback(
+    (mappedValues: Record<string, EditedField>) => {
+
+      setEditedFields((prev) => {
+        const updated = { ...prev };
+
+        Object.entries(mappedValues).forEach(([rawKey, fieldData]) => {
+          if (!fieldData.hasChanged) return;
+
+          const key = rawKey.includes(".")
+            ? rawKey
+            : `${fieldData.tableName}.${rawKey}`;
+
+          if (updated[key]) {
+            updated[key] = {
+              ...updated[key],
+              value: fieldData.value,
+              hasChanged: true,
+            };
+          }
+        });
+
+        return updated;
+      });
+
+      setErrors((prev) => {
+        const updated = { ...prev };
+
+        Object.entries(mappedValues).forEach(([rawKey, fieldData]) => {
+          const key = rawKey.includes(".")
+            ? rawKey
+            : `${fieldData.tableName}.${rawKey}`;
+
+          if (fieldData.value && updated[key]) {
+            updated[key] = "";
+          }
+        });
+
+        return updated;
+      });
+    },
+    []
+  );
+
   const confirmeDelet_open_modal_for_selection_table = useCallback(() => {
 
     setOptionModalTable("oneDelet")
@@ -350,6 +441,12 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
               </span>
             )}
           </div>
+
+          {ocrFields.length > 0 && (
+            <div className="mb-6 flex justify-end">
+              <OCRButton formFields={ocrFields} valuesDefault={editedFields} onResult={handleOcrResult} />
+            </div>
+          )}
           <button
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-700 hover:bg-gray-200 p-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"

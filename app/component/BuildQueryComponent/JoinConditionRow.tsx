@@ -6,6 +6,8 @@ import React from "react";
 import DynamicInputByType from "../DynamicInputByType";
 import OperationINAndNOTINInput from "../InInput";
 import { useI18n } from "@/context/I18nContext"; // 🔹 Importado
+import LikeInputGroup from "./selectTableModalComponent/renderLikeInput";
+import { JoinCondition } from "@/types";
 
 // Componente para cada linha de condição
 const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
@@ -25,9 +27,38 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
     updateCondition(tableName, condition.id, { rightValue: formattedValue });
   }
 
+  const handleContainOperatorsChange = (valueContain: string): Partial<JoinCondition> => {
+
+    const hasPrefix = valueContain.startsWith("%");
+    const hasSuffix = valueContain.length > 1 && valueContain.endsWith("%");
+
+    let clean = valueContain;
+
+    // 🔥 remove só se existir prefixo
+    if (hasPrefix) {
+      clean = clean.slice(1);
+    }
+
+    // 🔥 remove só se existir sufixo
+    if (hasSuffix) {
+      clean = clean.slice(0, -1);
+    }
+
+    return {
+      rightValue: clean,
+      pattern: {
+        prefix: hasPrefix ? "%" : "",
+        suffix: hasSuffix ? "%" : "",
+      }
+    };
+
+  }
+
+
+
   return (
     <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl transition-all hover:bg-white hover:border-blue-200 hover:shadow-sm">
-      
+
       {/* Operador Lógico (Apenas para índice > 0) */}
       {condIndex > 0 && (
         <select
@@ -71,7 +102,7 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
       {/* Valor/Coluna direita */}
       {!["IS NULL", "IS NOT NULL"].includes(condition.operator) && (
         <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white p-1 rounded-lg border border-gray-200 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/50 transition-colors">
-          
+
           {/* Toggle Value vs Column */}
           <label className="flex items-center gap-1.5 pl-2 cursor-pointer border-r border-gray-100 pr-3">
             <input
@@ -95,6 +126,10 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
                   onChange={handleInValuesChange}
                   placeholder={t("condition.typeValue") || "Digite um valor"}
                 />
+              ) : ["Contém", "Não Contém", "LIKE", "NOT LIKE"].includes(condition.operator) ? (
+                <LikeInputGroup value={condition.rightValue || ""} condition={condition} typeInput={condition.valueColumnType || "text"}
+                  placeholder={t("joins.literalValue") || "Valor literal"}
+                  onChange={(value) => updateCondition(tableName, condition.id, handleContainOperatorsChange(value))} t={t} />
               ) : (
                 <DynamicInputByType
                   type={condition.valueColumnType || "text"}

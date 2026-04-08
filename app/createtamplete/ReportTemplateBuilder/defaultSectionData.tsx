@@ -9,6 +9,7 @@ import {
   SpacerSectionData,
   FooterSectionData,
   PageBreakSectionData,
+  ContainerSectionData,
 } from "../types";
 
 // 🔥 MAPEAMENTO TIPADO
@@ -21,6 +22,7 @@ type SectionDataMap = {
   line: LineSectionData;
   spacer: SpacerSectionData;
   footer: FooterSectionData;
+  container: ContainerSectionData;
   pagebreak: PageBreakSectionData;
 };
 
@@ -37,6 +39,8 @@ export function defaultSectionData<T extends SectionType>(
       subtitle_size: 12,
       align: "left",
     },
+
+    container: { direction: "column", gap: 8 },
 
     text: {
       value: "Digite seu texto aqui...",

@@ -1,35 +1,41 @@
 "use client";
 import React, { ChangeEvent, KeyboardEvent, useCallback, memo } from "react";
-import { Info, X, Tag, Check } from "lucide-react";
+import { X, Tag, Check } from "lucide-react";
 import { useI18n } from "@/context/I18nContext";
 
-export type TableItemProps = {
-  table: string;
-  /** Se está na aba de selecionados */
+export type GenericListItemProps = {
+  item: string;
   isInSelectedTab?: boolean;
-  /** Lista de tabelas selecionadas */
   selected: string[];
-  /** Mapa de aliases por tabela */
-  tableAliases: Record<string, string>;
-  /** Qual tabela está com alias em edição */
+  aliases: Record<string, string>;
   editingAlias: string | null;
+  enableAliases?: boolean;
 
-  // Callbacks
-  onToggle: (table: string) => void;
-  onAliasChange: (table: string, alias: string) => void;
-  onStartEditing: (table: string) => void;
+  onToggle: (item: string) => void;
+  onAliasChange: (item: string, alias: string) => void;
+  onStartEditing: (item: string) => void;
   onFinishEditing: () => void;
   onCancelEditing: () => void;
-  onRemoveAlias: (table: string) => void;
+  onRemoveAlias: (item: string) => void;
   getAliasError: (alias: string) => string | null;
+
+  showDistinctOptions?: boolean;
+  useDistinct?: boolean;
+  enableDistinct?: boolean;
+  handleDistinctToggle?: (checked: boolean) => void;
+  distinctColumns?: string[];
+  toggleDistinctColumn?: (column: string) => void;
+  selectAllDistinctColumns?: () => void;
+  clearAllDistinctColumns?: () => void;
 };
 
-export const TableItem: React.FC<TableItemProps> = memo(({
-  table,
+export const GenericListItem: React.FC<GenericListItemProps> = memo(({
+  item,
   isInSelectedTab = false,
   selected,
-  tableAliases,
+  aliases,
   editingAlias,
+  enableAliases = true,
   onToggle,
   onAliasChange,
   onStartEditing,
@@ -37,97 +43,110 @@ export const TableItem: React.FC<TableItemProps> = memo(({
   onCancelEditing,
   onRemoveAlias,
   getAliasError,
+  showDistinctOptions,
+  distinctColumns,
+  toggleDistinctColumn,
 }) => {
   const { t } = useI18n();
-  const isSelected = selected.includes(table);
-  const alias = tableAliases[table] || "";
+
+  const isSelected = selected.some((selectedItem) => {
+    let sItem = selectedItem.trim().toLowerCase().replace(/^dbo\./, "");
+    let tItem = item.trim().toLowerCase().replace(/^dbo\./, "");
+    return sItem === tItem || sItem.endsWith(`.${tItem}`) || tItem.endsWith(`.${sItem}`);
+  });
+
+  const alias = aliases[item] || "";
   const aliasError = getAliasError(alias);
-  const isEditing = editingAlias === table;
+  const isEditing = editingAlias === item;
+  const isDistinct = distinctColumns?.includes(item) ?? false;
 
-  // Handlers memoizados para performance
-  const handleToggle = useCallback(() => {
-    onToggle(table);
-  }, [onToggle, table]);
+  // ─── Handlers ────────────────────────────────────────────────────────────────
 
-  const handleAliasChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    onAliasChange(table, e.target.value);
-  }, [onAliasChange, table]);
+  const handleToggle = useCallback(() => onToggle(item), [onToggle, item]);
 
-  const handleStartEditing = useCallback(() => {
-    onStartEditing(table);
-  }, [onStartEditing, table]);
+  const handleAliasChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => onAliasChange(item, e.target.value),
+    [onAliasChange, item]
+  );
 
-  const handleRemoveAlias = useCallback(() => {
-    onRemoveAlias(table);
-  }, [onRemoveAlias, table]);
+  const handleStartEditing = useCallback(() => onStartEditing(item), [onStartEditing, item]);
+  const handleRemoveAlias = useCallback(() => onRemoveAlias(item), [onRemoveAlias, item]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      onFinishEditing();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      onCancelEditing();
-    }
-  }, [onFinishEditing, onCancelEditing]);
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") { e.preventDefault(); onFinishEditing(); }
+      else if (e.key === "Escape") { e.preventDefault(); onCancelEditing(); }
+    },
+    [onFinishEditing, onCancelEditing]
+  );
 
   const handleBlur = useCallback(() => {
-    // Só finaliza a edição se não houver erro
-    if (!aliasError) {
-      onFinishEditing();
-    }
+    if (!aliasError) onFinishEditing();
   }, [onFinishEditing, aliasError]);
 
-  // Determinar se deve mostrar controles de alias
-  const showAliasControls = isInSelectedTab && isSelected;
+  const handleDistinctClick = useCallback(
+    (e: React.MouseEvent) => { e.stopPropagation(); toggleDistinctColumn?.(item); },
+    [toggleDistinctColumn, item]
+  );
+
+
+  // ─── Derived state ────────────────────────────────────────────────────────────
+
+  const showSecondaryRow = isSelected && isInSelectedTab;
+  const showAliasControls = enableAliases && showSecondaryRow;
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div
       className={`
-        flex items-center justify-between p-3 border rounded-xl transition-all
-        group focus:outline-none focus:ring-2 focus:ring-blue-500/50
-        ${isSelected 
-          ? "border-blue-500 bg-blue-50/30 shadow-sm" 
+        flex flex-col border rounded-xl transition-all
+        ${isSelected
+          ? "border-blue-500 bg-blue-50/30 shadow-sm"
           : "border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50"
         }
         ${isEditing ? "ring-2 ring-blue-500/30" : ""}
       `}
-      data-table={table}
+      data-item={item}
       data-selected={isSelected}
       data-editing={isEditing}
       role="listitem"
     >
-      {/* Checkbox e nome da tabela */}
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        
-        {/* Checkbox Customizado */}
+      {/* ── Linha principal: checkbox + nome + badge alias (readonly) ── */}
+      <div className="flex items-center gap-3 px-3 py-2.5">
+
+        {/* Checkbox */}
         <div
-          className="relative flex items-center justify-center cursor-pointer"
+          className="relative flex items-center justify-center cursor-pointer flex-shrink-0"
           onClick={handleToggle}
+          role="checkbox"
+          aria-checked={isSelected}
+          tabIndex={0}
+          onKeyDown={(e) => e.key === " " && handleToggle()}
         >
-           <div
-            className={`w-5 h-5 rounded flex items-center justify-center transition-all border ${
-              isSelected
-                ? "bg-blue-600 border-blue-600 text-white"
-                : "bg-white border-gray-300 text-transparent group-hover:border-blue-400"
-            }`}
+          <div
+            className={`w-5 h-5 rounded flex items-center justify-center transition-all border ${isSelected
+              ? "bg-blue-600 border-blue-600 text-white"
+              : "bg-white border-gray-300 hover:border-blue-400"
+              }`}
           >
-            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+            {isSelected && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
           </div>
         </div>
-        
-        <label 
-          htmlFor={`checkbox-${table}`}
-          className={`text-sm flex-1 truncate cursor-pointer select-none ${isSelected ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}
-          title={table}
+
+        {/* Nome */}
+        <span
+          className={`text-sm flex-1 truncate cursor-pointer select-none ${isSelected ? "font-bold text-gray-900" : "font-medium text-gray-700"
+            }`}
+          title={item}
           onClick={handleToggle}
         >
-          {table}
-        </label>
+          {item}
+        </span>
 
-        {/* Badge do alias quando não está editando */}
-        {alias && !isEditing && (
-          <span 
+        {/* Badge alias — visível na linha principal quando NÃO está editando */}
+        {enableAliases && alias && !isEditing && (
+          <span
             className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold rounded-md font-mono tracking-wide flex-shrink-0"
             title={`Alias: ${alias}`}
           >
@@ -136,91 +155,127 @@ export const TableItem: React.FC<TableItemProps> = memo(({
         )}
       </div>
 
-      {/* Controles de alias */}
-      {showAliasControls && (
-        <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-          {isEditing ? (
-            // Modo edição
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={alias}
-                  onChange={handleAliasChange}
-                  onBlur={handleBlur}
-                  onKeyDown={handleKeyDown}
-                  placeholder={t("modalTable.typeAlias") || "Digite o alias..."}
-                  autoFocus
-                  className={`
-                    w-28 px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2
-                    transition-colors font-mono font-medium shadow-sm
-                    ${aliasError 
-                      ? "border-red-300 bg-red-50 text-red-900 placeholder-red-300 focus:ring-red-500/50" 
-                      : "border-blue-300 bg-white text-gray-900 focus:ring-blue-500/50"
-                    }
-                  `}
-                  aria-invalid={!!aliasError}
-                  aria-describedby={aliasError ? `error-${table}` : undefined}
-                />
-                {aliasError && (
-                  <div 
-                    className="absolute -top-1.5 -right-1.5 transform translate-x-1/2 -translate-y-1/2 group/error"
-                    role="alert"
-                  >
-                    <Info className="w-4 h-4 text-red-500 bg-white rounded-full" />
-                    <div 
-                      id={`error-${table}`}
-                      className="absolute bottom-full right-0 mb-1.5 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 pointer-events-none group-hover/error:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg"
-                    >
-                      {aliasError}
-                    </div>
+      {/* ── Linha secundária: DISTINCT + controles de alias ── */}
+      {showSecondaryRow && (
+        <div
+          className={`
+            flex items-center gap-2 px-3 pb-2.5 pl-11 flex-wrap
+            border-t border-gray-100
+          `}
+        >
+          {/* Botão DISTINCT */}
+          {showDistinctOptions && (
+            <button
+              onClick={handleDistinctClick}
+              className={`
+                px-2.5 py-1 text-[11px] font-bold rounded-md border cursor-pointer
+                transition-all select-none focus:outline-none focus:ring-2 focus:ring-blue-400/50
+                ${isDistinct
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-gray-50 text-gray-500 border-gray-300 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700"
+                }
+              `}
+              aria-pressed={isDistinct}
+              title={isDistinct ? "Remover DISTINCT" : "Aplicar DISTINCT"}
+            >
+              DISTINCT
+            </button>
+          )}
+
+          {/* Separador visual se ambas as features estão ativas */}
+          {showDistinctOptions && showAliasControls && (
+            <span className="text-gray-200 select-none">|</span>
+          )}
+
+          {/* Controles de alias */}
+          {showAliasControls && (
+            <>
+              {isEditing ? (
+                /* Modo edição inline */
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={alias}
+                      onChange={handleAliasChange}
+                      onBlur={handleBlur}
+                      onKeyDown={handleKeyDown}
+                      placeholder={t("modal.typeAlias") || "alias SQL..."}
+                      autoFocus
+                      maxLength={30}
+                      className={`
+                        w-32 px-2.5 py-1 text-xs border rounded-lg focus:outline-none focus:ring-2
+                        transition-colors font-mono font-medium
+                        ${aliasError
+                          ? "border-red-400 bg-red-50 text-red-900 placeholder-red-300 focus:ring-red-400/40"
+                          : "border-blue-400 bg-white text-gray-900 focus:ring-blue-400/40"
+                        }
+                      `}
+                      aria-invalid={!!aliasError}
+                      aria-describedby={aliasError ? `error-${item}` : `hint-${item}`}
+                    />
                   </div>
-                )}
-              </div>
-              
-              {/* Botões de ação durante edição */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={onFinishEditing}
-                  disabled={!!aliasError}
-                  className="p-1.5 text-green-600 bg-white border border-transparent hover:border-green-200 hover:bg-green-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-500/50 shadow-sm"
-                  title={t("actions.confirmAlias") || "Confirmar alias"}
-                  aria-label={t("actions.confirmAlias") || "Confirmar alias"}
-                >
-                  <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                </button>
-                <button
-                  onClick={onCancelEditing}
-                  className="p-1.5 text-gray-500 bg-white border border-transparent hover:border-gray-200 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 shadow-sm"
-                  title={t("actions.cancelEditing") || "Cancelar edição"}
-                  aria-label={t("actions.cancelEditing") || "Cancelar edição"}
-                >
-                  <X className="w-3.5 h-3.5" strokeWidth={3} />
-                </button>
-              </div>
-            </div>
-          ) : (
-            // Modo visualização
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {alias && (
-                <button
-                  onClick={handleRemoveAlias}
-                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                  title={`${t("actions.removeAlias") || "Remover alias"} "${alias}"`}
-                  aria-label={t("actions.removeAlias") || "Remover alias"}
-                >
-                  <X className="w-4 h-4" />
-                </button>
+
+                  {/* Confirmar */}
+                  <button
+                    onClick={onFinishEditing}
+                    disabled={!!aliasError}
+                    className="p-1.5 text-green-600 bg-white border border-transparent hover:border-green-300 hover:bg-green-50 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-green-400/50"
+                    title={t("actions.confirmAlias") || "Confirmar alias"}
+                  >
+                    <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                  </button>
+
+                  {/* Cancelar */}
+                  <button
+                    onClick={onCancelEditing}
+                    className="p-1.5 text-gray-400 bg-white border border-transparent hover:border-gray-300 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400/40"
+                    title={t("actions.cancelEditing") || "Cancelar edição"}
+                  >
+                    <X className="w-3.5 h-3.5" strokeWidth={3} />
+                  </button>
+
+                  {/* Mensagem de erro ou dica de teclado */}
+                  {aliasError ? (
+                    <span id={`error-${item}`} className="text-[11px] text-red-600" role="alert">
+                      {aliasError}
+                    </span>
+                  ) : (
+                    <span id={`hint-${item}`} className="text-[11px] text-gray-400 select-none">
+                      Enter para confirmar · Esc para cancelar
+                    </span>
+                  )}
+                </div>
+              ) : (
+                /* Modo visualização — sempre visível (sem hover) */
+                <div className="flex items-center gap-1.5">
+                  {alias && (
+                    <button
+                      onClick={handleRemoveAlias}
+                      className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-400/50"
+                      title={`Remover alias "${alias}"`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={handleStartEditing}
+                    className={`
+                      flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors text-[11px] font-medium
+                      focus:outline-none focus:ring-2 focus:ring-indigo-400/50
+                      ${alias
+                        ? "text-indigo-600 hover:bg-indigo-50"
+                        : "text-gray-400 border border-dashed border-gray-300 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50"
+                      }
+                    `}
+                    title={alias ? `Editar alias "${alias}"` : "Adicionar alias"}
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    <span>{alias ? "Editar alias" : "Alias"}</span>
+                  </button>
+                </div>
               )}
-              <button
-                onClick={handleStartEditing}
-                className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                title={alias ? (`${t("actions.editAlias") || "Editar alias"} "${alias}"`) : (t("actions.addAlias") || "Adicionar alias")}
-                aria-label={t("actions.addAlias") || "Adicionar alias"}
-              >
-                <Tag className="w-4 h-4" />
-              </button>
-            </div>
+            </>
           )}
         </div>
       )}
@@ -228,4 +283,4 @@ export const TableItem: React.FC<TableItemProps> = memo(({
   );
 });
 
-TableItem.displayName = 'TableItem';
+GenericListItem.displayName = "GenericListItem";

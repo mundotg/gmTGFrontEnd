@@ -35,7 +35,8 @@ export const convertAdvancedJoinOptionToPayload = (
         caseSensitive: condition.caseSensitive,
         collation: condition.collation,
         functionLeft: condition.functionLeft,
-        functionRight: condition.functionRight
+        functionRight: condition.functionRight,
+        pattern: condition.pattern
       }));
 
     // 🚫 Ignora JOIN se, após validação, não sobrar nenhuma condição válida

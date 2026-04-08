@@ -1,112 +1,159 @@
 "use client";
-import { Check, Database, Search } from "lucide-react";
+import { Check, Search, List } from "lucide-react";
 import { JSX, memo } from "react";
 import { useI18n } from "@/context/I18nContext";
-import { TableItem } from "./TableItem";
+import { GenericListItem } from "./TableItem";
 
-type RenderTabContentParams = {
-  activeTab: "all" | "selected";
-  filteredTables: string[];
-  filteredSelectedTables: string[];
-  localSelection: string[];
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+
+type Tab = "all" | "selected";
+
+type DistinctProps = {
+  showDistinctOptions?: boolean;
+  distinctColumns?: string[];
+  toggleDistinctColumn?: (column: string) => void;
+};
+
+type AliasProps = {
   tableAliases: Record<string, string>;
   editingAlias: string | null;
-  toggleTable: (table: string) => void;
   handleAliasChange: (table: string, alias: string) => void;
   startEditingAlias: (table: string) => void;
   finishEditingAlias: () => void;
   setEditingAlias: (alias: string | null) => void;
   removeAlias: (table: string) => void;
   getAliasError: (alias: string) => string | null;
-  setActiveTab: (tab: "all" | "selected") => void;
+  enableAliases?: boolean;
 };
 
-// Componentes de estado vazio memoizados e padronizados
-const EmptyStateAll = memo(() => {
+type LabelProps = {
+  itemLabelSingular?: string;
+  itemLabelPlural?: string;
+  icon?: React.ReactNode;
+};
+
+export type RenderTabContentProps = DistinctProps &
+  AliasProps &
+  LabelProps & {
+    activeTab: Tab;
+    filteredTables: string[];
+    filteredSelectedTables: string[];
+    localSelection: string[];
+    toggleTable: (table: string) => void;
+    setActiveTab: (tab: Tab) => void;
+  };
+
+// ─── Empty states ─────────────────────────────────────────────────────────────
+
+const EmptyStateAll = memo(({
+  itemLabelPlural = "itens",
+  icon = <List className="w-6 h-6 text-gray-400" />,
+}: Pick<LabelProps, "itemLabelPlural" | "icon">) => {
   const { t } = useI18n();
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+    <div
+      className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 animate-in fade-in duration-300"
+      role="status"
+      aria-live="polite"
+    >
       <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm mb-3">
-        <Database className="w-6 h-6 text-gray-400" />
+        {icon}
       </div>
-      <p className="text-gray-600 font-medium">{t("modalTable.emptyAll") || "Nenhuma tabela encontrada"}</p>
+      <p className="text-gray-600 font-medium text-center">
+        {t("modal.emptyAll") || `Nenhum(a) ${itemLabelPlural.toLowerCase()} encontrado(a)`}
+      </p>
     </div>
   );
 });
 EmptyStateAll.displayName = "EmptyStateAll";
 
-const EmptyStateSelected = memo(({ setActiveTab }: { setActiveTab: (tab: "all" | "selected") => void }) => {
+const EmptyStateSelected = memo(({
+  setActiveTab,
+  itemLabelSingular = "item",
+  itemLabelPlural = "itens",
+}: { setActiveTab: (tab: Tab) => void } & Pick<LabelProps, "itemLabelSingular" | "itemLabelPlural">) => {
   const { t } = useI18n();
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+    <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 animate-in fade-in duration-300">
       <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm mb-3">
         <Check className="w-6 h-6 text-gray-400" />
       </div>
-      <p className="text-gray-900 font-bold mb-1">{t("modalTable.emptySelectedTitle") || "Nenhuma tabela selecionada"}</p>
-      <p className="text-sm text-gray-500 mb-4">{t("modalTable.emptySelectedDesc") || "Você ainda não selecionou nenhuma tabela para a consulta."}</p>
+      <p className="text-gray-900 font-bold mb-1 text-center">
+        {t("modal.emptySelectedTitle") || `Nenhum(a) ${itemLabelSingular.toLowerCase()} selecionado(a)`}
+      </p>
+      <p className="text-sm text-gray-500 mb-4 text-center max-w-sm">
+        {t("modal.emptySelectedDesc") ||
+          `Você ainda não selecionou nenhum(a) ${itemLabelSingular.toLowerCase()} para a operação atual.`}
+      </p>
       <button
         onClick={() => setActiveTab("all")}
-        className="text-sm font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors border border-blue-200"
+        className="text-sm font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors border border-blue-200 focus:ring-2 focus:ring-blue-500 focus:outline-none"
       >
-        {t("modalTable.goToAllTables") || "Ir para Todas as Tabelas"}
+        {t("modal.goToAll") || `Ver todos(as) os(as) ${itemLabelPlural.toLowerCase()}`}
       </button>
     </div>
   );
 });
 EmptyStateSelected.displayName = "EmptyStateSelected";
 
-const EmptyStateSearch = memo(() => {
+const EmptyStateSearch = memo(({ itemLabelPlural = "itens" }: Pick<LabelProps, "itemLabelPlural">) => {
   const { t } = useI18n();
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+    <div
+      className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 animate-in fade-in duration-300"
+      role="status"
+      aria-live="polite"
+    >
       <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm mb-3">
         <Search className="w-6 h-6 text-gray-400" />
       </div>
-      <p className="text-gray-600 font-medium text-center">
-        {t("modalTable.emptySearch") || "Nenhuma tabela selecionada encontrada na pesquisa"}
+      <p className="text-gray-600 font-medium text-center max-w-sm">
+        {t("modal.emptySearch") ||
+          `Nenhum(a) ${itemLabelPlural.toLowerCase()} selecionado(a) corresponde à pesquisa.`}
       </p>
     </div>
   );
 });
 EmptyStateSearch.displayName = "EmptyStateSearch";
 
-// Componente TableList memoizado para evitar re-renders desnecessários
+// ─── Lista de itens ───────────────────────────────────────────────────────────
+
+type TableListProps = DistinctProps &
+  AliasProps & {
+    tables: string[];
+    isSelectedTab: boolean;
+    localSelection: string[];
+    toggleTable: (table: string) => void;
+  };
+
 const TableList = memo(({
   tables,
   isSelectedTab,
   localSelection,
+  toggleTable,
   tableAliases,
   editingAlias,
-  toggleTable,
   handleAliasChange,
   startEditingAlias,
   finishEditingAlias,
   setEditingAlias,
   removeAlias,
   getAliasError,
-}: {
-  tables: string[];
-  isSelectedTab: boolean;
-  localSelection: string[];
-  tableAliases: Record<string, string>;
-  editingAlias: string | null;
-  toggleTable: (table: string) => void;
-  handleAliasChange: (table: string, alias: string) => void;
-  startEditingAlias: (table: string) => void;
-  finishEditingAlias: () => void;
-  setEditingAlias: (alias: string | null) => void;
-  removeAlias: (table: string) => void;
-  getAliasError: (alias: string) => string | null;
-}) => (
+  enableAliases = true,
+  showDistinctOptions,
+  distinctColumns,
+  toggleDistinctColumn,
+}: TableListProps) => (
   <div className="space-y-2">
     {tables.map((table) => (
-      <TableItem
+      <GenericListItem
         key={table}
-        table={table}
+        item={table}
         isInSelectedTab={isSelectedTab}
         selected={localSelection}
-        tableAliases={tableAliases}
+        aliases={tableAliases}
         editingAlias={editingAlias}
+        enableAliases={enableAliases}
         onToggle={toggleTable}
         onAliasChange={handleAliasChange}
         onStartEditing={startEditingAlias}
@@ -114,82 +161,99 @@ const TableList = memo(({
         onCancelEditing={() => setEditingAlias(null)}
         onRemoveAlias={removeAlias}
         getAliasError={getAliasError}
+        showDistinctOptions={showDistinctOptions}
+        distinctColumns={distinctColumns}
+        toggleDistinctColumn={toggleDistinctColumn}
       />
     ))}
   </div>
 ));
 TableList.displayName = "TableList";
 
-// Componente principal memoizado
+// ─── Componente principal ─────────────────────────────────────────────────────
+
 export const RenderTabContent = memo(({
   activeTab,
   filteredTables,
   filteredSelectedTables,
   localSelection,
+  toggleTable,
   tableAliases,
   editingAlias,
-  toggleTable,
   handleAliasChange,
   startEditingAlias,
   finishEditingAlias,
   setEditingAlias,
   removeAlias,
   getAliasError,
+  enableAliases,
   setActiveTab,
-}: RenderTabContentParams): JSX.Element => {
+  itemLabelSingular,
+  itemLabelPlural,
+  icon,
+  showDistinctOptions,
+  distinctColumns,
+  toggleDistinctColumn,
+}: RenderTabContentProps): JSX.Element => {
 
-  // Renderização para aba "Todas as Tabelas"
+  // Props compartilhadas entre abas
+  const sharedListProps = {
+    localSelection,
+    toggleTable,
+    tableAliases,
+    editingAlias,
+    handleAliasChange,
+    startEditingAlias,
+    finishEditingAlias,
+    setEditingAlias,
+    removeAlias,
+    getAliasError,
+    enableAliases,
+    showDistinctOptions,
+    distinctColumns,
+    toggleDistinctColumn,
+  };
+
+  // ── Aba "Todas" ──
   if (activeTab === "all") {
     if (filteredTables.length === 0) {
-      return <EmptyStateAll />;
+      return <EmptyStateAll itemLabelPlural={itemLabelPlural} icon={icon} />;
     }
 
     return (
       <TableList
+        {...sharedListProps}
         tables={filteredTables}
         isSelectedTab={false}
-        localSelection={localSelection}
-        tableAliases={tableAliases}
-        editingAlias={editingAlias}
-        toggleTable={toggleTable}
-        handleAliasChange={handleAliasChange}
-        startEditingAlias={startEditingAlias}
-        finishEditingAlias={finishEditingAlias}
-        setEditingAlias={setEditingAlias}
-        removeAlias={removeAlias}
-        getAliasError={getAliasError}
       />
     );
   }
 
-  // Renderização para aba "Selecionadas"
+  // ── Aba "Selecionadas" ──
   if (localSelection.length === 0) {
-    return <EmptyStateSelected setActiveTab={setActiveTab} />;
+    return (
+      <EmptyStateSelected
+        setActiveTab={setActiveTab}
+        itemLabelSingular={itemLabelSingular}
+        itemLabelPlural={itemLabelPlural}
+      />
+    );
   }
 
   if (filteredSelectedTables.length === 0) {
-    return <EmptyStateSearch />;
+    return <EmptyStateSearch itemLabelPlural={itemLabelPlural} />;
   }
 
   return (
     <TableList
+      {...sharedListProps}
       tables={filteredSelectedTables}
       isSelectedTab={true}
-      localSelection={localSelection}
-      tableAliases={tableAliases}
-      editingAlias={editingAlias}
-      toggleTable={toggleTable}
-      handleAliasChange={handleAliasChange}
-      startEditingAlias={startEditingAlias}
-      finishEditingAlias={finishEditingAlias}
-      setEditingAlias={setEditingAlias}
-      removeAlias={removeAlias}
-      getAliasError={getAliasError}
     />
   );
 });
 
 RenderTabContent.displayName = "RenderTabContent";
 
-// Alias para manter compatibilidade com código existente
+// Alias para compatibilidade com imports antigos
 export const renderTabContent = RenderTabContent;

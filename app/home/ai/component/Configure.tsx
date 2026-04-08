@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { SimilarityMetric } from "./useConfiguration";
+import { SimilarityMetric } from "../types";
 
 interface Props {
   isOpen: boolean;
@@ -77,10 +77,10 @@ export default function Configure({
   return (
     // Fundo escuro com desfoque (blur) moderno
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity">
-      
+
       {/* Container do Modal */}
       <div className="bg-white dark:bg-zinc-900 w-full max-w-2xl flex flex-col p-6 md:p-8 rounded-2xl shadow-2xl border border-gray-100 dark:border-zinc-800">
-        
+
         {/* Cabeçalho */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
@@ -96,7 +96,7 @@ export default function Configure({
 
         {/* Corpo (Formulário) */}
         <div className="flex-grow space-y-6">
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Native Select para LLM */}
             <div className="flex flex-col gap-2">
@@ -132,26 +132,26 @@ export default function Configure({
 
           {/* Toggles Nativos em Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
-            <ToggleItem 
-              label="Enable vector content (RAG)" 
-              checked={formData.rag} 
-              onChange={() => handleChange("rag", !formData.rag)} 
+
+            <ToggleItem
+              label="Enable vector content (RAG)"
+              checked={formData.rag}
+              onChange={() => handleChange("rag", !formData.rag)}
             />
-            <ToggleItem 
-              label="Training Mode" 
-              checked={formData.training} 
-              onChange={() => handleChange("training", !formData.training)} 
+            <ToggleItem
+              label="Training Mode"
+              checked={formData.training}
+              onChange={() => handleChange("training", !formData.training)}
             />
-            <ToggleItem 
-              label="Normal Mode" 
-              checked={formData.normal} 
-              onChange={() => handleChange("normal", !formData.normal)} 
+            <ToggleItem
+              label="Normal Mode"
+              checked={formData.normal}
+              onChange={() => handleChange("normal", !formData.normal)}
             />
-            <ToggleItem 
-              label="Critical Mode" 
-              checked={formData.critical} 
-              onChange={() => handleChange("critical", !formData.critical)} 
+            <ToggleItem
+              label="Critical Mode"
+              checked={formData.critical}
+              onChange={() => handleChange("critical", !formData.critical)}
             />
 
           </div>
@@ -172,7 +172,7 @@ export default function Configure({
             Guardar Alterações
           </button>
         </div>
-        
+
       </div>
     </div>
   );

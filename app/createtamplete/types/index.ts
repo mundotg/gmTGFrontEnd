@@ -11,7 +11,8 @@ export type SectionType =
   | "line"
   | "spacer"
   | "footer"
-  | "pagebreak";
+  | "pagebreak"
+  | "container"; // 🔥 NOVO
 
 
 // 🎯 Estilo universal para TODAS as seções
@@ -72,7 +73,7 @@ export interface TableSectionData {
 
 export interface ImageSectionData {
   path: string;
-  width?: number;
+  width?: number | string;
   height?: number;
   fit?: "contain" | "cover" | "fill";
   opacity?: number;
@@ -87,7 +88,7 @@ export interface ListSectionData {
 export interface LineSectionData {
   style?: "solid" | "dashed" | "dotted";
   color?: string;
-  width?: string
+  width?: number | string;
   thickness?: number; // 🔥 melhor nome que width
 }
 
@@ -106,20 +107,26 @@ export interface PageBreakSectionData {
   label?: string; // Texto opcional exibido antes da quebra de página
 }
 
+export interface ContainerSectionData {
+  direction: "column" | "row";
+  gap: number; // espaço entre os filhos
+}
+
 // -----------------------------
 // Tipos discriminados
 // -----------------------------
 
-export type Section =
-  | { id: string; type: "header"; data: HeaderSectionData; style?: BaseStyle }
-  | { id: string; type: "text"; data: TextSectionData; style?: BaseStyle }
-  | { id: string; type: "table"; data: TableSectionData; style?: BaseStyle }
-  | { id: string; type: "image"; data: ImageSectionData; style?: BaseStyle }
-  | { id: string; type: "list"; data: ListSectionData; style?: BaseStyle }
-  | { id: string; type: "line"; data: LineSectionData; style?: BaseStyle }
-  | { id: string; type: "spacer"; data: SpacerSectionData; style?: BaseStyle }
-  | { id: string; type: "footer"; data: FooterSectionData; style?: BaseStyle }
-  | { id: string; type: "pagebreak"; data: PageBreakSectionData; style?: BaseStyle };
+
+export type SectionDataType = HeaderSectionData | TextSectionData | TableSectionData | ImageSectionData | ListSectionData | LineSectionData | SpacerSectionData | FooterSectionData | PageBreakSectionData | ContainerSectionData
+export type Section = {
+  id: string;
+  type: SectionType;
+  data: SectionDataType;
+  style?: BaseStyle;
+
+  // 🔥 NOVO
+  children?: Section[];
+};
 // ============================================================================
 // ERROS DE VALIDAÇÃO
 // ============================================================================

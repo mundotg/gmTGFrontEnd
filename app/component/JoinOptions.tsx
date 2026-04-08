@@ -34,7 +34,7 @@ export function JoinOptions({
   const { t } = useI18n();
   const [expandedJoins, setExpandedJoins] = useState<Set<string>>(new Set());
   const baseTable = useMemo(() => table_list[0], [table_list])
-  
+
   // ✅ Lista inicial só com a tabela base
   const tabelasLista = useMemo(
     () => columns
@@ -151,7 +151,7 @@ export function JoinOptions({
       addNotification('warning', t("joins.combinationsExhausted") || 'Combinações Esgotadas',
         `${t("joins.allCombinationsUsed") || "Todas as combinações de colunas já foram usadas para a tabela"} ${tableName}.`,
         false);
-        
+
       // caso não tem usar o value
       const candidate: JoinCondition = {
         id: generateConditionId(),
@@ -265,7 +265,7 @@ export function JoinOptions({
     },
     [updateConditions, addNotification, t]
   );
-  
+
   // Remover tabela do JOIN (ATUALIZADA)
   const removeJoinTable = React.useCallback(
     (tableName: string) => {
@@ -301,7 +301,7 @@ export function JoinOptions({
     },
     [joinOrder, setJoinOrder, setAdvancedConditions, addNotification, t]
   );
-  
+
   // Mudar tabela base (FUNCIONALIDADE NOVA)
   const changeBaseTable = React.useCallback((newBaseTable: string) => {
     if (newBaseTable === baseTable) {
@@ -368,33 +368,46 @@ export function JoinOptions({
   );
 
   // Atualizar condição
-  const updateJoinCondition = React.useCallback(
-    (tableName: string, conditionId: string, updates: Partial<JoinCondition>) => {
-      updateConditions(tableName, conds =>
-        conds.map(c => {
-          if (c.id !== conditionId) return c;
+  const updateJoinCondition = React.useCallback((tableName: string, conditionId: string, updates: Partial<JoinCondition>) => {
+    updateConditions(tableName, conds =>
+      conds.map(c => {
+        if (c.id !== conditionId) return c;
 
-          let resolvedUpdates = { ...updates };
+        let resolvedUpdates = { ...updates };
+        if (resolvedUpdates.operator === "Contém" || resolvedUpdates.operator === "Não Contém") {
+          resolvedUpdates = {
+            ...resolvedUpdates,
+            rightValue: "", // continua limpo
+            pattern: {
+              prefix: "%",
+              suffix: "%",
+            },
+          };
+        }
 
-          // Se mudou a coluna da esquerda, atualizar metadados
-          if (updates.leftColumn) {
-            const columnMetadata = getRightSideUpdateForLeftColumn(updates.leftColumn);
-            resolvedUpdates = { ...resolvedUpdates, ...columnMetadata };
-          }
+        // Se mudou a coluna da esquerda, atualizar metadados
+        if (updates.leftColumn) {
+          const columnMetadata = getRightSideUpdateForLeftColumn(updates.leftColumn);
+          resolvedUpdates = { ...resolvedUpdates, ...columnMetadata };
+        }
 
-          const newCondition = { ...c, ...resolvedUpdates };
 
-          // Verificar duplicatas (excluindo a condição atual)
-          if (isDuplicateCondition(conds, newCondition, conditionId)) {
-            addNotification('warning', t("joins.duplicateCondition") || 'Condição Duplicada',
-              t("joins.duplicateConditionDesc") || 'Esta combinação de coluna/operador já existe. A alteração foi cancelada.');
-            return c; // Manter condição original
-          }
 
-          return newCondition;
-        })
-      );
-    },
+
+
+        const newCondition = { ...c, ...resolvedUpdates };
+
+        // Verificar duplicatas (excluindo a condição atual)
+        if (isDuplicateCondition(conds, newCondition, conditionId)) {
+          addNotification('warning', t("joins.duplicateCondition") || 'Condição Duplicada',
+            t("joins.duplicateConditionDesc") || 'Esta combinação de coluna/operador já existe. A alteração foi cancelada.');
+          return c; // Manter condição original
+        }
+
+        return newCondition;
+      })
+    );
+  },
     [updateConditions, getRightSideUpdateForLeftColumn, addNotification, t]
   );
 
@@ -450,7 +463,7 @@ export function JoinOptions({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-xl gap-3">
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="p-1.5 bg-blue-100 rounded-md border border-blue-200">
-             <Database className="h-4 w-4 text-blue-600" />
+            <Database className="h-4 w-4 text-blue-600" />
           </div>
           <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">
             {t("joins.baseTable") || "Tabela Base"}:
