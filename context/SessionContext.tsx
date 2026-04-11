@@ -52,7 +52,7 @@ export interface Usuario {
     assigned_tasks?: string[];
     delegated_tasks?: string[];
     created_tasks?: string[];
-   
+
     empresa?: Empresa;
     cargo?: Cargo;
 
@@ -171,7 +171,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }, [isRefreshing, isLoggingOut, refreshAccessToken, logout]);
 
     useEffect(() => {
-        
+
 
         const refresh = async () => {
             try {
@@ -230,13 +230,19 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             setIsLoading(false);
             return true;
         }
-            
+
         try {
 
-            console.log("Tentando login com credenciais:", options?.credenciais);
-            const response = await api.post("/auth/login", options?.credenciais ?? {});
-            // console.log("Login bem-sucedido:", response.data.user);
-            storeLoginData(response.data.user);
+
+            // const response = await api.post("/auth/login", options?.credenciais ?? {});
+            const response = await fetch("/api/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(options ?? {}),
+            });
+            const { user } = await response.json();
+            console.log("Login bem-sucedido:", user);
+            storeLoginData(user);
             // if (options?.redirect)
             //route.push(options.redirect);
             setIsLoading(false);

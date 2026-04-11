@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export function checkAuth(req: NextRequest) {
   const token = req.cookies.get('access_token')?.value;
+
+  console.log('Token encontrado:', token);
   const { pathname } = req.nextUrl;
 
   // Identifica se é uma rota de autenticação (login, register, etc)
