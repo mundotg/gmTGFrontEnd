@@ -1,150 +1,231 @@
-// components/Sidebar.tsx
 "use client";
 import { useI18n } from '@/context/I18nContext';
 import { useSession } from '@/context/SessionContext';
 import {
   BarChart3, Database, TableProperties, Search, History,
-  TrendingUp, Settings, Menu, X, ChevronLeft, ChevronRight,
-  LogOut, User
+  TrendingUp, Menu, X, ChevronLeft, ChevronRight,
+  ScanLine, LucideProjector, Activity
 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { SidebarFooter } from './silederMenuComponent/SidebarFooter';
+import { hasPermission } from '@/permissions_val';
 
-const sidebarItems = [
-  { id: 'overview', label: 'sidebar.overview', icon: BarChart3, href: '/home' },
-  { id: 'connections', label: 'sidebar.connections', icon: Database, badge: 'active' , href: '/home/conexao' },
-  { id: 'tables', label: 'sidebar.tables', icon: TableProperties, badge: 'num_table', href: '/home/tabelas' },
-  { id: 'query', label: 'sidebar.query', icon: Search, badge: 'num_consultas', href: '/home/consultas' },
-  { id: 'history', label: 'sidebar.history', icon: History, badge: 'registros_analizados' , href: '/home/historico' },
-  { id: 'analysis', label: 'sidebar.analysis', icon: TrendingUp , href: '/home/analizar' },
-  { id: 'settings', label: 'sidebar.settings', icon: Settings, href: '/home/configuracao' },
+const MIN_WIDTH = 200;
+const MAX_WIDTH = 450;
+const DEFAULT_WIDTH = 280;
+const COLLAPSED_WIDTH = 80;
+
+type SidebarItem = {
+  id: string;
+  label: string;
+  icon: any;
+  href: string;
+  badge?: string;
+  permission?: string | string[];
+  requiresConnection?: boolean;
+};
+
+export const sidebarItems: SidebarItem[] = [
+  { id: "overview", label: "sidebar.overview", icon: BarChart3, href: "/home" },
+  { id: "connections", label: "sidebar.connections", icon: Database, badge: "active", href: "/home/conexao", permission: ["db_connection:read_own", "db_connection:read_company", "db_connection:read_all"] },
+  { id: "tables", label: "sidebar.tables", icon: TableProperties, badge: "num_table", href: "/home/tabelas", permission: "query:execute", requiresConnection: true },
+  { id: "query", label: "sidebar.query", icon: Search, badge: "num_consultas", href: "/home/consultas", permission: "query:execute", requiresConnection: true },
+  { id: "analysis", label: "sidebar.analysis", icon: TrendingUp, href: "/home/analizar", permission: "project:view", requiresConnection: true },
+  { id: "task", label: "sidebar.gestorProjetos", icon: LucideProjector, badge: "num_tasks", href: "/task", permission: "project:view" },
+  { id: "ai", label: "sidebar.ai", icon: BarChart3, href: "/home/ai" },
+  { id: "template", label: "sidebar.templates", icon: TableProperties, href: "/createtamplete", permission: "project:view" },
+  { id: "tester", label: "sidebar.apiTester", icon: Activity, href: "/home/tester" },
+  { id: "ocr", label: "scanner.texto", icon: ScanLine, badge: "registros_analizados", href: "/home/ocr" },
+  { id: "history", label: "sidebar.history", icon: History, badge: "registros_analizados", href: "/home/historico", permission: "query:execute", requiresConnection: true },
+
 ];
 
 export default function Sidebar({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
-  const { logout,user } = useSession();
-  const [widthCurrent, setWidthCorrent] = useState(280);
+  const { logout, user } = useSession();
   const pathname = usePathname();
 
-  const [activeTab, setActiveTab] = useState(sidebarItems.find(item => item.href === pathname)?.id || 'overview');
+  const allowedSidebarItems = useMemo(() => {
+    return sidebarItems.filter(item =>
+      hasPermission(user?.permissions, item.permission)
+    );
+  }, [user?.permissions]);
+
   const [collapsed, setCollapsed] = useState(true);
-  const [width, setWidth] = useState(280);
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef(false);
 
-   
+  const hasActiveConnection = Boolean(user?.info_extra?.name_db);
+
+  const activeTab = useMemo(() =>
+    allowedSidebarItems.find(item => item.href === pathname)?.id || 'overview',
+    [pathname, allowedSidebarItems]
+  );
+
+  const currentWidth = useMemo(() =>
+    collapsed ? COLLAPSED_WIDTH : width,
+    [collapsed, width]
+  );
 
   useEffect(() => {
-    const savedCollapsed = localStorage.getItem('sidebar-collapsed');
-    if (savedCollapsed) setCollapsed(JSON.parse(savedCollapsed));
+    if (typeof window !== 'undefined') {
+      const savedCollapsed = localStorage.getItem('sidebar-collapsed');
+      const savedWidth = localStorage.getItem('sidebar-width');
+      if (savedCollapsed) setCollapsed(JSON.parse(savedCollapsed));
+      if (savedWidth) {
+        const parsedWidth = parseInt(savedWidth, 10);
+        if (parsedWidth >= MIN_WIDTH && parsedWidth <= MAX_WIDTH) setWidth(parsedWidth);
+      }
+    }
   }, []);
 
   useEffect(() => {
-    const savedWidth = collapsed ? (window.innerWidth >= 768 ? 80 : width) : width  
-    setWidthCorrent(savedWidth);
-    }, [collapsed,width]);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-collapsed', JSON.stringify(collapsed));
+      localStorage.setItem('sidebar-width', width.toString());
+    }
+  }, [collapsed, width]);
 
+  // ✅ Fechar sidebar no mobile ao mudar de rota
   useEffect(() => {
-    localStorage.setItem('sidebar-collapsed', JSON.stringify(collapsed));
-  }, [collapsed]);
+    setMobileOpen(false);
+  }, [pathname]);
 
-  const handleLogout = async () => {
-    await logout();
-    window.location.href = '/auth/login';
-  };
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+      window.location.href = '/auth/login';
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    }
+  }, [logout]);
 
-  const handleResizeStart = (e: React.MouseEvent) => {
+  const toggleCollapse = useCallback(() => setCollapsed(prev => !prev), []);
+
+  // ✅ Simplificado — o useEffect de pathname já cuida do mobile
+  const handleItemClick = useCallback(() => { }, []);
+
+  const toggleMobileMenu = useCallback(() => setMobileOpen(prev => !prev), []);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isResizing.current = true;
-    document.addEventListener('mousemove', handleResizing);
-    document.addEventListener('mouseup', stopResizing);
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      setWidth(Math.min(Math.max(e.clientX, MIN_WIDTH), MAX_WIDTH));
+    };
+
+    const handleMouseUp = () => {
+      isResizing.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-  };
+  }, []);
 
-  const handleResizing = (e: MouseEvent) => {
-    if (isResizing.current) {
-      const newWidth = Math.min(Math.max(e.clientX, 200), 450);
-      setWidth(newWidth);
-    }
-  };
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        mobileOpen &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target as Node) &&
+        window.innerWidth < 768
+      ) {
+        setMobileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [mobileOpen]);
 
-  
-
-  const stopResizing = () => {
-    isResizing.current = false;
-    document.removeEventListener('mousemove', handleResizing);
-    document.removeEventListener('mouseup', stopResizing);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-  };
-
-  const handleItemClick = (id: string) => {
-    setActiveTab(id);
-
-    if (window.innerWidth < 768) setMobileOpen(false);
-  };
-
-  const toggleCollapse = () => {
-    setCollapsed((prev) => !prev);
-    if (collapsed) setWidth(280);
-  };
-
-  const renderTooltip = (item: typeof sidebarItems[0]) => (
-    <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap z-50 shadow-lg">
+  const renderTooltip = (item: SidebarItem) => (
+    <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap z-50 shadow-lg pointer-events-none">
       {t(item.label)}
-      {item.badge && <span className="ml-2 px-2 py-0.5 bg-white/20 rounded text-xs">{item.badge}</span>}
+      {item.badge && (
+        <span className="ml-2 px-2 py-0.5 bg-white/20 rounded text-xs">
+          {item.id !== "connections"
+            ? user?.info_extra?.[item.badge as keyof typeof user.info_extra] || "0"
+            : user?.info_extra?.name_db ? "ativo" : "inativo"}
+        </span>
+      )}
       <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900" />
     </div>
   );
 
   return (
-    <>
-      {mobileOpen && <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30" onClick={() => setMobileOpen(false)} />}
+    <div className="flex h-screen w-screen bg-gray-50 overflow-hidden">
+      {/* Overlay mobile */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
 
+      {/* Botão menu mobile */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 bg-white shadow-lg p-3 rounded-lg border hover:bg-gray-50"
-        onClick={() => setMobileOpen(!mobileOpen)}
+        className="md:hidden fixed top-4 left-4 z-50 bg-white shadow-lg p-3 rounded-lg border hover:bg-gray-50 transition-colors"
+        onClick={toggleMobileMenu}
+        aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
       >
         {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
-      <div
+      {/* Sidebar */}
+      <aside
         ref={sidebarRef}
-        className={`bg-white shadow-xl border-r h-full z-40 transition-all duration-300 ease-in-out ${mobileOpen ? 'fixed translate-x-0' : 'fixed -translate-x-full md:translate-x-0 md:relative'} ${collapsed ? 'md:w-20' : ''}`}
-        style={{ width: widthCurrent }}
+        className={`
+          bg-white shadow-xl border-r h-full z-40 flex flex-col
+          fixed md:relative flex-shrink-0
+          transition-transform duration-300 ease-in-out
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}
+        style={{ width: currentWidth }}
       >
-        <div className={`p-6 border-b flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+        {/* Header */}
+        <div className={`p-6 border-b flex items-center flex-shrink-0 ${collapsed ? 'justify-center' : 'justify-between'}`}>
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
               <Database className="w-6 h-6 text-white" />
             </div>
             {!collapsed && (
-              <div>
-                <h1 className="text-xl font-bold">DB Manager</h1>
-                <p className="text-sm text-gray-500">{t('sidebar.subtitle')}</p>
+              <div className="min-w-0">
+                <h1 className="text-xl font-bold truncate">DB Manager</h1>
+                <p className="text-sm text-gray-500 truncate">{t('sidebar.subtitle')}</p>
               </div>
             )}
           </div>
           {!collapsed && (
             <button
               onClick={toggleCollapse}
-              className="hidden md:flex p-2 rounded-lg hover:bg-gray-100"
+              className="hidden md:flex p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
               title={t('sidebar.collapse')}
             >
               <ChevronLeft className="w-4 h-4 text-gray-500" />
             </button>
           )}
         </div>
-
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
+          crossOrigin="anonymous"></script>
+        {/* Botão expandir quando collapsed */}
         {collapsed && (
-          <div className="hidden md:flex justify-center pt-4">
+          <div className="hidden md:flex justify-center pt-4 flex-shrink-0">
             <button
               onClick={toggleCollapse}
-              className="p-2 rounded-lg hover:bg-gray-100"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               title={t('sidebar.expand')}
             >
               <ChevronRight className="w-4 h-4 text-gray-500" />
@@ -152,77 +233,117 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <nav className="mt-6 px-3">
-          {sidebarItems.map((item) => {
-            const Icon = item.icon;
-            const isActive =  activeTab === item.id;
-            const isHovered = hoveredItem === item.id;
-            return (
-              <div key={item.id} className="relative">
-                <Link 
-                    href={item.href}
-                  onClick={() => handleItemClick(item.id)}
-                  onMouseEnter={() => setHoveredItem(item.id)}
-                  onMouseLeave={() => setHoveredItem(null)}
-                  className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-4 py-3 mb-1 rounded-xl text-left transition-all duration-200 ${isActive ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 hover:shadow-md'}`}
-                >
-                  <div className={`flex items-center ${collapsed ? '' : 'space-x-3'}`}>
-                    <Icon className={`w-5 h-5 ${isActive ? 'text-white' : ''}`} />
-                    {!collapsed && <span className={`font-medium ${isActive ? 'text-white' : ''}`}>{t(item.label)}</span>}
-                  </div>
-                  {item.badge && !collapsed && (
-                    <span className={`px-2 py-1 text-xs rounded-full ${isActive ? 'bg-white/20 text-white' : item.badge === 'active' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
-                      {item.badge && (item.id !== "connections"
-                        ? user?.InfPlus?.[item.badge as keyof typeof user.InfPlus]
-                        : user?.InfPlus?.name_db ? "ative" : "off")}
-                    </span>
+        {/* ✅ Navegação — usando allowedSidebarItems */}
+        <nav className="mt-6 pb-6 px-3 flex-1 overflow-y-auto max-h-[calc(100vh-120px)]">
+          <div className="space-y-1 ">
+            {allowedSidebarItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              const isHovered = hoveredItem === item.id;
+              const disabled = item.requiresConnection && !hasActiveConnection;
+
+              return (
+                <div key={item.id} className="relative group">
+                  <Link
+                    href={disabled ? "#" : item.href}
+                    onClick={(e) => {
+                      if (disabled) {
+                        e.preventDefault();
+                        return;
+                      }
+                      handleItemClick();
+                    }}
+                    onMouseEnter={() => setHoveredItem(item.id)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                    className={`
+              w-full flex items-center px-4 py-3 mb-1 rounded-xl transition-all duration-200
+              ${collapsed ? "justify-center" : "justify-between"}
+
+              ${disabled
+                        ? "opacity-50 cursor-not-allowed"
+                        : isActive
+                          ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105"
+                          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 hover:shadow-md"
+                      }
+            `}
+                  >
+                    <div className={`flex items-center ${collapsed ? "" : "space-x-3"}`}>
+                      <Icon
+                        className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-white" : ""
+                          }`}
+                      />
+
+                      {!collapsed && (
+                        <span
+                          className={`font-medium truncate ${isActive ? "text-white" : ""
+                            }`}
+                        >
+                          {t(item.label)}
+                        </span>
+                      )}
+                    </div>
+
+                    {item.badge && !collapsed && (
+                      <span
+                        className={`
+                  px-2 py-1 text-xs rounded-full font-medium flex-shrink-0
+                  ${isActive
+                            ? "bg-white/20 text-white"
+                            : item.badge === "active"
+                              ? "bg-green-100 text-green-600"
+                              : "bg-gray-100 text-gray-600"
+                          }
+                `}
+                      >
+                        {item.id !== "connections"
+                          ? user?.info_extra?.[
+                          item.badge as keyof typeof user.info_extra
+                          ] || "0"
+                          : user?.info_extra?.name_db
+                            ? "ativo"
+                            : "inativo"}
+                      </span>
+                    )}
+                  </Link>
+
+                  {/* 🔥 Tooltip estável */}
+                  {collapsed && (
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 hidden group-hover:block">
+                      <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded-md shadow-lg whitespace-nowrap">
+                        {t(item.label)}
+                        {disabled && (
+                          <span className="block text-red-400 text-[10px]">
+                            Requer conexão
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   )}
-                </Link>
-                {collapsed && isHovered && renderTooltip(item)}
-              </div>
-            );
-          })}
+                </div>
+              );
+            })}
+          </div>
         </nav>
 
-        <div className="absolute bottom-0 w-full p-4 border-t bg-white">
-          {!collapsed ? (
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">{user?.nome}</p>
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <p className="text-xs text-green-600">{user?.InfPlus?.name_db  || "nenhuma base de dados conectada"}</p>
-                </div>
-              </div>
-              <button onClick={handleLogout} className="p-1.5 rounded-lg hover:bg-gray-100">
-                <LogOut className="w-4 h-4 text-gray-500" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center space-y-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
-              </div>
-              <div className="w-2 h-2 bg-green-500 rounded-full" />
-            </div>
-          )}
-        </div>
+        <SidebarFooter user={user} collapsed={collapsed} onLogout={handleLogout} />
 
+        {/* Handle de resize */}
         {!collapsed && (
           <div
             onMouseDown={handleResizeStart}
-            className="hidden md:block absolute top-0 right-0 h-full w-1 cursor-col-resize hover:bg-blue-200 group"
+            className="hidden md:block absolute top-0 right-0 h-full w-1 cursor-col-resize hover:bg-blue-200 group transition-colors"
           >
-            <div className="absolute top-1/2 right-0 -translate-y-1/2 w-3 h-8 bg-gray-300 rounded-l-md opacity-0 group-hover:opacity-100 flex items-center justify-center">
+            <div className="absolute top-1/2 right-0 -translate-y-1/2 w-3 h-8 bg-gray-300 rounded-l-md opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
               <div className="w-0.5 h-4 bg-gray-500 rounded" />
             </div>
           </div>
         )}
-      </div>
-      <main className="flex-1 p-4 overflow-auto bg-gray-50">{children}</main>
-    </>
+      </aside>
+
+      {/* ✅ Main — sem marginLeft via JS, sem hydration mismatch */}
+      <main className="flex-1 overflow-auto pt-16 md:pt-4 px-4 pb-4 min-w-0">
+        {children}
+      </main>
+    </div>
   );
 }

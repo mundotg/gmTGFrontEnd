@@ -1,8 +1,9 @@
-'use client';
+"use client";
 import React, { useCallback, useMemo } from 'react';
 import DatabaseDateInput from './date-input-component';
 import { mapColumnTypeToDbType } from '../services';
 import { tipo_db_Options } from '@/types';
+import { useI18n } from '@/context/I18nContext';
 
 interface DynamicInputProps {
   type: tipo_db_Options;
@@ -22,7 +23,8 @@ enum InputType {
   SELECT = "select"
 }
 
-export default function DynamicInputByType({ type, value, onChange, placeholder, disabled, enum_values }: DynamicInputProps) {
+export default function DynamicInputByType({ type, value, onChange, placeholder, disabled, enum_values}: DynamicInputProps) {
+  const { t } = useI18n();
 
   const input = useMemo<InputType>(() => {
     const lowerType = type.toLowerCase();
@@ -40,6 +42,9 @@ export default function DynamicInputByType({ type, value, onChange, placeholder,
     const num = parseFloat(cleaned);
     return isNaN(num) ? '' : cleaned; // mantém casas decimais do user
   }, []);
+
+  // Classe padrão para inputs do projeto
+  const baseInputClasses = "w-full px-3 py-2 bg-gray-50 border border-gray-200 text-sm font-medium text-gray-900 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed";
 
   switch (input) {
     case InputType.CHECKBOX: {
@@ -65,10 +70,10 @@ export default function DynamicInputByType({ type, value, onChange, placeholder,
           disabled={disabled}
           value={normalizedValue ? 'true' : 'false'}
           onChange={handleChange}
-          className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`${baseInputClasses} cursor-pointer appearance-none`}
         >
-          <option value="true">Sim</option>
-          <option value="false">Não</option>
+          <option value="true">{t("common.yes") || "Sim"}</option>
+          <option value="false">{t("common.no") || "Não"}</option>
         </select>
       );
     }
@@ -95,11 +100,11 @@ export default function DynamicInputByType({ type, value, onChange, placeholder,
           disabled={disabled} 
           value={hasValue ? stringValue : ''} 
           onChange={(e) => onChange(e.target.value)}
-          className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`${baseInputClasses} cursor-pointer appearance-none`}
         >
           {/* Opção placeholder quando não há valor selecionado */}
-          <option value="" disabled={hasValue ? true : undefined}>
-            {placeholder || 'Selecione uma opção'}
+          <option value="" disabled={hasValue ? true : undefined} className="text-gray-400">
+            {placeholder || t("common.selectOption") || 'Selecione uma opção'}
           </option>
           
           {enum_values?.map((enumValue, index) => (
@@ -120,7 +125,7 @@ export default function DynamicInputByType({ type, value, onChange, placeholder,
             value={String(value)}
             onChange={(e) => onChange(formatDecimal(e.target.value))}
             placeholder="0.00"
-            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={baseInputClasses}
           />
         );
       }
@@ -131,7 +136,7 @@ export default function DynamicInputByType({ type, value, onChange, placeholder,
           type="number"
           value={String(value)}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={baseInputClasses}
         />
       );
 
@@ -143,8 +148,8 @@ export default function DynamicInputByType({ type, value, onChange, placeholder,
           type="text"
           value={String(value)}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder || 'Digite um valor'}
-          className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder={placeholder || t("common.typeValue") || 'Digite um valor'}
+          className={baseInputClasses}
           maxLength={type.includes('char') ? 255 : undefined}
         />
       );

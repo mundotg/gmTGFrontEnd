@@ -1,6 +1,6 @@
 import api from "@/context/axioCuston";
 import { useState, useEffect, useCallback } from "react";
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface UseFetchOptions<T, B = any> {
   /** Dados iniciais opcionais para hidratação */
   initialData?: T;
@@ -11,8 +11,10 @@ interface UseFetchOptions<T, B = any> {
   /** Payload da requisição (POST, PUT, PATCH) */
   body?: B;
   /** Configurações extras do axios */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config?: Record<string, any>;
 }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useFetch<T = unknown, B = any>(
   url: string,
   options?: UseFetchOptions<T, B>
@@ -59,6 +61,7 @@ export function useFetch<T = unknown, B = any>(
             break;
         }
         setData(res.data);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         if (err.response) {
           setError(new Error(`Erro HTTP: ${err.response.status} - ${err.response.statusText}`));
@@ -71,7 +74,7 @@ export function useFetch<T = unknown, B = any>(
         setLoading(false);
       }
     },
-    [url, method, JSON.stringify(body), JSON.stringify(config)]
+    [url, method, body, config]
   );
 
   useEffect(() => {

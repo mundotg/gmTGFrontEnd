@@ -1,42 +1,123 @@
-'use client';
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { EditedField, EditedFieldForQuery, RowDetailsModalProps, Tables_primary_keys_values } from '@/types';
-import DynamicInputByType from './DynamicInputByType';
-import { Lock, Key, Pencil, X, Save, AlertCircle, Search } from 'lucide-react';
-import { validateField, Badge } from '@/util';
-import { usePopupReference } from '../services/popups';
-import { CLASSNAME_BUTTON } from '@/constant';
-import { findIdentifierField } from '@/util/func';
+"use client";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import {
+  CampoDetalhado,
+  EditedField,
+  EditedFieldForQuery,
+  MetadataTableResponse,
+  Tables_primary_keys_values,
+} from "@/types";
+import { X, AlertCircle } from "lucide-react";
+import { validateField } from "@/util";
+import { usePopupReference } from "../services/popups";
+import { findIdentifierField } from "@/util/func";
+import { useRowDelete } from "@/hook/useRowDelete";
+import { createLogger } from "@/util/logger";
+import ConfirmDeleteModal from "./ConfirmDeleteModal"; // 🔹 Importado o modal padronizado
+import { useI18n } from "@/context/I18nContext"; // 🔹 Importado
+import { FieldEditor } from "./ResultadosQueryComponent/FieldEditor";
+import ModalFooter from "./ResultadosQueryComponent/ModalFooter";
+import { RowDetailsModalProps } from "./ResultadosQueryComponent/types";
+import OCRButton from "./ocrComponent";
 
+const logger = createLogger({ component: "RowDetailsModal" });
 
 const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   isOpen,
+  setModalFetchOpen,
+  responseModal, setResponseModal,
+  modalFetchOpen, setOptionModalTable,
   onClose,
   row,
-  selectColumns,
   informacaosOftables,
   onSave,
+  onDelete,
 }) => {
+  const { t } = useI18n();
   const [editedFields, setEditedFields] = useState<Record<string, EditedField>>({});
   const [enabledFields, setEnabledFields] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { openReferencePopup: viewReferenceTable } = usePopupReference();
-
   // Memoização das tabelas selecionadas
-  const selectedTables = useMemo(() => {
-    if (!selectColumns || !informacaosOftables) return [];
+  const selectedTables = useMemo<MetadataTableResponse[]>(() => {
+    if (!row?.tableName || !informacaosOftables) return [];
 
-    return informacaosOftables.filter((table) =>
-      selectColumns.some((col) => col.startsWith(`${table.table_name}.`))
-    );
-  }, [selectColumns, informacaosOftables]);
+    return Object.entries(informacaosOftables)
+      .filter(([keyName]) => {
+        return row?.tableName?.some((tName) => {
+          if (!tName) return false;
+
+          // 1. Possibilidade: Match exato ("public.users" === "public.users")
+          if (tName === keyName) return true;
+
+          // 2. Possibilidade: tName tem uma coluna pendurada ("public.users.id" vs "public.users")
+          if (tName.startsWith(`${keyName}.`)) return true;
+
+          // Desmontamos as strings para analisar a fundo
+          const tParts = tName.split(".");
+          const kParts = keyName.split(".");
+
+          // Extraímos a base da tabela (sempre o último elemento do array)
+          // Ex: "public.db_fields" vira "db_fields"
+          const tBase = tParts[tParts.length - 1];
+          const kBase = kParts[kParts.length - 1];
+
+          // Se as tabelas base NÃO são iguais, verificamos um último fallback
+          if (tBase !== kBase) {
+            // Fallback: e se tName for "tabela.coluna" (ex: "users.id") e keyName for "users"?
+            if (tParts.length >= 2 && tParts[tParts.length - 2] === kBase) {
+              return true;
+            }
+            return false;
+          }
+
+          // 3. Possibilidade: As tabelas base são IGUAIS (ex: "db_fields" e "db_fields").
+          // Agora verificamos a segurança: há conflito de schema?
+          const tSchema = tParts.length > 1 ? tParts[tParts.length - 2] : null;
+          const kSchema = kParts.length > 1 ? kParts[kParts.length - 2] : null;
+
+          // Se AMBOS forneceram um schema, eles DEVEM ser iguais. 
+          // (Isso impede que "audit.users" dê match com "public.users")
+          if (tSchema && kSchema && tSchema !== kSchema) {
+            return false;
+          }
+
+          // 4. Possibilidade: Base igual, e apenas um (ou nenhum) tem schema (ex: "db_fields" === "public.db_fields")
+          return true;
+        });
+      })
+      .map(([keyName, colunas]) => ({
+        message: "",
+        executado_em: "",
+        connection_id: 0,
+        schema_name: keyName.includes(".") ? keyName.split(".")[0] : "",
+        table_name: keyName,
+        total_colunas: colunas?.length || 0,
+        colunas: colunas || [],
+      }));
+  }, [row, informacaosOftables]);
+
+  // Usa o hook de delete
+  const { handleDelete, showDeleteConfirm, setShowDeleteConfirm, isDeleting } = useRowDelete({
+    row,
+    selectedTables,
+    responseModal,
+    setResponseModal,
+
+    onDelete,
+    onClose,
+  });
 
   // Verificação de mudanças
   const hasChanges = useMemo(() => {
-    return Object.values(editedFields).some(field => field.hasChanged);
+    return Object.values(editedFields).some((field) => field.hasChanged);
   }, [editedFields]);
+
+  const handleViewReference = useCallback((refTable: string, refField: string, refValue: string, name: string) => {
+    viewReferenceTable({ table: refTable, field: refField, value: refValue }, { name });
+  }, [viewReferenceTable]);
 
   // Reset do modal quando abrir/fechar
   useEffect(() => {
@@ -44,71 +125,105 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       setEditedFields({});
       setEnabledFields({});
       setErrors({});
+      setShowDeleteConfirm(false);
       return;
     }
 
-    // Inicializar campos editados com valores originais
     const initialEditedFields: Record<string, EditedField> = {};
     const initialEnabledFields: Record<string, boolean> = {};
-    Object.entries(row.row).forEach(([key, value]) => {
-      const tableName = key.split('.')[0];
-      initialEditedFields[key] = {
-        value: String(value ?? ''),
+
+    const rowEntries = Object.entries(row.row);
+    const nameColumns = row.nameColumns || [];
+    const mainTableName = row.tableName?.[0] || "unknown_table";
+
+    rowEntries.forEach(([key, value], index) => {
+      let fullColumnName: string;
+      let tableName: string;
+      let pureColumnName: string = key; // <-- Nova variável para guardar o nome limpo
+
+      if (index < nameColumns.length && nameColumns[index]) {
+        fullColumnName = nameColumns[index];
+        // console.log("fullColumnName:", fullColumnName);
+
+        if (typeof fullColumnName === "string" && fullColumnName.includes(".")) {
+          const parts = fullColumnName.split(".");
+
+          // O último elemento é SEMPRE a coluna, não importa quantos schemas tenha
+          pureColumnName = parts[parts.length - 1];
+
+          // Se tiver 3 ou mais partes (ex: schema.tabela.coluna)
+          if (parts.length >= 3) {
+            tableName = parts.slice(0, -1).join("."); // Junta tudo exceto a coluna
+          } else {
+            // Se tiver 2 partes (ex: tabela.coluna)
+            tableName = parts[0];
+          }
+        } else {
+          tableName = mainTableName;
+          pureColumnName = fullColumnName; // Se for só "name", ele mesmo é o puro
+        }
+      } else {
+        fullColumnName = key;
+        tableName = mainTableName;
+      }
+
+      const safeColumnName = typeof fullColumnName === "string" ? fullColumnName : key;
+      // console.log("safeColumnName:", safeColumnName);
+
+      initialEditedFields[safeColumnName] = {
+        value: value !== null && value !== undefined ? String(value) : "",
         tableName,
+        // columnName: pureColumnName, // <-- Agora o nome limpo da coluna vai junto no state!
         hasChanged: false,
-        type_column: typeof value
+        type_column: typeof value,
       };
-      initialEnabledFields[key] = false;
+      initialEnabledFields[safeColumnName] = false;
     });
-
-
-
+    // console.log(initialEditedFields)
     setEditedFields(initialEditedFields);
     setEnabledFields(initialEnabledFields);
-  }, [row, isOpen, informacaosOftables]);
+  }, [row, isOpen, informacaosOftables, setShowDeleteConfirm]);
 
   // Handler para mudanças nos campos
-  const handleFieldChange = useCallback((key: string, value: string, tableName: string, columnType: string,isNullable?: boolean) => {
-    // Validação
-    let error = validateField(columnType, String(value));
-    // Valida NOT NULL
-    if (!isNullable && (value === "" || value === null || value === undefined)) {
-      error = "Este campo é obrigatório.";
-    }
-    setErrors(prev => ({
-      ...prev,
-      [key]: error || ''
-    }));
-
-    // Atualizar campo editado
-    setEditedFields(prev => {
-      const originalValue = row?.row?.[key] ?? '';
-      const hasChanged = String(originalValue) !== value;
-
-      return {
+  const handleFieldChange = useCallback(
+    (key: string, value: string, tableName: string, columnType: string, isNullable?: boolean) => {
+      let error = validateField(columnType, String(value));
+      if (!isNullable && (value === "" || value === null || value === undefined)) {
+        error = t("common.requiredField") || "Este campo é obrigatório.";
+      }
+      setErrors((prev) => ({
         ...prev,
-        [key]: {
-          value,
-          tableName,
-          hasChanged,
-          type_column: columnType
-        }
-      };
-    });
-  }, [row?.row]);
+        [key]: error || "",
+      }));
+
+      setEditedFields((prev) => {
+        const originalValue = row?.row?.[key] ?? "";
+        const hasChanged = String(originalValue) !== value;
+
+        return {
+          ...prev,
+          [key]: {
+            value,
+            tableName,
+            hasChanged,
+            type_column: columnType,
+          },
+        };
+      });
+    },
+    [row?.row, t]
+  );
 
   // Handler para salvar
   const handleSave = useCallback(async () => {
-
     if (!onSave || !hasChanges) return;
 
-    // Verificar se há erros
-    const hasErrors = Object.values(errors).some(error => error);
+    const hasErrors = Object.values(errors).some((error) => error);
     if (hasErrors) {
-      console.warn("Não é possível salvar: existem erros de validação");
+      logger.warn("Não é possível salvar: existem erros de validação");
       return;
     }
-    if (!window.confirm("Tens a certeza que queres editar?")) return;
+    if (!window.confirm(t("actions.confirmEdit") || "Tens a certeza que queres editar?")) return;
 
     setIsLoading(true);
 
@@ -116,11 +231,11 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       const tables_primary_keys_values = Object.entries(editedFields)
         .filter(([, field]) => field.hasChanged)
         .reduce((acc, [key, field]) => {
-          const table = informacaosOftables.find(t => t.table_name === field.tableName);
+          const table = selectedTables.find((t) => t.table_name === field.tableName);
           if (!table) return acc;
 
           if (!acc[table.table_name]) {
-            const primaryKeyField = findIdentifierField(table.table_name, informacaosOftables);
+            const primaryKeyField = findIdentifierField(table.table_name, selectedTables)?.nome;
             const primary_key_name = `${table.table_name}.${primaryKeyField}`;
             acc[table.table_name] = {
               primaryKey: primary_key_name,
@@ -135,204 +250,263 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       const updatedRow = Object.entries(editedFields)
         .filter(([, field]) => field.hasChanged)
         .reduce<EditedFieldForQuery>((acc, [key, field]) => {
-          const [tableName, column] = key.split(".");
+
+          // 1. Usa o tableName seguro que já garantimos no useEffect
+          const tableName = field.tableName;
+
+          // 2. Extrai a coluna pegando SEMPRE o último elemento da chave
+          const keyParts = key.split(".");
+          const column = keyParts[keyParts.length - 1];
+
           if (!acc[tableName]) acc[tableName] = {};
-          acc[tableName][column] = { value: String(field.value), type_column: field.type_column };
+
+          acc[tableName][column] = {
+            value: String(field.value),
+            type_column: field.type_column
+          };
+
           return acc;
         }, {});
 
-
-
-      // console.log("Tabelas editadas:", tables_primary_keys_values);
-      console.log("Campos alterados:", updatedRow);
+      logger.success("Campos alterados:", updatedRow);
 
       await onSave(updatedRow, tables_primary_keys_values, row?.index ?? -1);
       onClose();
     } catch (error) {
-      console.error("Erro ao salvar:", error);
+      logger.error("Erro ao salvar:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [onSave, hasChanges, errors, editedFields, onClose, informacaosOftables, row]);
-
+  }, [onSave, hasChanges, errors, editedFields, onClose, row, selectedTables, t]);
 
   // Handler para alternar edição
   const toggleEdit = useCallback((field: string) => {
-    setEnabledFields(prev => ({ ...prev, [field]: !prev[field] }));
+    setEnabledFields((prev) => ({ ...prev, [field]: !prev[field] }));
   }, []);
+
+  const [openModalConfirmeDelete, setOpenModalConfirmeDele] = useState(false)
+  useEffect(() => {
+    if (openModalConfirmeDelete)
+      if (!modalFetchOpen)
+        setShowDeleteConfirm(true)
+
+  }, [openModalConfirmeDelete, modalFetchOpen])
+
+
+  const ocrFields = useMemo<CampoDetalhado[]>(() => {
+    // 1. Prevenção: Se os estados ainda não carregaram
+    if (Object.keys(editedFields).length === 0 || selectedTables.length === 0) {
+      return [];
+    }
+
+    return Object.entries(editedFields)
+      .map(([key, field]) => {
+        // 2. CORREÇÃO: Remove o "nome_da_tabela." do início da key para sobrar apenas a coluna
+        // Ex: "dbo.t_aluno.nome" -> tira "dbo.t_aluno." -> sobra "nome"
+        const colName = key.replace(`${field.tableName}.`, "");
+
+        // 3. Procura a tabela
+        const table = selectedTables.find(
+          (t) => t.table_name === field.tableName
+        );
+
+        if (!table) {
+          console.warn(`❌ Tabela '${field.tableName}' não encontrada.`);
+          return null;
+        }
+
+        // 4. Procura a coluna
+        const coluna = table.colunas?.find(
+          (c: any) => c.nome === colName
+        );
+
+        if (!coluna) {
+          console.warn(`❌ Coluna '${colName}' não encontrada na tabela '${table.table_name}'`);
+          return null;
+        }
+
+        // Encontrou tudo com sucesso!
+        return {
+          nome: key, // Tem de ser a key original (ex: "dbo.t_aluno.nome") para o Modal atualizar o campo certo
+          tipo: coluna?.tipo || field.type_column || "text",
+          is_nullable: coluna?.is_nullable,
+          enum_valores_encontrados: coluna?.enum_valores_encontrados,
+          tableName: field.tableName,
+        } as CampoDetalhado;
+      })
+      .filter(Boolean) as CampoDetalhado[]; // Remove os nulls
+  }, [editedFields, selectedTables]);
+
+
+  const handleOcrResult = useCallback(
+    (mappedValues: Record<string, EditedField>) => {
+
+      setEditedFields((prev) => {
+        const updated = { ...prev };
+
+        Object.entries(mappedValues).forEach(([rawKey, fieldData]) => {
+          if (!fieldData.hasChanged) return;
+
+          const key = rawKey.includes(".")
+            ? rawKey
+            : `${fieldData.tableName}.${rawKey}`;
+
+          if (updated[key]) {
+            updated[key] = {
+              ...updated[key],
+              value: fieldData.value,
+              hasChanged: true,
+            };
+          }
+        });
+
+        return updated;
+      });
+
+      setErrors((prev) => {
+        const updated = { ...prev };
+
+        Object.entries(mappedValues).forEach(([rawKey, fieldData]) => {
+          const key = rawKey.includes(".")
+            ? rawKey
+            : `${fieldData.tableName}.${rawKey}`;
+
+          if (fieldData.value && updated[key]) {
+            updated[key] = "";
+          }
+        });
+
+        return updated;
+      });
+    },
+    []
+  );
+
+  const confirmeDelet_open_modal_for_selection_table = useCallback(() => {
+
+    setOptionModalTable("oneDelet")
+
+    setModalFetchOpen(true)
+
+    setOpenModalConfirmeDele(true)
+
+  }, [])
 
   // Handler para fechar modal
   const handleClose = useCallback(() => {
     if (hasChanges) {
-      const confirmClose = window.confirm("Você tem alterações não salvas. Deseja realmente fechar?");
+      const confirmClose = window.confirm(t("actions.confirmDiscard") || "Você tem alterações não salvas. Deseja realmente fechar?");
       if (!confirmClose) return;
     }
     onClose();
-  }, [hasChanges, onClose]);
-  // Handler para clique no overlay
-  const handleOverlayClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      handleClose();
-    }
-  }, [handleClose]);
+  }, [hasChanges, onClose, t]);
 
+  // Handler para clique no overlay
+  const handleOverlayClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === e.currentTarget) {
+        handleClose();
+      }
+    },
+    [handleClose]
+  );
+  // console.log(selectedTables)
   // Early return se modal não deve ser exibido
   if (!isOpen || !row || selectedTables.length === 0) {
+
     return null;
   }
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
-      aria-label="Modal de Metadados"
+      aria-label={t("modals.rowDetails") || "Modal de Detalhes da Linha"}
       onClick={handleOverlayClick}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-fade-in scale-95">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
 
         {/* Header */}
-        <header className="flex justify-between items-center border-b border-gray-200 p-6">
+        <header className="flex justify-between items-center border-b border-gray-200 p-5 bg-gray-50 rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <h2 id="modal-title" className="text-2xl font-bold text-gray-800">
-              Detalhes da Linha
+            <h2 id="modal-title" className="text-xl font-bold text-gray-900">
+              {t("modals.rowDetails") || "Detalhes da Linha"}
             </h2>
             {hasChanges && (
-              <span className="flex items-center gap-1 text-amber-600 text-sm">
-                <AlertCircle className="w-4 h-4" />
-                Alterações pendentes
+              <span className="flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200 text-xs font-bold px-2 py-1 rounded-md">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {t("forms.pendingChanges") || "Alterações pendentes"}
               </span>
             )}
           </div>
+
+          {ocrFields.length > 0 && (
+            <div className="mb-6 flex justify-end">
+              <OCRButton formFields={ocrFields} valuesDefault={editedFields} onResult={handleOcrResult} />
+            </div>
+          )}
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            aria-label="Fechar modal"
+            className="text-gray-400 hover:text-gray-700 hover:bg-gray-200 p-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            aria-label={t("actions.close") || "Fechar modal"}
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 bg-white">
           <div className="space-y-8">
             {selectedTables.map((metadata, tableIndex) => (
-              <div key={`${metadata.table_name}_${tableIndex}`} className="bg-gray-50 rounded-lg p-5">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                  <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-                  Tabela: {metadata.table_name}
+              <div key={`${metadata.table_name}_${tableIndex}`} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2 pb-3 border-b border-gray-100">
+                  <span className="w-2.5 h-2.5 bg-blue-600 rounded-full"></span>
+                  {t("common.table") || "Tabela"}: {metadata.table_name.substring(metadata.table_name.indexOf(".",) + 1)}
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {metadata.colunas.map((col, index) => {
-                    const qualifiedName = `${metadata.table_name}.${col.nome}`;
-                    const editedField = editedFields[qualifiedName];
+                    // 1. Extrai apenas o nome da tabela (remove o schema, se houver)
+                    const justTable = metadata.table_name.includes(".")
+                      ? metadata.table_name.split(".").pop()
+                      : metadata.table_name;
 
+                    // 2. Monta as 3 possíveis chaves que podem estar no nosso State
+                    const keyWithSchema = `${metadata.table_name}.${col.nome}`; // Ex: public.users.name
+                    const keyWithTable = `${justTable}.${col.nome}`;            // Ex: users.name
+                    const keyJustColumn = col.nome;                             // Ex: name
+
+                    // 3. Descobre qual é a chave correta procurando no objeto (do mais específico pro mais genérico)
+                    const correctKey = editedFields[keyWithSchema] ? keyWithSchema :
+                      editedFields[keyWithTable] ? keyWithTable :
+                        editedFields[keyJustColumn] ? keyJustColumn :
+                          null;
+
+                    // 4. Agora sim, pegamos os valores corretamente e separados!
+                    const editedField = correctKey ? editedFields[correctKey] : null;
+
+                    // console.log("Chave encontrada:", correctKey);
+                    // console.log("Estado do campo:", editedField);
                     if (!editedField) return null;
 
-                    const isEnabled = enabledFields[qualifiedName] ?? false;
-                    const hasError = errors[qualifiedName];
-                    const hasChanged = editedField.hasChanged;
-
-
+                    const isEnabled = correctKey ? enabledFields[correctKey] : false;
+                    const hasError = correctKey ? errors[correctKey] : "";
 
                     return (
-                      <div key={`${qualifiedName}_${index}`} className="bg-white rounded-lg p-4 border border-gray-200">
-                        <label
-                          htmlFor={qualifiedName}
-                          className="block text-sm font-medium text-gray-700 mb-2 flex flex-wrap items-center gap-2"
-                        >
-                          <span className={hasChanged ? 'text-blue-600 font-semibold' : ''}>
-                            {col.nome}{!col.is_nullable && "*"}
-                          </span>
-
-                          {col.is_primary_key && (
-                            <Badge color="yellow" icon={<Key className="w-4 h-4" />} text="PK" />
-                          )}
-
-                          {col.is_foreign_key && (
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                color="green"
-                                icon={<Key className="w-4 h-4" />}
-                                text={`→ ${col.referenced_table}.${col.field_references}`}
-                              />
-                              <button
-                                type="button"
-                                className={CLASSNAME_BUTTON[0]}
-                                disabled={!editedField.value}
-                                onClick={() => {
-                                  viewReferenceTable({
-                                    table: col.referenced_table,
-                                    field: col.field_references,
-                                    value: editedField.value,
-                                  }, {
-                                    name: `${metadata.table_name}_${col.nome}_to_${col.referenced_table}_${col.field_references}`
-                                  });
-                                }}
-                                aria-label={`Ver referência de ${col.referenced_table}.${col.field_references}`}
-                                title={`Abrir tabela de referência: ${col.referenced_table}.${col.field_references}`}
-                              >
-                                <Search className={CLASSNAME_BUTTON[1]} />
-                              </button>
-                            </div>
-                          )}
-
-
-                          <Badge color="gray" text={col.tipo} />
-
-                          {hasChanged && (
-                            <Badge color="blue" text="Alterado" />
-                          )}
-                        </label>
-
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <DynamicInputByType
-                              enum_values={col.enum_valores_adicionados}
-                              type={col.tipo}
-                              value={editedField.value}
-                              onChange={(newVal) =>
-                                handleFieldChange(qualifiedName, newVal, metadata.table_name, col.tipo, col.is_nullable)
-                              }
-                              disabled={!isEnabled}
-                              aria-invalid={!!hasError}
-                            />
-                            {hasError && (
-                              <p className="text-red-500 text-xs mt-1">{hasError}</p>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            disabled={col.is_auto_increment}
-                            onClick={() => toggleEdit(qualifiedName)}
-                            className={`p-2 rounded-lg transition-all focus:outline-none focus:ring-2
-    ${col.is_auto_increment
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                : isEnabled
-                                  ? 'bg-red-100 text-red-600 hover:bg-red-200 focus:ring-red-400'
-                                  : 'bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600 focus:ring-blue-400'
-                              }`}
-                            title={
-                              col.is_auto_increment
-                                ? "Não podes modificar porque é um autoincremento"
-                                : isEnabled
-                                  ? 'Bloquear edição'
-                                  : 'Habilitar edição'
-                            }
-                          >
-                            {col.is_auto_increment
-                              ? <Lock className="w-4 h-4 opacity-50" />
-                              : isEnabled
-                                ? <Lock className="w-4 h-4" />
-                                : <Pencil className="w-4 h-4" />
-                            }
-                          </button>
-
-                        </div>
-                      </div>
+                      <FieldEditor
+                        key={`${correctKey}_${index}`}
+                        col={col}
+                        qualifiedName={correctKey as string}
+                        metadata={metadata}
+                        editedField={editedField}
+                        isEnabled={isEnabled}
+                        hasError={hasError}
+                        onFieldChange={handleFieldChange}
+                        onToggleEdit={toggleEdit}
+                        onViewReference={handleViewReference}
+                      />
                     );
                   })}
                 </div>
@@ -342,36 +516,27 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
         </main>
 
         {/* Footer */}
-        <footer className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
-          <button
-            onClick={handleClose}
-            className="px-6 py-2 text-sm font-medium rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
-            disabled={isLoading}
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!hasChanges || isLoading || Object.values(errors).some(error => error)}
-            className="px-6 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          >
-            {isLoading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Salvando...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Salvar Alterações
-              </>
-            )}
-          </button>
-        </footer>
+        <ModalFooter
+          onDelete={confirmeDelet_open_modal_for_selection_table} // Tira essa linha se for um modal de "Criar Novo"
+          onCancel={handleClose}
+          onSave={handleSave}
+          isLoading={isLoading}
+          isDeleting={isDeleting}
+          isSaving={isLoading}
+          disableSave={!hasChanges || isLoading || isDeleting || Object.values(errors).some(error => error)}
+        />
+
+        {/* Modal de Confirmação de Delete (Componente Padronizado) */}
+        <ConfirmDeleteModal
+          isOpen={showDeleteConfirm}
+          type="single"
+          isDeleting={isDeleting}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={handleDelete}
+        />
       </div>
     </div>
   );
-
 };
 
 export default RowDetailsModal;

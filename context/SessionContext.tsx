@@ -3,12 +3,12 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback,
 
 import type { Axios } from "axios";
 import api from "./axioCuston";
-import { BancoSuportado } from "@/constant";
+import { BancoSuportado, Permission } from "@/constant";
 
-export interface DbOn {
+export interface DbInfoExtra {
     id_connection: number;
     name_db: string;
-    data: string; // datetime → string em ISO
+    data: string;
     type: BancoSuportado;
     num_table: number;
     num_consultas: number;
@@ -16,18 +16,61 @@ export interface DbOn {
     ultima_consulta_em?: string;
     registros_analizados?: number;
 }
+
+
+export interface Empresa {
+    id: number;
+    company: string;
+    companySize?: string;
+    nif?: string;
+    endereco?: string;
+}
+
+export interface Cargo {
+    id: number;
+    position: string;
+    descricao?: string;
+    nivel?: "júnior" | "pleno" | "sênior" | string;
+}
+
+
+export interface Role {
+    name: string; // ex: admin, manager, developer
+}
+
 export interface Usuario {
     id: string;
     nome: string;
+    apelido?: string;
     email: string;
-    tipoUsuario?: String;
-    avatar_url: string;
-    datatimeSession: string;
-    exp?: number; // Expiração do token (opcional)
-    iat?: number; // Timestamp de emissão (opcional)
-    sub?: string; // Assunto do token (opcional)
-    InfPlus?: DbOn | null;
-};
+    telefone?: string;
+    status?: "ativo" | "inativo" | "suspenso";
+    createdAt?: string;
+    lastLogin?: string;
+    projects_participating?: string[];
+    created_projects?: string[];
+    assigned_tasks?: string[];
+    delegated_tasks?: string[];
+    created_tasks?: string[];
+   
+    empresa?: Empresa;
+    cargo?: Cargo;
+
+    roles?: Role[];
+    permissions: Permission[] | string[];
+
+    avatar_url?: string;
+    datatimeSession?: string;
+
+    // JWT
+    exp?: number;
+    iat?: number;
+    sub?: string;
+
+    // Conexão ativa
+    info_extra?: DbInfoExtra | null;
+}
+
 
 export type AuthProvider = "google" | "azure-ad" | "facebook" | "github" | "gitlab" | "credenciais";
 
@@ -58,6 +101,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const isAuthenticated = useMemo(() => !!user, [user]);
+
 
     // const route = useRouter();
 
@@ -127,7 +171,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }, [isRefreshing, isLoggingOut, refreshAccessToken, logout]);
 
     useEffect(() => {
-        let interval: NodeJS.Timeout;
+        
 
         const refresh = async () => {
             try {
@@ -139,7 +183,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         };
 
         // chama refresh a cada 13 minutos (antes dos 15 min)
-        interval = setInterval(refresh, 13 * 60 * 1000);
+        const interval: NodeJS.Timeout = setInterval(refresh, 13 * 60 * 1000);
 
         // chama uma vez logo ao montar (garantir sincronização inicial)
         refresh();
@@ -167,7 +211,6 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     const storeLoginData = useCallback((user: Usuario) => {
         setUser(user);
-        console.log("\nArmazenando dados do usuário:", user)
         localStorage.setItem("user", JSON.stringify(user));
     }, []);
 
@@ -187,8 +230,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             setIsLoading(false);
             return true;
         }
-
+            
         try {
+
+            console.log("Tentando login com credenciais:", options?.credenciais);
             const response = await api.post("/auth/login", options?.credenciais ?? {});
             // console.log("Login bem-sucedido:", response.data.user);
             storeLoginData(response.data.user);

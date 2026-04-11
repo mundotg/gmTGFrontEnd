@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Table, FilePlus2, Shield, Database,
-  Hash, FileText, Loader2, AlertCircle,
+  Hash, FileText, Trash2
 } from "lucide-react";
 
 import api from "@/context/axioCuston";
@@ -12,363 +12,330 @@ import ResultTable from "@/app/component/InteractiveResultTable";
 import RowDetailsModal from "@/app/component/MetadataModal";
 
 import {
-  DatabaseMetadata,
-  EditedFieldForQuery,
-  LinhaCompletaResponse,
+  CampoDetalhado,
+  defaultNameCachesValue,
   MetadataTableResponse,
-  QueryCountResultType,
-  QueryPayload,
-  QueryResultType,
   SelectedRow,
-  Tables_primary_keys_values
 } from "@/types";
 
 import { InfoCard } from "@/app/component/InfoCard";
-import usePersistedState from "@/hook/localStoreUse";
 import { LabeledSelect } from "@/app/component/LabeledSelect";
 import TableColumnsDisplay from "@/app/component/table-columns-display";
-import { findIdentifierField } from "@/util/func";
-
+import { parseErrorMessage } from "@/util/func";
+import { useDatabaseMetadata } from "@/hook/useDatabaseMetadata";
+import { useSession } from "@/context/SessionContext";
+import { useI18n } from "@/context/I18nContext";
+import { ErrorScreen, LoadingScreen } from "@/app/component/Loading_and_error-component";
+import { useQuerySSE } from "@/hook/useQuerySSE";
+import QueryStatusIndicator from "@/app/component/ResultadosQueryComponent/QueryStatusIndicator ";
+import { useFormSelectConsulta } from "@/hook/useFormSelectConsultas";
+import { useHandleRowClick } from "./utils/funcs";
+import SelectTablesModal from "@/app/component/ResultadosQueryComponent/SelectTablesToFetchModal";
 
 const ConsultaPage = () => {
-  const [metadata, setMetadata] = useState<DatabaseMetadata | null>(null);
-  const [queryResults, setQueryResults] = useState<QueryResultType | null>(null);
-  const [selectedRow, setSelectedRow] = useState<SelectedRow | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const { user } = useSession();
+  const { t } = useI18n();
+  const { metadata, loading: loadingMetadata, error: errorFetch } = useDatabaseMetadata();
+  const {
+    executeQuery, cancelQuery,
+    executingQuery, queryResults,
+    setQueryResults,
+    error: errorQuery, progress,
+    sseState, hasError
+  } = useQuerySSE();
 
-  const [loadingMetadata, setLoadingMetadata] = useState(false);
-  const [loadingFields, setLoadingFields] = useState(false);
-  const [executingQuery, setExecutingQuery] = useState(false);
-  const [isEditingRow, setIsEditingRow] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    selectedTables, aliasTables,
+    columnsInfo, selectColumns,
+    queryLimit, selectedRow,
+    modalOpenEdit, loadingFields,
+    isEditingRow, error,
+    setSelectedTables, setAliasTables,
+    setColumnsInfo, setSelectColumns,
+    setQueryLimit, setSelectedRow,
+    setModalOpenEdit, setLoadingFields,
+    setIsEditingRow, setError,
+    removerCacheLocalStorage,
+  } = useFormSelectConsulta(errorFetch || errorQuery);
 
-  // Persistência
-  const [selectedTables, setSelectedTables] = usePersistedState<string[]>("consulta_selectedTables", []);
-  const [columnsInfo, setColumnsInfo] = usePersistedState<MetadataTableResponse[]>("consulta_columnsInfo", []);
-  const [selectColumns, setSelectColumns] = usePersistedState<string[]>("consulta_selectColumns", []);
-  const [queryLimit, setQueryLimit] = usePersistedState<string>("consulta_queryLimit", "100");
+  const [mounted, setMounted] = useState(false);
 
-
-  // ----------------- Helpers -----------------
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const parseErrorMessage = (err: any): string =>
-    err?.response?.data?.detail ||
-    err?.response?.data?.detail?.[0]?.msg ||
-    err?.response?.data?.detail?.[0]||
-    err?.response?.data?.message ||
-    err?.response?.data ||
-    err?.message ||
-    "Erro inesperado. Tente novamente.";
-
-  // ----------------- Effects -----------------
   useEffect(() => {
-    const fetchMetadata = async () => {
-      setLoadingMetadata(true);
-      try {
+    setMounted(true);
+    if (errorFetch) {
+      setError(errorFetch);
+    } else if (errorQuery) {
+      setError(errorQuery);
+    } else
+      setError(null)
 
-        console.log("Buscando metadados...");
-        const response = await api.get("/consu/metadata_db/", { withCredentials: true });
-        const data = response.data.data || null;
-        setMetadata(data);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (err:any) {
-        setError(parseErrorMessage(err?.response?.data || error));
-      } finally {
-        setLoadingMetadata(false);
-      }
-    };
-
-    if (!loadingMetadata) {
-      fetchMetadata();
-    }
-  }, []);
-
-  const removerCacheLocalStorage = useCallback(() => {
-    
-    localStorage.removeItem("consulta_selectedTables");
-    localStorage.removeItem("consulta_columnsInfo");
-    localStorage.removeItem("consulta_selectColumns");
-    localStorage.removeItem("query_conditions");
-    localStorage.removeItem("query_select");
-    localStorage.removeItem("query_distinct");
-    localStorage.removeItem("query_joins");
-    setSelectColumns([]);
-    setSelectedTables([]);
-    setColumnsInfo([]);
-
-  }, []);
+  }, [errorFetch, errorQuery, setError, hasError]);
 
   const handleSelectTables = useCallback(
-    async (newTables: string[]) => {
-      const normalized = newTables.map(t => t.trim().toLowerCase());
+    async (newTable: string) => {
+      const normalized = newTable.trim().toLowerCase();
 
-      // Reset caso não tenha seleção
       if (normalized.length === 0) {
         setSelectColumns([]);
         setSelectedTables([]);
         setColumnsInfo([]);
+        setAliasTables({});
         return;
       }
 
-      setSelectedTables(newTables);
+      setError(null)
 
       try {
-        // Buscar apenas as tabelas novas (não já carregadas)
-        const missing = newTables.filter(
-          t => !columnsInfo.some(ci => ci.table_name.toLowerCase() === t.toLowerCase())
-        );
+        if (!selectedTables.includes(newTable)) {
+          setSelectedTables(prev => [...prev, newTable]);
 
-        if (missing.length > 0) {
-          const responses = await Promise.all(
-            missing.map(t =>
-              api.get<MetadataTableResponse>(
-                `/consu/metadata_fieds/${encodeURIComponent(t)}`,
-                { withCredentials: true }
-              )
-            )
+          const rs = await api.get<MetadataTableResponse>(
+            `/consu/metadata_fieds/${encodeURIComponent(newTable)}`,
+            { withCredentials: true, timeout: 45000 }
           );
 
-          setColumnsInfo(prev => [...prev, ...responses.map(r => r.data)]);
-        }
-        else {
+          setColumnsInfo(prev => [...prev, rs.data]);
+        } else {
+          const remainingTables = selectedTables.filter(
+            t => t.toLowerCase() !== normalized
+          );
+          setSelectedTables(remainingTables);
 
-          setColumnsInfo(columnsInfo.filter(ci => newTables.some(nt => nt.toLowerCase() === ci.table_name.toLowerCase())));
+          const filteredColumns = columnsInfo.filter(ci =>
+            remainingTables.some(
+              t => t.toLowerCase() === ci.table_name.toLowerCase()
+            )
+          );
+          setColumnsInfo(filteredColumns);
+
           setSelectColumns(prev =>
             prev.filter(s => {
-              const [table] = s.split("."); // pega só o nome da tabela
-              console.log("ss ", table)
-              return selectedTables.includes(table);
+              const [table] = s.split(".");
+              return remainingTables.some(
+                t => t.toLowerCase() === table.toLowerCase()
+              );
             })
           );
         }
-
       } catch (err) {
-        setError(parseErrorMessage( error));
+        const errorMsg = parseErrorMessage(err);
+        setError(errorMsg);
+        console.error("❌ Erro ao buscar metadados da tabela:", errorMsg);
       }
     },
-    [columnsInfo, setColumnsInfo, selectColumns,setSelectColumns,setSelectedTables]
+    [columnsInfo, setAliasTables, setColumnsInfo, setError, setSelectColumns, setSelectedTables, selectedTables]
   );
 
+  const openRowModal = useCallback((row: SelectedRow) => {
+    setSelectedRow(row);
+    setModalOpenEdit(true);
+  }, [setSelectedRow, setModalOpenEdit]);
 
-  const handleRowClick = useCallback(async (selectedRow: SelectedRow) => {
-    // console.log("Linha clicada:", selectedRow); // Verificação básica
-    if (!selectedRow || selectedRow.index === undefined) {
-      console.warn("⚠️ Índice da linha inválido ou linha não selecionada.");
-      return;
-    } // Garante que tableName seja tratado como array
-    const selectedTables = Array.isArray(selectedRow.tableName) ? selectedRow.tableName : [selectedRow.tableName];
-    // Se houver campos de múltiplas tabelas, apenas abre o modal
-    if (selectedTables.length > 1) {
-      console.warn("⚠️ A linha possui campos de múltiplas tabelas:", selectedTables);
-      setSelectedRow(selectedRow);
-      setModalOpen(true);
-      return;
-    }
-    const tableName = selectedTables[0];
-    if (!tableName) {
-      console.warn("⚠️ Nome da tabela não identificado.");
-      return;
-    }
-    // Tenta encontrar o campo mais confiável para buscar a linha completa
-    const primaryKeyField = findIdentifierField(tableName, columnsInfo);
-    if (!primaryKeyField) {
-      console.warn("⚠️ Nenhum campo identificador encontrado para a tabela:", tableName);
-      return;
-    }
-    // Verifica se a linha já possui todas as colunas
-    const isColumnComplete = columnsInfo.some(col => col.table_name === tableName && col.colunas.length === selectedRow.nameColumns.length);
-    if (isColumnComplete) {
-      setSelectedRow(selectedRow);
-      setModalOpen(true);
-      return;
-    }
-    try {
-      const response = await api.get<LinhaCompletaResponse>(`/consu/linha-completa/${encodeURIComponent(selectedRow.index)}`, {
-        params: { primary_key_field: primaryKeyField, table_name: tableName },
-        withCredentials: true,
-      });
-      if (!response.data || !response.data.data) {
-        console.warn("⚠️ Nenhum dado encontrado para a linha completa.");
-        return;
-      }
-      selectedRow.row = response.data.data.__root__; //
-      console.log("Dados da linha completa:", selectedRow.row);
-      setSelectedRow(selectedRow); 
-      setModalOpen(true);
-    }
-    catch (error) { 
-      const msnErr = parseErrorMessage( error)
-      setError(msnErr);
-     }
-  }, [columnsInfo, setSelectedRow]);
-
-  const handleExecuteQuery = useCallback(async (query: QueryPayload) => {
-    // if (!selectedTables.length) return;
-
-    setExecutingQuery(true);
-    setQueryResults(null);
-    const select = selectColumns.filter(c=> selectedTables.includes(c.split(".")[0] || c))
-    query.limit = parseInt(queryLimit);
-    query.select = selectColumns.length > 0
-      ? select
-      : columnsInfo.flatMap(col => col.colunas.map(c => `${col.table_name}.${c.nome}`));
-
-    try {
-      const { data } = await api.post<QueryResultType>("/exe/execute_query/", query, { withCredentials: true });
-
-      // buscar count total
-      query.isCountQuery = true;
-      // console.log("Buscando total de resultados para a query:", query);
-      const { data: codata } = await api.post<QueryCountResultType>("/exe/execute_query/", query, { withCredentials: true });
-      console.log(codata)
-      setQueryResults({ ...data, totalResults: codata.count , QueryPayload: query } );
-    } catch (err) {
-      
-      const msnErr = parseErrorMessage(err)
-      if(msnErr.includes("exceptions must derive from BaseException"))
-          removerCacheLocalStorage()
-      setError(msnErr);
-    } finally {
-      setExecutingQuery(false);
-      setSelectColumns(query.select || []);
-    }
-  }, [selectedTables, queryLimit, selectColumns, setSelectColumns,columnsInfo]);
-
-  const handleRowUpdate = useCallback(async (
-    updatedRow: EditedFieldForQuery,
-    tables_primary_keys_values: Tables_primary_keys_values
-  ) => {
-    if (!updatedRow || isEditingRow || !tables_primary_keys_values) return;
-    setIsEditingRow(true);
-
-    try {
-      await api.post("/exe/update_row", { updatedRow, tables_primary_keys_values }, { withCredentials: true });
-
-      // Mapeia valores atualizados
-      const value = Object.entries(updatedRow).reduce<Record<string, string>>(
-        (acc, [, columns]) => {
-          Object.entries(columns).forEach(([col, { value }]) => {
-            acc[col] = value;
-          });
-          return acc;
-        },
-        {}
-      );
-
-      console.log("Valor para atualização na tabela:", value);
-
-      // Cria a nova linha
-      const newLine = selectedRow ? {
-        ...selectedRow,
-        row: { ...selectedRow.row, ...value },
-        index: selectedRow.index,
-        nameColumns: selectedRow.nameColumns ?? [],
-        tableName: selectedRow.tableName ?? [],
-      } : null;
-
-      if (newLine) {
-        setSelectedRow(newLine);
-
-        setQueryResults(prev => {
-          if (!prev) return prev;
-          if(!newLine.index) return prev;
-          // Cria cópia imutável
-          const newPreview = [...prev.preview];
-          newPreview[newLine.index] = newLine.row;
-          return { ...prev, preview: newPreview };
-        });
-
-        console.log("Linha atualizada:", newLine);
-      }
-    } catch (error) {
-      setError(parseErrorMessage(error));
-    } finally {
-      setIsEditingRow(false);
-    }
-  }, [isEditingRow, selectedRow]);
-
-
+  const { handleDelete, handleRowClick, handleRowUpdate, incompleteTablesToSelect, modalFetchOpen, setModalFetchOpen, //setPendingRowToFetch, 
+    setResponseModal, handleConfirmFetchModal, responseModal, optionModalTable, setOptionModalTable,
+  } = useHandleRowClick({
+    queryResults,
+    columnsInfo,
+    selectedRow,
+    isEditingRow,
+    openRowModal,
+    setLoadingFields,
+    setQueryResults,
+    setError,
+    setSelectedRow,
+    setIsEditingRow,
+    t, // Fallback se 't' não for passado
+  })
 
   // ----------------- Render -----------------
-  if (loadingMetadata) return <LoadingScreen message="Carregando metadados..." />;
-  if (error) return <ErrorScreen message={error} />;
+  if (loadingMetadata || !mounted) {
+    return <LoadingScreen message={t("query.loadingMetadata") || "Carregando metadados do banco de dados..."} />;
+  }
+
+  if (error && !metadata) {
+    return <ErrorScreen message={error || errorFetch || t("common.unknownError") || "Erro desconhecido"} />;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b shadow-sm p-6">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Consulta de Dados</h1>
-            <p className="text-sm text-gray-600">
-              {metadata?.connectionName} - {metadata?.databaseName} ({metadata?.serverVersion})
-            </p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
-            <InfoCard icon={<Table />} label="Tabelas" count={metadata?.tableCount} color="blue" />
-            <InfoCard icon={<Database />} label="Views" count={metadata?.viewCount} color="green" />
-            <InfoCard icon={<FilePlus2 />} label="Procedures" count={metadata?.procedureCount} color="purple" />
-            <InfoCard icon={<FileText />} label="Functions" count={metadata?.functionCount} color="orange" />
-            <InfoCard icon={<Shield />} label="Triggers" count={metadata?.triggerCount} color="red" />
-            <InfoCard icon={<Hash />} label="Indexes" count={metadata?.indexCount} color="gray" />
+    <div className="relative bg-gray-50 min-h-screen">
+
+      {/* HEADER PADRÃO OFICIAL */}
+      <header className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-6">
+
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                  {t("query.title") || "Consulta de Dados"}
+                </h1>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <p className="text-sm text-gray-600 truncate">
+                    <span className="font-medium text-gray-800">
+                      {metadata?.connection_name}
+                    </span>
+                    {user?.info_extra?.name_db && (
+                      <>
+                        <span className="mx-2 text-gray-300">•</span>
+                        <span>{user.info_extra.name_db}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Grid de Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <InfoCard icon={<Table className="w-4 h-4" />} label={t("stats.tables") || "Tabelas"} count={metadata?.table_count} color="blue" />
+              <InfoCard icon={<Database className="w-4 h-4" />} label={t("stats.views") || "Views"} count={metadata?.view_count} color="green" />
+              <InfoCard icon={<FilePlus2 className="w-4 h-4" />} label={t("stats.procedures") || "Procedures"} count={metadata?.procedure_count} color="purple" />
+              <InfoCard icon={<FileText className="w-4 h-4" />} label={t("stats.functions") || "Functions"} count={metadata?.function_count} color="orange" />
+              <InfoCard icon={<Shield className="w-4 h-4" />} label={t("stats.triggers") || "Triggers"} count={metadata?.trigger_count} color="red" />
+              <InfoCard icon={<Hash className="w-4 h-4" />} label={t("stats.indexes") || "Indexes"} count={metadata?.index_count} color="gray" />
+            </div>
+
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-6 space-y-6">
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Selecionar Tabela</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {metadata && <LabeledSelect
-              label="Tabela"
-              value={selectedTables}
-              onChange={handleSelectTables}
-              options={metadata.tableNames.map(t => ({
-                value: t.name,
-                label: `${t.name} (${t.rowcount} registros)`,
-              })) || []}
-              maxSelections={10}
-            />}
+      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+        {/* Error Display */}
+        {(error || hasError) && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-red-700">
+              <span className="text-sm font-bold">{t("common.error") || "Erro"}:</span>
+              <span className="text-sm font-medium">{error || errorQuery || t("common.unknownError") || "Erro desconhecido"}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Table Selection - Padrão Card Branco */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-bold text-gray-900">
+              {t("query.selectTables") || "Selecionar Tabelas"}
+            </h2>
+            {selectedTables.length > 0 && (
+              <button
+                onClick={removerCacheLocalStorage}
+                className="text-sm font-semibold text-gray-500 hover:text-red-600 flex items-center gap-1.5 transition-colors"
+              >
+                <Trash2 size={16} />
+                {t("actions.clearSelection") || "Limpar Seleção"}
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {metadata && (
+              <LabeledSelect
+                label={t("common.tables") || "Tabelas"}
+                value={selectedTables}
+                onChange={handleSelectTables}
+                options={metadata.table_names.map(t => ({
+                  value: t.name,
+                  label: `${t.name} (${t.rowcount} registros)`,
+                })) || []}
+                maxSelections={16}
+              />
+            )}
+
             <LabeledSelect2
-              label="Limite de Registros"
+              label={t("query.recordLimit") || "Limite de Registros"}
               value={queryLimit}
               onChange={setQueryLimit}
-              options={["10", "50", "100", "500", "1000"].map(v => ({ value: v, label: `${v} registros` }))}
+              options={["1", "10", "50", "100", "500", "1000", "5000"].map(v => ({
+                value: v,
+                label: `${v} ${t("common.records") || "registros"}`
+              }))}
             />
           </div>
+
+          {selectedTables.length > 0 && (
+            <div className="mt-5 p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm text-gray-700">
+              <span className="font-bold">{t("query.selectedTables") || "Tabelas selecionadas"}:</span> {selectedTables.join(", ")}
+            </div>
+          )}
         </div>
 
-        <TableColumnsDisplay
-          tableNames={selectedTables.join(", ")}
-          columns={columnsInfo}
-          isLoading={loadingFields}
-          setIsLoading={setLoadingFields}
-          error={error}
-          theme="light"
-          tabelaExistenteNaDB={metadata?.tableNames.map(t => t.name) || []}
-          showSearch
-          showFilter
-          showSort
-          showExport
-          itemsPerPage={8}
-          select={selectColumns}
-          setSelect={setSelectColumns}
-        />
-
+        {/* Table Columns Display */}
         {selectedTables.length > 0 && (
+          <TableColumnsDisplay
+            names_caches_value={defaultNameCachesValue}
+            tableNames={selectedTables.join(", ")}
+            columns={columnsInfo}
+            setColumns={setColumnsInfo}
+            isLoading={loadingFields}
+            setIsLoading={setLoadingFields}
+            error={error}
+            theme="light"
+            tabelaExistenteNaDB={metadata?.table_names.map(t => t.name) || []}
+            showSearch
+            showFilter
+            showSort
+            showExport
+            itemsPerPage={8}
+            select={selectColumns}
+            setSelect={setSelectColumns}
+          />
+        )}
+
+        {/* Query Builder */}
+        {selectedTables.length > 0 && columnsInfo.length > 0 && columnsInfo?.[0].colunas.length > 0 && (
           <QueryBuilder
             columns={columnsInfo}
             table_list={selectedTables}
-            onExecuteQuery={handleExecuteQuery}
+            setTable_list={setSelectedTables}
+            onExecuteQuery={(query) => {
+              console.log(query)
+              query.limit = parseInt(queryLimit, 10);
+
+              return executeQuery(query).then(() => {
+                const tabelaCountColuna: Record<string, CampoDetalhado[]> = {};
+
+                query.table_list?.forEach(t => {
+                  tabelaCountColuna[t] = columnsInfo.find(inf => inf.schema_name + "." + inf.table_name === t)?.colunas || [];
+                });
+
+                setQueryResults((prev) => {
+                  if (!prev) {
+                    return {
+                      success: false,
+                      query: "", params: {},
+                      totalResults: null, duration_ms: 0,
+                      columns: [], preview: [],
+                      tabela_coluna: tabelaCountColuna,
+                    };
+                  }
+                  return {
+                    ...prev,
+                    tabela_coluna: tabelaCountColuna,
+                  };
+                });
+              });
+            }}
             removerCacheLocalStorage={removerCacheLocalStorage}
-            title={`Consulta de ${selectedTables.join(",")}`}
+            title={`${t("query.titleConsulta") || "Consulta"}: ${selectedTables.join(", ")}`}
             isExecuting={executingQuery}
             maxConditions={25}
             showLogicalOperators
             setSelect={setSelectColumns}
             select={selectColumns}
+            setAliasTables={setAliasTables}
+            aliasTables={aliasTables}
           />
         )}
 
+        <QueryStatusIndicator
+          sseState={sseState}
+          progress={progress}
+          onCancel={cancelQuery}
+          executingQuery={executingQuery}
+        />
+
+        {/* Results Table */}
         {queryResults && (
           <ResultTable
             queryResults={queryResults}
@@ -376,47 +343,51 @@ const ConsultaPage = () => {
             columnsInfo={columnsInfo}
             setSelectedRow={handleRowClick}
             selectedRow={selectedRow}
-
+            setModalFetchOpen={setModalFetchOpen}
+            modalFetchOpen={modalFetchOpen}
+            responseModal={responseModal}
+            setResponseModal={setResponseModal}
+            optionModalTable={optionModalTable}
+            setOptionModalTable={setOptionModalTable}
           />
         )}
 
-        <RowDetailsModal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
+        {/* Row Details Modal */}
+        {modalOpenEdit && <RowDetailsModal
+          isOpen={modalOpenEdit}
+          onClose={() => setModalOpenEdit(false)}
           row={selectedRow}
-          selectColumns={selectColumns}
-          informacaosOftables={columnsInfo}
+          informacaosOftables={queryResults?.tabela_coluna}
           onSave={handleRowUpdate}
+          onDelete={handleDelete}
+          setModalFetchOpen={setModalFetchOpen}
+          modalFetchOpen={modalFetchOpen}
+          responseModal={responseModal}
+          setResponseModal={setResponseModal}
+          optionModalTable={optionModalTable}
+          setOptionModalTable={setOptionModalTable}
+        />}
+
+        {/* Modal de Escolha de Tabelas para Fetch */}
+        <SelectTablesModal
+          isOpen={modalFetchOpen}
+          tables={incompleteTablesToSelect}
+          isLoading={loadingFields}
+          onClose={() => setModalFetchOpen(false)}
+          onConfirm={(confirm) => {
+            handleConfirmFetchModal(confirm, optionModalTable)
+          }}
+          variant="primary" // Opcional, já é o padrão
+          title="Dados Incompletos"
+          message="Quais tabelas você deseja buscar os dados completos?"
+          confirmText="Buscar Selecionadas"
+          cancelText="Ignorar e Abrir"
         />
+
+
       </main>
     </div>
   );
 };
-
-// ----------------- UI Helpers -----------------
-const LoadingScreen = ({ message }: { message: string }) => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-50">
-    <div className="text-center">
-      <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-      <p className="text-gray-600">{message}</p>
-    </div>
-  </div>
-);
-
-const ErrorScreen = ({ message }: { message: string }) => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-50">
-    <div className="text-center">
-      <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-4" />
-      <p className="text-red-600 mb-4">{message}</p>
-      <button
-        onClick={() => window.location.reload()}
-        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-      >
-        Tentar Novamente
-      </button>
-    </div>
-  </div>
-);
-
 
 export default ConsultaPage;

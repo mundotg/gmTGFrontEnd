@@ -9,6 +9,106 @@ export const databases: DatabaseOption[] = [
   { id: "sqlite", name: "SQLite", icon: "⚫", color: "bg-gray-500", port: "" },
 ];
 
+export const BUTTON_STYLES = {
+  base: "text-sm font-medium py-2 px-4 rounded-lg transition-all flex items-center gap-2",
+  disabled: "disabled:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-50",
+  primary: "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200",
+  selection: "bg-purple-100 text-purple-700 border-purple-200",
+  danger: "bg-red-500 hover:bg-red-600 text-white",
+  close: "bg-gray-100 hover:bg-gray-200 text-gray-800",
+  report: `
+    px-4 py-2 rounded-lg font-medium text-sm
+    bg-gradient-to-r from-green-500 to-green-600 
+    hover:from-green-600 hover:to-green-700
+    text-white shadow-lg hover:shadow-xl
+    transform hover:scale-105 active:scale-95
+    transition-all duration-200 ease-in-out
+    flex items-center gap-2
+    border-0 outline-none focus:ring-4 focus:ring-green-200
+  `,
+} as const;
+
+
+
+export const MOBILE_MENU_STYLES = {
+  button: "w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3",
+  disabled: "disabled:text-gray-400",
+  danger: "text-red-600",
+  divider: "border-t border-gray-100",
+} as const;
+
+export type Permission =
+  | "auth:login"
+  | "auth:logout"
+  | "auth:refresh"
+  | "user:create"
+  | "user:read"
+  | "user:update"
+  | "user:delete"
+  | "user:invite"
+  | "user:manage"
+  | "user:deactivate"
+  | "company:read"
+  | "company:update"
+  | "company:settings"
+  | "company:billing"
+  | "company:invite"
+  | "company:members"
+  | "company:remove_member"
+  | "project:create"
+  | "project:read"
+  | "project:update"
+  | "project:delete"
+  | "project:view"
+  | "project:manage"
+  | "project:assign_user"
+  | "project:remove_user"
+  | "team:read"
+  | "team:update"
+  | "team:manage"
+  | "role:create"
+  | "role:read"
+  | "role:update"
+  | "role:delete"
+  | "role:manage"
+  | "permission:create"
+  | "permission:read"
+  | "permission:update"
+  | "permission:delete"
+  | "permission:manage"
+  | "db_connection:create"
+  | "db_connection:read_own"
+  | "db_connection:read_company"
+  | "db_connection:read_all"
+  | "db_connection:update"
+  | "db_connection:delete"
+  | "db_connection:test"
+  | "query:execute"
+  | "query:read_history"
+  | "query:delete_history"
+  | "query:export"
+  | "table:read"
+  | "table:describe"
+  | "table:export"
+  | "table:stats"
+  | "integration:create"
+  | "integration:read"
+  | "integration:update"
+  | "integration:delete"
+  | "integration:webhook"
+  | "backup:configure"
+  | "backup:read"
+  | "logs:read"
+  | "logs:export"
+  | "audit:read"
+  | "audit:export"
+  | "settings:user"
+  | "settings:company"
+  | "settings:projects"
+  | "settings:team"
+  | "settings:integrations"
+  | "settings:system";
+
 export type BancoSuportado =
   | 'postgresql'
   | 'mysql'

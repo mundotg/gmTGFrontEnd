@@ -1,12 +1,3 @@
-Beleza 👍
-Então vou te entregar um **`README.md` final** que junta:
-
-* A descrição inicial do projeto
-* A estrutura e explicações que você passou (🧱, 🖼️, 🧠, 🧪, 🔮, 📌)
-* A parte visual que eu já tinha criado (prints, diagrama, comandos)
-* E correção do erro do Mermaid no GitHub
-
-Aqui está o README completo:
 
 ---
 
@@ -22,46 +13,267 @@ Este repositório contém o **Frontend**, desenvolvido com **Next.js 14**, **Typ
 
 ## 🧱 1. Estrutura Geral do Projeto (Arquitetura de Pastas)
 
+# File Tree: gestorBd FrontEnd
 
-/src
-│
-├── app/                     → Rotas (Next.js 13+)
-│   ├── dashboard/           → Página principal (home do usuário logado)
-│   ├── consultas/           → Módulo de consultas simplificadas
-│   ├── tabelas/             → Listagem e detalhes de tabelas
-│   ├── sql/                 → Editor de SQL avançado
-│   ├── historico/           → Histórico de consultas
-│   ├── conexoes/            → Gerenciador de conexões
-│   ├── login/               → Página de autenticação
-│   ├── settings/            → Configurações gerais
-│   └── layout.tsx           → Layout base para navegação
-│
-├── components/              → Componentes reutilizáveis
-│   ├── TableViewer.tsx
-│   ├── SQLConsole.tsx
-│   ├── Sidebar.tsx
-│   ├── Header.tsx
-│   └── Modal.tsx
-│
-├── lib/                     → Funções utilitárias
-│   ├── api.ts
-│   ├── databaseHelpers.ts
-│
-├── services/                → Comunicação com backend
-│   ├── queryService.ts
-│   ├── tableService.ts
-│   └── authService.ts
-│
-├── hooks/                   → Hooks customizados
-│   └── useAuth.ts
-│
-├── store/                   → Zustand ou Redux para estado global
-├── styles/                  → Estilização global
-├── types/                   → Tipagens TypeScript
-└── middleware.ts            → Proteção de rotas
+**Generated:** 1/8/2026, 11:36:19 AM
+**Root Path:** `c:\Users\IT\Documents\Python\gestorBd FrontEnd`
 
+```
 
+├── 📁 .github
+│   └── 📁 workflows
+│       └── ⚙️ azure-static-web-apps-nice-moss-04d1c2803.yml
+├── 📁 app
+│   ├── 📁 (landing)
+│   │   ├── 📄 layout.tsx
+│   │   └── 📄 page.tsx
+│   ├── 📁 auth
+│   │   ├── 📁 login
+│   │   │   └── 📄 page.tsx
+│   │   ├── 📁 register
+│   │   │   ├── 📁 utils
+│   │   │   │   └── 📄 index.ts
+│   │   │   └── 📄 page.tsx
+│   │   └── 📄 layout.tsx
+│   ├── 📁 component
+│   │   ├── 📁 ResultadosQueryComponent
+│   │   │   ├── 📄 ExportButton.tsx
+│   │   │   ├── 📄 HeaderControls.tsx
+│   │   │   ├── 📄 QueryStatusIndicator .tsx
+│   │   │   ├── 📄 ResultsHeader.tsx
+│   │   │   ├── 📄 VirtualizedHeader.tsx
+│   │   │   ├── 📄 VirtualizedRow.tsx
+│   │   │   ├── 📄 funcs.tsx
+│   │   │   └── 📄 types.ts
+│   │   ├── 📁 columns-displayComponent
+│   │   │   ├── 📄 FilterableGrid.tsx
+│   │   │   └── 📄 RenderItem.tsx
+│   │   ├── 📁 connectionComponent
+│   │   │   └── 📄 ConnectionForm.tsx
+│   │   ├── 📁 silederMenuComponent
+│   │   │   ├── 📄 SidebarFooter.tsx
+│   │   │   ├── 📄 SidebarHeader.tsx
+│   │   │   ├── 📄 SidebarItem.tsx
+│   │   │   └── 📄 sliderBar.tsx
+│   │   ├── 📄 ConfirmDeleteModal.tsx
+│   │   ├── 📄 ConnectionToggleButton.tsx
+│   │   ├── 📄 ContextMenu_eliminar.tsx
+│   │   ├── 📄 DatabaseList.tsx
+│   │   ├── 📄 DynamicInputByType.tsx
+│   │   ├── 📄 DynamicInputByTypeWithNullable.tsx
+│   │   ├── 📄 EditFieldModal.tsx
+│   │   ├── 📄 FeatureSection.tsx
+│   │   ├── 📄 FiltroCondicaoItem.tsx
+│   │   ├── 📄 ForeignKeySelect.tsx
+│   │   ├── 📄 Header.tsx
+│   │   ├── 📄 InInput.tsx
+│   │   ├── 📄 InfoCard.tsx
+│   │   ├── 📄 InteractiveResultTable.tsx
+│   │   ├── 📄 JoinOptions.tsx
+│   │   ├── 📄 LabeledSelect.tsx
+│   │   ├── 📄 Loading_and_error-component.tsx
+│   │   ├── 📄 MetadataModal.tsx
+│   │   ├── 📄 ModalIntermediario.tsx
+│   │   ├── 📄 NotificationComponent.tsx
+│   │   ├── 📄 OrderByOptions.tsx
+│   │   ├── 📄 QuickActions.tsx
+│   │   ├── 📄 ScrollableTable.tsx
+│   │   ├── 📄 Sidebar.tsx
+│   │   ├── 📄 SidebarPopup.tsx
+│   │   ├── 📄 StatsCards.tsx
+│   │   ├── 📄 TableListSection.tsx
+│   │   ├── 📄 UpcomingFeatures.tsx
+│   │   ├── 📄 criar-registro.tsx
+│   │   ├── 📄 date-input-component.tsx
+│   │   ├── 📄 improved-labeled-select.tsx
+│   │   ├── 📄 index.tsx
+│   │   ├── 📄 pagination-component.tsx
+│   │   ├── 📄 provader.tsx
+│   │   ├── 📄 query-builder-component.tsx
+│   │   ├── 📄 renderDistinctColumnSelector.tsx
+│   │   └── 📄 table-columns-display.tsx
+│   ├── 📁 createtamplete
+│   │   ├── 📁 ReportTemplateBuilder
+│   │   │   ├── 📁 SUBCOMPONENTS
+│   │   │   │   └── 📄 index.tsx
+│   │   │   ├── 📄 PropertyEditor.tsx
+│   │   │   ├── 📄 ReportTemplateBuilder.tsx
+│   │   │   ├── 📄 SectionPreview.tsx
+│   │   │   ├── 📄 defaultSectionData.tsx
+│   │   │   ├── 📄 generateDefaultTemplate.tsx
+│   │   │   └── 📄 validateTemplate.tsx
+│   │   ├── 📁 hooks
+│   │   │   └── 📄 useSectionsManager.tsx
+│   │   ├── 📁 types
+│   │   │   └── 📄 index.ts
+│   │   ├── 📁 ultils
+│   │   │   └── 📄 index.ts
+│   │   ├── 📄 layout.tsx
+│   │   └── 📄 page.tsx
+│   ├── 📁 home
+│   │   ├── 📁 analizar
+│   │   │   ├── 📄 TaskProject.tsx
+│   │   │   └── 📄 page.tsx
+│   │   ├── 📁 conexao
+│   │   │   ├── 📄 notas.ts
+│   │   │   └── 📄 page.tsx
+│   │   ├── 📁 configuracao
+│   │   │   └── 📄 page.tsx
+│   │   ├── 📁 consultas
+│   │   │   └── 📄 page.tsx
+│   │   ├── 📁 historico
+│   │   │   └── 📄 page.tsx
+│   │   ├── 📁 hooks
+│   │   │   └── 📄 useDBConnections.ts
+│   │   ├── 📁 ocr
+│   │   │   └── 📄 page.tsx
+│   │   ├── 📁 tabelas
+│   │   │   ├── 📁 componentTabela
+│   │   │   │   ├── 📁 DeadlockUtil
+│   │   │   │   │   └── 📄 index.tsx
+│   │   │   │   ├── 📁 steps
+│   │   │   │   │   ├── 📁 utils
+│   │   │   │   │   │   └── 📄 index.tsx
+│   │   │   │   │   ├── 📄 Step1Connections.tsx
+│   │   │   │   │   ├── 📄 Step2Tables.tsx
+│   │   │   │   │   ├── 📄 Step3Mapping.tsx
+│   │   │   │   │   ├── 📄 Step4Execution.tsx
+│   │   │   │   │   └── 📄 StepIndicator.tsx
+│   │   │   │   ├── 📁 transacao_query_component
+│   │   │   │   │   └── 📄 index.tsx
+│   │   │   │   ├── 📄 BackupRestoreForm.tsx
+│   │   │   │   ├── 📄 CreateTableForm.tsx
+│   │   │   │   ├── 📄 DataTransactionForm.tsx
+│   │   │   │   ├── 📄 DeadlocksMonitor.tsx
+│   │   │   │   ├── 📄 EditTableForm.tsx
+│   │   │   │   ├── 📄 EmptyStateSection.tsx
+│   │   │   │   ├── 📄 FilterPanel.tsx
+│   │   │   │   ├── 📄 HeaderComponent.tsx
+│   │   │   │   ├── 📄 TabelaCard.tsx
+│   │   │   │   └── 📄 statCard.tsx
+│   │   │   └── 📄 page.tsx
+│   │   ├── 📄 layout.tsx
+│   │   └── 📄 page.tsx
+│   ├── 📁 referencia
+│   │   ├── 📁 component
+│   │   │   ├── 📄 FieldEditor.tsx
+│   │   │   └── 📄 ReferencePopup.tsx
+│   │   ├── 📄 layout.tsx
+│   │   └── 📄 page.tsx
+│   ├── 📁 services
+│   │   ├── 📄 ReportButton.tsx
+│   │   ├── 📄 index.ts
+│   │   ├── 📄 metadata_DB.ts
+│   │   ├── 📄 popups.tsx
+│   │   ├── 📄 relatorio.tsx
+│   │   ├── 📄 useFetch.tsx
+│   │   └── 📄 useRelatorio.tsx
+│   ├── 📁 task
+│   │   ├── 📁 components
+│   │   │   ├── 📁 componentDoSelect
+│   │   │   │   └── 📄 index.tsx
+│   │   │   ├── 📄 AuthModal.tsx
+│   │   │   ├── 📄 CreateSprintModal.tsx
+│   │   │   ├── 📄 DelegarTaskModal.tsx
+│   │   │   ├── 📄 Paginacao.tsx
+│   │   │   ├── 📄 ProjectModal.tsx
+│   │   │   ├── 📄 SessionMenu.tsx
+│   │   │   ├── 📄 SpringCard.tsx
+│   │   │   ├── 📄 TaskCard.tsx
+│   │   │   ├── 📄 TaskFilters.tsx
+│   │   │   ├── 📄 TaskModal.tsx
+│   │   │   ├── 📄 ToastComponent.tsx
+│   │   │   ├── 📄 ValidationModal.tsx
+│   │   │   ├── 📄 modalComponent.tsx
+│   │   │   └── 📄 select_Component.tsx
+│   │   ├── 📁 contexts
+│   │   │   └── 📄 UserContext.tsx
+│   │   ├── 📁 costant
+│   │   │   └── 📄 index.ts
+│   │   ├── 📁 hook
+│   │   │   └── 📄 useTaskModal.tsx
+│   │   ├── 📁 paginas
+│   │   │   ├── 📄 ProjectList.tsx
+│   │   │   ├── 📄 TaskGroupProps.tsx
+│   │   │   └── 📄 Tasklist.tsx
+│   │   ├── 📁 types
+│   │   │   ├── 📄 index.ts
+│   │   │   └── 📄 transfer-types.ts
+│   │   ├── 📁 utils
+│   │   │   ├── 📄 index.ts
+│   │   │   └── 📄 reducerPersistestate.ts
+│   │   ├── 📄 layout.tsx
+│   │   └── 📄 page.tsx
+│   └── 🎨 globals.css
+├── 📁 colors
+│   ├── 📄 comentarios.txt
+│   └── 📄 palette.ts
+├── 📁 constant
+│   └── 📄 index.ts
+├── 📁 context
+│   ├── 📄 I18nContext.tsx
+│   ├── 📄 SessionContext.tsx
+│   ├── 📄 axioCuston.ts
+│   ├── 📦 axioCuston.zip
+│   └── 📄 emotionCach.tsx
+├── 📁 hook
+│   ├── 📄 getPrimarykeyValorOfRow.ts
+│   ├── 📄 index.ts
+│   ├── 📄 localStoreUse.tsx
+│   ├── 📄 queryExecuteUse.tsx
+│   ├── 📄 useDatabaseMetadata.tsx
+│   ├── 📄 useDeleteOperations.ts
+│   ├── 📄 useFormSelectConsultas.tsx
+│   ├── 📄 useQuerySSE.tsx
+│   ├── 📄 useRelatorio.tsx
+│   ├── 📄 useRowDelete.ts
+│   ├── 📄 useSidebarState.tsx
+│   ├── 📄 useTable.tsx
+│   └── 📄 useTransferStream.ts
+├── 📁 middleware
+│   └── 📄 auth.ts
+├── 📁 public
+│   └── 📁 I18
+│       ├── ⚙️ en.json
+│       └── ⚙️ pt.json
+├── 📁 simulation
+│   ├── 📄 conversores.tsx
+│   └── 📄 mockData.ts
+├── 📁 types
+│   ├── 📄 db-structure.ts
+│   └── 📄 index.ts
+├── 📁 util
+│   ├── 📁 connectioPage
+│   │   └── 📄 func.tsx
+│   ├── 📁 query_build_util
+│   │   ├── 📄 convertAdvancedJoinOptionToPayload.ts
+│   │   └── 📄 validateColumnExistence.ts
+│   ├── 📄 Joins_select.ts
+│   ├── 📄 func.ts
+│   ├── 📄 index.tsx
+│   ├── 📄 linhaCompletaBusca.ts
+│   └── 📄 logger.ts
+├── ⚙️ .gitignore
+├── 📝 README.md
+├── 📄 TAREFAS.TXT
+├── 📄 doc nextjs 15
+├── 📄 eslint.config.mjs
+├── 🌐 guia_nextjs14.html
+├── 🖼️ hookpropup1.png
+├── 🖼️ hookpropup2.png
+├── 📄 middleware.ts
+├── 📄 next.config.ts
+├── ⚙️ package-lock.json
+├── ⚙️ package.json
+├── 📄 postcss.config.mjs
+├── ⚙️ swa-cli.config.json
+├── 📄 tailwind.config.ts
+└── ⚙️ tsconfig.json
 
+```
+
+---
+*Generated by FileTree Pro Extension*
 
 ## 🖼️ 2. Navegação Principal (Layout)
 
@@ -146,7 +358,7 @@ export default function ConsultasPage() {
     </div>
   );
 }
-````
+```
 
 ---
 
@@ -154,12 +366,12 @@ export default function ConsultasPage() {
 
 > Substitua por imagens reais depois
 
-| Página       | Captura                            |
-| ------------ | ---------------------------------- |
-| Dashboard    | ![Dashboard](./docs/dashboard.png) |
-| Consultas    | ![Consultas](./docs/consultas.png) |
+| Página       | Captura                          |
+| ------------- | -------------------------------- |
+| Dashboard     | ![Dashboard](./docs/dashboard.png) |
+| Consultas     | ![Consultas](./docs/consultas.png) |
 | SQL Avançado | ![SQL](./docs/sql-editor.png)      |
-| Conexões     | ![Conexões](./docs/conexoes.png)   |
+| Conexões     | ![Conexões](./docs/conexoes.png)  |
 
 ---
 

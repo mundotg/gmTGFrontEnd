@@ -1,13 +1,14 @@
 import { DatabaseType, DisplayFormat, ForeignKeyOption, MetadataTableResponse } from "@/types";
+import { DBStructure } from "@/types/db-structure";
 
 export const findIdentifierField = (tableName: string, columnsInfo: MetadataTableResponse[]) => {
   const table = columnsInfo.find(col => col.table_name === tableName);
   if (!table) return undefined;
   return (
-    table.colunas.find(c => c.is_primary_key)?.nome ||
-    table.colunas.find(c => c.is_unique)?.nome ||
-    table.colunas.find(c => !c.is_nullable)?.nome ||
-    table.colunas[0]?.nome
+    table.colunas.find(c => c.is_primary_key)||
+    table.colunas.find(c => c.is_unique) ||
+    table.colunas.find(c => !c.is_nullable)||
+    table.colunas[0]
   );
 };
 
@@ -105,7 +106,7 @@ export const getDatabaseFormattedValue = (
         return date.toISOString(); // UTC ISO completo
       case DatabaseType.TIMESTAMP_WITH_LOCAL_TZ:
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
-               `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+          `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
       default:
         return value;
     }
@@ -113,3 +114,55 @@ export const getDatabaseFormattedValue = (
     return null;
   }
 };
+
+
+// ----------------- Helpers -----------------
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const parseErrorMessage = (err: any): string =>
+  err?.response?.data?.detail?.[0]?.msg ||
+  err?.response?.data?.detail?.[0] ||
+  err?.response?.data?.detail ||
+  err?.response?.data?.message ||
+  err?.response?.data ||
+  err?.message ||
+  "Erro inesperado. Tente novamente.";
+
+
+export const separatedSelectedTablesNameAndSchema = (tableList: string[],getTableStructure: (name: string) => DBStructure  | undefined) => {
+  // 1. Explicitly type the arrays so TypeScript doesn't assume they are 'never[]'
+  const tables: string[] = [];
+  const schemas: string[] = []; // Renamed to 'schemas' for consistency, change back to 'schema' if needed
+
+  tableList.forEach((fullName) => {
+    const split = fullName.split(".");
+
+    // 2. Logic fix: Standard SQL is "schema.table". 
+    // If your input is actually "table.schema", swap the indices below.
+    let tableName: string;
+    let schemaName: string | undefined;
+
+    if (split.length > 1) {
+      schemaName = split[0];
+      tableName = split[1];
+    } else {
+      tableName = split[0];
+      schemaName = undefined;
+    }
+
+    // 3. Populate arrays
+    if (schemaName) {
+      schemas.push(schemaName);
+      tables.push(tableName);
+    } else {
+      tables.push(tableName);
+      // Fallback logic for missing schema
+      const structure = getTableStructure(tableName);
+      schemas.push(structure?.schema_name || "");
+    }
+  });
+
+  // 4. Return the object AFTER the loop finishes
+  return { tables, schema_name: schemas };
+};
+
+

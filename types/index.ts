@@ -1,3 +1,4 @@
+
 import { FILTER_OPTIONS } from "@/constant";
 
 export type DatabaseOption = {
@@ -8,10 +9,39 @@ export type DatabaseOption = {
   port: string;
 };
 
+export type FieldDDLRequestPayload = {
+  connection_id?: number;         // backend pode ignorar, mas é útil
+  table_name: string;
+  schema_name?: string | null;
+  name: string;
+  type: string;
+  is_nullable?: boolean;
+  is_unique?: boolean;
+  is_primary_key?: boolean;
+  is_auto_increment?: boolean;
+  default_value?: string | null;
+  is_unsigned?: boolean;
+  comment?: string | null;
+  length?: number | null;
+  precision?: number | null;
+  scale?: number | null;
+  enum_values?: string[]; // para tipos ENUM
+  is_foreign_key?: boolean;
+  referenced_table?: string | null;
+  referenced_field?: string | null;
+  fk_on_delete?: string | null;
+  fk_on_update?: string | null;
+  original_name?: string | null;
+};
+
 export interface QueryBuilderProps {
   columns: MetadataTableResponse[];
   table_list: string[];
+  setAliasTables: (aliasTables: Record<string, string>) => void;
+  aliasTables: Record<string, string>;
+  onChange?: (conditions: QueryPayload) => void;
   onExecuteQuery: (conditions: QueryPayload) => Promise<void>;
+  setTable_list: (selectedTables: string[]) => void;
   title?: string;
   isExecuting?: boolean;
   maxConditions?: number;
@@ -22,18 +52,37 @@ export interface QueryBuilderProps {
   setSelect: (select: string[]) => void;
 }
 
-export interface DatabaseMetadata {
-  connectionName: string;
-  databaseName: string;
-  serverVersion: string;
-  tableCount: number;
-  viewCount: number;
-  procedureCount: number;
-  functionCount: number;
-  triggerCount: number;
-  indexCount: number;
-  tableNames: { name: string; rowcount: number }[];
+// Tipagem para tabela com contagem
+export interface TableInfo {
+  name: string;
+  rowcount: number;
 }
+
+
+export interface TableInfoCreate {
+  name: string;
+  schema?: string;
+  comment?: string;
+
+  // Advanced (opcional)
+  engine?: string; // mysql/mariadb
+  charset?: string; // mysql/mariadb
+  collation?: string; // mysql/mariadb
+  temporary?: boolean; // alguns bancos suportam
+}
+export interface DatabaseMetadata {
+  connection_name: string;
+  database_name: string;
+  server_version: string;
+  table_count: number;
+  view_count: number;
+  procedure_count: number;
+  function_count: number;
+  trigger_count: number;
+  index_count: number;
+  table_names: TableInfo[];
+}
+
 
 export interface LinhaCompletaResponse {
   success: boolean;
@@ -46,6 +95,7 @@ export interface LinhaCompletaResponse {
 export type SelectedRow = {
   index?: number; // opcional, usado para identificar a linha selecionada
   row: Record<string, any> | null;
+  orderBy?: OrderByOption | MultiOrderByOption;
   nameColumns: string[];
   tableName?: string[]; // opcional, usado para identificar a tabela
 };
@@ -119,21 +169,21 @@ export type tipo_db_Options =
   | 'citext'
   | 'timestamp with time zone'
   | 'nvarchar2'
-  |'varchar2'
-  |'number'
-  |'raw'
-  |'long'
-  |'binary_float'
-  |'binary_double'
-  |'timestamp with local time zone'
+  | 'varchar2'
+  | 'number'
+  | 'raw'
+  | 'long'
+  | 'binary_float'
+  | 'binary_double'
+  | 'timestamp with local time zone'
   | 'xmltype'
-  |'null'
-  |'array'
-  |'regex'
-  |'objectId'
+  | 'null'
+  | 'array'
+  | 'regex'
+  | 'objectId'
   | 'dec'
-  |'double precision'
-  |'float4' | 'float8' | 'serial8' | 'mediumserial' | 'vector'
+  | 'double precision'
+  | 'float4' | 'float8' | 'serial8' | 'mediumserial' | 'vector'
   | 'timestamp without time zone' | 'time with time zone' | 'time without time zone'
 
 
@@ -146,9 +196,9 @@ export enum DatabaseType {
   TIMESTAMP = 'TIMESTAMP',
   VARCHAR = 'VARCHAR',
   TEXT = 'TEXT',
-  TIME='time',
+  TIME = 'time',
   TIMESTAMP_WITH_TZ = 'time with time zone',
-  TIMESTAMP_WITH_LOCAL_TZ= 'timestamp with local time zone'
+  TIMESTAMP_WITH_LOCAL_TZ = 'timestamp with local time zone'
 }
 
 export type DisplayFormat =
@@ -162,6 +212,13 @@ export interface CondicaoFiltro {
   table_name_fil: string
   column: string;           // Nome da coluna
   operator: OperatorType;         // Operador (ex: '=', 'LIKE', 'IN'...)
+
+  // 🔥 novo (substitui a necessidade de % manual)
+  pattern?: {
+    prefix?: "%" | "_" | ""; // % para wildcard, _ para single char, "" para nenhum
+    suffix?: "%" | "_" | "";
+  };
+
   value: string;   // Valor inserido pelo usuário~
   value2?: string;  // Segundo valor para condições "Entre" e "Não Entre"
   logicalOperator?: 'AND' | 'OR'; // Para combinar com outras condições
@@ -172,6 +229,68 @@ export interface CondicaoFiltro {
 }
 
 export type JoinType = "INNER JOIN" | "LEFT JOIN" | "RIGHT JOIN" | "FULL JOIN";
+
+
+// Condição individual do JOIN
+export interface JoinConditionPayload {
+  table?: string;
+  leftColumn: string;
+  operator: string;
+  rightColumn: string;
+  valueColumnType?: tipo_db_Options;
+  rightValue?: string; // Para valores literais
+  useValue: boolean; // Se true, usa rightValue em vez de rightColumn
+  logicalOperator?: "AND" | "OR"; // Operador para próxima condição
+  caseSensitive?: boolean //# se aplicável
+  collation?: string        // # ex: "utf8_general_ci"
+  functionLeft?: string     // # ex: UPPER, LOWER, TRIM
+  functionRight?: string
+  // 🔥 novo (substitui a necessidade de % manual)
+  pattern?: {
+    prefix?: "%" | "_" | ""; // % para wildcard, _ para single char, "" para nenhum
+    suffix?: "%" | "_" | "";
+  };
+}
+export interface JoinCondition {
+  id: string;
+  table?: string;
+  leftColumn: string;
+  // 🔥 novo (substitui a necessidade de % manual)
+  pattern?: {
+    prefix?: "%" | "_" | ""; // % para wildcard, _ para single char, "" para nenhum
+    suffix?: "%" | "_" | "";
+  };
+  // leftColumnType?: tipo_db_Options;
+  enumValores?: string[]
+  operator: string;
+  rightColumn: string;
+  valueColumnType?: tipo_db_Options;
+  rightValue?: string; // Para valores literais
+  useValue: boolean; // Se true, usa rightValue em vez de rightColumn
+  logicalOperator?: "AND" | "OR"; // Operador para próxima condição
+  caseSensitive?: boolean //# se aplicável
+  collation?: string        // # ex: "utf8_general_ci"
+  functionLeft?: string     // # ex: UPPER, LOWER, TRIM
+  functionRight?: string
+}
+
+// Opção de JOIN avançada com múltiplas condições
+export interface AdvancedJoinOption {
+  conditions: JoinCondition[];
+  alias?: string;
+  typeJoin: JoinType;
+  groupStart?: { initIndex: number, is: boolean }[]; // Para suporte futuro a parênteses
+  groupEnd?: { endIndex: number, is: boolean }[];
+}
+
+
+export interface AdvancedJoinOptionPayload {
+  conditions: JoinConditionPayload[];
+  alias?: string;
+  typeJoin: JoinType;
+  groupStart?: { initIndex: number, is: boolean }[]; // Para suporte futuro a parênteses
+  groupEnd?: { endIndex: number, is: boolean }[];
+}
 
 export interface JoinOption {
   table: string;
@@ -187,6 +306,15 @@ export interface OrderByOption {
   direction: "ASC" | "DESC";
 }
 
+
+
+// Tipo para múltiplas opções de ordenação (array)
+export type MultiOrderByOption = OrderByOption[];
+
+// Se você quiser manter compatibilidade com o código antigo,
+// pode usar um tipo union:
+export type OrderByValue = string | OrderByOption | MultiOrderByOption;
+
 export type DistinctList = {
   useDistinct: boolean;
   distinct_columns: string[];
@@ -194,37 +322,31 @@ export type DistinctList = {
 
 export interface QueryPayload {
   baseTable: string;
-  joins: JoinOption[];
-  select: string[];
+  joins: Record<string, AdvancedJoinOptionPayload>;
+  aliaisTables: Record<string, string>;
   table_list: string[];
   where: CondicaoFiltro[];
   distinct?: DistinctList;
-  orderBy?: OrderByOption;
+  orderBy?: OrderByOption | MultiOrderByOption;
   limit?: number;
   offset?: number;
   isCountQuery?: boolean;
+  select?: string[];
 }
 
-export interface RowDetailsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  row: SelectedRow | null;
-  selectColumns?: string[];
-  informacaosOftables: MetadataTableResponse[];
-  onSave?: (updatedRow: EditedFieldForQuery, tables_primary_keys_values: Record<string, Record<string, any>>, index: number ) => void;
-}
+
 
 export interface RowDetailsModalCreateProps {
   isOpen: boolean;
   onClose: () => void;
   informacaosOftables: MetadataTableResponse[];
-  onSave?: (updatedRow: EditedFieldForQuery ) => void;
+  onSave?: (updatedRow: EditedFieldForQuery) => void;
 }
 
 
 export interface ForeignKeyOption {
-    id: string;
-    dados: string;
+  id: string;
+  dados: string;
 }
 
 
@@ -237,6 +359,7 @@ export type QueryResultType = {
   totalResults: number | null;
   duration_ms: number;
   columns: string[];
+  tabela_coluna?: Record<string, CampoDetalhado[]>
   preview: Record<string, any>[];
   QueryPayload?: QueryPayload;
 };
@@ -253,6 +376,7 @@ export type QueryCountResultType = {
 export type ConnectionLog = {
   id: string;
   connection: string;
+  details?: any;
   action?: string;
   timestamp?: string; // ou `Date` se preferir trabalhar com objetos Date
   status: "success" | "error" | "warning" | "info";
@@ -291,11 +415,27 @@ export type ConnectionFormData = {
 
 
 export type FilterType = typeof FILTER_OPTIONS[number]['value'];
+export interface NamecachesValue {
+  _thema: string,
+  _modal_Create_Open: string,
+  _modal_Edit_Open: string,
+  consulta_showFilterColunas: string,
+  consulta_showSortColunas: string
+}
 
+export const defaultNameCachesValue: NamecachesValue = {
+  _thema: "_thema",
+  _modal_Create_Open: "_modal_Create_Open",
+  _modal_Edit_Open: "_modal_Edit_Open",
+  consulta_showFilterColunas: "_consulta_showFilterColunas",
+  consulta_showSortColunas: "_consulta_showSortColunas"
+};
 export interface TableColumnsDisplayProps {
   tableNames: string;
+  names_caches_value: NamecachesValue;
   tabelaExistenteNaDB: string[];
   columns?: MetadataTableResponse[];
+  setColumns?: React.Dispatch<React.SetStateAction<MetadataTableResponse[]>>;
   className?: string;
   isLoading?: boolean;
   setIsLoading?: (loading: boolean) => void;
@@ -333,7 +473,52 @@ export type EditedFieldForQuery = {
 
 export type Tables_primary_keys_values = Record<string, Record<string, string>>;
 
+export interface AnalizeDataType {
+  overview: {
+    totalProjects: number;
+    activeProjects: number;
+    completedProjects: number;
+    overdueProjects: number;
+    totalTasks: number;
+    completedTasks: number;
+    teamMembers: number;
+  };
+  projectProgress: {
+    name: string;
+    progress: number;
+    tasks: number;
+    completed: number;
+  }[];
+  taskStatus: {
+    name: string;
+    value: number;
+  }[];
+  teamPerformance: {
+    name: string;
+    tasks: number;
+    completed: number;
+    efficiency: number;
+  }[];
+  weeklyActivity: {
+    week: string;
+    tasks: number;
+    completed: number;
+  }[];
+  projectTypes: {
+    name: string;
+    value: number;
+  }[];
+  recentActivity: {
+    id: number;
+    user: string;
+    action: string;
+    project: string;
+    time: string;
+  }[];
+}
+
 export interface CampoDetalhado {
+  tableName?: string;
   nome: string;
   tipo: tipo_db_Options;
   is_nullable: boolean;
@@ -345,11 +530,19 @@ export interface CampoDetalhado {
   is_unique: boolean;
   default?: string | null;
   comentario?: string | null;
-  length?: number | null;
-  enum_valores_encontrados?: string[];
-  enum_valores_adicionados?: string[];
-}
 
+  // 🔥 ADICIONADOS: Para varchar/char e decimal/numeric
+  length?: number | null;
+  precision?: number | null;
+  scale?: number | null;
+
+  // 🔥 ADICIONADO: Para suporte a MySQL/MariaDB unsigned
+  is_unsigned?: boolean;
+
+  enum_valores_encontrados?: string[];
+  on_delete_action?: string;
+  on_update_action?: string;
+}
 export interface MetadataTableResponse {
   message: string;
   executado_em: string; // ou `Date` se você for converter depois
@@ -359,3 +552,10 @@ export interface MetadataTableResponse {
   total_colunas: number;
   colunas: CampoDetalhado[];
 }
+
+
+
+
+
+
+

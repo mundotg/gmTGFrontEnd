@@ -1,624 +1,509 @@
 "use client";
-import React, { useEffect, useState } from 'react';
-import {
-  Database,
-  Plus,
-  Eye,
-  EyeOff,
-  Server,
-  Clock,
-  Trash2,
-  Edit,
-  CheckCircle,
-  AlertCircle,
-  ChevronDown
-} from 'lucide-react';
-import { useI18n } from '@/context/I18nContext';
-import { ConnectionFormData, ConnectionLog, DatabaseOption, SavedConnection } from '@/types';
-import { useSession } from '@/context/SessionContext';
-import { databases } from '@/constant';
-import { usePagination } from '@/hook';
-import Pagination from '@/app/component/pagination-component';
-import { ConnectionToggleButton } from '@/app/component/ConnectionToggleButton';
+
+import React, { useCallback, useMemo, useState } from "react";
+import { Database, Trash2, Edit, History, Link as LinkIcon, PlusCircle } from "lucide-react";
+
+import { useI18n } from "@/context/I18nContext";
+import { useSession } from "@/context/SessionContext";
+
+import { ConnectionFormData, ConnectionLog, SavedConnection } from "@/types";
+import { databases } from "@/constant";
+
+import { usePagination } from "@/hook";
+import usePersistedState from "@/hook/localStoreUse";
+
+import Pagination from "@/app/component/pagination-component";
+import { ConnectionToggleButton } from "@/app/component/ConnectionToggleButton";
+import { ConnectionForm } from "@/app/component/connectionComponent/ConnectionForm";
+
+import { formatDate, getStatusColor, getStatusIcon } from "@/util/connectioPage/func";
+import { aes_decrypt, aes_encrypt } from "@/service";
+import { DatasetImportModal, DatasetImportResponse } from "./component/DatasetImportModal";
+
+const DEFAULT_FORM_DATA: ConnectionFormData = {
+  name: "",
+  host: "",
+  port: "",
+  type: "",
+  database: "",
+  username: "",
+  password: "",
+  trustServerCertificate: "yes",
+  sslmode: "",
+  service: "",
+};
 
 const DatabaseConnectionForm = () => {
-  const [selectedDb, setSelectedDb] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
   const { t } = useI18n();
   const { api } = useSession();
 
+  const [selectedDb, setSelectedDb] = usePersistedState<string>("selectedDb", "");
+  const [showDropdown, setShowDropdown] = usePersistedState<boolean>("showDropdown", false);
+  const [formData, setFormData] = usePersistedState<ConnectionFormData>(
+    "ConnectionFormData",
+    DEFAULT_FORM_DATA
+  );
 
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState("");
+  const [isDatasetModalOpen, setIsDatasetModalOpen] = useState(false);
 
-  const [formData, setFormData] = useState<ConnectionFormData>({
-    name: "",
-    host: "",
-    port: "",
-    type: "",
-    database: "",
-    username: "",
-    password: ""
-  });
-
-  const { page: historyPage, totalPages: historyTotal, data: paginatedHistory, goToNext: nextHistory,
-    goToPrev: prevHistory, setPage: setPagehistory } = usePagination<ConnectionLog>((page) =>
-      api.get("/conn/connection_logs/", {
+  const {
+    page: historyPage,
+    totalPages: historyTotal,
+    data: paginatedHistory = [],
+    setPage: setHistoryPage,
+  } = usePagination<ConnectionLog>((page) =>
+    api
+      .get("/log/connection_logs/", {
         params: { page, limit: 10 },
         withCredentials: true,
-      }).then(res => res.data)
-    );
+      })
+      .then((res) => res.data)
+  );
 
-  const { page: connPage, totalPages: connTotal, data: paginatedConnections, setData: setPageConnetion,
-    goToNext: nextConn, goToPrev: prevConn, setExecute } = usePagination<SavedConnection>((page) =>
-      api.get("/conn/connections/", {
+  const {
+    page: connPage,
+    totalPages: connTotal,
+    data: paginatedConnections = [],
+    setData: setPaginatedConnections,
+    setPage: setConnPage,
+    setExecute,
+  } = usePagination<SavedConnection>((page) =>
+    api
+      .get("/conn/connections/", {
         params: { page, limit: 10 },
         withCredentials: true,
-      }).then(res => res.data)
-    );
+      })
+      .then((res) => res.data)
+  );
 
+  const selectedDatabase = useMemo(
+    () => databases.find((db) => db.id === selectedDb),
+    [selectedDb]
+  );
 
-  const updateField = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const refreshConnections = useCallback(() => {
+    setExecute((prev) => !prev);
+  }, [setExecute]);
 
+  const buildConnectionPayload = useCallback(() => {
+    return {
+      name: formData.name.trim(),
+      host: aes_encrypt(formData.host.trim()),
+      port: Number(formData.port),
+      type: selectedDb.toLowerCase(),
+      database_name: formData.database.trim(),
+      username: aes_encrypt(formData.username.trim()),
+      password: aes_encrypt(formData.password),
+      service: formData.service?.trim() || "",
+      sslmode: formData.sslmode?.trim() || "",
+      trustServerCertificate: formData.trustServerCertificate || "yes",
+    };
+  }, [formData, selectedDb]);
 
-  useEffect(() => {
-    // Atualiza o localStorage sempre que savedConnections mudar
-    const formSave = localStorage.getItem('formData');
-    if (formSave) {
-      setFormData(JSON.parse(formSave));
-    }
-    const Dbform = localStorage.getItem("Dbform");
-    if (Dbform) {
-      const { select, isShowdropdown } = JSON.parse(Dbform);
-      setSelectedDb(select);
-      setShowDropdown(isShowdropdown);
-    }
+  const resetStatus = useCallback(() => {
+    setConnectionStatus("");
   }, []);
 
-  useEffect(() => {
-    // Atualiza o localStorage sempre que formData mudar
-    localStorage.setItem('formData', JSON.stringify(formData));
-  }, [formData]);
+  const handleDbSelect = useCallback(
+    (dbId: string) => {
+      setSelectedDb(dbId);
+      setShowDropdown(false);
 
+      const db = databases.find((item) => item.id === dbId);
+      if (!db) return;
 
-  const handleDbSelect = (dbId: string) => {
-    setSelectedDb(dbId);
-    setShowDropdown(false);
-    localStorage.setItem("Dbform", JSON.stringify({ "select": dbId, "isShowdropdown": false }));
-    const db: DatabaseOption | undefined = databases.find(d => d.id === dbId);
-    if (!db) return;
-    // updateField("port", db.port);
+      const existingConnection = paginatedConnections.find((conn) => conn.type === dbId);
 
-    // Buscar conexão existente para este tipo de banco
-    const existingConnection = paginatedConnections.find(conn => conn.type === dbId);
-    if (existingConnection) {
-      setFormData({
-        name: existingConnection.name,
-        host: existingConnection.host,
-        port: db.port,
-        type: existingConnection.type,
-        database: existingConnection.database,
-        username: "",
-        password: "",
-      });
-    } else {
-      setFormData({
-        name: "",
-        host: "",
-        type: "",
-        port: db.port,
-        database: "",
-        username: "",
-        password: ""
-      });
-    }
-  };
-
-  const testConnection = async () => {
-
-    try {
-
-      const payload = {
-        name: formData.name,
-        host: formData.host,
-        port: parseInt(formData.port), // <- Converte para número
-        type: selectedDb.toLowerCase(), // <- Converte para minúsculas
-        database_name: formData.database, // <- Renomeia corretamente
-        username: formData.username,
-        password: formData.password,
-        service: formData.service,
-        sslmode: formData.sslmode,
-        trustServerCertificate: formData.trustServerCertificate
-      };
-      const response = await api.post('/conn/test-connection',
-        payload, { withCredentials: true });
-
-      if (response.data.success) {
-        setConnectionStatus("success");
+      if (existingConnection) {
+        setFormData((prev) => ({
+          ...prev,
+          name: existingConnection.name,
+          host: existingConnection.host,
+          port: db.port,
+          type: existingConnection.type,
+          database: existingConnection.database,
+          username: "",
+          password: "",
+        }));
+        return;
       }
 
+      setFormData((prev) => ({
+        ...prev,
+        ...DEFAULT_FORM_DATA,
+        port: db.port,
+      }));
+    },
+    [paginatedConnections, setFormData, setSelectedDb, setShowDropdown]
+  );
+
+  const testConnection = useCallback(async () => {
+    try {
+      setConnectionStatus("");
+
+      const payload = buildConnectionPayload();
+      const response = await api.post(
+        "/conn/connect",
+        { conn_data: payload, tipo: "con" },
+        { withCredentials: true }
+      );
+
+      setConnectionStatus(response.data?.connect ? "success" : "error");
     } catch (error) {
       console.error("Erro ao testar conexão:", error);
       setConnectionStatus("error");
-      return;
-
     }
-  };
+  }, [api, buildConnectionPayload]);
 
-  const connect = async () => {
-    setIsConnecting(true);
-    setConnectionStatus("");
+  const connect = useCallback(async () => {
     try {
-      const payload = {
-        name: formData.name,
-        host: formData.host,
-        port: parseInt(formData.port), // <- Converte para número
-        type: selectedDb.toLowerCase(), // <- Converte para minúsculas
-        database_name: formData.database, // <- Renomeia corretamente
-        username: formData.username,
-        password: formData.password,
-        service: formData.service,
-        sslmode: formData.sslmode,
-        trustServerCertificate: formData.trustServerCertificate
-      };
-      const response = await api.post('/conn/connect', payload, { withCredentials: true });
-      // console.log("response=", response)
-      if (response.data.connect) {
+      setIsConnecting(true);
+      setConnectionStatus("");
+
+      const payload = buildConnectionPayload();
+      const response = await api.post(
+        "/conn/connect",
+        { conn_data: payload, tipo: "upsert" },
+        { withCredentials: true }
+      );
+
+      if (response.data?.connect) {
         setConnectionStatus("connected");
-        setIsConnecting(false);
-        setExecute(true)
-      } else {
-        setConnectionStatus("error");
-        setIsConnecting(false);
+        refreshConnections();
+        return;
       }
+
+      setConnectionStatus("error");
     } catch (error) {
       console.error("Erro ao conectar:", error);
       setConnectionStatus("error");
+    } finally {
       setIsConnecting(false);
-      return;
-
     }
+  }, [api, buildConnectionPayload, refreshConnections]);
 
-  };
+  const loadConnection = useCallback(
+    async (connection: SavedConnection) => {
+      try {
+        const db = databases.find((item) => item.id === connection.type);
+        if (!db) return;
 
-  const loadConnection = async (connection: SavedConnection) => {
-    const db: DatabaseOption | undefined = databases.find(d => d.id === connection.type);
-    if (!db) return;
-    setSelectedDb(connection.type);
-    const { data: { password, username,service,sslmode, trustServerCertificate} } = await api.get('/conn/get_credencial_db/' + connection.id, { withCredentials: true })
-    console.log(service,sslmode, trustServerCertificate)
-    setFormData({
-      name: connection.name,
-      host: connection.host,
-      port: db.port,
-      type: connection.type,
-      database: connection.database,
-      username: username,
-      password: password,
-      service,sslmode, trustServerCertificate
-    });
-    setConnectionStatus("");
-  };
+        setSelectedDb(connection.type);
 
-  const deleteConnection = async (id: string) => {
-    if (!id) {
-      console.error("ID da conexão não fornecido");
-      return;
-    }
-    try {
-      await api.delete(`/conn/delete_connection/${id}`, {
-        withCredentials: true,
-      });
+        const { data } = await api.get(`/conn/get_credencial_db/${connection.id}`, {
+          withCredentials: true,
+        });
 
-      console.log("✅ Conexão deletada com sucesso");
-    } catch (error) {
-      console.error("❌ Erro ao deletar conexão:", error);
-      // Aqui você pode exibir uma notificação para o usuário
-    }
-  };
+        const { password, username, service, sslmode, trustServerCertificate } = data;
 
-  const toggleConnection = async (connection_id: string) => {
-    try {
-      const response = await api.put("/conn/connect-toggle/", {
-        conn_id: connection_id,
-      });
-      const { connect } = response.data;
-      const atualizados: SavedConnection[] = paginatedConnections.map((conn) =>
-        conn.id === connection_id ? { ...conn, status: connect ? "connected" : "disconnected" } : conn
+        setFormData((prev) => ({
+          ...prev,
+          name: connection.name,
+          host: aes_decrypt(connection.host),
+          port: db.port,
+          type: connection.type,
+          database: connection.database,
+          username: aes_decrypt(username),
+          password: aes_decrypt(password),
+          service: service || "",
+          sslmode: sslmode || "",
+          trustServerCertificate:
+            trustServerCertificate || prev.trustServerCertificate || "yes",
+        }));
+
+        resetStatus();
+      } catch (error) {
+        console.error("Erro ao carregar conexão:", error);
+        setConnectionStatus("error");
+      }
+    },
+    [api, resetStatus, setFormData, setSelectedDb]
+  );
+
+  const deleteConnection = useCallback(
+    async (id: string) => {
+      if (!id) {
+        console.error("ID da conexão não fornecido");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        t("actions.confirmDeleteConnection") ||
+        "Tem certeza que deseja deletar esta conexão?"
       );
-      setPageConnetion(atualizados);
-      setExecute(prev => !prev);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      console.error("❌ Erro ao alternar conexão:", error.response?.data || error.message);
-    }
-  };
 
+      if (!confirmed) return;
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "Data indisponível";
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "Data inválida";
-    return date.toLocaleString("pt-BR", {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  };
+      try {
+        await api.delete(`/conn/delete_connection/${id}`, {
+          withCredentials: true,
+        });
 
+        refreshConnections();
+      } catch (error) {
+        console.error("❌ Erro ao deletar conexão:", error);
+      }
+    },
+    [api, refreshConnections, t]
+  );
 
+  const toggleConnection = useCallback(
+    async (connectionId: string) => {
+      try {
+        const response = await api.put(
+          "/conn/connect-toggle/",
+          { conn_id: connectionId },
+          { withCredentials: true }
+        );
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success':
-      case 'connected':
-        return 'text-green-600 bg-green-50';
-      case 'error':
-        return 'text-red-600 bg-red-50';
-      case 'info':
-        return 'text-blue-600 bg-blue-50';
-      default:
-        return 'text-gray-600 bg-gray-50';
-    }
-  };
+        const { connect } = response.data;
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'success':
-      case 'connected':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'error':
-        return <AlertCircle className="w-4 h-4" />;
-      default:
-        return <Clock className="w-4 h-4" />;
-    }
-  };
+        const updatedConnections: SavedConnection[] = paginatedConnections.map((conn) => {
+          if (conn.id === connectionId) {
+            return {
+              ...conn,
+              status: connect ? "connected" : "disconnected",
+            };
+          }
 
-  const selectedDatabase = databases.find(db => db.id === selectedDb);
+          if (connect) {
+            return {
+              ...conn,
+              status: conn.status === "connected" ? "disconnected" : conn.status,
+            };
+          }
+
+          return conn;
+        });
+
+        setPaginatedConnections(updatedConnections);
+        refreshConnections();
+      } catch (error: unknown) {
+        console.error("❌ Erro ao alternar conexão:", error);
+      }
+    },
+    [api, paginatedConnections, refreshConnections, setPaginatedConnections]
+  );
+
+  const handleDatasetImported = useCallback((result: DatasetImportResponse) => {
+  console.log("Dataset importado:", result);
+  refreshConnections();
+}, [refreshConnections]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-white rounded-xl p-6 shadow-sm border">
-          <div className="flex items-center mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white mr-4">
-              <Database className="w-6 h-6" />
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-7xl space-y-6 animate-in fade-in zoom-in-95 duration-200">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-blue-100 text-blue-600 shadow-sm">
+              <Database className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{t('dbConnections')}</h1>
-              <p className="text-gray-600">{t('dbConnectionsSubtitle')}</p>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+                {t("dbConnections")}
+              </h1>
+              <p className="mt-1 text-sm font-medium text-gray-500">
+                {t("dbConnectionsSubtitle")}
+              </p>
             </div>
           </div>
+          <button
+            onClick={() => setIsDatasetModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Importar dataset
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Formulário de Conexão */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('newConnection')}</h2>
+        <DatasetImportModal
+          isOpen={isDatasetModalOpen}
+          onClose={() => setIsDatasetModalOpen(false)}
+          onImported={handleDatasetImported}
+        />
 
-              {/* Database Type Selector */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('dbType')}
-                </label>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowDropdown(!showDropdown)}
-                    className="w-full px-4 py-3 text-left bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between"
-                  >
-                    {selectedDatabase ? (
-                      <div className="flex items-center">
-                        <span className="text-xl mr-3">{selectedDatabase.icon}</span>
-                        <span>{selectedDatabase.name}</span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-500">{t('selectDatabase')}</span>
-                    )}
-                    <ChevronDown className={`w-5 h-5 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
-                  </button>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+          <ConnectionForm
+            t={t}
+            databases={databases}
+            selectedDatabase={selectedDatabase}
+            setFormData={setFormData}
+            selectedDb={selectedDb}
+            formData={formData}
+            connectionStatus={connectionStatus}
+            isConnecting={isConnecting}
+            handleDbSelect={handleDbSelect}
+            testConnection={testConnection}
+            connect={connect}
+            getStatusIcon={getStatusIcon}
+            showDropdown={showDropdown}
+            setShowDropdown={setShowDropdown}
+          />
 
-                  {showDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
-                      {databases.map((db) => (
-                        <button
-                          key={db.id}
-                          onClick={() => handleDbSelect(db.id)}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center first:rounded-t-lg last:rounded-b-lg"
-                        >
-                          <span className="text-xl mr-3">{db.icon}</span>
-                          <span>{db.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+          <div className="space-y-6 lg:space-y-8">
+            <div className="flex h-fit max-h-[500px] flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-gray-900">
+                <LinkIcon className="h-5 w-5 text-gray-400" />
+                {t("savedConnections")}
+              </h2>
 
-              {selectedDb && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Nome da Conexão */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('connectionName')}
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => updateField("name", e.target.value)}
-                        placeholder={t('connectionNamePlaceholder')}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+              <div className="scrollbar-thin scrollbar-thumb-gray-200 flex-1 space-y-3 overflow-y-auto pr-1">
+                {paginatedConnections.length > 0 ? (
+                  paginatedConnections.map((connection, index) => {
+                    const db = databases.find((item) => item.id === connection.type);
 
-                    {/* Host */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('host')}
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.host}
-                        onChange={(e) => updateField("host", e.target.value)}
-                        placeholder="localhost"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                    return (
+                      <div
+                        key={`sav-connection-${connection.id}-${index}`}
+                        className="group rounded-xl border border-gray-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-sm"
+                      >
+                        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                          <div className="flex min-w-0 items-center gap-4">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-100 bg-gray-50 shadow-sm">
+                              <span className="text-xl">{db?.icon}</span>
+                            </div>
 
-                    {/* Porta */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('port')}
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.port}
-                        onChange={(e) => updateField("port", e.target.value)}
-                        placeholder={selectedDatabase?.port || "5432"}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                            <div className="min-w-0">
+                              <h3 className="truncate text-sm font-bold text-gray-900">
+                                {connection.name}
+                              </h3>
+                              <p className="mt-0.5 truncate text-xs font-medium text-gray-500">
+                                {connection.host} • {connection.database}
+                              </p>
+                              <p className="mt-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                {t("lastUsed")}: {formatDate(connection.last_used)}
+                              </p>
+                            </div>
+                          </div>
 
-                    {/* Database ou Caminho SQLite */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {selectedDb === 'sqlite' ? t('filePath') : t('database')}
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.database}
-                        onChange={(e) => updateField("database", e.target.value)}
-                        placeholder={selectedDb === 'sqlite' ? "/path/to/database.db" : t('databaseNamePlaceholder')}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    {/* Usuário */}
-                    {selectedDb !== 'sqlite' && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {t('username')}
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.username}
-                            onChange={(e) => updateField("username", e.target.value)}
-                            placeholder="user"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-
-                        {/* Senha */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {t('password')}
-                          </label>
-                          <div className="relative">
-                            <input
-                              type={showPassword ? "text" : "password"}
-                              value={formData.password}
-                              onChange={(e) => updateField("password", e.target.value)}
-                              placeholder="••••••"
-                              className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          <div className="flex items-center gap-2 sm:ml-auto">
+                            <span
+                              className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${getStatusColor(
+                                connection.status
+                              )}`}
                             >
-                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              {getStatusIcon(connection.status)}
+                              {connection.status}
+                            </span>
+
+                            <button
+                              onClick={() => loadConnection(connection)}
+                              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                              title={t("loadConnection")}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+
+                            <ConnectionToggleButton
+                              connection={connection}
+                              onConnect={toggleConnection}
+                              onDisconnect={toggleConnection}
+                              titleConnect={t("upConnection")}
+                              titleDisconnect={t("offConnection")}
+                            />
+
+                            <button
+                              onClick={() => deleteConnection(connection.id)}
+                              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                              title={t("deleteConnection")}
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </div>
-                      </>
-                    )}
-
-                    {/* 🔒 Campo SSL (PostgreSQL) */}
-                    {selectedDb === "postgresql" && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          SSL Mode
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.sslmode || ""}
-                          onChange={(e) => updateField("sslmode", e.target.value)}
-                          placeholder="disable / require / verify-ca"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
                       </div>
-                    )}
+                    );
+                  })
+                ) : (
+                  <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 py-10">
+                    <LinkIcon className="mb-2 h-8 w-8 text-gray-300" />
+                    <p className="text-sm font-medium text-gray-500">
+                      {t("noSavedConnections")}
+                    </p>
+                  </div>
+                )}
+              </div>
 
-                    {/* 🔐 Campo Service (Oracle) */}
-                    {selectedDb === "oracle" && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Service Name
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.service || ""}
-                          onChange={(e) => updateField("service", e.target.value)}
-                          placeholder="xe / orcl"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    )}
+              {paginatedConnections.length > 0 && (
+                <div className="mt-2 border-t border-gray-100 pt-4">
+                  <Pagination
+                    page={connPage}
+                    totalPages={connTotal}
+                    size="sm"
+                    onPageChange={setConnPage}
+                    maxVisiblePages={5}
+                    showPageNumbers
+                  />
+                </div>
+              )}
+            </div>
 
-                    {/* ✅ Campo trustServerCertificate (SQL Server) */}
-                    {selectedDb === "sqlserver" && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Trust Server Certificate
-                        </label>
-                        <select
-                          value={formData.trustServerCertificate || "yes"}
-                          onChange={(e) => updateField("trustServerCertificate", e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            <div className="flex h-fit max-h-[500px] flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-gray-900">
+                <History className="h-5 w-5 text-gray-400" />
+                {t("connectionHistory")}
+              </h2>
+
+              <div className="scrollbar-thin scrollbar-thumb-gray-200 flex-1 space-y-0 overflow-y-auto pr-1">
+                {paginatedHistory.length > 0 ? (
+                  paginatedHistory.map((entry, index) => (
+                    <div
+                      key={`history-${entry.id}-${index}`}
+                      className="group relative border-l-2 border-gray-200 py-3 pl-4 transition-colors hover:bg-gray-50"
+                    >
+                      <div className="absolute -left-[5px] top-4 h-2 w-2 rounded-full bg-gray-200 transition-colors group-hover:bg-blue-400" />
+
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-bold text-gray-900">
+                            {entry.connection}
+                          </h3>
+                          <p className="mt-0.5 truncate text-xs font-medium text-gray-600">
+                            {entry.action}
+                          </p>
+                          <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                            {formatDate(entry.timestamp)}
+                          </p>
+                        </div>
+
+                        <span
+                          className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${getStatusColor(
+                            entry.status
+                          )}`}
                         >
-                          <option value="yes">yes</option>
-                          <option value="no">no</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-
-
-              {connectionStatus && (
-                <div className={`p-4 rounded-lg flex items-center ${connectionStatus === 'success' ? 'bg-green-50 text-green-700' :
-                  connectionStatus === 'connected' ? 'bg-blue-50 text-blue-700' :
-                    'bg-red-50 text-red-700'
-                  }`}>
-                  {getStatusIcon(connectionStatus)}
-                  <span className="ml-2">
-                    {connectionStatus === 'success' ? t('testSuccess') :
-                      connectionStatus === 'connected' ? t('connectedSuccess') :
-                        t('connectionError')}
-                  </span>
-                </div>
-              )}
-
-              {/* Botões */}
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={testConnection} disabled={isConnecting}
-                  className="flex-1 px-4 py-2 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50 flex items-center justify-center">
-                  {isConnecting ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 border-b-2 border-blue-600 rounded-full mr-2"></div>
-                      {t('testing')}
-                    </>
-                  ) : (
-                    <>
-                      <Server className="w-4 h-4 mr-2" />
-                      {t('test')}
-                    </>
-                  )}
-                </button>
-
-                <button type="button" onClick={connect} disabled={isConnecting}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center">
-                  {isConnecting ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full mr-2"></div>
-                      {t('connecting')}
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4 mr-2" />
-                      {t('connect')}
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Painéis */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('savedConnections')}</h2>
-              <div className="space-y-3">
-                {paginatedConnections.length > 0 ? paginatedConnections.map((connection, index) => {
-                  const db = databases.find(d => d.id === connection.type);
-                  return (
-                    <div key={"sav-connection" + connection.id + index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <span className="text-xl mr-3">{db?.icon}</span>
-                          <div>
-                            <h3 className="font-medium text-gray-900">{connection.name}</h3>
-                            <p className="text-sm text-gray-500">{connection.host} • {connection.database}</p>
-                            <p className="text-xs text-gray-400">{t('lastUsed')}: {formatDate(connection.last_used)}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 ${getStatusColor(connection.status)}`}>
-                            {getStatusIcon(connection.status)}
-                            {connection.status}
-                          </span>
-                          <button onClick={() => loadConnection(connection)}
-                            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                            title={t('loadConnection')}>
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <ConnectionToggleButton
-                            connection={connection}
-                            onConnect={toggleConnection}
-                            onDisconnect={toggleConnection}
-                            titleConnect={t("upConnection")}
-                            titleDisconnect={t("offConnection")}
-                          />
-                          <button onClick={() => deleteConnection(connection.id)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded"
-                            title={t('deleteConnection')}>
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                          {getStatusIcon(entry.status)}
+                        </span>
                       </div>
                     </div>
-                  );
-                }) : t('noSavedConnections')}
-                
-              </div>
-              <Pagination page={connPage} totalPages={connTotal} setPage={setPagehistory} goToNext={nextConn} goToPrev={prevConn} />
-            </div>
-
-            {/* Histórico */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('connectionHistory')}</h2>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {paginatedHistory.length > 0 ? paginatedHistory.map((entry, index) => (
-                  <div key={"history" + entry.id + index} className="border-l-4 border-gray-200 pl-4 py-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{entry.connection}</h3>
-                        <p className="text-sm text-gray-600">{entry.action}</p>
-                        <p className="text-xs text-gray-400">{formatDate(entry.timestamp)}</p>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 ${getStatusColor(entry.status)}`}>
-                        {getStatusIcon(entry.status)}
-                      </span>
-                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 py-10">
+                    <History className="mb-2 h-8 w-8 text-gray-300" />
+                    <p className="text-sm font-medium text-gray-500">{t("noHistory")}</p>
                   </div>
-                )) : t('noHistory')}
+                )}
               </div>
-              <Pagination page={historyPage} totalPages={historyTotal} setPage={setPagehistory} goToNext={nextHistory} goToPrev={prevHistory} />
+
+              {paginatedHistory.length > 0 && (
+                <div className="mt-2 border-t border-gray-100 pt-4">
+                  <Pagination
+                    page={historyPage}
+                    totalPages={historyTotal}
+                    size="sm"
+                    onPageChange={setHistoryPage}
+                    maxVisiblePages={5}
+                    showPageNumbers
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
     </div>
   );
-
 };
 
 export default DatabaseConnectionForm;

@@ -1,0 +1,110 @@
+Descrição Atualizada – MustaInf 
+
+O MustaInf é uma plataforma de engenharia de dados e monitorização de bases de dados projetada para operar de forma segura, escalável e totalmente auditável. A solução abstrai o acesso direto ao banco de dados através de uma API backend desenvolvida com FastAPI, permitindo consultas controladas, transferências de dados e análises avançadas sem exposição direta ao SQL.
+
+A arquitetura da plataforma é centrada no conceito de Pipeline como entidade principal do sistema. Toda operação — consulta, transferência, análise ou relatório — só pode existir dentro de um pipeline ativo, eliminando execuções soltas e criando um ponto único de controlo, rastreabilidade e governança.
+
+Cada pipeline possui:
+
+Contexto operacional
+
+Configuração de origem e destino na tranferencia de dados entre base de dados
+
+contem nacionalisazação com 6 linguas 2 Angolas (kimbundo, umbundu), engles, portuegues, frances, mandarin
+
+consultas de possiveis deadloks na base de dados
+
+manipulação de base de dados de forma organizada e severamente segura (create,update,delete) [colunas, e tabelas]
+
+Vínculo com utilizadores, projetos e tarefas
+
+Ciclo de vida explícito (draft, active, running, completed, failed, archived)
+
+Os estados do pipeline não são apenas informativos — determinam quais ações são permitidas, garantindo previsibilidade, integridade operacional e segurança por design.
+
+🔐 Segurança e Governança
+
+O backend implementa:
+
+Autenticação JWT
+
+RBAC (Role-Based Access Control – admin, editor, viewer)
+
+Connection Manager estruturado
+
+Execução segura e parametrizada de queries
+
+Event Logger (Audit Trail)
+
+Metrics Collector para observabilidade
+
+Tratamento global de erros
+
+A regra global do sistema é clara:
+
+“Sem pipeline ativo, nenhuma operação crítica é executada.”
+
+Essa abordagem reduz risco operacional, erros humanos e exposição indevida de dados.
+
+🖥️ Interface e Experiência
+
+O frontend foi desenvolvido com navegação baseada em pipeline, onde toda a experiência do utilizador depende do pipeline ativo. Entre os módulos já implementados estão:
+
+Gestão de conexões
+
+Visualização de tabelas
+
+Query Builder visual
+
+Histórico e auditoria
+
+Tela de análises
+
+Exportação de dados em CSV e JSON
+
+📊 Observabilidade e Evolução
+
+O projeto já implementa recolha de métricas e performance controlada, com roadmap estruturado para:
+
+KPIs oficiais
+
+Sistema de alertas
+
+Logs estruturados
+
+Governança avançada
+
+Diagrama de arquitetura de base de dados
+
+Deploy final e documentação expandida
+
+🎯 Público-Alvo
+
+O MustaInf é direcionado para:
+
+Desenvolvedores
+
+Engenheiros de Dados
+
+Arquitetos de Software
+
+Tech Leads
+
+Gestores e stakeholders que necessitam de relatórios confiáveis e rastreáveis
+
+🚀 Objetivo do Projeto
+
+O MustaInf foi criado para demonstrar:
+
+Fluxos reais de engenharia de dados
+
+Arquitetura backend limpa e modular
+
+Segurança aplicada desde a conceção
+
+Controle do ciclo de vida da informação
+
+Design escalável para ambientes corporativos
+
+A plataforma é adequada para uso interno empresarial, dashboards administrativos, soluções open-source e como base para evolução futura para data 
+governance e data observability em larga escala.

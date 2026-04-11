@@ -1,47 +1,121 @@
-"use client"
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+"use client";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Moon, Sun, Loader2, Plus, Filter, X } from "lucide-react";
 import {
-  Database, CheckCircle, XCircle, Key,
-  Search, ArrowUpDown, Download, Moon, Sun,
-  ChevronLeft, ChevronRight, Loader2, Check, Lock,
-  Plus
-} from 'lucide-react';
-import { CampoDetalhado, EditedFieldForQuery, FilterType, TableColumnsDisplayProps } from '@/types';
-import { useTableColumns } from '@/hook/useTable';
-import { quickExportToCsv } from "../services/relatorio";
-import { FILTER_OPTIONS, themeClassesMap } from '@/constant';
-import EditFieldModal from './EditFieldModal';
-import { ColumnSkeleton, ErrorDisplay, getColumnIcon } from '@/util';
-import CriarRegistroNovo from './criar-registro';
-import ModalAutoCreate from './ModalIntermediario';
-import usePersistedState from '@/hook/localStoreUse';
+  CampoDetalhado,
+  EditedFieldForQuery,
+  FieldDDLRequestPayload,
+  MetadataTableResponse,
+  TableColumnsDisplayProps,
+} from "@/types";
+import { useTableColumns } from "@/hook/useTable";
+import { ColumnSkeleton, ErrorDisplay } from "@/util";
+import CriarRegistroNovo from "./criar-registro";
+import ModalAutoCreate from "./ModalIntermediario";
+import usePersistedState from "@/hook/localStoreUse";
+import { FilterableGrid } from "./columns-displayComponent/FilterableGrid";
+import { FormatoRelatorio, useRelatorioAvancado } from "../services/useRelatorio";
+import { RelatorioPayload } from "@/hook/useRelatorio";
+import { FORMATS, ReportButton } from "../services/ReportButton";
+import { useI18n } from "@/context/I18nContext";
+import { themeClassesMap } from "@/constant";
+import { useSession } from "@/context/SessionContext";
+import FieldModal from "./fieldModalComponent/EditFieldModal";
 
+type TypesAlert = "success" | "error" | "info";
+type AlertState = { type: TypesAlert; message: string } | null;
+
+function extractApiErrorMessage(err: any): string {
+  const axiosMsg =
+    err?.response?.data?.detail ||
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    err?.message;
+
+  if (typeof axiosMsg === "string" && axiosMsg.trim()) return axiosMsg;
+
+  try {
+    return JSON.stringify(err?.response?.data || err);
+  } catch {
+    return "Erro inesperado ao comunicar com a API.";
+  }
+}
 
 const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
+  names_caches_value,
   tableNames,
   columns,
+  setColumns,
   className = "",
   isLoading = false,
   setIsLoading,
   tabelaExistenteNaDB,
   error,
-  theme = 'light',
-  showSearch = true,
-  showFilter = true,
-  showSort = true,
-  showExport = true,
+  theme = "light",
   itemsPerPage = 12,
   onColumnClick,
   setSelect,
-  select
+  select,
 }) => {
-  const [isDarkMode, setIsDarkMode] = usePersistedState<boolean>("_theme",theme === 'dark');
-  const currentTheme = isDarkMode ? 'dark' : 'light';
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { t } = useI18n();
+  const { api } = useSession();
+
+  // ✅ garante select sempre como array
+  const safeSelect = useMemo(() => (Array.isArray(select) ? select : []), [select]);
+
+  // Dark Mode
+  const [isDarkMode, setIsDarkMode] = usePersistedState<boolean>(names_caches_value._thema, theme === "dark");
+  const currentTheme = isDarkMode ? "dark" : "light";
+
+  useEffect(() => {
+    if (isDarkMode) document.documentElement.classList.add("dark");
+    else document.documentElement.classList.remove("dark");
+  }, [isDarkMode]);
+
   const [openIntermediario, setOpenIntermediario] = useState(false);
-  const [modalCreateOpen, setModalCreateOpen] = usePersistedState<boolean>("_modal_Create_Open",false);
-  const [selectedColumn, setSelectedColumn] = useState<CampoDetalhado & { tableName: string } | null>(null);
+  const [modalCreateOpen, setModalCreateOpen] = usePersistedState<boolean>(names_caches_value._modal_Create_Open, false);
+
+  // ✅ coluna atualmente selecionada/ativa
+  const [selectedColumn, setSelectedColumn] = useState<(CampoDetalhado & { tableName: string }) | null>(null);
+
+  const [showFilters, setShowFilters] = usePersistedState<boolean>(names_caches_value.consulta_showFilterColunas, false);
   const [hydrated, setHydrated] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // ✅ ALERTAS INLINE
+  const [alert, setAlert] = useState<AlertState>(null);
+  const alertTimerRef = useRef<number | null>(null);
+
+  const showAlert = useCallback((type: TypesAlert, message: string) => {
+    setAlert({ type, message });
+
+    if (alertTimerRef.current) {
+      window.clearTimeout(alertTimerRef.current);
+      alertTimerRef.current = null;
+    }
+
+    alertTimerRef.current = window.setTimeout(() => setAlert(null), 4500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (alertTimerRef.current) window.clearTimeout(alertTimerRef.current);
+    };
+  }, []);
+
+  // Relatório
+  const {
+    gerarRelatorio,
+    cancelarGeracao,
+    isLoading: isLoadingRelatorio,
+    error: errorRelatorio,
+    success: successRelatorio,
+    progress: progressRelatorio,
+    tempoEstimado,
+    dadosRelatorio,
+    reset: resetRelatorio,
+  } = useRelatorioAvancado<MetadataTableResponse[]>();
+
   useEffect(() => setHydrated(true), []);
 
   const {
@@ -55,24 +129,25 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     setSortOrder,
     currentPage,
     setCurrentPage,
-    filteredAndSortedColumns
+    filteredAndSortedColumns,
   } = useTableColumns(columns);
 
-  // Memoize cálculos derivados
+  // ✅ modal 3-em-1
+  const [fieldModalOpen, setFieldModalOpen] = useState(false);
+  const [fieldModalMode, setFieldModalMode] = useState<"create" | "edit">("edit");
+  const [selectedTableForCreate, setSelectedTableForCreate] = useState<string>("");
+
   const totalPages = useMemo(
     () => Math.ceil(filteredAndSortedColumns.length / itemsPerPage),
     [filteredAndSortedColumns, itemsPerPage]
   );
 
-  const getColumnCount = useMemo(() => {
-    return filteredAndSortedColumns.length;
-  }, [filteredAndSortedColumns.length]);
+  const themeClasses = themeClassesMap[currentTheme === "dark" ? "dark" : "light"];
+
+  const getColumnCount = useMemo(() => filteredAndSortedColumns.length, [filteredAndSortedColumns.length]);
 
   const paginatedColumns = useMemo(
-    () => filteredAndSortedColumns.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    ),
+    () => filteredAndSortedColumns.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
     [filteredAndSortedColumns, currentPage, itemsPerPage]
   );
 
@@ -81,422 +156,610 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     [columns]
   );
 
-  // Callbacks memoizados
-  const handleColumnClick = useCallback((col: CampoDetalhado & { tableName: string }) => {
-    setIsLoading?.(true);
-    setSelectedColumn(col);
-    setIsModalOpen(true);
-    onColumnClick?.(col);
-    setIsLoading?.(false);
-  }, [setIsLoading, onColumnClick]);
+  // ✅ clicar numa coluna abre EDIT na modal
+  const handleColumnClick = useCallback(
+    (col: CampoDetalhado & { tableName: string }) => {
+      setSelectedColumn(col);
+      setFieldModalMode("edit");
+      setFieldModalOpen(true);
+      onColumnClick?.(col);
+    },
+    [onColumnClick]
+  );
 
-  const handleColumnSelect = useCallback((col: CampoDetalhado & { tableName: string }, event: React.MouseEvent) => {
-    event.stopPropagation();
-    const columnKey = `${col.tableName}.${col.nome}`;
-    const newSelected = new Set(select);
+  const handleColumnSelect = useCallback(
+    (col: CampoDetalhado & { tableName: string }, event: React.MouseEvent) => {
+      event.stopPropagation();
+      const columnKey = `${col.tableName}.${col.nome}`;
+      const newSelected = new Set(safeSelect);
 
-    if (newSelected.has(columnKey)) {
-      newSelected.delete(columnKey);
-    } else {
-      newSelected.add(columnKey);
-    }
-    setSelect?.(Array.from(newSelected));
-  }, [select, setSelect]);
+      if (newSelected.has(columnKey)) newSelected.delete(columnKey);
+      else newSelected.add(columnKey);
 
-  const isColumnSelected = useCallback((col: CampoDetalhado & { tableName: string }) => {
-    if (!select) return false;
-    return select.includes(`${col.tableName}.${col.nome}`);
-  }, [select]);
+      setSelect?.(Array.from(newSelected));
+    },
+    [safeSelect, setSelect]
+  );
+
+  const isColumnSelected = useCallback(
+    (col: CampoDetalhado & { tableName: string }) => safeSelect.includes(`${col.tableName}.${col.nome}`),
+    [safeSelect]
+  );
 
   const handleSelectAll = useCallback(() => {
-    const allKeys = filteredAndSortedColumns.map(col => `${col.tableName}.${col.nome}`);
-    const allSelected = allKeys.every(key => select.includes(key));
+    const allKeys = filteredAndSortedColumns.map((col) => `${col.tableName}.${col.nome}`);
+    const allSelected = allKeys.every((key) => safeSelect.includes(key));
     setSelect?.(allSelected ? [] : allKeys);
-  }, [filteredAndSortedColumns, select, setSelect]);
+  }, [filteredAndSortedColumns, safeSelect, setSelect]);
 
-  const handleSave = useCallback((updatedField: CampoDetalhado) => {
-    console.log("Campo atualizado:", updatedField);
-  }, []);
+  // ============================================================
+  // ✅ Helpers de metadata / tabela
+  // ============================================================
 
-  const themeClasses = themeClassesMap[currentTheme === 'dark' ? 'dark' : 'light'];
+  const resolveTableInfo = useCallback(
+    (tableName: string) => {
+      const tn = (tableName || "").trim();
+      if (!tn) return null;
+
+      const lastPart = tn.includes(".") ? tn.split(".").pop()! : tn;
+
+      const found =
+        columns?.find((t) => t.table_name === tn) ||
+        columns?.find((t) => `${t.schema_name}.${t.table_name}` === tn) ||
+        columns?.find((t) => t.table_name === lastPart);
+
+      return found || null;
+    },
+    [columns]
+  );
+
+  const buildDDLRequestFromField = useCallback(
+    (f: CampoDetalhado & { tableName: string }, opts?: { original_name?: string }): FieldDDLRequestPayload => {
+      const tableInf = resolveTableInfo(f.tableName);
+      if (!tableInf?.table_name) throw new Error(`Tabela não encontrada no metadata: '${f.tableName}'`);
+      if (!tableInf?.connection_id) throw new Error("connection_id não encontrado para esta tabela.");
+
+      // 🔥 MELHORIA: Variável para validar se realmente é uma FK antes de enviar
+      const isFk = !!(f.referenced_table && f.field_references);
+
+      const payload: FieldDDLRequestPayload = {
+        connection_id: tableInf.connection_id,
+        schema_name: tableInf.schema_name || null,
+        table_name: tableInf.table_name,
+        name: f.nome,
+        type: String(f.tipo || "").toUpperCase(),
+
+        // 🔥 ADEUS 'any'! O TypeScript agora reconhece todos estes campos nativamente
+        length: f.length ?? null,
+        precision: f.precision ?? null,
+        scale: f.scale ?? null,
+
+        is_nullable: !!f.is_nullable,
+        is_unique: !!f.is_unique,
+        is_primary_key: !!f.is_primary_key,
+        is_auto_increment: !!f.is_auto_increment,
+        is_unsigned: !!f.is_unsigned,
+
+        default_value: f.default ?? null,
+        comment: f.comentario ?? null,
+        enum_values: f.enum_valores_encontrados || [],
+
+        // Limpa os dados se não for uma FK válida
+        referenced_table: isFk ? f.referenced_table! : null,
+        referenced_field: isFk ? f.field_references! : null,
+        is_foreign_key: isFk,
+        fk_on_delete: isFk ? (f.on_delete_action || "NO ACTION") : "NO ACTION",
+        fk_on_update: isFk ? (f.on_update_action || "NO ACTION") : "NO ACTION",
+      };
+
+      if (opts?.original_name) payload.original_name = opts.original_name;
+      return payload;
+    },
+    [resolveTableInfo]
+  );
+
+  // ============================================================
+  // ✅ CRUD DDL com tratamento de erros
+  // ============================================================
+
+  const withLoading = useCallback(
+    async <T,>(fn: () => Promise<T>) => {
+      setIsLoading?.(true);
+      try {
+        return await fn();
+      } finally {
+        setIsLoading?.(false);
+      }
+    },
+    [setIsLoading]
+  );
+
+  const createColumn = useCallback(
+    async (field: CampoDetalhado & { tableName: string }) => {
+      try {
+        await withLoading(async () => {
+          const payload = buildDDLRequestFromField(field);
+          await api.post(`/database/field/`, payload);
+
+          showAlert("success", `Coluna '${payload.name}' criada em ${payload.table_name}.`);
+          window.dispatchEvent(new CustomEvent("schema:changed", { detail: { table: field.tableName } }));
+
+          setColumns?.((prevColumns) =>
+            prevColumns.map((c) =>
+              c.table_name === field.tableName
+                ? { ...c, colunas: [...c.colunas, field] }
+                : c
+            )
+          );
+        });
+      } catch (err: unknown) {
+        // 🔥 MELHORIA: Uso de 'unknown' em vez de 'any'
+        const msg = extractApiErrorMessage(err);
+        showAlert("error", msg);
+        console.error("createColumn error:", err);
+        throw err;
+      }
+    },
+    [api, buildDDLRequestFromField, showAlert, withLoading, setColumns]
+  );
+
+  const updateColumn = useCallback(
+    async (originalName: string, updated: CampoDetalhado & { tableName: string }) => {
+      await withLoading(async () => {
+        const payload = buildDDLRequestFromField(updated, { original_name: originalName });
+        await api.put(`/database/field/${encodeURIComponent(originalName)}`, payload);
+
+        const renamed = originalName !== payload.name;
+        showAlert(
+          "success",
+          renamed
+            ? `Coluna '${originalName}' renomeada para '${payload.name}'.`
+            : `Coluna '${payload.name}' atualizada com sucesso.`
+        );
+
+        window.dispatchEvent(new CustomEvent("schema:changed", { detail: { table: updated.tableName } }));
+        setColumns?.(columns?.map((c) => {
+          if (c.table_name === updated.tableName) {
+            return {
+              ...c,
+              colunas: c.colunas.map((col) => col.nome === originalName ? { ...col, ...updated } : col)
+            };
+          }
+          return c;
+        }) || []);
+      }).catch((err) => {
+        const msg = extractApiErrorMessage(err);
+        showAlert("error", msg);
+        console.error("updateColumn error:", err);
+        throw err;
+      });
+    },
+    [api, buildDDLRequestFromField, showAlert, withLoading]
+  );
+
+  const deleteColumn = useCallback(
+    async (tableName: string, columnName: string) => {
+      await withLoading(async () => {
+        const tableInf = resolveTableInfo(tableName);
+        if (!tableInf?.connection_id) throw new Error("connection_id não encontrado para esta tabela.");
+        if (!tableInf?.table_name) throw new Error("table_name não encontrado para esta tabela.");
+
+        const qs = new URLSearchParams();
+        qs.set("connection_id", String(tableInf.connection_id));
+        if (tableInf.schema_name) qs.set("schema_name", tableInf.schema_name);
+
+        await api.delete(
+          `/database/field/${encodeURIComponent(tableInf.table_name)}/${encodeURIComponent(columnName)}?${qs.toString()}`
+        );
+
+        showAlert("success", `Coluna '${columnName}' removida de ${tableInf.table_name}.`);
+        window.dispatchEvent(new CustomEvent("schema:changed", { detail: { table: tableName } }));
+        setColumns?.(columns?.map((c) => {
+          if (c.table_name === tableName) {
+            return {
+              ...c,
+              colunas: c.colunas.filter((col) => col.nome !== columnName)
+            };
+          }
+          return c;
+        }) || []);
+      }).catch((err) => {
+        const msg = extractApiErrorMessage(err);
+        showAlert("error", msg);
+        console.error("deleteColumn error:", err);
+        throw err;
+      });
+    },
+    [api, resolveTableInfo, showAlert, withLoading]
+  );
+
+  // ============================================================
+  // ✅ Abrir modais Create/Edit
+  // ============================================================
+
+  const openCreateColumnModal = useCallback(() => {
+    const firstTable =
+      columns?.[0]?.table_name
+        ? columns[0].schema_name
+          ? `${columns[0].schema_name}.${columns[0].table_name}`
+          : columns[0].table_name
+        : "";
+
+    if (!firstTable) {
+      showAlert("error", "Não encontrei tabela para criar coluna (metadata vazio).");
+      return;
+    }
+
+    setSelectedTableForCreate(firstTable);
+    setSelectedColumn(null);
+    setFieldModalMode("create");
+    setFieldModalOpen(true);
+  }, [columns, showAlert]);
+
+  const openEditSelectedColumnModal = useCallback(() => {
+    if (!selectedColumn) {
+      showAlert("info", "Selecione uma coluna primeiro.");
+      return;
+    }
+    setFieldModalMode("edit");
+    setFieldModalOpen(true);
+  }, [selectedColumn, showAlert]);
+
+  const handleDeleteSelectedColumn = useCallback(async () => {
+    if (!selectedColumn) return;
+
+    const ok = window.confirm(`Eliminar a coluna '${selectedColumn.nome}'? Isso é destrutivo.`);
+    if (!ok) return;
+
+    await deleteColumn(selectedColumn.tableName, selectedColumn.nome);
+    setSelectedColumn(null);
+  }, [selectedColumn, deleteColumn]);
+
+  // ============================================================
+
+  const handleGerarRelatorio = useCallback(
+    async (format: FormatoRelatorio) => {
+      if (!columns || columns.length === 0) return;
+
+      const payload: RelatorioPayload<MetadataTableResponse[]> = {
+        tipo: "metadados",
+        body: columns,
+        filtros: {
+          tabelas: tableNames,
+          totalColunas: totalCols,
+        },
+        parametros: {
+          formato: format,
+          incluirDetalhes: true,
+        },
+      };
+
+      await gerarRelatorio(payload);
+    },
+    [columns, tableNames, totalCols, gerarRelatorio]
+  );
 
   if (!hydrated) {
     return (
-      <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${className}`}>
-        <div className="text-sm opacity-50">Carregando colunas...</div>
+      <div className={`bg-white dark:bg-[#1C1C1E] rounded-lg xs:rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-3 xs:p-4 sm:p-6 ${className}`}>
+        <div className="text-xs xs:text-sm text-gray-500 dark:text-gray-400">
+          {t("common.loadingColumns") || "Carregando colunas..."}
+        </div>
       </div>
     );
   }
 
-
-  // Renderização condicional para estados
   if (error) {
     return (
-      <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${themeClasses.container} ${className}`}>
+      <div className={`bg-white dark:bg-[#1C1C1E] rounded-lg xs:rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-3 xs:p-4 sm:p-6 ${className}`}>
         <ErrorDisplay error={error} theme={currentTheme} />
       </div>
     );
   }
 
   function handleRowUpdate(updatedRow: EditedFieldForQuery): void {
-    // throw new Error('Function not implemented.');
-
-    console.log(updatedRow)
+    console.log(updatedRow);
   }
 
-  function openModalCreateNewRegister(): void {
-    setModalCreateOpen(true)
-  }
-  const handleConfirm = () => {
-    setModalCreateOpen(true); // abre a modal final de criação
-  };
+  const handleConfirm = () => setModalCreateOpen(true);
 
   return (
-    <div className={`rounded-xl shadow-sm border p-4 sm:p-6 ${themeClasses.container} ${className}`} aria-label='Exibição_de_Colunas_da_Tabela'>
-      {/* Cabeçalho com controles */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
-        <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold truncate">
-            Colunas: {tableNames}
-          </h3>
+    <div
+      className={`bg-white dark:bg-[#1C1C1E] rounded-lg xs:rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-3 xs:p-4 sm:p-5 md:p-6 transition-colors duration-300 ${className}`}
+      aria-label="Exibição_de_Colunas_da_Tabela"
+    >
+      {/* ✅ ALERTA INLINE */}
+      {alert && (
+        <div
+          className={`mb-3 xs:mb-4 sm:mb-5 p-2 xs:p-3 sm:p-4 rounded-lg xs:rounded-xl border text-xs xs:text-sm font-semibold flex items-center justify-between gap-2 xs:gap-3 animate-in fade-in slide-in-from-top ${alert.type === "success"
+            ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300"
+            : alert.type === "error"
+              ? "bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300"
+              : "bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300"
+            }`}
+        >
+          <span className="truncate flex-1">{alert.message}</span>
+          <button
+            onClick={() => setAlert(null)}
+            className="text-[10px] xs:text-[11px] uppercase tracking-wider font-bold hover:underline shrink-0 flex-shrink-0"
+          >
+            {t("actions.close") || "Fechar"}
+          </button>
+        </div>
+      )}
+
+      {/* Cabeçalho */}
+      <div className="flex flex-col gap-3 xs:gap-4 sm:gap-4 mb-4 xs:mb-5 sm:mb-6 pb-3 xs:pb-4 sm:pb-4 border-b border-gray-100 dark:border-gray-800">
+        {/* Linha 1: Nome + Tema */}
+        <div className="flex items-center justify-between gap-2 xs:gap-3">
+          <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
+            <h3 className="text-base xs:text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">
+              {t("common.columns") || "Colunas"}:
+            </h3>
+            <span className="text-xs xs:text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 xs:px-3 py-1 xs:py-1.5 rounded-md whitespace-nowrap overflow-hidden text-ellipsis flex-shrink-0 transition-colors">
+              {tableNames}
+            </span>
+          </div>
+
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`p-2 rounded-lg transition-colors ${themeClasses.button}`}
-            aria-label="Alternar tema"
+            className="p-1.5 xs:p-2 rounded-lg xs:rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-shrink-0 outline-none focus:ring-2 focus:ring-blue-500/50"
+            title={t("actions.toggleTheme") || "Alternar tema"}
+            aria-label={t("actions.toggleTheme") || "Alternar tema"}
           >
-            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {isDarkMode ? (
+              <Sun className="w-4 h-4 xs:w-4 xs:h-4" />
+            ) : (
+              <Moon className="w-4 h-4 xs:w-4 xs:h-4" />
+            )}
           </button>
         </div>
 
-        <EditFieldModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          field={selectedColumn}
-          tabelaExistenteNaDB={tabelaExistenteNaDB}
-          onSave={handleSave}
-        />
-        <ModalAutoCreate
-          isOpen={openIntermediario}
-          setModelDeCriacaoDeRegistro={handleConfirm}
-          onClose={() => setOpenIntermediario(false)}
-          onConfirm={(configs) => {
-            console.log("Config recebida do intermediário:",configs);
-          }}
-          metadataList={columns || []}
-        />
-
-        <CriarRegistroNovo
-          isOpen={modalCreateOpen}
-          onClose={() => setModalCreateOpen(false)}
-          informacaosOftables={columns || []}
-          onSave={handleRowUpdate}
-        />
-
-        <div className="flex items-center gap-2 text-sm">
-          <span className="opacity-75">
+        {/* Linha 2: Status + Menu Mobile Toggle */}
+        <div className="flex items-center justify-between gap-2 xs:gap-3">
+          <div className="flex items-center gap-2 text-xs xs:text-sm text-gray-600 dark:text-gray-400 font-medium bg-gray-50 dark:bg-gray-800 px-2 xs:px-3 py-1 xs:py-1.5 rounded-lg border border-gray-100 dark:border-gray-700 transition-colors min-w-0">
             {isLoading ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Carregando...
-              </div>
+              <>
+                <Loader2 className="w-3 xs:w-4 h-3 xs:h-4 animate-spin text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <span className="truncate">{t("common.loading") || "Carregando..."}</span>
+              </>
             ) : (
-              `${getColumnCount} de ${totalCols} colunas`
+              <>
+                <span className="truncate">{getColumnCount}</span>
+                <span className="hidden xs:inline text-gray-500 dark:text-gray-500">/</span>
+                <span className="hidden xs:inline truncate">{totalCols}</span>
+              </>
             )}
-          </span>
 
-          {select.length > 0 && (
-            <span className="text-blue-500 font-medium">
-              ({select.length} selecionadas)
-            </span>
+            {safeSelect.length > 0 && (
+              <span className="text-blue-600 dark:text-blue-400 ml-1 border-l border-gray-300 dark:border-gray-600 pl-1 xs:pl-2 whitespace-nowrap text-xs">
+                {safeSelect.length} ✓
+              </span>
+            )}
+          </div>
+
+          {/* Mobile Menu Toggle */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-1.5 xs:p-2 rounded-lg xs:rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-shrink-0"
+            title={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+            aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+          >
+            {mobileMenuOpen ? (
+              <X className="w-4 h-4 xs:w-4 xs:h-4" />
+            ) : (
+              <Filter className="w-4 h-4 xs:w-4 xs:h-4" />
+            )}
+          </button>
+        </div>
+
+        {/* Linha 3: Botões (Desktop ou Mobile Expandido) */}
+        <div
+          className={`flex flex-wrap items-center gap-2 xs:gap-2 sm:gap-3 transition-all duration-200 ${mobileMenuOpen ? "flex" : "hidden md:flex"
+            }`}
+        >
+          {columns && columns.length > 0 && (
+            <ReportButton
+              onGenerate={handleGerarRelatorio}
+              formats={FORMATS}
+              hasResults={true}
+              isLoading={isLoadingRelatorio}
+            />
           )}
 
-          {showExport && columns && (
+          {columns && columns.length > 0 && (
             <button
-              onClick={() => quickExportToCsv(filteredAndSortedColumns, tabelaExistenteNaDB.join("_"))}
-              className={`p-2 rounded-lg transition-colors ${themeClasses.button}`}
-              title="Exportar CSV"
+              onClick={() => setOpenIntermediario(true)}
+              className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-blue-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              title={t("actions.newRecord") || "Criar novo registro"}
             >
-              <Download className="w-4 h-4" />
+              <Plus className="w-3.5 xs:w-4 h-3.5 xs:h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">{t("actions.newRecord") || "Novo Registro"}</span>
+              <span className="sm:hidden">{t("actions.new") || "Novo"}</span>
             </button>
           )}
 
-          {(columns && columns.length > 0) && (
-            <>
-              <button
-                onClick={() => setOpenIntermediario(true)}
-                className={`
-        group relative px-4 py-2 rounded-lg font-medium text-sm
-        bg-gradient-to-r from-blue-500 to-blue-600 
-        hover:from-blue-600 hover:to-blue-700
-        text-white shadow-lg hover:shadow-xl
-        transform hover:scale-105 active:scale-95
-        transition-all duration-200 ease-in-out
-        flex items-center gap-2
-        border-0 outline-none focus:ring-4 focus:ring-blue-200
-        ${themeClasses.button}
-      `}
-                title="Criar novo registro"
-              >
-                <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
-                <span className="hidden sm:inline font-semibold">Novo Registro</span>
-                <span className="sm:hidden font-semibold">Novo</span>
+          {/* ✅ Criar coluna */}
+          <button
+            onClick={openCreateColumnModal}
+            className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-emerald-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            title={t("actions.addColumn") || "Criar nova coluna"}
+          >
+            <Plus className="w-3.5 xs:w-4 h-3.5 xs:h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">{t("actions.addColumn") || "Coluna"}</span>
+            <span className="sm:hidden">+Col</span>
+          </button>
 
-                {/* Efeito de brilho sutil */}
-                <div className="absolute inset-0 rounded-lg bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-              </button>
-            </>
+          {/* ✅ Eliminar selecionada */}
+          {selectedColumn && (
+            <button
+              onClick={handleDeleteSelectedColumn}
+              className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-red-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+              title={t("actions.delete") || "Eliminar coluna selecionada"}
+            >
+              <span className="hidden xs:inline">{t("actions.delete") || "Eliminar"}</span>
+              <span className="xs:hidden">Del</span>
+            </button>
           )}
 
+          {/* ✅ Editar selecionada */}
+          {selectedColumn && (
+            <button
+              onClick={openEditSelectedColumnModal}
+              className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-blue-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              title={t("actions.edit") || "Editar coluna selecionada"}
+            >
+              <span className="hidden xs:inline">{t("actions.edit") || "Editar"}</span>
+              <span className="xs:hidden">✎</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowFilters((prev) => !prev)}
+            className={`flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl flex items-center justify-center gap-1.5 xs:gap-2 transition-colors border focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${showFilters
+              ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
+              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700"
+              }`}
+            title={showFilters ? "Esconder filtros" : "Mostrar filtros"}
+          >
+            <Filter size={16} className="flex-shrink-0" />
+            <span className="hidden sm:inline">
+              {showFilters
+                ? t("actions.hideFilters") || "Esconder"
+                : t("actions.showFilters") || "Filtros"}
+            </span>
+          </button>
         </div>
       </div>
 
-      {/* Controles de busca e filtro */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        {showSearch && (
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 opacity-50" />
-            <input
-              type="text"
-              placeholder="Buscar colunas..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2 rounded-lg border transition-colors ${themeClasses.input}`}
+      {/* Modal 3-em-1 */}
+      <FieldModal
+        key={`${fieldModalMode}-${fieldModalMode === "create" ? selectedTableForCreate : selectedColumn?.tableName}-${selectedColumn?.nome || "new"}`}
+        isOpen={fieldModalOpen}
+        mode={fieldModalMode}
+        field={selectedColumn}
+        tableName={fieldModalMode === "create" ? selectedTableForCreate : selectedColumn?.tableName}
+        tabelaExistenteNaDB={tabelaExistenteNaDB}
+        onClose={() => setFieldModalOpen(false)}
+        onCreate={async (newField) => {
+          await createColumn(newField);
+        }}
+        onUpdate={async (updated) => {
+          if (!selectedColumn) throw new Error("Coluna original não definida.");
+          await updateColumn(selectedColumn.nome, updated);
+        }}
+        onDelete={async ({ tableName, columnName }) => {
+          await deleteColumn(tableName, columnName);
+        }}
+      />
+
+      {/* Modais existentes */}
+      <ModalAutoCreate
+        isOpen={openIntermediario}
+        setModelDeCriacaoDeRegistro={handleConfirm}
+        onClose={() => setOpenIntermediario(false)}
+        onConfirm={(configs) => console.log("Config recebida do intermediário:", configs)}
+        metadataList={columns || []}
+      />
+
+      <CriarRegistroNovo
+        isOpen={modalCreateOpen}
+        onClose={() => setModalCreateOpen(false)}
+        informacaosOftables={columns || []}
+        onSave={handleRowUpdate}
+      />
+
+      {/* Alertas do Relatório */}
+      {isLoadingRelatorio && (
+        <div className="mb-4 xs:mb-5 sm:mb-6 p-3 xs:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg xs:rounded-xl transition-colors">
+          <div className="flex flex-col xs:flex-row justify-between xs:items-center text-xs xs:text-sm font-bold text-blue-800 dark:text-blue-300 gap-2 xs:gap-3 mb-2 xs:mb-3">
+            <span>{t("reports.generating") || "Gerando relatório PDF..."} ({progressRelatorio}%)</span>
+            <span className="whitespace-nowrap">
+              {t("reports.estimatedTime") || "Tempo estimado"}: {tempoEstimado}s
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 dark:bg-blue-950 rounded-full h-2 mb-2 xs:mb-3">
+            <div
+              className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progressRelatorio}%` }}
             />
           </div>
-        )}
-
-        {showFilter && (
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value as FilterType)}
-            className={`px-4 py-2 rounded-lg border transition-colors ${themeClasses.input}`}
-          >
-            {FILTER_OPTIONS.map((option, index) => (
-              <option key={option.value + index} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {showSort && (
-          <div className="flex gap-2">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'nome' | 'tipo')}
-              className={`px-4 py-2 rounded-lg border transition-colors ${themeClasses.input}`}
-            >
-              <option value="nome">Nome</option>
-              <option value="tipo">Tipo</option>
-            </select>
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className={`p-2 rounded-lg transition-colors ${themeClasses.button}`}
-              title={`Ordenar ${sortOrder === 'asc' ? 'decrescente' : 'crescente'}`}
-            >
-              <ArrowUpDown className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Botão selecionar todos */}
-        {filteredAndSortedColumns.length > 0 && (
           <button
-            onClick={handleSelectAll}
-            className={`px-4 py-2 rounded-lg border transition-colors ${themeClasses.selectButton}`}
-            title={select.length === filteredAndSortedColumns.length ? 'Desmarcar todos' : 'Selecionar todos'}
+            onClick={cancelarGeracao}
+            className="text-[10px] xs:text-[11px] uppercase tracking-wider font-bold text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors focus:outline-none"
           >
-            {select.length === filteredAndSortedColumns.length ? 'Desmarcar todos' : 'Selecionar todos'}
+            {t("actions.cancel") || "Cancelar"}
           </button>
-        )}
-      </div>
-
-      {/* Grid de colunas */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <ColumnSkeleton key={i} theme={currentTheme} />
-          ))}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-3  md:grid-cols-2 ">
-          {paginatedColumns.map((column, index) => {
-            const isSelected = isColumnSelected(column);
-
-            return (
-              <div
-                key={`${column.nome}-${index}-pa`}
-                onClick={() => handleColumnClick(column)}
-                className={`relative p-3 rounded-lg border transition-all duration-200 cursor-pointer 
-          focus:outline-none focus:ring-2 focus:ring-blue-400
-          ${isSelected ? themeClasses.cardSelected : themeClasses.card}
-          ${onColumnClick ? 'hover:shadow-md hover:scale-[1.02]' : ''}
-        `}
-                role="button"
-                tabIndex={0}
-                aria-pressed={isSelected}
-                aria-label={`Coluna ${column.nome}`}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    onColumnClick?.(column);
-                  }
-                }}
-              >
-                {/* Checkbox de seleção */}
-                <div
-                  className="absolute top-2 right-2 z-10"
-                  onClick={(e) => handleColumnSelect(column, e)}
-                >
-                  <div
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer
-              ${isSelected
-                        ? currentTheme === 'dark'
-                          ? 'bg-blue-600 border-blue-600'
-                          : 'bg-blue-500 border-blue-500'
-                        : currentTheme === 'dark'
-                          ? 'border-gray-500 hover:border-blue-500 bg-gray-800'
-                          : 'border-gray-300 hover:border-blue-400 bg-white'
-                      }`}
-                  >
-                    {isSelected && <Check className="w-3 h-3 text-white" />}
-                  </div>
-                </div>
-
-                {/* Indicador visual de seleção */}
-                {isSelected && (
-                  <div
-                    className={`absolute top-0 left-0 w-full h-1 rounded-t-lg 
-              ${currentTheme === 'dark' ? 'bg-blue-500' : 'bg-blue-400'}`}
-                  />
-                )}
-
-                <div className="flex items-start gap-3 pr-8">
-                  {getColumnIcon(column, currentTheme)}
-
-                  <div className="flex-1 min-w-0">
-                    {/* Nome da coluna */}
-                    <div className="flex items-center gap-2 mb-1">
-                      <span
-                        className="font-medium truncate"
-                        title={column.nome}
-                      >
-                        {column.nome}
-                      </span>
-                      {column.is_primary_key && (
-                        <Key
-                          className="w-3 h-3 text-yellow-500 flex-shrink-0"
-                          aria-label="Chave primária"
-                        />
-                      )}
-                    </div>
-
-                    {/* Tipo + Nullability */}
-                    <div className="flex flex-wrap items-center gap-2 text-xs mb-1">
-                      <span
-                        className={`font-mono px-1.5 py-0.5 rounded truncate max-w-[120px] sm:max-w-[80px] 
-      ${currentTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}
-                        title={column.tipo.toUpperCase()}
-                      >
-                        {column.tipo.toUpperCase()}
-                      </span>
-                      {column.is_nullable ? (
-                        <span className="text-green-500 flex items-center gap-1 sm:text-[10px]">
-                          <CheckCircle className="w-3 h-3 sm:w-2 sm:h-2" />
-                          NULL
-                        </span>
-                      ) : (
-                        <span className="text-red-500 flex items-center gap-1 sm:text-[10px]">
-                          <XCircle className="w-3 h-3 sm:w-2 sm:h-2" />
-                          NOT NULL
-                        </span>
-                      )}
-                    </div>
-
-
-                    {/* Valor padrão */}
-                    {column.default != null && (
-                      <div className="text-xs opacity-75 mb-1 break-words">
-                        <span className="mr-1">Padrão:</span>
-                        <code
-                          className={`px-1 py-0.5 rounded font-mono text-xs break-all 
-                    ${currentTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}
-                        >
-                          {String(column.default)}
-                        </code>
-                      </div>
-                    )}
-
-                    {/* ENUM valores */}
-                    {column.enum_valores_encontrados && column.enum_valores_encontrados.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {column.enum_valores_encontrados.map((valor, idx) => (
-                          <span
-                            key={`${valor}-${idx}-enum`}
-                            className="text-xs sm:text-[10px] bg-blue-100 dark:bg-blue-900 
-                 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded font-mono truncate max-w-[100px]"
-                            title={valor}
-                          >
-                            {valor}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Foreign Key */}
-                    {column.is_foreign_key && (
-                      <span className="text-xs text-green-500 flex items-center gap-1 mt-1">
-                        <Lock className="w-3 h-3" />
-                        {column.referenced_table} - {column.field_references}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
       )}
 
-      {/* Paginação */}
-      {totalPages > 1 && !isLoading && (
-        <div className="flex items-center justify-center gap-2 mt-6">
-          <button
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${themeClasses.button}`}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          <span className="text-sm opacity-75">
-            Página {currentPage} de {totalPages}
+      {successRelatorio && (
+        <div className="mb-4 xs:mb-5 sm:mb-6 p-3 xs:p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg xs:rounded-xl flex flex-col xs:flex-row justify-between xs:items-center gap-2 xs:gap-3 transition-colors">
+          <span className="text-green-800 dark:text-green-300 text-xs xs:text-sm font-bold">
+            ✅ {t("reports.success") || "Relatório gerado com sucesso!"}
+            {dadosRelatorio?.geradoEm && ` (${new Date(dadosRelatorio.geradoEm).toLocaleTimeString()})`}
           </span>
-
           <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-            className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${themeClasses.button}`}
+            onClick={resetRelatorio}
+            className="text-green-800 dark:text-green-300 text-[10px] xs:text-[11px] uppercase tracking-wider font-bold hover:underline focus:outline-none"
           >
-            <ChevronRight className="w-4 h-4" />
+            {t("actions.close") || "Fechar"}
           </button>
         </div>
       )}
 
-      {/* Estado vazio */}
-      {!isLoading && filteredAndSortedColumns.length === 0 && (
-        <div className="text-center py-8 opacity-75">
-          <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>
-            {searchTerm || filterType !== 'all'
-              ? 'Nenhuma coluna encontrada com os filtros aplicados'
-              : 'Nenhuma coluna encontrada'
-            }
-          </p>
+      {errorRelatorio && (
+        <div className="mb-4 xs:mb-5 sm:mb-6 p-3 xs:p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg xs:rounded-xl flex flex-col xs:flex-row justify-between xs:items-start xs:items-center gap-2 xs:gap-3 transition-colors">
+          <span className="text-red-800 dark:text-red-300 text-xs xs:text-sm font-bold line-clamp-2">
+            ❌ {t("reports.error") || "Erro ao gerar relatório"}: {errorRelatorio}
+          </span>
+          <button
+            onClick={resetRelatorio}
+            className="text-red-800 dark:text-red-300 text-[10px] xs:text-[11px] uppercase tracking-wider font-bold hover:underline focus:outline-none whitespace-nowrap"
+          >
+            {t("actions.tryAgain") || "Tentar novamente"}
+          </button>
         </div>
+      )}
+
+      {/* Grid */}
+      {showFilters && (
+        <FilterableGrid
+          data={paginatedColumns}
+          isColumnSelected={isColumnSelected}
+          handleColumnClick={handleColumnClick}
+          handleColumnSelect={handleColumnSelect}
+          onColumnClick={onColumnClick}
+          currentTheme={currentTheme}
+          showSearch
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          showFilter
+          filterType={filterType}
+          onFilterChange={setFilterType}
+          showSort
+          sortBy={sortBy}
+          onSortByChange={setSortBy}
+          sortOrder={sortOrder}
+          onSortOrderChange={setSortOrder}
+          selectable
+          selectedKeys={safeSelect}
+          onSelectAll={handleSelectAll}
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          themeClasses={themeClasses}
+          isLoading={isLoading}
+          skeleton={<ColumnSkeleton theme={currentTheme} />}
+          emptyState={
+            <p className="text-center text-gray-500 dark:text-gray-400 py-6 xs:py-8 text-xs xs:text-sm font-medium">
+              {t("common.noColumnsFound") || "Nenhuma coluna encontrada"}
+            </p>
+          }
+        />
       )}
     </div>
   );
 };
 
-export default TableColumnsDisplay;
+export default React.memo(TableColumnsDisplay);
