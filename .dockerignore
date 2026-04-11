@@ -1,0 +1,49 @@
+# --- Dependências e Build ---
+node_modules
+.next
+out
+build
+.vercel
+dist
+
+# --- Ficheiros de Documentação e Estudo ---
+# (Tens muitos ficheiros de texto e guias na raiz)
+TAREFAS.TXT
+Discrição do projecto
+proposta de negocio
+README*.md
+doc nextjs 15
+guia_nextjs14.html
+*.png
+*.jpg
+
+# --- Logs e Cache ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.eslintcache
+
+# --- Scripts Locais e Docker ---
+.dockerignore
+dockerfile
+docker-compose.yml
+restartdocker.bat
+start.bat
+swa-cli.config.json
+azure-pipelines.yml
+
+# --- Versão e Git ---
+.git
+.github
+.gitignore
+.editorconfig
+
+# --- Ficheiros de Backup/Zip (Vi um axioCuston.zip no seu context) ---
+context/*.zip
+*.pkl
+
+# --- Configurações de IDE ---
+.vscode
+.idea
+*.swp

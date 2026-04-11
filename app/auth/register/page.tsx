@@ -31,7 +31,7 @@ const RegisterPage = () => {
     confirmPassword: '',
     terms: false
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -41,8 +41,8 @@ const RegisterPage = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, type } = e.target;
-    const value = type === 'checkbox' 
-      ? (e.target as HTMLInputElement).checked 
+    const value = type === 'checkbox'
+      ? (e.target as HTMLInputElement).checked
       : e.target.value;
 
     if (name.startsWith('companyData.')) {
@@ -68,9 +68,9 @@ const RegisterPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.firstName || !formData.lastName || !formData.email || 
-        !formData.companyData.company || !formData.companyData.companySize ||
-        !formData.password || !formData.confirmPassword) {
+    if (!formData.firstName || !formData.lastName || !formData.email ||
+      !formData.companyData.company || !formData.companyData.companySize ||
+      !formData.password || !formData.confirmPassword) {
       setError(t('auth.errorFields'));
       return;
     }
@@ -121,12 +121,13 @@ const RegisterPage = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-1">DataSmart</h1>
           <p className="text-gray-500 text-sm font-medium">{t('auth.createAccountSubtitle')}</p>
         </div>
-
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
+          crossOrigin="anonymous"></script>
         {error && <div className="mb-6"><Alert type='error' message={error} /></div>}
         {success && <div className="mb-6"><Alert type='success' message={success} /></div>}
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          
+
           {/* Seção: Informações Pessoais */}
           <section className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
             <div className="flex items-center gap-2 mb-6 pb-2 border-b border-gray-200/50">

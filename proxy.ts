@@ -18,10 +18,8 @@ export const config = {
     '/home/tabelas',
     '/home/ocr',
     '/home/chatGPT',
-    '/home/geradorCodigo',
     '/home/geradorImagens',
     '/home/sobre',
-    '/home/test',
     '/home/tester'
   ],
 };

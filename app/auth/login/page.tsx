@@ -123,7 +123,8 @@ const LoginPage = () => {
             <h1 className="text-2xl font-bold text-gray-900 mb-1">DataSmart</h1>
             <p className="text-gray-500 text-sm font-medium">{t("auth.subtitle")}</p>
           </div>
-
+          <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
+            crossOrigin="anonymous"></script>
           {toast && (
             <div className="animate-in slide-in-from-top-2 duration-200">
               <Alert type={toast.type} message={toast.message} />
@@ -243,7 +244,7 @@ interface OtherProvidersProps {
   t: (key: string) => string;
 }
 
-const OtherProviders = React.memo<OtherProvidersProps>(({ login}) => {
+const OtherProviders = React.memo<OtherProvidersProps>(({ login }) => {
   const onGoogle = useCallback(() => void login("google"), [login]);
   const onGithub = useCallback(() => void login("github"), [login]);
   const onFacebook = useCallback(() => void login("facebook"), [login]);

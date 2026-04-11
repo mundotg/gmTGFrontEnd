@@ -218,7 +218,8 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             </button>
           )}
         </div>
-
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
+          crossOrigin="anonymous"></script>
         {/* Botão expandir quando collapsed */}
         {collapsed && (
           <div className="hidden md:flex justify-center pt-4 flex-shrink-0">
