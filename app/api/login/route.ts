@@ -37,7 +37,7 @@ export async function POST(request: Request) {
         cookieStore.set({
             name: 'bk_access_token',
             value: token,
-            httpOnly: true,
+            httpOnly: false,
             secure: false,
             sameSite: 'lax',
             path: '/',
