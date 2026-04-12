@@ -9,7 +9,7 @@ import {
   Trash2,
   Eye,
 } from "lucide-react";
-import { useSessionTask } from "../contexts/UserContext";
+import { useSession } from "@/context/SessionContext";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface PaginatedResponse<T = any> {
   items: T[];
@@ -19,12 +19,12 @@ export interface PaginatedResponse<T = any> {
   pages: number;
   search?: string;
 }
-export type TiposParametroPaginacaoGeral ="user" |
+export type TiposParametroPaginacaoGeral = "user" |
   "ActiveConnection" | "ConnectionLog" |
   "DBHealthCheck" | "QueryHistory" |
-  "DBStructure" |  "DBField" |
-  "DBEnumField" |  "DBConnection" |
-  "RefreshToken" |  "Empresa" | "Cargo"
+  "DBStructure" | "DBField" |
+  "DBEnumField" | "DBConnection" |
+  "RefreshToken" | "Empresa" | "Cargo"
 
 
 
@@ -63,7 +63,7 @@ export const PaginacaoGenerica = <T,>({
   const [limit] = useState(10);
   const [search, setSearch] = useState(Lista.search || "");
   const [searchInput, setSearchInput] = useState(Lista.search || "");
-  const { api } = useSessionTask()
+  const { api } = useSession();
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -88,7 +88,7 @@ export const PaginacaoGenerica = <T,>({
         const response = await api.get(`${apiUrl}?${params}`);
         result = response.data;
       } else {
-        const response = await api(`${apiUrl}?${params}`);
+        const response = await api.get(`${apiUrl}?${params}`);
         if (response?.status == 500) throw new Error("Erro ao buscar dados");
         result = await response.data;
       }
@@ -294,8 +294,8 @@ export const PaginacaoGenerica = <T,>({
                 key={p}
                 onClick={() => handlePageChange(p)}
                 className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${p === page
-                    ? "bg-indigo-600 text-white shadow-md"
-                    : "text-gray-700 hover:bg-gray-100"
+                  ? "bg-indigo-600 text-white shadow-md"
+                  : "text-gray-700 hover:bg-gray-100"
                   }`}
               >
                 {p}

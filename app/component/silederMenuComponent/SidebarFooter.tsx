@@ -3,7 +3,6 @@
 // ─────────────────────────────────────────────────────────────
 // Imports
 // ─────────────────────────────────────────────────────────────
-import { Usuario } from "@/context/SessionContext";
 import {
   User,
   LogOut,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import { Usuario } from "@/types";
 
 // ─────────────────────────────────────────────────────────────
 // Types

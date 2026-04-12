@@ -3,87 +3,54 @@ import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
+        // ✅ CORREÇÃO AQUI: Tipamos a variável para avisar o TypeScript
+        let credentials: { token?: string } = {};
 
-        const email = body.credenciais?.email || body.email || '';
-        const senha = body.credenciais?.senha || body.senha || '';
-
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_AUTH_URL || 'https://seu-backend.onrender.com';
-
-        const renderResponse = await fetch(`${backendUrl}/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email, senha }),
-        });
-
-        if (!renderResponse.ok) {
-            const errorText = await renderResponse.text();
-            return NextResponse.json({ error: 'Credenciais inválidas', details: errorText }, { status: renderResponse.status });
+        // 1. Tenta ler o JSON com segurança. 
+        // Se o frontend mandar a requisição completamente vazia, não vai quebrar o servidor.
+        try {
+            credentials = await request.json();
+        } catch (err) {
+            // Se cair aqui, é porque o body veio vazio. Tudo bem, seguimos em frente.
+            console.log('Body vazio recebido.');
         }
 
-        const data = await renderResponse.json();
+        const token = credentials?.token;
+        const cookieStore = await cookies();
 
-        // 🚀 A MÁGICA ACONTECE AQUI!
-        // Lemos os cabeçalhos "Set-Cookie" que o Python mandou
-        const backendCookies = renderResponse.headers.getSetCookie();
+        // 2. CENÁRIO DE LOGOUT: O token veio vazio (ou null, ou undefined)
+        if (!token) {
+            console.log('🧹 Nenhum token recebido. Apagando o cookie...', credentials);
 
-        let accessToken = '';
-        let refreshToken = '';
+            // O Next.js tem uma função própria para deletar cookies de forma segura
+            cookieStore.delete('bk_access_token');
 
-        // Procuramos os tokens no meio dos textos dos cookies do backend
-        backendCookies.forEach(cookieStr => {
-            if (cookieStr.startsWith('access_token=')) {
-                accessToken = cookieStr.split(';')[0].split('=')[1];
-            }
-            if (cookieStr.startsWith('refresh_token=')) {
-                refreshToken = cookieStr.split(';')[0].split('=')[1];
-            }
-        });
-
-        console.log('Tokens extraídos do cabeçalho:', {
-            hasAccess: !!accessToken,
-            hasRefresh: !!refreshToken
-        });
-
-        if (accessToken) {
-            const cookieStore = await cookies();
-
-            // Salva o Access Token na Vercel
-            cookieStore.set({
-                name: 'access_token',
-                value: accessToken,
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                path: '/',
-                maxAge: 60 * 15, // 15 minutos
+            // Retornamos sucesso (Status 200), pois apagar o cookie deu certo!
+            return NextResponse.json({
+                success: true,
+                message: 'Sessão encerrada e cookie apagado.'
             });
-
-            // Salva o Refresh Token na Vercel
-            if (refreshToken) {
-                cookieStore.set({
-                    name: 'refresh_token',
-                    value: refreshToken,
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
-                    sameSite: 'lax',
-                    path: '/',
-                    maxAge: 60 * 60 * 24 * 7, // 7 dias
-                });
-            }
         }
 
-        console.log('✅ Login bem-sucedido via Proxy. Cookies definidos.');
+        // 3. CENÁRIO DE LOGIN: O token chegou perfeitamente
+        console.log('🔍 Salvando novo token no cookie...');
+        cookieStore.set({
+            name: 'bk_access_token',
+            value: token,
+            httpOnly: true,
+            secure: false,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7, // 7 dias
+        });
 
         return NextResponse.json({
             success: true,
-            user: data.user || data // Previne erros caso a estrutura do JSON mude
+            message: 'Recebido e salvo no servidor com sucesso!',
         });
 
     } catch (error) {
-        console.error('💥 Erro fatal no proxy:', error);
-        return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+        console.error('Erro fatal na rota de sessão:', error);
+        return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
     }
 }

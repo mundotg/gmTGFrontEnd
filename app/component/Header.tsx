@@ -16,7 +16,7 @@ export default function Header() {
             {t("header.platformType") || "Data Pipeline and Analytics Platform"}
           </span>
         </h2>
-        
+
         <p className="text-base text-gray-600 leading-relaxed max-w-5xl">
           {t("header.desc.part1") || "Projeto end-to-end que integra "}
           <strong className="font-semibold text-gray-900">

@@ -1,12 +1,14 @@
 import { useCallback } from "react";
-import { useSessionTask } from "../contexts/UserContext";
+// import { useSessionTask } from "../contexts/UserContext";
 import { PaginatedResponse } from "../components/Paginacao";
-import { Sprint, Usuario } from "../types";
+import { Sprint } from "../types";
+import { useSession } from "@/context/SessionContext";
+import { Usuario } from "@/types";
 
 // Custom hook for data fetching with pagination
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const useTaskModalData = (projectId?: string, editingTask?: any) => {
-    const { api } = useSessionTask();
+    const { api } = useSession();
 
     // Função para buscar sprints com paginação
     const fetchSprints = useCallback(async (page: number, search: string) => {
@@ -17,7 +19,7 @@ export const useTaskModalData = (projectId?: string, editingTask?: any) => {
                 limit: "20",
             });
             console.log("projectId: ", projectId)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const filtro: Record<string, any> = {
                 "project_id": projectId || editingTask?.project_id
             };
@@ -43,7 +45,7 @@ export const useTaskModalData = (projectId?: string, editingTask?: any) => {
             console.error("Erro ao buscar sprints:", err);
             return { options: [], hasMore: false, total: 0 };
         }
-    }, [ projectId, editingTask?.project_id]);
+    }, [projectId, editingTask?.project_id]);
 
     // Função para buscar usuários com paginação
     const fetchUsers = useCallback(async (page: number, search: string) => {

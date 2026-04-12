@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
-import { FilterType, CampoDetalhado, MetadataTableResponse } from "@/types";
-import { FILTER_TYPE_MAP } from "@/constant";
+import { CampoDetalhado, MetadataTableResponse } from "@/types";
+import { FILTER_TYPE_MAP, FilterType } from "@/constant";
 
 export const useTableColumns = (tables: MetadataTableResponse[] | undefined) => {
   const [searchTerm, setSearchTerm] = useState('');

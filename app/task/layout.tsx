@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import "../globals.css";
 import AuthProvider from "@/app/component/provader";
-import { SessionProvider } from "./contexts/UserContext";
+import { SessionProvider } from "@/context/SessionContext";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "test",
+  title: "project Manager",
+  description: "Gerencie suas tarefas de forma eficiente",
 };
 
 export default function RootLayout({

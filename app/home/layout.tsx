@@ -5,8 +5,8 @@ import Sidebar from "../component/Sidebar";
 
 
 export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "test",
+  title: "MustaInf plataforma",
+  description: "Uma plataforma completa para gerir a sua infraestrutura de dados.",
 };
 
 export default function RootLayout({

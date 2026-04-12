@@ -9,6 +9,7 @@ import {
   Terminal, Network, History, LifeBuoy, Rocket, Layers,
   LayoutDashboard, Users, Radio, ScanText, LogOut, ChevronRight
 } from "lucide-react";
+import Script from "next/script";
 
 export default function HomePage() {
   const { t } = useI18n();
@@ -74,8 +75,12 @@ export default function HomePage() {
               {t("nav.brandName") || "Brain DB"}
             </span>
           </div>
-          <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
-            crossOrigin="anonymous"></script>
+          <Script
+            id="adsense-script-2"
+            strategy="lazyOnload"
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
+            crossOrigin="anonymous"
+          />
           <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-6">
               <Link href="/task" className="text-sm font-bold text-gray-500 hover:text-blue-600 transition-colors">

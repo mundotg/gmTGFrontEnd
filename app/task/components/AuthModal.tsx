@@ -10,10 +10,23 @@ interface AuthModalProps {
     onRegister: (userData: UsuarioTaskCreate) => Promise<void>;
 }
 
-/**
- * Modal de autenticação (login e cadastro)
- * Usa o componente Modal genérico
- */
+// 1. MELHORIA: Dados estáticos movidos para fora do componente para evitar recriação a cada render
+const ROLE_DESCRIPTIONS: Record<string, string> = {
+    admin: "Administrador do sistema",
+    user: "Usuário padrão",
+    manager: "Gestor de equipe",
+    membro: "Membro da equipe",
+    gerente: "Gerente de projeto"
+};
+
+const ROLES_OPTIONS = [
+    { value: "membro", label: "Membro" },
+    { value: "user", label: "Usuário" },
+    { value: "gerente", label: "Gerente" },
+    { value: "manager", label: "Manager" },
+    { value: "admin", label: "Administrador" }
+];
+
 export const AuthModal: React.FC<AuthModalProps> = ({
     isOpen,
     onClose,
@@ -27,11 +40,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const [confirmarSenha, setConfirmarSenha] = useState("");
     const [avatarUrl, setAvatarUrl] = useState("");
     const [role, setRole] = useState<UserRoleEnum>("membro");
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
 
-    // Limpa os campos quando muda de modo
+    // Limpa os campos e erros quando muda de modo
     useEffect(() => {
         setNome("");
         setEmail("");
@@ -40,23 +54,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setAvatarUrl("");
         setRole("membro");
         setError(null);
-    }, [mode]);
+        setShowPassword(false); // Reseta a visualização da senha
+    }, [mode, isOpen]); // Também limpa quando o modal abre/fecha
 
-    // Validação de email
-    const isValidEmail = (email: string) => {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    };
-
-    // Validação de senha
-    const isValidSenha = (senha: string) => {
-        return senha.length >= 6;
-    };
+    const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const isValidSenha = (senha: string) => senha.length >= 6;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
 
-        // Validações no frontend
         if (!isValidEmail(email)) {
             setError("Por favor, insira um e-mail válido.");
             return;
@@ -68,16 +75,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
 
         if (mode === "register") {
-            if (!nome.trim()) {
-                setError("Por favor, insira seu nome completo.");
-                return;
-            }
-
             if (nome.trim().length < 2) {
                 setError("O nome deve ter pelo menos 2 caracteres.");
                 return;
             }
-
             if (senha !== confirmarSenha) {
                 setError("As senhas não coincidem.");
                 return;
@@ -90,45 +91,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             if (mode === "login") {
                 await onLogin(email, senha);
             } else {
-                // Prepara os dados no formato do schema UsuarioCreateSchema
-                const userData:UsuarioTaskCreate = {
+                const userData: UsuarioTaskCreate = {
                     nome: nome.trim(),
-                    email,
+                    email: email.trim(),
                     senha,
-                    avatarUrl: avatarUrl || undefined,
-                    role_id: undefined, // Pode ser definido pelo backend
+                    avatarUrl: avatarUrl.trim() || undefined,
+                    role_id: undefined,
                     role: {
-                        nome: role,
-                        descricao: getRoleDescription(role)
+                        name: role,
                     }
                 };
 
                 await onRegister(userData);
-                setMode("login"); // Volta para o modo login após registro
+                setMode("login");
             }
-            // Sucesso - o modal será fechado automaticamente pelo componente pai
-            // Limpa os campos após sucesso
-            setNome("");
-            setEmail("");
-            setSenha("");
-            setConfirmarSenha("");
-            setAvatarUrl("");
-            setRole("membro");
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (err: any) {
+            // Sucesso - Limpa o formulário apenas se não fechou automaticamente
+            if (mode === "register") {
+                setNome("");
+                setSenha("");
+                setConfirmarSenha("");
+                setError(null);
+            }
+
+        } catch (err: unknown) {
             console.error("Erro de autenticação:", err);
 
-            // Mensagens de erro mais específicas
-            if (err?.response?.status === 401) {
+            // 2. MELHORIA: Tipagem segura do erro (Evita o 'any')
+            const errorObj = err as { response?: { status?: number, data?: { message?: string } }, message?: string };
+
+            if (errorObj.response?.status === 401) {
                 setError("E-mail ou senha incorretos.");
-            } else if (err?.response?.status === 409 || err?.response?.status === 422) {
-                setError("Este e-mail já está cadastrado.");
-            } else if (err?.response?.status === 400) {
-                setError(err?.response?.data?.message || "Dados inválidos.");
-            } else if (err?.message) {
-                setError(err.message);
+            } else if (errorObj.response?.status === 409 || errorObj.response?.status === 422) {
+                setError("Este e-mail já está cadastrado ou os dados são inválidos.");
+            } else if (errorObj.response?.status === 400) {
+                setError(errorObj.response?.data?.message || "Dados inválidos.");
+            } else if (errorObj.message) {
+                setError(errorObj.message);
             } else {
-                setError("Falha na autenticação. Tente novamente.");
+                setError("Falha na autenticação. Verifique a sua conexão e tente novamente.");
             }
         } finally {
             setLoading(false);
@@ -138,25 +138,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const toggleMode = () => {
         setMode(prev => prev === "login" ? "register" : "login");
     };
-
-    const getRoleDescription = (role: string): string => {
-        const descriptions: { [key: string]: string } = {
-            admin: "Administrador do sistema",
-            user: "Usuário padrão",
-            manager: "Gestor de equipe",
-            membro: "Membro da equipe",
-            gerente: "Gerente de projeto"
-        };
-        return descriptions[role] || "Usuário do sistema";
-    };
-
-    const roles = [
-        { value: "membro", label: "Membro" },
-        { value: "user", label: "Usuário" },
-        { value: "gerente", label: "Gerente" },
-        { value: "manager", label: "Manager" },
-        { value: "admin", label: "Administrador" }
-    ];
 
     return (
         <Modal
@@ -169,10 +150,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {mode === "register" && (
                     <>
                         <div>
-                            <label
-                                htmlFor="nome"
-                                className="block text-sm font-medium text-gray-700 mb-1"
-                            >
+                            <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-1">
                                 Nome completo
                             </label>
                             <input
@@ -185,14 +163,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                                 required
                                 minLength={2}
                                 disabled={loading}
+                                autoFocus // 3. MELHORIA: Foco automático aqui ao ir para "Cadastro"
                             />
                         </div>
 
                         <div>
-                            <label
-                                htmlFor="avatarUrl"
-                                className="block text-sm font-medium text-gray-700 mb-1"
-                            >
+                            <label htmlFor="avatarUrl" className="block text-sm font-medium text-gray-700 mb-1">
                                 URL do Avatar (opcional)
                             </label>
                             <input
@@ -207,10 +183,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         </div>
 
                         <div>
-                            <label
-                                htmlFor="role"
-                                className="block text-sm font-medium text-gray-700 mb-1"
-                            >
+                            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
                                 Função
                             </label>
                             <select
@@ -220,24 +193,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                                 disabled={loading}
                             >
-                                {roles.map((roleOption) => (
+                                {ROLES_OPTIONS.map((roleOption) => (
                                     <option key={roleOption.value} value={roleOption.value}>
                                         {roleOption.label}
                                     </option>
                                 ))}
                             </select>
                             <p className="text-xs text-gray-500 mt-1">
-                                {getRoleDescription(role)}
+                                {ROLE_DESCRIPTIONS[role] || "Usuário do sistema"}
                             </p>
                         </div>
                     </>
                 )}
 
                 <div>
-                    <label
-                        htmlFor="email"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                    >
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                         E-mail
                     </label>
                     <input
@@ -249,14 +219,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         placeholder="seu@email.com"
                         required
                         disabled={loading}
+                        autoFocus={mode === "login"} // 3. MELHORIA: Foco automático aqui ao ir para "Login"
                     />
                 </div>
 
                 <div>
-                    <label
-                        htmlFor="senha"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                    >
+                    <label htmlFor="senha" className="block text-sm font-medium text-gray-700 mb-1">
                         Senha
                     </label>
                     <div className="relative">
@@ -276,6 +244,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             onClick={() => setShowPassword(!showPassword)}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                             disabled={loading}
+                            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                         >
                             {showPassword ? (
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,18 +259,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         </button>
                     </div>
                     {mode === "register" && (
-                        <p className="text-xs text-gray-500 mt-1">
-                            Mínimo de 6 caracteres
-                        </p>
+                        <p className="text-xs text-gray-500 mt-1">Mínimo de 6 caracteres</p>
                     )}
                 </div>
 
                 {mode === "register" && (
                     <div>
-                        <label
-                            htmlFor="confirmarSenha"
-                            className="block text-sm font-medium text-gray-700 mb-1"
-                        >
+                        <label htmlFor="confirmarSenha" className="block text-sm font-medium text-gray-700 mb-1">
                             Confirmar senha
                         </label>
                         <input
@@ -332,21 +296,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm"
+                    className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-sm flex items-center justify-center"
                 >
                     {loading ? (
-                        <span className="flex items-center justify-center gap-2">
-                            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <>
+                            <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                             </svg>
                             Aguarde...
-                        </span>
-                    ) : mode === "login" ? (
-                        "Entrar"
-                    ) : (
-                        "Criar conta"
-                    )}
+                        </>
+                    ) : mode === "login" ? "Entrar" : "Criar conta"}
                 </button>
 
                 <div className="relative my-6">
@@ -359,31 +319,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
 
                 <p className="text-center text-sm text-gray-600">
-                    {mode === "login" ? (
-                        <>
-                            Ainda não tem conta?{" "}
-                            <button
-                                type="button"
-                                onClick={toggleMode}
-                                disabled={loading}
-                                className="text-blue-600 hover:text-blue-700 font-medium hover:underline disabled:opacity-50"
-                            >
-                                Cadastre-se gratuitamente
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            Já possui conta?{" "}
-                            <button
-                                type="button"
-                                onClick={toggleMode}
-                                disabled={loading}
-                                className="text-blue-600 hover:text-blue-700 font-medium hover:underline disabled:opacity-50"
-                            >
-                                Fazer login
-                            </button>
-                        </>
-                    )}
+                    {mode === "login" ? "Ainda não tem conta? " : "Já possui conta? "}
+                    <button
+                        type="button"
+                        onClick={toggleMode}
+                        disabled={loading}
+                        className="text-blue-600 hover:text-blue-700 font-medium hover:underline disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1"
+                    >
+                        {mode === "login" ? "Cadastre-se gratuitamente" : "Fazer login"}
+                    </button>
                 </p>
             </form>
         </Modal>

@@ -9,10 +9,10 @@ import {
   updateAppearance,
   updateLanguage,
 } from "@/app/services/settingsApi";
-import { Usuario } from "@/context/SessionContext";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/context/I18nContext";
 import { Bell, Camera, CheckCircle2, Clock, Construction, Globe, Key, LucideIcon, Palette, Save, Shield, X } from "lucide-react";
+import { Usuario } from "@/types";
 
 /* =======================
    MODAL DE EDIÇÃO
@@ -272,9 +272,8 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
 
       <button
         type="button"
-        className={`relative inline-flex h-5 xs:h-6 w-9 xs:w-11 items-center rounded-full transition-colors flex-shrink-0 ${
-          value ? "bg-green-500" : "bg-gray-200 dark:bg-gray-700"
-        }`}
+        className={`relative inline-flex h-5 xs:h-6 w-9 xs:w-11 items-center rounded-full transition-colors flex-shrink-0 ${value ? "bg-green-500" : "bg-gray-200 dark:bg-gray-700"
+          }`}
         onClick={(e) => {
           e.stopPropagation();
           onToggle();
@@ -282,9 +281,8 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
         aria-label={title}
       >
         <span
-          className={`inline-block h-3.5 xs:h-4 w-3.5 xs:w-4 transform rounded-full bg-white transition-transform ${
-            value ? "translate-x-5 xs:translate-x-6" : "translate-x-0.5 xs:translate-x-1"
-          }`}
+          className={`inline-block h-3.5 xs:h-4 w-3.5 xs:w-4 transform rounded-full bg-white transition-transform ${value ? "translate-x-5 xs:translate-x-6" : "translate-x-0.5 xs:translate-x-1"
+            }`}
         />
       </button>
     </div>
@@ -545,7 +543,7 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
 
               <div className="space-y-3">
                 <LanguageSelector onChange={(value) => handleInputChange("language", value)} />
-                
+
               </div>
             </div>
 
@@ -571,11 +569,10 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
                     key={th}
                     type="button"
                     onClick={() => handleInputChange("theme", th)}
-                    className={`px-3 xs:px-4 py-2 rounded-lg text-xs xs:text-sm font-medium border transition-all ${
-                      form.theme === th
+                    className={`px-3 xs:px-4 py-2 rounded-lg text-xs xs:text-sm font-medium border transition-all ${form.theme === th
                         ? "bg-black text-white dark:bg-white dark:text-black border-transparent"
                         : "bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                    }`}
+                      }`}
                   >
                     {t(`profile.appearance.${th}`) || th}
                   </button>
@@ -605,16 +602,14 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
   return (
     <>
       <div
-        className={`fixed inset-0 z-50 bg-gray-900/60 dark:bg-black/70 backdrop-blur-sm transition-opacity duration-200 ${
-          isOpen ? "animate-in fade-in" : "animate-out fade-out"
-        }`}
+        className={`fixed inset-0 z-50 bg-gray-900/60 dark:bg-black/70 backdrop-blur-sm transition-opacity duration-200 ${isOpen ? "animate-in fade-in" : "animate-out fade-out"
+          }`}
         onClick={onClose}
       />
 
       <div
-        className={`fixed left-1/2 top-1/2 z-50 w-full max-w-sm xs:max-w-lg -translate-x-1/2 -translate-y-1/2 transform transition-all duration-200 ${
-          isOpen ? "animate-in zoom-in-95" : "animate-out zoom-out-95"
-        }`}
+        className={`fixed left-1/2 top-1/2 z-50 w-full max-w-sm xs:max-w-lg -translate-x-1/2 -translate-y-1/2 transform transition-all duration-200 ${isOpen ? "animate-in zoom-in-95" : "animate-out zoom-out-95"
+          }`}
       >
         <div
           className="bg-white dark:bg-gray-900 rounded-xl xs:rounded-2xl shadow-2xl dark:shadow-black/50 flex flex-col max-h-[95vh] xs:max-h-[90vh] mx-3 xs:mx-4 border border-gray-100 dark:border-gray-800"
@@ -647,7 +642,7 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
             {success ? (
               <div className="flex flex-col items-center justify-center py-10 xs:py-12 animate-in zoom-in">
                 <div className="w-14 xs:w-16 h-14 xs:h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-3 xs:mb-4 flex-shrink-0">
-                  <CheckCircle2 className="text-green-600 dark:text-green-400 xs:w-8 xs:h-8" size={28}/>
+                  <CheckCircle2 className="text-green-600 dark:text-green-400 xs:w-8 xs:h-8" size={28} />
                 </div>
                 <p className="text-base xs:text-lg font-semibold text-gray-900 dark:text-white mb-1 xs:mb-2">
                   {t("modal.changesSaved") || "Alterações salvas!"}

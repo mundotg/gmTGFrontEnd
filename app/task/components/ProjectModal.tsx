@@ -1,12 +1,13 @@
 "use client";
 import React, { useMemo, useCallback, useEffect, useRef, useState } from "react";
 import { Modal } from "./modalComponent";
-import { ProjectFormData, Usuario, DBConnection, ProjectType } from "../types";
-import { useSessionTask } from "../contexts/UserContext";
+import { ProjectFormData, DBConnection, ProjectType } from "../types";
 import { safeDateTime2 } from "../utils";
 import { PaginatedResponse } from "./Paginacao";
 import { JoinSelect } from "./select_Component";
 import usePersistedState from "@/hook/localStoreUse";
+import { Usuario } from "@/types";
+import { useSession } from "@/context/SessionContext";
 
 /* ------------------------------
    Tipos
@@ -39,7 +40,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   onClose,
   onSubmit,
 }) => {
-  const { user, api } = useSessionTask();
+  const { user, api } = useSession();
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Estado para armazenar os dados carregados
@@ -113,7 +114,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
       return {
         options: data.items.map((dbConnection) => ({
-          value: JSON.stringify({id:dbConnection.id,name:dbConnection.name,type:dbConnection.type} as DBConnection),
+          value: JSON.stringify({ id: dbConnection.id, name: dbConnection.name, type: dbConnection.type } as DBConnection),
           label: `🔌 ${dbConnection.name} (${dbConnection.type})`
         })),
         hasMore: data.items.length === 20,
@@ -154,7 +155,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   );
 
   const clearForm = useCallback(
-    () =>{
+    () => {
       clearKey();
       setFormState({
         name: "",
@@ -164,7 +165,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         teamMembers: [],
         typeProject: "",
         connectionId: "",
-      })},
+      })
+    },
     [setFormState]
   );
 
@@ -232,35 +234,35 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
       try {
         if (!formState.name.trim()) {
-        alert("O nome do projeto é obrigatório.");
-        return;
-      }
+          alert("O nome do projeto é obrigatório.");
+          return;
+        }
 
-      // Preparar dados no formato do schema
-      const project: ProjectFormData = {
-        id: editingProject?.id,
-        name: formState.name.trim(),
-        description: formState.description.trim() || undefined,
-        ownerId: user?.id ?? "unknown",
-        team: formState.teamMembers,
-        created_at: new Date(formState.createdAt || new Date()).toISOString(),
-        due_date: formState.dueDate
-          ? new Date(formState.dueDate).toISOString()
-          : undefined,
-        tasks: editingProject?.tasks || [],
-        sprint: editingProject?.sprint,
-        type_project: formState.typeProject ? JSON.parse(formState.typeProject): undefined,
-        id_conexao_db: formState.connectionId ? (parseInt(formState.connectionId) as unknown as DBConnection)?.id: undefined,
-        connection: formState.connectionId ? JSON.parse(formState.connectionId) as DBConnection : undefined
-      };
+        // Preparar dados no formato do schema
+        const project: ProjectFormData = {
+          id: editingProject?.id,
+          name: formState.name.trim(),
+          description: formState.description.trim() || undefined,
+          ownerId: user?.id ?? "unknown",
+          team: formState.teamMembers,
+          created_at: new Date(formState.createdAt || new Date()).toISOString(),
+          due_date: formState.dueDate
+            ? new Date(formState.dueDate).toISOString()
+            : undefined,
+          tasks: editingProject?.tasks || [],
+          sprint: editingProject?.sprint,
+          type_project: formState.typeProject ? JSON.parse(formState.typeProject) : undefined,
+          id_conexao_db: formState.connectionId ? (parseInt(formState.connectionId) as unknown as DBConnection)?.id : undefined,
+          connection: formState.connectionId ? JSON.parse(formState.connectionId) as DBConnection : undefined
+        };
 
-      
-      onSubmit(project);
-      
-      if (!editingProject && !formError) clearForm();
+
+        onSubmit(project);
+
+        if (!editingProject && !formError) clearForm();
       } catch (error) {
         console.error(error)
-      }finally{
+      } finally {
         setLoading(false)
       }
     },
@@ -274,7 +276,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     <Modal
       isOpen={isOpen}
       title={editingProject ? "Editar Projeto" : "Novo Projeto"}
-      onClose={()=>{clearForm();onClose()}}
+      onClose={() => { clearForm(); onClose() }}
       size="lg"
     >
       {loading ? (
@@ -364,7 +366,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               buttonClassName="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               autoWidth={false}
               debounceMs={400}
-              // pageSize={20}
+            // pageSize={20}
             />
 
             {formState.teamMembers.length > 0 && (
@@ -415,11 +417,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                 type="datetime-local"
                 value={formState.createdAt || defaultCreatedAt}
                 onChange={handleChange("createdAt")}
-                className={`w-full border border-gray-300 rounded-lg px-4 py-3 ${
-                  editingProject
-                    ? "focus:ring-2 focus:ring-indigo-500"
-                    : "bg-gray-100"
-                }`}
+                className={`w-full border border-gray-300 rounded-lg px-4 py-3 ${editingProject
+                  ? "focus:ring-2 focus:ring-indigo-500"
+                  : "bg-gray-100"
+                  }`}
                 readOnly={!editingProject}
               />
             </div>
@@ -449,7 +450,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           <div className="flex flex-col sm:flex-row gap-4">
             <button
               type="button"
-              onClick={()=>{clearForm();onClose()}}
+              onClick={() => { clearForm(); onClose() }}
               className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
             >
               Cancelar

@@ -4,8 +4,8 @@ import AuthProvider from "@/app/component/provader";
 import SidebarPopup from "../component/SidebarPopup";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "test",
+  title: "MustaInf referencia",
+  description: "propups de referencia para o desenvolvimento de novas funcionalidades",
 };
 
 export default function RootLayout({

@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SidebarFooter } from './silederMenuComponent/SidebarFooter';
 import { hasPermission } from '@/permissions_val';
+import Script from 'next/script';
 
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 450;
@@ -218,8 +219,12 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             </button>
           )}
         </div>
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
-          crossOrigin="anonymous"></script>
+        <Script
+          id="adsense-script"
+          strategy="lazyOnload"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
+          crossOrigin="anonymous"
+        />
         {/* Botão expandir quando collapsed */}
         {collapsed && (
           <div className="hidden md:flex justify-center pt-4 flex-shrink-0">
