@@ -23,7 +23,7 @@ export async function POST(request: Request) {
             // console.log('🧹 Nenhum token recebido. Apagando o cookie...', credentials);
 
             // O Next.js tem uma função própria para deletar cookies de forma segura
-            // cookieStore.delete('bk_access_token');
+            cookieStore.delete('bk_access_token');
 
             // Retornamos sucesso (Status 200), pois apagar o cookie deu certo!
             return NextResponse.json({
