@@ -1,90 +1,17 @@
 
+"use client";
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from "react";
 
 import type { Axios } from "axios";
 import api from "./axioCuston";
-import { BancoSuportado, Permission } from "@/constant";
+import usePersistedState from "@/hook/localStoreUse";
+import { aes_decrypt } from "@/service";
+import { AuthProvider, LoginOptions, Usuario } from "@/types";
 
-export interface DbInfoExtra {
-    id_connection: number;
-    name_db: string;
-    data: string;
-    type: BancoSuportado;
-    num_table: number;
-    num_consultas: number;
-    ultima_execucao_ms?: number;
-    ultima_consulta_em?: string;
-    registros_analizados?: number;
-}
-
-
-export interface Empresa {
-    id: number;
-    company: string;
-    companySize?: string;
-    nif?: string;
-    endereco?: string;
-}
-
-export interface Cargo {
-    id: number;
-    position: string;
-    descricao?: string;
-    nivel?: "júnior" | "pleno" | "sênior" | string;
-}
-
-
-export interface Role {
-    name: string; // ex: admin, manager, developer
-}
-
-export interface Usuario {
-    id: string;
-    nome: string;
-    apelido?: string;
-    email: string;
-    telefone?: string;
-    status?: "ativo" | "inativo" | "suspenso";
-    createdAt?: string;
-    lastLogin?: string;
-    projects_participating?: string[];
-    created_projects?: string[];
-    assigned_tasks?: string[];
-    delegated_tasks?: string[];
-    created_tasks?: string[];
-   
-    empresa?: Empresa;
-    cargo?: Cargo;
-
-    roles?: Role[];
-    permissions: Permission[] | string[];
-
-    avatar_url?: string;
-    datatimeSession?: string;
-
-    // JWT
-    exp?: number;
-    iat?: number;
-    sub?: string;
-
-    // Conexão ativa
-    info_extra?: DbInfoExtra | null;
-}
-
-
-export type AuthProvider = "google" | "azure-ad" | "facebook" | "github" | "gitlab" | "credenciais";
-
-export interface LoginOptions {
-    credenciais?: {
-        email: string;
-        senha: string;
-    };
-    redirect?: string;
-}
 
 interface SessionData {
     user: Usuario | null;
-    token: string | null;
+    token?: string | null;
     isAuthenticated: boolean;
     isLoading: boolean;
     login: (provider: AuthProvider, options?: LoginOptions) => Promise<boolean>;
@@ -92,11 +19,37 @@ interface SessionData {
     api: Axios;
 }
 
+const desencriptarUser = (user: Usuario): Usuario => {
+    // Verifica se o utilizador existe e se tem um email para desencriptar
+    if (user?.email) {
+        return {
+            ...user,
+            id: aes_decrypt(user.id),
+
+            // Novos campos: Só desencripta se o valor não for null/undefined
+            nome: user.nome ? aes_decrypt(user.nome) : user.nome,
+            apelido: user.apelido ? aes_decrypt(user.apelido) : user.apelido,
+            email: aes_decrypt(user.email), // O email costuma ser obrigatório
+            telefone: user.telefone ? aes_decrypt(user.telefone) : user.telefone,
+
+            // Roles e Permissões mantêm-se iguais
+            roles: user.roles?.map(role => ({
+                ...role,
+                name: aes_decrypt(role.name)
+            })) || [],
+            permissions: user.permissions?.map(perm => aes_decrypt(perm)) || [],
+        };
+    }
+
+    // Se não tiver email ou o objeto for inválido, devolve como está
+    return user;
+};
+
+
 const SessionContext = createContext<SessionData | undefined>(undefined);
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState<Usuario | null>(null);
-    const [token, setToken] = useState<string | null>(null);
+    const [user, setUser] = usePersistedState<Usuario | null>("_user_logado", null);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -114,21 +67,27 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         try {
             await api.post("/auth/logout");
             setUser(null);
+
         } catch (error) {
             console.warn("Erro ao deslogar:", error);
             throw error;
         } finally {
-            setToken(null);
             setIsLoggingOut(false);
             setIsLoading(false);
-            localStorage.removeItem("user");
             if (redirect) {
                 // route.push(redirect);
             }
+            fetch("/api/login", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: "" }),
+            });
 
         }
         return true;
     }, [isLoggingOut]);
+
     const refreshAccessToken = useCallback(async () => {
         if (isRefreshing) return;
         setIsRefreshing(true);
@@ -142,7 +101,6 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             return false
         }
     }, [logout, isRefreshing]);
-
 
     // 🛑 Interceptor para Logout Automático no erro 401
     useEffect(() => {
@@ -171,7 +129,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }, [isRefreshing, isLoggingOut, refreshAccessToken, logout]);
 
     useEffect(() => {
-        
+
 
         const refresh = async () => {
             try {
@@ -201,7 +159,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             })
             .catch((err) => {
                 console.error("Erro em /auth/me:", err);
-                if (user || token) {
+                if (user) {
                     logout()
                 }
             })
@@ -210,8 +168,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     const storeLoginData = useCallback((user: Usuario) => {
-        setUser(user);
-        localStorage.setItem("user", JSON.stringify(user));
+        setUser(desencriptarUser(user));
     }, []);
 
     const login = useCallback(async (provider: AuthProvider, options?: LoginOptions) => {
@@ -230,13 +187,21 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             setIsLoading(false);
             return true;
         }
-            
+
         try {
 
-            console.log("Tentando login com credenciais:", options?.credenciais);
+
             const response = await api.post("/auth/login", options?.credenciais ?? {});
-            // console.log("Login bem-sucedido:", response.data.user);
+
+            // const { user } = await response.json();
+            // console.log("Login bem-sucedido:", response.data);
             storeLoginData(response.data.user);
+            fetch("/api/login", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: response.data.user?.email }),
+            });
             // if (options?.redirect)
             //route.push(options.redirect);
             setIsLoading(false);
@@ -252,7 +217,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     return (
 
-        <SessionContext.Provider value={{ user, token, isAuthenticated: isAuthenticated, isLoading, login, logout, api }}>
+        <SessionContext.Provider value={{ user, isAuthenticated: isAuthenticated, isLoading, login, logout, api }}>
             {children}
         </SessionContext.Provider>
     );

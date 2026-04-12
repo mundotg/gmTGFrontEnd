@@ -1,5 +1,83 @@
 
-import { FILTER_OPTIONS } from "@/constant";
+export type Permission =
+  | "auth:login"
+  | "auth:logout"
+  | "auth:refresh"
+  | "user:create"
+  | "user:read"
+  | "user:update"
+  | "user:delete"
+  | "user:invite"
+  | "user:manage"
+  | "user:deactivate"
+  | "company:read"
+  | "company:update"
+  | "company:settings"
+  | "company:billing"
+  | "company:invite"
+  | "company:members"
+  | "company:remove_member"
+  | "project:create"
+  | "project:read"
+  | "project:update"
+  | "project:delete"
+  | "project:view"
+  | "project:manage"
+  | "project:assign_user"
+  | "project:remove_user"
+  | "team:read"
+  | "team:update"
+  | "team:manage"
+  | "role:create"
+  | "role:read"
+  | "role:update"
+  | "role:delete"
+  | "role:manage"
+  | "permission:create"
+  | "permission:read"
+  | "permission:update"
+  | "permission:delete"
+  | "permission:manage"
+  | "db_connection:create"
+  | "db_connection:read_own"
+  | "db_connection:read_company"
+  | "db_connection:read_all"
+  | "db_connection:update"
+  | "db_connection:delete"
+  | "db_connection:test"
+  | "query:execute"
+  | "query:read_history"
+  | "query:delete_history"
+  | "query:export"
+  | "table:read"
+  | "table:describe"
+  | "table:export"
+  | "table:stats"
+  | "integration:create"
+  | "integration:read"
+  | "integration:update"
+  | "integration:delete"
+  | "integration:webhook"
+  | "backup:configure"
+  | "backup:read"
+  | "logs:read"
+  | "logs:export"
+  | "audit:read"
+  | "audit:export"
+  | "settings:user"
+  | "settings:company"
+  | "settings:projects"
+  | "settings:team"
+  | "settings:integrations"
+  | "settings:system";
+
+export type BancoSuportado =
+  | 'postgresql'
+  | 'mysql'
+  | 'sqlite'
+  | 'sqlserver'
+  | 'oracle'
+  | 'mongodb';
 
 export type DatabaseOption = {
   id: string;
@@ -412,9 +490,6 @@ export type ConnectionFormData = {
   trustServerCertificate?: string
 };
 
-
-
-export type FilterType = typeof FILTER_OPTIONS[number]['value'];
 export interface NamecachesValue {
   _thema: string,
   _modal_Create_Open: string,
@@ -552,6 +627,84 @@ export interface MetadataTableResponse {
   total_colunas: number;
   colunas: CampoDetalhado[];
 }
+
+export interface DbInfoExtra {
+  id_connection: number;
+  name_db: string;
+  data: string;
+  type: BancoSuportado;
+  num_table: number;
+  num_consultas: number;
+  ultima_execucao_ms?: number;
+  ultima_consulta_em?: string;
+  registros_analizados?: number;
+}
+
+
+export interface Empresa {
+  id: number;
+  company: string;
+  companySize?: string;
+  nif?: string;
+  endereco?: string;
+}
+
+export interface Cargo {
+  id: number;
+  position: string;
+  descricao?: string;
+  nivel?: "júnior" | "pleno" | "sênior" | string;
+}
+
+
+export interface Role {
+  name: string; // ex: admin, manager, developer
+}
+
+export interface Usuario {
+  id: string;
+  nome: string;
+  apelido?: string;
+  email: string;
+  telefone?: string;
+  status?: "ativo" | "inativo" | "suspenso";
+  createdAt?: string;
+  lastLogin?: string;
+  projects_participating?: string[];
+  created_projects?: string[];
+  assigned_tasks?: string[];
+  delegated_tasks?: string[];
+  created_tasks?: string[];
+
+  empresa?: Empresa;
+  cargo?: Cargo;
+
+  roles?: Role[];
+  permissions: Permission[] | string[];
+
+  avatar_url?: string;
+  datatimeSession?: string;
+
+  // JWT
+  exp?: number;
+  iat?: number;
+  sub?: string;
+
+  // Conexão ativa
+  info_extra?: DbInfoExtra | null;
+}
+
+
+export type AuthProvider = "google" | "azure-ad" | "facebook" | "github" | "gitlab" | "credenciais";
+
+export interface LoginOptions {
+  credenciais?: {
+    email: string;
+    senha: string;
+  };
+  redirect?: string;
+}
+
 
 
 

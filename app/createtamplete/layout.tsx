@@ -5,8 +5,8 @@ import Sidebar from "../component/Sidebar";
 
 
 export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "test",
+  title: "form template",
+  description: "form template",
 };
 
 export default function RootLayout({

@@ -1,3 +1,4 @@
+"use client";
 // hooks/usePersistedState.ts
 import { useState, useEffect, useRef, useCallback } from "react";
 
@@ -7,7 +8,7 @@ const dbCache = new Map<string, IDBDatabase>();
 // Utilitário IndexedDB melhorado
 async function openDB(dbName: string, storeName: string): Promise<IDBDatabase> {
   const cacheKey = `${dbName}_${storeName}`;
-  
+
   if (dbCache.has(cacheKey)) {
     return dbCache.get(cacheKey)!;
   }
@@ -27,7 +28,7 @@ async function openDB(dbName: string, storeName: string): Promise<IDBDatabase> {
       dbCache.set(cacheKey, db);
       resolve(db);
     };
-    
+
     request.onerror = () => reject(request.error);
   });
 }
@@ -223,7 +224,7 @@ function usePersistedState<T>(key: string, initialValue: T) {
       try {
         setIsLoading(true);
         const data = await loadBinary("AppDB", "AppStore", key, initialValue);
-        
+
         if (mounted) {
           setState(data);
           setIsLoading(false);
@@ -243,10 +244,10 @@ function usePersistedState<T>(key: string, initialValue: T) {
     };
   }, [key]);
 
-  const clearKey = useCallback(()=>{
-    clearDataKey("AppDB","AppStore",key)
+  const clearKey = useCallback(() => {
+    clearDataKey("AppDB", "AppStore", key)
 
-  },[])
+  }, [])
 
   // Salvar dados quando o estado muda
   useEffect(() => {
@@ -266,7 +267,7 @@ function usePersistedState<T>(key: string, initialValue: T) {
     return () => clearTimeout(timeoutId);
   }, [key, state]);
 
-  return [state, setState,clearKey, isLoading,clearOldData] as const;
+  return [state, setState, clearKey, isLoading, clearOldData] as const;
 }
 
 export default usePersistedState;

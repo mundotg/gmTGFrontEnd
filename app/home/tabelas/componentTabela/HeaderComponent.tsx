@@ -26,8 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { StatCard } from "./statCard";
-import { Usuario } from "@/context/SessionContext";
-import { TableInfo } from "@/types";
+import { TableInfo, Usuario } from "@/types";
 import { FilterPanel } from "./FilterPanel";
 
 export interface HealthStatus {
@@ -126,7 +125,7 @@ const DatabaseHeader: React.FC<DatabaseHeaderProps> = ({
   return (
     <div className={`border-b ${isDarkMode ? 'bg-[#1C1C1E] border-gray-800' : 'bg-white border-gray-200'} pb-6`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        
+
         {/* Header Principal */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
@@ -153,11 +152,10 @@ const DatabaseHeader: React.FC<DatabaseHeaderProps> = ({
 
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`p-2 rounded-lg border transition-colors ${
-                isDarkMode
+              className={`p-2 rounded-lg border transition-colors ${isDarkMode
                   ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
                   : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-              }`}
+                }`}
               title={t('actions.toggleTheme') || "Alternar tema"}
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -166,11 +164,10 @@ const DatabaseHeader: React.FC<DatabaseHeaderProps> = ({
             <button
               onClick={handleRefresh}
               disabled={isLoading}
-              className={`p-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                isDarkMode
+              className={`p-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
                   ? "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"
                   : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-              }`}
+                }`}
               title={t('actions.refresh') || "Atualizar dados"}
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-blue-600" : ""}`} />
@@ -216,7 +213,7 @@ const DatabaseHeader: React.FC<DatabaseHeaderProps> = ({
             <ActionButton onClick={clearSelection} icon={X} label={t('actions.clear') || "Limpar"} variant="outline" isDarkMode={isDarkMode} />
             <ActionButton onClick={() => setIsCreateOpen(true)} icon={Plus} label={t('actions.newTable') || "Nova Tabela"} variant="primary" isDarkMode={isDarkMode} />
             <ActionButton onClick={handleDeleteSelectedTables} icon={Trash2} label={t('actions.delete') || "Excluir"} variant="danger" isDarkMode={isDarkMode} />
-            
+
             {/* Divisor vertical */}
             <div className={`h-6 w-px mx-1 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
 
@@ -226,9 +223,8 @@ const DatabaseHeader: React.FC<DatabaseHeaderProps> = ({
           </div>
 
           <div className="flex items-center gap-3 self-end lg:self-auto">
-            <span className={`text-sm font-medium px-3 py-1.5 rounded-md border ${
-              isDarkMode ? "bg-gray-800 border-gray-700 text-gray-300" : "bg-gray-50 border-gray-200 text-gray-700"
-            }`}>
+            <span className={`text-sm font-medium px-3 py-1.5 rounded-md border ${isDarkMode ? "bg-gray-800 border-gray-700 text-gray-300" : "bg-gray-50 border-gray-200 text-gray-700"
+              }`}>
               {filteredAndSortedTables.length} {filteredAndSortedTables.length === 1 ? (t('common.table') || "tabela") : (t('common.tables') || "tabelas")}
             </span>
             {isLoading && (
@@ -258,11 +254,11 @@ interface ActionButtonProps {
 
 const ActionButton: React.FC<ActionButtonProps> = ({ onClick, icon: Icon, label, variant, isDarkMode }) => {
   const baseClasses = "px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors border";
-  
+
   const variants = {
     primary: "bg-blue-600 hover:bg-blue-700 text-white border-transparent",
-    secondary: isDarkMode 
-      ? "bg-gray-800 hover:bg-gray-700 text-gray-200 border-gray-700" 
+    secondary: isDarkMode
+      ? "bg-gray-800 hover:bg-gray-700 text-gray-200 border-gray-700"
       : "bg-white hover:bg-gray-50 text-gray-700 border-gray-200",
     outline: isDarkMode
       ? "bg-transparent hover:bg-gray-800 text-gray-300 border-gray-700"
@@ -290,9 +286,8 @@ interface InfoCardProps {
 }
 
 const InfoCard: React.FC<InfoCardProps> = ({ icon: Icon, title, value, iconColor, bgColor, isDarkMode }) => (
-  <div className={`flex items-center gap-4 p-4 rounded-xl border ${
-    isDarkMode ? "bg-[#1C1C1E] border-gray-800" : "bg-white border-gray-200 shadow-sm"
-  }`}>
+  <div className={`flex items-center gap-4 p-4 rounded-xl border ${isDarkMode ? "bg-[#1C1C1E] border-gray-800" : "bg-white border-gray-200 shadow-sm"
+    }`}>
     <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-gray-800' : bgColor}`}>
       <Icon className={`w-5 h-5 ${isDarkMode ? 'text-gray-300' : iconColor}`} />
     </div>

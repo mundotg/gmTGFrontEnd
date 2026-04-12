@@ -3,7 +3,6 @@
 // ─────────────────────────────────────────────────────────────
 // Imports
 // ─────────────────────────────────────────────────────────────
-import { Usuario } from "@/context/SessionContext";
 import {
   User,
   LogOut,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import { Usuario } from "@/types";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -66,20 +66,20 @@ const MENU_OPTIONS: MenuOption[] = [
     permission: "user:manage",
     requiresConnection: false,
   },
-  {
-    id: "notifications",
-    label: "Notificações",
-    icon: Bell,
-    href: "/home/notificacoes",
-    requiresConnection: false,
-  },
-  {
-    id: "help",
-    label: "Ajuda & Suporte",
-    icon: HelpCircle,
-    href: "/home/ajuda",
-    requiresConnection: false,
-  },
+  // {
+  //   id: "notifications",
+  //   label: "Notificações",
+  //   icon: Bell,
+  //   href: "/home/notificacoes",
+  //   requiresConnection: false,
+  // },
+  // {
+  //   id: "help",
+  //   label: "Ajuda & Suporte",
+  //   icon: HelpCircle,
+  //   href: "/home/ajuda",
+  //   requiresConnection: false,
+  // },
 
 ];
 

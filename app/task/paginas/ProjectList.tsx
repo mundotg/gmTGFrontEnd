@@ -12,10 +12,10 @@ import {
 } from "lucide-react";
 import { Project, Sprint, TypeShowToste } from "../types";
 import { PaginacaoGenerica, PaginatedResponse } from "../components/Paginacao";
-import { useSessionTask } from "../contexts/UserContext";
 import { SprintModal } from "../components/CreateSprintModal";
 import { safeDateTime } from "../utils";
 import { SpringCard } from "../components/SpringCard";
+import { useSession } from "@/context/SessionContext";
 
 interface ProjectListProps {
   projects: PaginatedResponse<Project>;
@@ -40,7 +40,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
   onEditProject,
   onDeleteProject,
 }) => {
-  const { api } = useSessionTask();
+  const { api } = useSession();
   const [loadingActions, setLoadingActions] = useState<Record<string, boolean>>({});
   const [openSprintModal, setOpenSprintModal] = useState<{
     project: { projectId: string; name: string };
@@ -61,7 +61,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
         showToast("Erro ao carregar projetos", "error");
       }
     },
-    [ setProjects, showToast]
+    [setProjects, showToast]
   );
 
   // 🔹 Buscar sprints de um projeto
@@ -114,7 +114,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
         showToast("Erro ao alterar status da sprint.", "error");
       }
     },
-    [ setSprintList, showToast]
+    [setSprintList, showToast]
   );
 
   // 🔹 Editar Sprint

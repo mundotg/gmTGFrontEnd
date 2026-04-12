@@ -1,4 +1,5 @@
-import { Dbtype } from "@/types";
+
+import { Dbtype, Role, Usuario } from "@/types";
 
 /* ============================================================
 
@@ -174,32 +175,12 @@ export interface Project {
 * 🔹 USUÁRIOS
 * ============================================================ */
 
-export interface Role {
-  nome: UserRoleEnum;
-  descricao?: string | null;
-}
 
 export interface RoleResponse extends Role {
   id: string;
 }
 
-export interface Usuario {
-  id?: string;
-  user_id: string;
-  nome: string;
-  avatarUrl?: string;
-  email: string;
-  role?: UserRoleEnum;
-  created_at?: string | Date;
-  updated_at?: string | Date;
 
-  // Relacionamentos
-  projects_participating?: string[];
-  created_projects?: string[];
-  assigned_tasks?: string[];
-  delegated_tasks?: string[];
-  created_tasks?: string[];
-}
 
 /* --- Requisições de Usuário --- */
 export interface UsuarioCreateRequest {
@@ -256,8 +237,8 @@ export interface UsuarioTaskCreate {
 }
 
 export interface TarefasPayload {
-    stats: TaskStats;
-    project?: Project;
-    sprint?: Sprint | null;
-    tasks?: Task[];
+  stats: TaskStats;
+  project?: Project;
+  sprint?: Sprint | null;
+  tasks?: Task[];
 }

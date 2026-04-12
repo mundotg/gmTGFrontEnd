@@ -20,6 +20,7 @@ import {
   Users,
 } from "lucide-react";
 import { Task, TaskPriority, TaskStatus } from "../types";
+import { ActionButton, Badge, IconButton, InfoCard } from "./componentDoSelect/otherComponent";
 
 interface TaskCardProps {
   task: Task;
@@ -60,9 +61,8 @@ const ValidationModal: React.FC<{
               setComment("");
               onClose();
             }}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium text-white ${
-              isApproval ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
-            }`}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium text-white ${isApproval ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+              }`}
           >
             Confirmar
           </button>
@@ -91,39 +91,39 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const [showMenu, setShowMenu] = useState(false);
 
   const getPriorityConfig = (priority: TaskPriority) => {
-    const configs:Record<TaskPriority, {bg:string,border:string,text:string,badge:string,flag:string}> = {
-      critica: { 
-        bg: "bg-purple-50", 
-        border: "border-purple-200", 
+    const configs: Record<TaskPriority, { bg: string, border: string, text: string, badge: string, flag: string }> = {
+      critica: {
+        bg: "bg-purple-50",
+        border: "border-purple-200",
         text: "text-purple-800",
         badge: "bg-purple-100 text-purple-800 border-purple-300",
         flag: "bg-purple-600"
       },
-      alta: { 
-        bg: "bg-red-50", 
-        border: "border-red-200", 
+      alta: {
+        bg: "bg-red-50",
+        border: "border-red-200",
         text: "text-red-800",
         badge: "bg-red-100 text-red-800 border-red-300",
         flag: "bg-red-600"
       },
-      media: { 
-        bg: "bg-amber-50", 
-        border: "border-amber-200", 
+      media: {
+        bg: "bg-amber-50",
+        border: "border-amber-200",
         text: "text-amber-800",
         badge: "bg-amber-100 text-amber-800 border-amber-300",
         flag: "bg-amber-500"
       },
-      baixa: { 
-        bg: "bg-emerald-50", 
-        border: "border-emerald-200", 
+      baixa: {
+        bg: "bg-emerald-50",
+        border: "border-emerald-200",
         text: "text-emerald-800",
         badge: "bg-emerald-100 text-emerald-800 border-emerald-300",
         flag: "bg-emerald-500"
       },
       urgente: {
-        bg :"bg-gray-100",
+        bg: "bg-gray-100",
         text: "text-gray-800",
-        border:"border-gray-300",
+        border: "border-gray-300",
         badge: "bg-emerald-100 text-emerald-800 border-emerald-300",
         flag: "bg-emerald-500"
       }
@@ -151,7 +151,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const isUrgent = daysRemaining <= 3 && daysRemaining >= 0 && task.status !== "concluida";
 
   const canValidate = task.is_validated == null && ["concluida", "bloqueada"].includes(task.status ?? "");
-  const canDelegate = task.delegated_to_id == null && task.is_validated == null && 
+  const canDelegate = task.delegated_to_id == null && task.is_validated == null &&
     ["pendente", "em_andamento", "em_revisao", "bloqueada"].includes(task.status ?? "");
 
   const handleValidationClick = useCallback((approval: boolean) => {
@@ -163,16 +163,15 @@ const TaskCard: React.FC<TaskCardProps> = ({
     if (task.id) onValidateTask(task.id, isApproval, comment);
   }, [task.id, isApproval, onValidateTask]);
 
-  const progressPercentage = task.completed_at ? 100: 0;
+  const progressPercentage = task.completed_at ? 100 : 0;
 
   return (
     <>
-      <div className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 hover:shadow-2xl ${
-        isLate ? "border-red-300 bg-gradient-to-br from-red-50 via-white to-red-50" :
-        isUrgent ? "border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-50" :
-        `${priorityConfig.border} bg-white hover:border-indigo-400`
-      }`}>
-        
+      <div className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-300 hover:shadow-2xl ${isLate ? "border-red-300 bg-gradient-to-br from-red-50 via-white to-red-50" :
+          isUrgent ? "border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-50" :
+            `${priorityConfig.border} bg-white hover:border-indigo-400`
+        }`}>
+
         {/* Header com Prioridade */}
         <div className={`${priorityConfig.bg} px-6 py-4 border-b-2 ${priorityConfig.border}`}>
           <div className="flex items-start justify-between gap-3">
@@ -191,14 +190,13 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h3 className={`font-bold text-lg break-words ${
-                    task.status === "concluida" ? "line-through text-gray-500" : "text-gray-900"
-                  }`}>
+                  <h3 className={`font-bold text-lg break-words ${task.status === "concluida" ? "line-through text-gray-500" : "text-gray-900"
+                    }`}>
                     {task.title}
                   </h3>
                   <Badge icon={<Flag size={12} />} text={task.priority || ""} colorClass={priorityConfig.badge} />
                 </div>
-                
+
                 {task.project && (
                   <div className="flex items-center gap-1.5 text-sm text-gray-600 mb-1">
                     <Target size={14} />
@@ -212,12 +210,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
               <IconButton icon={<Edit size={18} />} onClick={onEdit} color="text-indigo-600" bgHover="bg-indigo-50" title="Editar" />
               <IconButton icon={<Trash2 size={18} />} onClick={onDelete} color="text-red-600" bgHover="bg-red-50" title="Excluir" />
               <div className="relative">
-                <IconButton 
-                  icon={<MoreVertical size={18} />} 
-                  onClick={() => setShowMenu(!showMenu)} 
-                  color="text-gray-600" 
-                  bgHover="bg-gray-100" 
-                  title="Mais opções" 
+                <IconButton
+                  icon={<MoreVertical size={18} />}
+                  onClick={() => setShowMenu(!showMenu)}
+                  color="text-gray-600"
+                  bgHover="bg-gray-100"
+                  title="Mais opções"
                 />
               </div>
             </div>
@@ -241,13 +239,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 <span className="text-xs font-bold text-gray-900">{progressPercentage}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    progressPercentage === 100 ? "bg-green-600" :
-                    progressPercentage >= 75 ? "bg-blue-600" :
-                    progressPercentage >= 50 ? "bg-indigo-600" :
-                    progressPercentage >= 25 ? "bg-amber-500" : "bg-red-500"
-                  }`}
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${progressPercentage === 100 ? "bg-green-600" :
+                      progressPercentage >= 75 ? "bg-blue-600" :
+                        progressPercentage >= 50 ? "bg-indigo-600" :
+                          progressPercentage >= 25 ? "bg-amber-500" : "bg-red-500"
+                    }`}
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>
@@ -257,11 +254,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
           {/* Status and Tags */}
           <div className="flex flex-wrap gap-2 mb-4">
             <Badge text={statusConfig.label} colorClass={statusConfig.badge} icon={<Activity size={12} />} />
-            
-            {task.delegated_user?.role && (
-              <Badge text={task.delegated_user?.role || ""} colorClass="bg-slate-100 text-slate-700 border-slate-300" />
+
+            {task.delegated_user?.cargo && (
+              <Badge text={task.delegated_user?.cargo.descricao || ""} colorClass="bg-slate-100 text-slate-700 border-slate-300" />
             )}
-            
+
             {task.tags?.map((tag, i) => (
               <Badge key={i} text={`#${tag}`} colorClass="bg-indigo-50 text-indigo-700 border-indigo-200" />
             ))}
@@ -269,33 +266,33 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
           {/* Team & Time Information */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            <InfoCard 
+            <InfoCard
               icon={<User size={16} className="text-indigo-600" />}
               label="Responsável"
               value={task.assigned_user?.nome || "Não atribuído"}
             />
-            
+
             {task.delegated_user && (
-              <InfoCard 
+              <InfoCard
                 icon={<User size={16} className="text-purple-600" />}
                 label="Delegado para"
-                value={task.delegated_user?.nome  || ""}
+                value={task.delegated_user?.nome || ""}
                 highlight
               />
             )}
-            
-            <InfoCard 
+
+            <InfoCard
               icon={<Calendar size={16} className="text-blue-600" />}
               label="Prazo"
               value={new Date(task.end_date).toLocaleDateString("pt-BR")}
-              subValue={isLate ? `Atrasado ${Math.abs(daysRemaining)} dias` : 
-                       isUrgent ? `${daysRemaining} dias restantes` : 
-                       `${daysRemaining} dias restantes`}
+              subValue={isLate ? `Atrasado ${Math.abs(daysRemaining)} dias` :
+                isUrgent ? `${daysRemaining} dias restantes` :
+                  `${daysRemaining} dias restantes`}
               alert={isLate || isUrgent}
             />
-            
+
             {task.estimated_hours && (
-              <InfoCard 
+              <InfoCard
                 icon={<Timer size={16} className="text-amber-600" />}
                 label="Estimativa"
                 value={`${task.estimated_hours}h`}
@@ -369,26 +366,26 @@ const TaskCard: React.FC<TaskCardProps> = ({
             <div className="flex flex-wrap gap-2 pt-4 border-t-2 border-gray-100">
               {canValidate && (
                 <>
-                  <ActionButton 
+                  <ActionButton
                     icon={<CheckCircle size={16} />}
-                    label="Aprovar" 
-                    color="green" 
-                    onClick={() => handleValidationClick(true)} 
+                    label="Aprovar"
+                    color="green"
+                    onClick={() => handleValidationClick(true)}
                   />
-                  <ActionButton 
+                  <ActionButton
                     icon={<AlertCircle size={16} />}
-                    label="Reprovar" 
-                    color="red" 
-                    onClick={() => handleValidationClick(false)} 
+                    label="Reprovar"
+                    color="red"
+                    onClick={() => handleValidationClick(false)}
                   />
                 </>
               )}
               {canDelegate && (
-                <ActionButton 
+                <ActionButton
                   icon={<Users size={16} />}
-                  label="Delegar Tarefa" 
-                  color="indigo" 
-                  onClick={onDelegate} 
+                  label="Delegar Tarefa"
+                  color="indigo"
+                  onClick={onDelegate}
                 />
               )}
             </div>
@@ -396,8 +393,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </div>
 
         {/* Corner Priority Flag */}
-        <div className="absolute top-0 right-0 w-0 h-0 border-t-[60px] border-l-[60px] border-l-transparent" 
-             style={{ borderTopColor: priorityConfig.flag.replace('bg-', '#') }}>
+        <div className="absolute top-0 right-0 w-0 h-0 border-t-[60px] border-l-[60px] border-l-transparent"
+          style={{ borderTopColor: priorityConfig.flag.replace('bg-', '#') }}>
         </div>
       </div>
 
@@ -410,78 +407,4 @@ const TaskCard: React.FC<TaskCardProps> = ({
     </>
   );
 };
-
-// Subcomponents
-const InfoCard: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  subValue?: string;
-  highlight?: boolean;
-  alert?: boolean;
-}> = ({ icon, label, value, subValue, highlight, alert }) => (
-  <div className={`p-3 rounded-lg border-2 ${
-    highlight ? "bg-purple-50 border-purple-200" :
-    alert ? "bg-red-50 border-red-200" :
-    "bg-gray-50 border-gray-200"
-  }`}>
-    <div className="flex items-center gap-2 mb-1">
-      {icon}
-      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{label}</span>
-    </div>
-    <p className={`text-sm font-bold ${alert ? "text-red-900" : "text-gray-900"}`}>{value}</p>
-    {subValue && <p className={`text-xs mt-0.5 ${alert ? "text-red-700" : "text-gray-600"}`}>{subValue}</p>}
-  </div>
-);
-
-const ActionButton: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  color: "green" | "red" | "indigo";
-  onClick: () => void;
-}> = ({ icon, label, color, onClick }) => {
-  const colorClasses = {
-    green: "bg-green-600 hover:bg-green-700 text-white",
-    red: "bg-red-600 hover:bg-red-700 text-white",
-    indigo: "bg-indigo-600 hover:bg-indigo-700 text-white",
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center justify-center gap-2 flex-1 min-w-[140px] px-4 py-3 rounded-lg font-semibold text-sm shadow-md transition-all duration-200 active:scale-95 hover:shadow-lg ${colorClasses[color]}`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-};
-
-const IconButton: React.FC<{
-  icon: React.ReactNode;
-  color: string;
-  bgHover: string;
-  title: string;
-  onClick: () => void;
-}> = ({ icon, color, bgHover, title, onClick }) => (
-  <button
-    onClick={onClick}
-    title={title}
-    className={`p-2.5 ${color} rounded-lg transition-all duration-200 hover:${bgHover} active:scale-95`}
-  >
-    {icon}
-  </button>
-);
-
-const Badge: React.FC<{
-  text: string;
-  colorClass: string;
-  icon?: React.ReactNode;
-}> = ({ text, colorClass, icon }) => (
-  <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 flex items-center gap-1.5 ${colorClass} whitespace-nowrap`}>
-    {icon}
-    {text}
-  </span>
-);
-
 export default React.memo(TaskCard);

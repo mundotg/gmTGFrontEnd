@@ -4,8 +4,8 @@ import AuthProvider from "../component/provader";
 
 
 export const metadata: Metadata = {
-  title: "test",
-  description: "test",
+  title: "Welcome to",
+  description: "esta pagina é uma demostração de um projeto de um sistema de gerenciamento de banco de dados, onde o usuário pode se conectar a um banco, criar consultas, configurar tabelas e muito mais.",
 };
 
 export default function RootLayout({
@@ -19,7 +19,7 @@ export default function RootLayout({
         className={`antialiased`}
       >
         <AuthProvider>
-        {children}
+          {children}
         </AuthProvider>
       </body>
     </html>

@@ -1,4 +1,4 @@
-import { DatabaseOption, OperadorFiltro, tipo_db_Options as db_column_types } from "@/types";
+import { BancoSuportado, DatabaseOption, OperadorFiltro, tipo_db_Options as db_column_types } from "@/types";
 
 export const databases: DatabaseOption[] = [
   { id: "postgresql", name: "PostgreSQL", icon: "🟣", color: "bg-purple-500", port: "5432" },
@@ -37,87 +37,7 @@ export const MOBILE_MENU_STYLES = {
   divider: "border-t border-gray-100",
 } as const;
 
-export type Permission =
-  | "auth:login"
-  | "auth:logout"
-  | "auth:refresh"
-  | "user:create"
-  | "user:read"
-  | "user:update"
-  | "user:delete"
-  | "user:invite"
-  | "user:manage"
-  | "user:deactivate"
-  | "company:read"
-  | "company:update"
-  | "company:settings"
-  | "company:billing"
-  | "company:invite"
-  | "company:members"
-  | "company:remove_member"
-  | "project:create"
-  | "project:read"
-  | "project:update"
-  | "project:delete"
-  | "project:view"
-  | "project:manage"
-  | "project:assign_user"
-  | "project:remove_user"
-  | "team:read"
-  | "team:update"
-  | "team:manage"
-  | "role:create"
-  | "role:read"
-  | "role:update"
-  | "role:delete"
-  | "role:manage"
-  | "permission:create"
-  | "permission:read"
-  | "permission:update"
-  | "permission:delete"
-  | "permission:manage"
-  | "db_connection:create"
-  | "db_connection:read_own"
-  | "db_connection:read_company"
-  | "db_connection:read_all"
-  | "db_connection:update"
-  | "db_connection:delete"
-  | "db_connection:test"
-  | "query:execute"
-  | "query:read_history"
-  | "query:delete_history"
-  | "query:export"
-  | "table:read"
-  | "table:describe"
-  | "table:export"
-  | "table:stats"
-  | "integration:create"
-  | "integration:read"
-  | "integration:update"
-  | "integration:delete"
-  | "integration:webhook"
-  | "backup:configure"
-  | "backup:read"
-  | "logs:read"
-  | "logs:export"
-  | "audit:read"
-  | "audit:export"
-  | "settings:user"
-  | "settings:company"
-  | "settings:projects"
-  | "settings:team"
-  | "settings:integrations"
-  | "settings:system";
-
-export type BancoSuportado =
-  | 'postgresql'
-  | 'mysql'
-  | 'sqlite'
-  | 'sqlserver'
-  | 'oracle'
-  | 'mongodb';
-
-  export const operators: OperadorFiltro[] = [
+export const operators: OperadorFiltro[] = [
   { value: '=', label: 'Igual a', icon: '=' },
   { value: '!=', label: 'Diferente de', icon: '≠' },
   { value: '>', label: 'Maior que', icon: '>' },
@@ -210,6 +130,8 @@ export const FILTER_OPTIONS = [
   { value: "datetime", label: "DATETIME" }
 ] as const;
 
+export type FilterType = typeof FILTER_OPTIONS[number]['value'];
+
 export const FILTER_TYPE_MAP: Record<string, db_column_types[]> = {
   varchar: ['varchar', 'char', 'text', 'string'],
   integer: ['int', 'integer', 'bigint', 'smallint', 'decimal', 'numeric', 'double', 'float', 'real'],
@@ -241,7 +163,7 @@ export const Style_tabela_resultados = `
         }
       `
 
-export const CLASSNAME_BUTTON =[`"
+export const CLASSNAME_BUTTON = [`"
     p-2 
     rounded-lg 
     bg-white 
@@ -264,7 +186,7 @@ export const CLASSNAME_BUTTON =[`"
     disabled:cursor-not-allowed
     disabled:hover:bg-white
     disabled:hover:shadow-sm
-  `,`
+  `, `
       w-4 h-4 
       text-green-600 
       group-hover:text-green-700

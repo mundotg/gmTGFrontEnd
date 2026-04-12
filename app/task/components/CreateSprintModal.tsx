@@ -1,11 +1,11 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Calendar, CheckCircle, Eye, Save, X } from "lucide-react";
-import { useSessionTask } from "../contexts/UserContext";
 import { Modal } from "./modalComponent";
 import { Sprint } from "../types";
 import { safeDateTime } from "../utils";
 import { DEFAULT_TASK_DURATION } from "../costant";
+import { useSession } from "@/context/SessionContext";
 
 interface ProjectOption {
   id: string;
@@ -37,14 +37,14 @@ export const SprintModal: React.FC<SprintModalProps> = ({
   onClose,
   onUpdated,
 }) => {
-  const { api } = useSessionTask();
+  const { api } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [projects, setProjects] = useState<ProjectOption[]>([]);
-  
+
   // Datas padrão memorizadas
   const dataCurrentDefault = useMemo(() => {
     return new Date();
@@ -96,8 +96,8 @@ export const SprintModal: React.FC<SprintModalProps> = ({
         newForm = {
           name: sprint.name || "",
           goal: sprint.goal || "",
-          start_date:  safeDateTime( sprint.start_date || dataCurrentDefault) ,
-          end_date:  safeDateTime(sprint.end_date || dataEndDefault),
+          start_date: safeDateTime(sprint.start_date || dataCurrentDefault),
+          end_date: safeDateTime(sprint.end_date || dataEndDefault),
           projectId: sprint.project_id || project?.projectId || "",
         };
       } else {
@@ -114,13 +114,13 @@ export const SprintModal: React.FC<SprintModalProps> = ({
   // 🔹 Detectar alterações no formulário
   useEffect(() => {
     if (isOpen && mode !== "create") {
-      const changesDetected = 
+      const changesDetected =
         form.name !== originalForm.name ||
         form.goal !== originalForm.goal ||
         form.start_date !== originalForm.start_date ||
         form.end_date !== originalForm.end_date ||
         form.projectId !== originalForm.projectId;
-      
+
       setHasChanges(changesDetected);
     } else if (mode === "create") {
       // No modo create, considera que há alterações se algum campo obrigatório estiver preenchido
@@ -133,11 +133,11 @@ export const SprintModal: React.FC<SprintModalProps> = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     if (readOnly) return;
-    
+
     const { name, value } = e.target;
-    setForm(prev => ({ 
-      ...prev, 
-      [name]: value 
+    setForm(prev => ({
+      ...prev,
+      [name]: value
     }));
   }, [readOnly]);
 
@@ -163,7 +163,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
     // Validar datas
     const startDate = new Date(form.start_date);
     const endDate = new Date(form.end_date);
-    
+
     if (endDate <= startDate) {
       setError("A data de término deve ser posterior à data de início");
       return;
@@ -233,10 +233,10 @@ export const SprintModal: React.FC<SprintModalProps> = ({
     );
 
   return (
-    <Modal 
-      isOpen={isOpen} 
-      title={title} 
-      onClose={handleClose} 
+    <Modal
+      isOpen={isOpen}
+      title={title}
+      onClose={handleClose}
       size="md"
 
     >
@@ -293,9 +293,8 @@ export const SprintModal: React.FC<SprintModalProps> = ({
             onChange={handleChange}
             disabled={readOnly || loading}
             placeholder="Ex: Sprint 1 - Desenvolvimento do MVP"
-            className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${
-              readOnly ? "bg-gray-100 cursor-not-allowed" : ""
-            } ${loading ? "opacity-50" : ""}`}
+            className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+              } ${loading ? "opacity-50" : ""}`}
           />
         </div>
 
@@ -310,9 +309,8 @@ export const SprintModal: React.FC<SprintModalProps> = ({
             onChange={handleChange}
             disabled={readOnly || loading}
             placeholder="Descreva o objetivo principal desta sprint..."
-            className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${
-              readOnly ? "bg-gray-100 cursor-not-allowed" : ""
-            } ${loading ? "opacity-50" : ""}`}
+            className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+              } ${loading ? "opacity-50" : ""}`}
             rows={3}
           />
         </div>
@@ -330,9 +328,8 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               value={form.start_date}
               onChange={handleChange}
               disabled={readOnly || loading}
-              className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${
-                readOnly ? "bg-gray-100 cursor-not-allowed" : ""
-              } ${loading ? "opacity-50" : ""}`}
+              className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+                } ${loading ? "opacity-50" : ""}`}
             />
           </div>
           <div>
@@ -346,9 +343,8 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               value={form.end_date}
               onChange={handleChange}
               disabled={readOnly || loading}
-              className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${
-                readOnly ? "bg-gray-100 cursor-not-allowed" : ""
-              } ${loading ? "opacity-50" : ""}`}
+              className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+                } ${loading ? "opacity-50" : ""}`}
             />
           </div>
         </div>
@@ -378,7 +374,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               </button>
             )}
           </div>
-          
+
           <div className="flex gap-3">
             <button
               onClick={handleClose}

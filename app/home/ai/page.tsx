@@ -9,6 +9,7 @@ import { useSession } from "@/context/SessionContext";
 import usePersistedState from "@/hook/localStoreUse";
 import { ChatMessage, MessageRole, SessionItem } from "./types";
 import { useI18n } from "@/context/I18nContext";
+import Script from "next/script";
 
 
 export default function Home() {
@@ -369,8 +370,12 @@ export default function Home() {
 
       {/* ─── Main ─────────────────────────────────────────────────────────── */}
       <main className="chatbot-section flex flex-col flex-1 overflow-hidden min-w-0">
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
-          crossOrigin="anonymous"></script>
+        <Script
+          id="adsense-script"
+          strategy="lazyOnload"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
+          crossOrigin="anonymous"
+        />
         {/* Topbar */}
         <header className="flex items-center gap-3 px-5 py-3 bg-white border-b border-[#e0ddd8] flex-shrink-0">
           <button

@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 
 import { PaginatedResponse } from "../components/Paginacao";
-import { useSessionTask } from "../contexts/UserContext";
 import {
   GroupByOption,
   Project,
@@ -43,6 +42,7 @@ import { safeDateTime2 } from "../utils";
 import { FORMATS, ReportButton } from "@/app/services/ReportButton";
 import { FormatoRelatorio, useRelatorioAvancado } from "@/app/services/useRelatorio";
 import { RelatorioPayload } from "@/hook/useRelatorio";
+import { useSession } from "@/context/SessionContext";
 
 /* ------------------------------------
 
@@ -74,7 +74,7 @@ function TaskList({
   onDeleteTask,
   onDelegateTask,
 }: TaskListProps) {
-  const { api } = useSessionTask();
+  const { api } = useSession();
 
   /* -----------------------------
   
@@ -423,7 +423,7 @@ function TaskList({
             onGenerate={handleGerarRelatorio}
             formats={FORMATS}
             hasResults={true}
-            
+
             isLoading={isLoadingRelatorio}
           /></div>)} {/* Estatísticas */} <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-3 mt-4"> {/* Cartões de Estatísticas */}
         <StatCard label="Total de Tarefas" value={stats.total} icon={<Target size={16} className="sm:w-[18px] sm:h-[18px]" />} color="blue" description="Todas as tarefas do projeto" />

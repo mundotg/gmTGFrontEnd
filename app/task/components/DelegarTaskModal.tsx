@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { UserPlus, Search, Users, Check, Loader2 } from "lucide-react";
-import { Usuario } from "../types";
 import { Modal } from "./modalComponent";
 import { PaginatedResponse } from "./Paginacao";
-import { useSessionTask } from "../contexts/UserContext";
 import Image from "next/image";
+import { useSession } from "@/context/SessionContext";
+import { Usuario } from "@/types";
 
 interface DelegateTaskModalProps {
   isOpen: boolean;
@@ -23,7 +23,7 @@ const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
   currentAssignee,
   loading = false,
 }) => {
-  const { api } = useSessionTask();
+  const { api } = useSession();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [users, setUsers] = useState<Usuario[]>([]);
@@ -38,7 +38,7 @@ const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
   // Buscar usuários com paginação
   const fetchUsers = useCallback(async (pageNum: number, search: string, reset: boolean = false) => {
     if (isLoadingUsers) return;
-    
+
     setIsLoadingUsers(true);
     try {
       const params = new URLSearchParams({
@@ -213,17 +213,16 @@ const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
                   key={user.id}
                   ref={isLast ? lastUserRef : null}
                   onClick={() => setSelectedUserId(user.id!)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
-                    selectedUserId === user.id
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${selectedUserId === user.id
                       ? "bg-indigo-50 border-indigo-500 shadow-sm"
                       : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                  }`}
+                    }`}
                 >
                   {/* Avatar */}
                   <div className="flex-shrink-0">
-                    {user.avatarUrl ? (
+                    {user.avatar_url ? (
                       <Image
-                        src={user.avatarUrl}
+                        src={user.avatar_url || ""}
                         alt={user.nome}
                         className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-sm"
                       />
@@ -251,7 +250,7 @@ const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
                         Atual
                       </span>
                     )}
-                    
+
                     {selectedUserId === user.id && (
                       <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center shadow-sm">
                         <Check size={14} className="text-white stroke-[3]" />

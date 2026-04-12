@@ -5,27 +5,19 @@ import { TaskModal } from "./components/TaskModal";
 import { Project, ProjectFormData, Sprint, Task, TaskCreate, TypeShowToste, UsuarioTaskCreate } from "./types";
 import ProjectList from "./paginas/ProjectList";
 import TaskList from "./paginas/Tasklist";
-import { AuthModal } from "./components/AuthModal";
-import { useSessionTask } from "./contexts/UserContext";
+
 import { SessionMenu } from "./components/SessionMenu";
 import { PaginatedResponse } from "./components/Paginacao";
 import usePersistedState from "@/hook/localStoreUse";
-import { Loader2, ArrowLeft, Briefcase } from "lucide-react";
+import { ArrowLeft, Briefcase } from "lucide-react";
 import { convertProject } from "./utils";
 import { Toast } from "./components/ToastComponent";
 import { DEFAULT_TASK_DURATION } from "./costant";
+import { useSession } from "@/context/SessionContext";
 
 
 const App: React.FC = () => {
-  const {
-    user,
-    isLoading,
-    isAuthenticated,
-    api,
-    login,
-    register,
-    logout: handleLogout,
-  } = useSessionTask();
+  const { api, user, logout } = useSession();
 
   const [projects, setProjects] = usePersistedState<PaginatedResponse<Project>>(
     "paginacaoprojectos",
@@ -40,18 +32,18 @@ const App: React.FC = () => {
   const [isProjectModalOpen, setProjectModalOpen] = usePersistedState("isProjectModalOpen", false);
   const [isTaskModalOpen, setTaskModalOpen] = usePersistedState("isTaskModalOpen", false);
   const [editingProject, setEditingProject] = usePersistedState<ProjectFormData | null>("editingProject", null);
-  const [editingTask, setEditingTask,clearEditTask] = usePersistedState<Task | null>("editingTask", null);
+  const [editingTask, setEditingTask, clearEditTask] = usePersistedState<Task | null>("editingTask", null);
   const [formError, setFormError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedProject, setSelectedProject] = usePersistedState<Project | null | undefined>("selectedProject_", null)
-  
+
 
   const [selectedSprint, setSelectedSprint] = usePersistedState<Sprint | null | undefined>("selectedSprint_", null)
 
 
   // Função auxiliar para mostrar toast
-  const showToast = useCallback((message: string, type:TypeShowToste = "info") => {
+  const showToast = useCallback((message: string, type: TypeShowToste = "info") => {
     setToast({ message, type });
   }, [setToast]);
 
@@ -155,7 +147,7 @@ const App: React.FC = () => {
         setActionLoading(false);
       }
     },
-    [selectedProjectId,setSelectedProjectId]
+    [selectedProjectId, setSelectedProjectId]
   );
 
   // CRUD DE TAREFAS
@@ -263,7 +255,7 @@ const App: React.FC = () => {
         description: f.description,
         status: f.status,
         projectId: f.projectId || projectId,
-        priority: f.priority ,
+        priority: f.priority,
         assignedToId: f.assignedToId || user?.id || "",
         createdById: f.createdById || user?.id,
         startDate: f.startDate,
@@ -274,7 +266,7 @@ const App: React.FC = () => {
         completedAt: f.completedAt,
         delegatedToId: f.delegatedToId,
         schedule: f.schedule,
-        sprintId: f.sprintId 
+        sprintId: f.sprintId
 
       };
 
@@ -317,58 +309,7 @@ const App: React.FC = () => {
     [editingTask]
   );
 
-  // LOGIN E REGISTRO
-  const handleLogin = useCallback(
-    async (email: string, password: string) => {
-      try {
-        await login(email, password);
-        showToast("Login realizado com sucesso!", "success");
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        showToast(error.message || "Erro ao fazer login", "error");
-      }
-    },
-    [login]
-  );
 
-  const handleRegister = useCallback(
-    async (data:UsuarioTaskCreate) => {
-      try {
-        await register(data);
-        showToast("Conta criada com sucesso!", "success");
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        showToast(error.message || "Erro ao criar conta", "error");
-      }
-    },
-    [register]
-  );
-
-
-
-  // UI - Loading
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-        <div className="text-center">
-          <Loader2 className="animate-spin h-12 w-12 text-indigo-600 mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // UI - Não autenticado
-  if (!isAuthenticated) {
-    return (
-      <AuthModal
-        isOpen={true}
-        onClose={() => { }}
-        onLogin={handleLogin}
-        onRegister={handleRegister}
-      />
-    );
-  }
 
 
 
@@ -394,7 +335,7 @@ const App: React.FC = () => {
               </h1>
             </div>
 
-            <SessionMenu user={user} onLogout={handleLogout} />
+            <SessionMenu user={user} onLogout={logout} />
           </div>
         </div>
       </header>
@@ -404,7 +345,7 @@ const App: React.FC = () => {
         <div className="bg-white border-b border-gray-200">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2">
             <button
-              onClick={() => {setSelectedProjectId(null); setSelectedProject(null);setSelectedSprint(null);setSelectedSprintId(null)}}
+              onClick={() => { setSelectedProjectId(null); setSelectedProject(null); setSelectedSprint(null); setSelectedSprintId(null) }}
               className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
             >
               <ArrowLeft size={16} />
@@ -421,13 +362,13 @@ const App: React.FC = () => {
             {!selectedProject ? (
               <ProjectList
 
-              showToast={showToast}
+                showToast={showToast}
                 projects={projects}
                 sprintList={sprintList}
                 setSprintList={setSprintList}
                 setProjects={setProjects}
-                onSelectProject={(project,spring) => {
-                  setSelectedSprint( spring)
+                onSelectProject={(project, spring) => {
+                  setSelectedSprint(spring)
                   setSelectedProject(project)
                 }}
                 onOpenAddProject={() => {
@@ -450,7 +391,7 @@ const App: React.FC = () => {
                 showToast={showToast}
                 project={selectedProject}
                 sprint={selectedSprint}
-                onBack={() => {setSelectedProjectId(null); setSelectedProject(null) ; setSelectedSprint(null);setSelectedSprintId(null)}}
+                onBack={() => { setSelectedProjectId(null); setSelectedProject(null); setSelectedSprint(null); setSelectedSprintId(null) }}
                 onOpenAddTask={(project_id, sprint_id) => {
                   // console.log(project_id," on", sprint_id)
                   setSelectedProjectId(project_id)
@@ -497,7 +438,7 @@ const App: React.FC = () => {
         isOpen={isTaskModalOpen}
         isLoading={actionLoading}
         projectId={selectedProjectId!}
-        sprintid={editingTask ? null :selectedSprintId}
+        sprintid={editingTask ? null : selectedSprintId}
         editingTask={editingTask ?? undefined}
         formError={formError ?? undefined}
         defaultAssignedTo={user?.nome ?? "Desconhecido"}

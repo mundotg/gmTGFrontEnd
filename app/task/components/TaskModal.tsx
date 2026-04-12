@@ -12,7 +12,6 @@ import {
   Repeat,
 } from "lucide-react";
 import { TaskCreate, TaskModalProps, TaskPriority, TaskRepeat, TaskStatus } from "../types";
-import { useSessionTask } from "../contexts/UserContext";
 import { useTaskModalData, useDateUtils } from "../hook/useTaskModal";
 import { JoinSelect } from "./select_Component";
 import {
@@ -22,6 +21,7 @@ import {
   STATUS_OPTIONS,
 } from "../costant";
 import usePersistedState from "@/hook/localStoreUse";
+import { useSession } from "@/context/SessionContext";
 
 interface TaskModalPropsExtended extends TaskModalProps {
   isLoading?: boolean;
@@ -57,7 +57,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
   onClose,
   onSubmit,
 }) => {
-  const { user } = useSessionTask();
+  const { user } = useSession();
   const { formatDateTimeLocal } = useDateUtils();
   const { fetchSprints, fetchUsers } = useTaskModalData(projectId, editingTask);
 
@@ -91,7 +91,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
   );
 
   // ⚙️ Validação local - MANTIDO (já está correto)
-  const validateForm = useCallback(( formChanges: TaskCreate) => {
+  const validateForm = useCallback((formChanges: TaskCreate) => {
     const title = formChanges.title ?? editingTask?.title;
     if (!title?.trim()) {
       setLocalError("O título da tarefa é obrigatório");
@@ -132,7 +132,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      
+
 
       // Preparar dados para o backend
       const taskData: TaskCreate = {
@@ -158,7 +158,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
         sprintId: formChanges.sprintId || selectedSprint || sprintid || undefined,
         // Campos numéricos
         estimatedHours: formChanges.estimatedHours || editingTask?.estimated_hours,
-        createdById : editingTask?.created_by_id || user?.id,
+        createdById: editingTask?.created_by_id || user?.id,
         // Arrays
         tags: formChanges.tags
           ? formChanges.tags?.split(",").map((t: string) => t.trim()).filter(Boolean)

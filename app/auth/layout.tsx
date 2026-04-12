@@ -4,8 +4,8 @@ import AuthProvider from "../component/provader";
 
 
 export const metadata: Metadata = {
-  title: "test",
-  description: "test",
+  title: "MustaInf auth",
+  description: "janelas de login e registro",
 };
 
 export default function RootLayout({
@@ -19,7 +19,7 @@ export default function RootLayout({
         className={`antialiased`}
       >
         <AuthProvider>
-        {children}
+          {children}
         </AuthProvider>
       </body>
     </html>
