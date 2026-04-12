@@ -12,7 +12,7 @@ export async function POST(request: Request) {
             credentials = await request.json();
         } catch (err) {
             // Se cair aqui, é porque o body veio vazio. Tudo bem, seguimos em frente.
-            console.log('Body vazio recebido.');
+            // console.log('Body vazio recebido.');
         }
 
         const token = credentials?.token;
@@ -20,10 +20,10 @@ export async function POST(request: Request) {
 
         // 2. CENÁRIO DE LOGOUT: O token veio vazio (ou null, ou undefined)
         if (!token) {
-            console.log('🧹 Nenhum token recebido. Apagando o cookie...', credentials);
+            // console.log('🧹 Nenhum token recebido. Apagando o cookie...', credentials);
 
             // O Next.js tem uma função própria para deletar cookies de forma segura
-            cookieStore.delete('bk_access_token');
+            // cookieStore.delete('bk_access_token');
 
             // Retornamos sucesso (Status 200), pois apagar o cookie deu certo!
             return NextResponse.json({
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         }
 
         // 3. CENÁRIO DE LOGIN: O token chegou perfeitamente
-        console.log('🔍 Salvando novo token no cookie...');
+        // console.log('🔍 Salvando novo token no cookie...');
         cookieStore.set({
             name: 'bk_access_token',
             value: token,

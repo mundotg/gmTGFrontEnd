@@ -19,6 +19,7 @@ import { ConnectionForm } from "@/app/component/connectionComponent/ConnectionFo
 import { formatDate, getStatusColor, getStatusIcon } from "@/util/connectioPage/func";
 import { aes_decrypt, aes_encrypt } from "@/service";
 import { DatasetImportModal, DatasetImportResponse } from "./component/DatasetImportModal";
+import { useRouter } from "next/navigation";
 
 const DEFAULT_FORM_DATA: ConnectionFormData = {
   name: "",
@@ -47,7 +48,7 @@ const DatabaseConnectionForm = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("");
   const [isDatasetModalOpen, setIsDatasetModalOpen] = useState(false);
-
+  const router = useRouter();
   const {
     page: historyPage,
     totalPages: historyTotal,
@@ -176,6 +177,8 @@ const DatabaseConnectionForm = () => {
       }
 
       setConnectionStatus("error");
+      router.refresh();
+
     } catch (error) {
       console.error("Erro ao conectar:", error);
       setConnectionStatus("error");
@@ -280,17 +283,18 @@ const DatabaseConnectionForm = () => {
 
         setPaginatedConnections(updatedConnections);
         refreshConnections();
+        router.refresh();
       } catch (error: unknown) {
         console.error("❌ Erro ao alternar conexão:", error);
       }
     },
-    [api, paginatedConnections, refreshConnections, setPaginatedConnections]
+    [api, paginatedConnections, refreshConnections, setPaginatedConnections, router]
   );
 
   const handleDatasetImported = useCallback((result: DatasetImportResponse) => {
-  console.log("Dataset importado:", result);
-  refreshConnections();
-}, [refreshConnections]);
+    console.log("Dataset importado:", result);
+    refreshConnections();
+  }, [refreshConnections]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
