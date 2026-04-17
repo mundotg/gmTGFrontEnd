@@ -8,6 +8,7 @@ export function proxy(req: NextRequest) {
 export const config = {
   matcher: [
     '/dashboard',
+    '/clouds',
     '/auth/login',
     '/auth/register',
     '/home/',

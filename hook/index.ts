@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-type PaginationData<T> = {
+export type PaginationData<T> = {
   results: T[];
   page: number;
   total: number;
@@ -14,7 +14,7 @@ export function usePagination<T>(
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [execute,setExecute] = useState(false)
+  const [execute, setExecute] = useState(false)
 
   const totalPages = Math.ceil(total / itemsPerPage);
 
@@ -29,7 +29,7 @@ export function usePagination<T>(
         console.error("Erro ao carregar página:", err);
       })
       .finally(() => setLoading(false));
-  }, [page,execute]);
+  }, [page, execute]);
 
   const goToNext = () => setPage((prev) => Math.min(prev + 1, totalPages));
   const goToPrev = () => setPage((prev) => Math.max(prev - 1, 1));
