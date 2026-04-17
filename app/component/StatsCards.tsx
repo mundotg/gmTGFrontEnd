@@ -1,14 +1,10 @@
 import React from "react";
+import { StatCardType } from "../clouds/componets";
 
-interface Stat {
-  label: string;
-  value: string | number;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  color?: string;
-}
+
 
 interface StatsCardsProps {
-  stats: Stat[];
+  stats: StatCardType[];
 }
 
 export default function StatsCards({ stats }: StatsCardsProps) {
