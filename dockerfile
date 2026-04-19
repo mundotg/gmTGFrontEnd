@@ -1,38 +1,39 @@
-# 1. Instalação de dependências
 FROM node:24-slim AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+
+COPY package*.json ./
 RUN npm ci
 
-# 2. Builder
+
 FROM node:24-slim AS builder
 WORKDIR /app
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# IMPORTANTE: No next.config.js, deves ter 'output: "standalone"'
+ENV NEXT_TELEMETRY_DISABLED=1
+
 RUN npm run build
 
-# 3. Runner (O ambiente de execução igual à Vercel)
+
 FROM node:24-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-# Variável para o teu backend no Render
-ENV VITE_API_URL=https://gmtgbackend.onrender.com 
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN groupadd -g 1001 nodejs
-RUN useradd -u 1001 nextjs -g nodejs
+RUN groupadd -r nodejs
+RUN useradd -r -g nodejs nextjs
 
-# Copia apenas o necessário do build standalone
 COPY --from=builder /app/public ./public
+
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
 EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["node","server.js"]
