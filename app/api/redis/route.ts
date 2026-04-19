@@ -1,19 +1,62 @@
-// app/api/user/route.ts
 import { NextResponse } from "next/server";
 import Redis from "ioredis";
 
-const redis = new Redis();
+let redis: Redis | null = null;
 
-export async function GET() {
-    const cached = await redis.get("user:1");
-
-    if (cached) {
-        return NextResponse.json({ source: "cache", data: cached });
+function getRedis() {
+    if (!redis) {
+        redis = new Redis(process.env.REDIS_URL || "redis://redis:6379", {
+            maxRetriesPerRequest: 2,
+            enableReadyCheck: true,
+            lazyConnect: true,
+        });
     }
 
-    const data = "Francemy";
+    return redis;
+}
 
-    await redis.set("user:1", data, "EX", 60);
+export async function GET() {
+    try {
+        const client = getRedis();
 
-    return NextResponse.json({ source: "db", data });
+        await client.connect().catch(() => {
+            // ignora se já estiver conectado
+        });
+
+        const cached = await client.get("user:1");
+
+        if (cached) {
+            return NextResponse.json({
+                source: "cache",
+                data: cached,
+            });
+        }
+
+        // simulação de DB
+        const data = "Francemy";
+
+        await client.set(
+            "user:1",
+            data,
+            "EX",
+            60
+        );
+
+        return NextResponse.json({
+            source: "db",
+            data
+        });
+
+    } catch (error) {
+        console.error("Redis error:", error);
+
+        return NextResponse.json(
+            {
+                error: "Redis unavailable"
+            },
+            {
+                status: 500
+            }
+        );
+    }
 }
