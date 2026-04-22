@@ -83,6 +83,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ token: "" }),
             });
+            sessionStorage.removeItem("login_done");
+            sessionStorage.removeItem("login_retry");
 
         }
         return true;
@@ -176,9 +178,13 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         const providerUrls: Record<AuthProvider, string> = {
             google: "/oauth2/google/login",
             "azure-ad": "/login/azure-ad",
-            facebook: "/login/facebook",
             github: "/oauth2/github/login",
-            gitlab: "/login/gitlab",
+            facebook: "/facebook/login",
+            linkedin: "/linkedin/login",
+            microsoft: "/microsoft/login",
+            gitlab: "/gitlab/login",
+            discord: "/discord/login",
+            kaggle: "/kaggle/login", // ⚠️ cuidado (não tem OAuth oficial)
             credenciais: "",
         };
 

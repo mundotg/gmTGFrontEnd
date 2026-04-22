@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useI18n } from "@/context/I18nContext";
 import { useSession } from "@/context/SessionContext";
 import { useRouter } from "next/navigation";
@@ -86,7 +86,7 @@ export default function HomePage() {
               <Link href="/task" className="text-sm font-bold text-gray-500 hover:text-blue-600 transition-colors">
                 {t("nav.tasks")}
               </Link>
-              <Link href="/ocr" className="text-sm font-bold text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1.5">
+              <Link href="/home/ocr" className="text-sm font-bold text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1.5">
                 <ScanText size={16} /> {t("nav.ocr")}
               </Link>
             </div>

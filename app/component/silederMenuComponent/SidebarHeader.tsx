@@ -18,7 +18,7 @@ export function SidebarHeader({ collapsed, toggleCollapse }: SidebarHeaderProps)
         </div>
         {!collapsed && (
           <div>
-            <h1 className="text-xl font-bold">DB Manager</h1>
+            <h1 className="text-xl font-bold">MustaInfo</h1>
             <p className="text-sm text-gray-500">{t("sidebar.subtitle")}</p>
           </div>
         )}

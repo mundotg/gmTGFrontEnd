@@ -211,7 +211,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
 
             {!collapsed && (
               <div>
-                <h1 className="font-bold">DB Manager</h1>
+                <h1 className="font-bold">MustaInfo</h1>
                 <p className="text-sm text-gray-500">{t("sidebar.subtitle")}</p>
               </div>
             )}

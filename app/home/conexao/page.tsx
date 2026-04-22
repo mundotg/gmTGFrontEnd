@@ -63,6 +63,8 @@ const DatabaseConnectionForm = () => {
       .then((res) => res.data)
   );
 
+  const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+
   const {
     page: connPage,
     totalPages: connTotal,
@@ -172,7 +174,12 @@ const DatabaseConnectionForm = () => {
 
       if (response.data?.connect) {
         setConnectionStatus("connected");
-        refreshConnections();
+
+        await refreshConnections(); // 👈 melhor esperar isso
+
+        await sleep(2000);
+
+        window.location.reload();
         return;
       }
 
@@ -283,7 +290,7 @@ const DatabaseConnectionForm = () => {
 
         setPaginatedConnections(updatedConnections);
         refreshConnections();
-        router.refresh();
+        window.location.reload();
       } catch (error: unknown) {
         console.error("❌ Erro ao alternar conexão:", error);
       }
