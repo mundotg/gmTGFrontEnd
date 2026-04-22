@@ -110,7 +110,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
   const toggleCollapse = useCallback(() => setCollapsed(prev => !prev), []);
 
   // ✅ Simplificado — o useEffect de pathname já cuida do mobile
-  const handleItemClick = useCallback(() => {}, []);
+  const handleItemClick = useCallback(() => { }, []);
 
   const toggleMobileMenu = useCallback(() => setMobileOpen(prev => !prev), []);
 
@@ -204,7 +204,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             </div>
             {!collapsed && (
               <div className="min-w-0">
-                <h1 className="text-xl font-bold truncate">DB Manager</h1>
+                <h1 className="text-xl font-bold truncate">MustaInfo</h1>
                 <p className="text-sm text-gray-500 truncate">{t('sidebar.subtitle')}</p>
               </div>
             )}

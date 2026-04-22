@@ -16,10 +16,10 @@ export const config = {
     '/home/consultas',
     '/home/configuracao',
     '/home/tabelas',
-    '/home/ocr',
-    '/home/chatGPT',
+    '/home/ocr',  
     '/home/geradorImagens',
     '/home/sobre',
-    '/home/tester'
+    '/home/tester',
+    '/home/ai'
   ],
 };

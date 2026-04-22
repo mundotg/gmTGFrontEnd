@@ -1,6 +1,6 @@
 
 import { AuthProvider, LoginOptions } from '@/types';
-import { Github, Facebook } from 'lucide-react';
+import { Github, Facebook, AppWindow } from 'lucide-react';
 import React, { useCallback } from 'react';
 
 export interface OtherProvidersProps {
@@ -11,7 +11,7 @@ export interface OtherProvidersProps {
 export const OtherProviders = React.memo<OtherProvidersProps>(({ login }) => {
     const onGoogle = useCallback(() => void login("google"), [login]);
     const onGithub = useCallback(() => void login("github"), [login]);
-    const onFacebook = useCallback(() => void login("facebook"), [login]);
+    const onMicrosoft = useCallback(() => void login("microsoft"), [login]);
 
     const socialBtnClass = "flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm";
 
@@ -30,8 +30,9 @@ export const OtherProviders = React.memo<OtherProvidersProps>(({ login }) => {
                 <Github className="w-4 h-4" />
             </button>
 
-            <button type="button" onClick={onFacebook} className={socialBtnClass} title="Facebook">
-                <Facebook className="w-4 h-4 text-[#1877F2]" />
+            {/* MICROSOFT */}
+            <button type="button" onClick={onMicrosoft} className={socialBtnClass} title="Microsoft">
+                <AppWindow className="w-4 h-4 text-blue-500" />
             </button>
         </div>
     );
