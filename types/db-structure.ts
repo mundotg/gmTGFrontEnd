@@ -18,7 +18,7 @@ export type ForeignKeyAction =
   | "RESTRICT"
   | "NO ACTION";
 
-export type ConnectionStatus = 
+export type ConnectionStatus =
   | "connected"
   | "disconnected"
   | "error"
@@ -60,6 +60,16 @@ export const DEFAULT_DB_VALUES = {
 } as const;
 
 // Interface para campos do banco com valores padrão
+/**
+ * Interface para um campo/coluna da tabela
+ * 
+ * @property name - Nome da coluna (ex: "user_id", "created_at")
+ * @property type - Tipo de dados PostgreSQL (ex: "INTEGER", "VARCHAR(255)")
+ * @property enum_values - Valores possíveis se for ENUM (ex: "active,inactive,pending")
+ * @property is_primary_key - Indica se faz parte da chave primária
+ * @property is_foreign_key - Indica se é chave estrangeira
+ * @property referenced_table - Tabela referenciada (quando FK)
+ */
 export interface DBField {
   id: number;
   name: string;
@@ -117,6 +127,14 @@ export const createDefaultDBField = (overrides?: Partial<DBField>): DBField => (
 });
 
 // Interface para estruturas/tabelas
+
+/**
+ * Interface para uma tabela/estrutura do banco de dados
+ * 
+ * @property table_name - Nome da tabela no banco
+ * @property schema_name - Schema PostgreSQL (public, information_schema)
+ * @property fields - Array de colunas da tabela
+ */
 export interface DBStructure {
   id: number;
   db_connection_id: number;
@@ -144,6 +162,13 @@ export const createDefaultDBStructure = (overrides?: Partial<DBStructure>): DBSt
 });
 
 // Interface principal para conexões
+/**
+ * Interface para uma conexão com banco de dados
+ * 
+ * @property id - Identificador único da conexão
+ * @property name - Nome amigável da conexão (ex: "Prod DB", "Staging")
+ * @property structures - Todas as tabelas do banco
+ */
 export interface DBConnection {
   type: Dbtype;
   trustServerCertificate: string;

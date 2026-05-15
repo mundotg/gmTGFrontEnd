@@ -77,7 +77,8 @@ export type BancoSuportado =
   | 'sqlite'
   | 'sqlserver'
   | 'oracle'
-  | 'mongodb';
+  | 'mongodb'
+  | 'redis';
 
 export type DatabaseOption = {
   id: string;
@@ -141,7 +142,7 @@ export interface TableInfoCreate {
   name: string;
   schema?: string;
   comment?: string;
-
+  newSchema?: boolean;
   // Advanced (opcional)
   engine?: string; // mysql/mariadb
   charset?: string; // mysql/mariadb

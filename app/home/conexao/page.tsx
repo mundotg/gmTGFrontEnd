@@ -34,6 +34,11 @@ const DEFAULT_FORM_DATA: ConnectionFormData = {
   service: "",
 };
 
+// Cache para evitar requisições duplicadas
+const requestCache = new Map<string, Promise<any>>();
+
+const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 const DatabaseConnectionForm = () => {
   const { t } = useI18n();
   const { api } = useSession();
@@ -49,21 +54,65 @@ const DatabaseConnectionForm = () => {
   const [connectionStatus, setConnectionStatus] = useState("");
   const [isDatasetModalOpen, setIsDatasetModalOpen] = useState(false);
   const router = useRouter();
+
+  // Função memoizada para buscar dados com cache por página
+  const fetchConnectionLogs = useCallback(async (page: number) => {
+    const cacheKey = `logs_${page}`;
+
+    if (requestCache.has(cacheKey)) {
+      return requestCache.get(cacheKey)!;
+    }
+
+    const promise = api
+      .get("/log/connection_logs/", {
+        params: { page, limit: 10 },
+        withCredentials: true,
+      })
+      .then((res) => {
+        // Remove do cache após 30 segundos para permitir atualizações
+        setTimeout(() => requestCache.delete(cacheKey), 30000);
+        return res.data;
+      })
+      .catch((error) => {
+        requestCache.delete(cacheKey);
+        throw error;
+      });
+
+    requestCache.set(cacheKey, promise);
+    return promise;
+  }, [api]);
+
+  const fetchConnections = useCallback(async (page: number) => {
+    const cacheKey = `connections_${page}`;
+
+    if (requestCache.has(cacheKey)) {
+      return requestCache.get(cacheKey)!;
+    }
+
+    const promise = api
+      .get("/conn/connections/", {
+        params: { page, limit: 10 },
+        withCredentials: true,
+      })
+      .then((res) => {
+        setTimeout(() => requestCache.delete(cacheKey), 30000);
+        return res.data;
+      })
+      .catch((error) => {
+        requestCache.delete(cacheKey);
+        throw error;
+      });
+
+    requestCache.set(cacheKey, promise);
+    return promise;
+  }, [api]);
+
   const {
     page: historyPage,
     totalPages: historyTotal,
     data: paginatedHistory = [],
     setPage: setHistoryPage,
-  } = usePagination<ConnectionLog>((page) =>
-    api
-      .get("/log/connection_logs/", {
-        params: { page, limit: 10 },
-        withCredentials: true,
-      })
-      .then((res) => res.data)
-  );
-
-  const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+  } = usePagination<ConnectionLog>(fetchConnectionLogs);
 
   const {
     page: connPage,
@@ -72,22 +121,28 @@ const DatabaseConnectionForm = () => {
     setData: setPaginatedConnections,
     setPage: setConnPage,
     setExecute,
-  } = usePagination<SavedConnection>((page) =>
-    api
-      .get("/conn/connections/", {
-        params: { page, limit: 10 },
-        withCredentials: true,
-      })
-      .then((res) => res.data)
-  );
+  } = usePagination<SavedConnection>(fetchConnections);
 
   const selectedDatabase = useMemo(
     () => databases.find((db) => db.id === selectedDb),
     [selectedDb]
   );
 
+  // Debounce para refresh connections
+  const refreshConnectionsTimeout = React.useRef<NodeJS.Timeout>();
+
   const refreshConnections = useCallback(() => {
-    setExecute((prev) => !prev);
+    // Limpa o cache para forçar nova requisição
+    requestCache.clear();
+
+    // Debounce para evitar múltiplas execuções rápidas
+    if (refreshConnectionsTimeout.current) {
+      clearTimeout(refreshConnectionsTimeout.current);
+    }
+
+    refreshConnectionsTimeout.current = setTimeout(() => {
+      setExecute((prev) => !prev);
+    }, 300);
   }, [setExecute]);
 
   const buildConnectionPayload = useCallback(() => {
@@ -142,13 +197,25 @@ const DatabaseConnectionForm = () => {
     [paginatedConnections, setFormData, setSelectedDb, setShowDropdown]
   );
 
-  const testConnection = useCallback(async () => {
-    try {
-      setConnectionStatus("");
+  // Rate limiting para test connection
+  const testConnectionTimeout = React.useRef<NodeJS.Timeout>();
 
+  const testConnection = useCallback(async () => {
+    // Evita múltiplos cliques rápidos
+    if (testConnectionTimeout.current) {
+      return;
+    }
+
+    try {
+      testConnectionTimeout.current = setTimeout(() => {
+        testConnectionTimeout.current = undefined;
+      }, 2000);
+
+      setConnectionStatus("");
       const payload = buildConnectionPayload();
+
       const response = await api.post(
-        "/conn/connect",
+        "/conn/connect/",
         { conn_data: payload, tipo: "con" },
         { withCredentials: true }
       );
@@ -161,38 +228,39 @@ const DatabaseConnectionForm = () => {
   }, [api, buildConnectionPayload]);
 
   const connect = useCallback(async () => {
+    if (isConnecting) return; // Evita múltiplas submissões
+
     try {
       setIsConnecting(true);
       setConnectionStatus("");
 
       const payload = buildConnectionPayload();
       const response = await api.post(
-        "/conn/connect",
+        "/conn/connect/",
         { conn_data: payload, tipo: "upsert" },
-        { withCredentials: true }
+        { withCredentials: true, timeout: 6000 }
       );
 
       if (response.data?.connect) {
         setConnectionStatus("connected");
 
-        await refreshConnections(); // 👈 melhor esperar isso
-
+        // Atualiza localmente sem recarregar a página
+        refreshConnections();
         await sleep(2000);
 
-        window.location.reload();
+        // Usa router.refresh() em vez de window.location.reload()
+        router.refresh();
         return;
       }
 
       setConnectionStatus("error");
-      router.refresh();
-
     } catch (error) {
       console.error("Erro ao conectar:", error);
       setConnectionStatus("error");
     } finally {
       setIsConnecting(false);
     }
-  }, [api, buildConnectionPayload, refreshConnections]);
+  }, [api, buildConnectionPayload, isConnecting, refreshConnections, router]);
 
   const loadConnection = useCallback(
     async (connection: SavedConnection) => {
@@ -251,51 +319,63 @@ const DatabaseConnectionForm = () => {
           withCredentials: true,
         });
 
+        // Otimistic update: remove localmente antes de recarregar
+        setPaginatedConnections(prev => prev.filter(conn => conn.id !== id));
         refreshConnections();
       } catch (error) {
         console.error("❌ Erro ao deletar conexão:", error);
+        refreshConnections(); // Recarrega em caso de erro
       }
     },
-    [api, refreshConnections, t]
+    [api, refreshConnections, setPaginatedConnections, t]
   );
 
   const toggleConnection = useCallback(
     async (connectionId: string) => {
       try {
+        // Otimistic update
+        setPaginatedConnections(prev => {
+          const targetConn = prev.find(conn => conn.id === connectionId);
+          if (!targetConn) return prev;
+
+          const isConnecting = targetConn.status !== "connected";
+
+          return prev.map(conn => {
+            if (conn.id === connectionId) {
+              return {
+                ...conn,
+                status: isConnecting ? "connected" : "disconnected",
+              };
+            }
+
+            if (isConnecting) {
+              return {
+                ...conn,
+                status: conn.status === "connected" ? "disconnected" : conn.status,
+              };
+            }
+
+            return conn;
+          });
+        });
+
         const response = await api.put(
           "/conn/connect-toggle/",
           { conn_id: connectionId },
-          { withCredentials: true }
+          { withCredentials: true, timeout: 6000 }
         );
 
-        const { connect } = response.data;
-
-        const updatedConnections: SavedConnection[] = paginatedConnections.map((conn) => {
-          if (conn.id === connectionId) {
-            return {
-              ...conn,
-              status: connect ? "connected" : "disconnected",
-            };
-          }
-
-          if (connect) {
-            return {
-              ...conn,
-              status: conn.status === "connected" ? "disconnected" : conn.status,
-            };
-          }
-
-          return conn;
-        });
-
-        setPaginatedConnections(updatedConnections);
+        // Atualiza com dados reais do servidor
+        await sleep(500);
         refreshConnections();
-        window.location.reload();
+        router.refresh();
       } catch (error: unknown) {
         console.error("❌ Erro ao alternar conexão:", error);
+        // Reverte em caso de erro
+        refreshConnections();
       }
     },
-    [api, paginatedConnections, refreshConnections, setPaginatedConnections, router]
+    [api, refreshConnections, setPaginatedConnections, router]
   );
 
   const handleDatasetImported = useCallback((result: DatasetImportResponse) => {

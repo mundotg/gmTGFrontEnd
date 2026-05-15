@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Table, FilePlus2, Shield, Database,
   Hash, FileText, Trash2
@@ -126,6 +126,13 @@ const ConsultaPage = () => {
     [columnsInfo, setAliasTables, setColumnsInfo, setError, setSelectColumns, setSelectedTables, selectedTables]
   );
 
+  const table_names = useMemo(() => {
+    return metadata?.table_names.map(t => ({
+      value: t.name,
+      label: `${t.name} (${t.rowcount} registros)`,
+    })) || [];
+  }, [metadata]);
+
   const openRowModal = useCallback((row: SelectedRow) => {
     setSelectedRow(row);
     setModalOpenEdit(true);
@@ -234,10 +241,7 @@ const ConsultaPage = () => {
                 label={t("common.tables") || "Tabelas"}
                 value={selectedTables}
                 onChange={handleSelectTables}
-                options={metadata.table_names.map(t => ({
-                  value: t.name,
-                  label: `${t.name} (${t.rowcount} registros)`,
-                })) || []}
+                options={table_names}
                 maxSelections={16}
               />
             )}

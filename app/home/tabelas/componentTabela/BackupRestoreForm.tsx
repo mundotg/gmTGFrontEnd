@@ -15,7 +15,7 @@ interface BackupRestoreFormProps {
 }
 
 /** limites e validações */
-const MAX_FILE_MB = 5000; // ajusta conforme tua infra
+const MAX_FILE_MB = 5000;
 const ACCEPT_EXT = [".sql", ".backup", ".dump", ".gz"];
 
 function getDatabaseIcon(type: string) {
@@ -31,7 +31,6 @@ function getDatabaseIcon(type: string) {
 }
 
 function isValidConnId(v: string) {
-  // teu connId parece numérico (12). Se for UUID, troca a regex.
   return /^\d+$/.test(v.trim());
 }
 
@@ -41,6 +40,7 @@ function fileHasAllowedExt(file: File) {
 }
 
 function fileSizeOk(file: File) {
+  // CORREÇÃO: Cálculo de MB corrigido (1024 * 1024)
   const mb = file.size / (1024 * 1024);
   return mb <= MAX_FILE_MB;
 }
@@ -54,7 +54,7 @@ async function uploadRestoreFile(opts: {
   fd.append("file", opts.file);
 
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL}/database/restore/${opts.connectionId}/upload`,
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}database/restore/${opts.connectionId}/upload`,
     {
       method: "POST",
       body: fd,
@@ -63,7 +63,6 @@ async function uploadRestoreFile(opts: {
     }
   );
 
-  // tenta extrair erro decente
   if (!res.ok) {
     let msg = `Falha no upload (${res.status}).`;
     try {
@@ -72,7 +71,7 @@ async function uploadRestoreFile(opts: {
     } catch {
       try {
         msg = await res.text();
-      } catch {}
+      } catch { }
     }
     throw new Error(msg);
   }
@@ -101,10 +100,11 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
   // Restore
   const [restoreConnId, setRestoreConnId] = useState<string>(connectionId || "");
   const [backupFile, setBackupFile] = useState<File | null>(null);
-  const [restoreFilepath, setRestoreFilepath] = useState<string>(""); // <- path server (obrigatório)
+  const [restoreFilepath, setRestoreFilepath] = useState<string>("");
   const [restoreIsUploading, setRestoreIsUploading] = useState(false);
+  const [readyToRestore, setReadyToRestore] = useState(false); // NOVO: Gatilho para iniciar o stream
 
-  // Erros por aba (além do erro do hook)
+  // Erros por aba
   const [backupUiError, setBackupUiError] = useState<string | null>(null);
   const [restoreUiError, setRestoreUiError] = useState<string | null>(null);
 
@@ -126,11 +126,9 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
     autoStart: false,
     autoRetry: false,
     retryDelay: 9000,
-    // se quiser passar backupType como querystring:
-    // params: { type: backupType },
   });
 
-  /** SSE: restore (filepath precisa ser string válida) */
+  /** SSE: restore */
   const restoreStream = useSSEStream({
     url: `database/restore/${effectiveRestoreConnId}/stream`,
     params: restoreFilepath ? { filepath: restoreFilepath } : {},
@@ -147,16 +145,24 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
   const activeErrorFromHook = activeTab === "backup" ? backupStream.error : restoreStream.error;
   const activeUiError = activeTab === "backup" ? backupUiError : restoreUiError;
 
-  // limpa erros ao trocar de aba
+  // Limpa erros ao trocar de aba
   useEffect(() => {
     setBackupUiError(null);
     setRestoreUiError(null);
   }, [activeTab]);
 
-  // se mudar o arquivo do restore, invalida filepath antigo
+  // Se mudar o arquivo do restore, invalida filepath antigo
   useEffect(() => {
     setRestoreFilepath("");
   }, [backupFile]);
+
+  // CORREÇÃO: Dispara o stream de restore apenas após o state 'restoreFilepath' atualizar
+  useEffect(() => {
+    if (readyToRestore && restoreFilepath) {
+      restoreStream.startStream();
+      setReadyToRestore(false);
+    }
+  }, [readyToRestore, restoreFilepath, restoreStream]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRestoreUiError(null);
@@ -164,20 +170,21 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
     const file = e.target.files?.[0] || null;
     if (!file) {
       setBackupFile(null);
+      setRestoreFilepath("");
       return;
     }
 
     if (!fileHasAllowedExt(file)) {
       setBackupFile(null);
+      setRestoreFilepath(""); // Segurança adicional
       if (fileInputRef.current) fileInputRef.current.value = "";
-      setRestoreUiError(
-        `Extensão inválida. Aceito: ${ACCEPT_EXT.join(", ")}`
-      );
+      setRestoreUiError(`Extensão inválida. Aceito: ${ACCEPT_EXT.join(", ")}`);
       return;
     }
 
     if (!fileSizeOk(file)) {
       setBackupFile(null);
+      setRestoreFilepath(""); // Segurança adicional
       if (fileInputRef.current) fileInputRef.current.value = "";
       setRestoreUiError(`Arquivo muito grande. Máximo: ${MAX_FILE_MB} MB.`);
       return;
@@ -186,15 +193,12 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
     setBackupFile(file);
   };
 
-  /** validações backup */
   function validateBackup(): string | null {
     if (!effectiveBackupConnId) return "Selecione uma conexão para o backup.";
     if (!isValidConnId(effectiveBackupConnId)) return "ConnId inválido para backup.";
-    // backupType aqui é UI apenas (se teu server não usa, ok)
     return null;
   }
 
-  /** validações restore */
   function validateRestoreBeforeUpload(): string | null {
     if (!effectiveRestoreConnId) return "Selecione uma conexão para o restore.";
     if (!isValidConnId(effectiveRestoreConnId)) return "ConnId inválido para restore.";
@@ -227,10 +231,8 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
       return;
     }
 
-    // evita dupla execução
     if (restoreIsUploading || restoreStream.isRunning) return;
 
-    // 1) upload
     setRestoreIsUploading(true);
     uploadAbortRef.current?.abort();
     uploadAbortRef.current = new AbortController();
@@ -238,14 +240,14 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
     try {
       const { filepath } = await uploadRestoreFile({
         connectionId: effectiveRestoreConnId,
-        file: backupFile!, // já validado
+        file: backupFile!,
         signal: uploadAbortRef.current.signal,
       });
 
+      // CORREÇÃO: Atualiza o caminho e avisa o useEffect para rodar o stream
       setRestoreFilepath(filepath);
+      setReadyToRestore(true);
 
-      // 2) start SSE (agora com filepath)
-      restoreStream.startStream();
     } catch (e: any) {
       const msg = e?.message ? String(e.message) : "Erro ao enviar arquivo para restore.";
       setRestoreUiError(msg);
@@ -272,7 +274,6 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
     return handleStopRestore();
   };
 
-  // validações e disabled states
   const canRunBackup = !loading && !backupStream.isRunning && !restoreIsUploading;
   const canRunRestore = !loading && !restoreStream.isRunning && !restoreIsUploading;
 
@@ -290,11 +291,10 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === tab
-                ? "border-blue-600 text-blue-600 bg-blue-50"
-                : "border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
-            }`}
+            className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === tab
+              ? "border-blue-600 text-blue-600 bg-blue-50"
+              : "border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
+              }`}
             type="button"
             disabled={isRunning || restoreIsUploading}
             title={isRunning || restoreIsUploading ? "Pare a operação antes de trocar de aba." : ""}
@@ -312,7 +312,6 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
             <label className="block text-sm font-medium text-gray-800 mb-1.5">
               {t("backup.databaseLabel") || "Base de Dados (Backup)"}
             </label>
-
             <JoinSelect
               value={String(backupConnId || "")}
               onChange={(value) => {
@@ -324,7 +323,6 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
               className="w-full"
               buttonClassName="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors"
             />
-
             {effectiveBackupConnId && (
               <p className="mt-1 text-xs text-gray-600">
                 ConnId: <span className="font-mono">{effectiveBackupConnId}</span>
@@ -336,7 +334,6 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
             <label className="block text-sm font-medium text-gray-800 mb-1.5">
               {t("backup.databaseLabel") || "Base de Dados (Restore)"}
             </label>
-
             <JoinSelect
               value={String(restoreConnId || "")}
               onChange={(value) => {
@@ -348,7 +345,6 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
               className="w-full"
               buttonClassName="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors"
             />
-
             {effectiveRestoreConnId && (
               <p className="mt-1 text-xs text-gray-600">
                 ConnId: <span className="font-mono">{effectiveRestoreConnId}</span>
@@ -363,7 +359,6 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
             <label className="block text-sm font-medium text-gray-800 mb-1.5">
               {t("backup.typeLabel") || "Tipo de Backup"}
             </label>
-
             <select
               value={backupType}
               onChange={(e) => setBackupType(e.target.value as any)}
@@ -374,7 +369,6 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
               <option value="schema">{t("backup.typeSchema") || "Apenas Schema"}</option>
               <option value="data">{t("backup.typeData") || "Apenas Dados"}</option>
             </select>
-
             <p className="mt-1 text-xs text-gray-600">
               Tipo selecionado: <span className="font-mono">{backupType}</span>
             </p>
@@ -387,7 +381,6 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
             <label className="block text-sm font-medium text-gray-800 mb-1.5">
               {t("backup.fileLabel") || "Arquivo de Backup"}
             </label>
-
             <input
               ref={fileInputRef}
               type="file"
@@ -396,27 +389,24 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
               className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               disabled={restoreStream.isRunning || restoreIsUploading}
             />
-
             {backupFile && (
               <p className="mt-1 text-xs text-gray-600">
                 Arquivo: <span className="font-mono">{backupFile.name}</span> (
                 {Math.round(backupFile.size / 1024)} KB)
               </p>
             )}
-
             {restoreFilepath && (
               <p className="mt-1 text-xs text-gray-600">
                 Server path: <span className="font-mono">{restoreFilepath}</span>
               </p>
             )}
-
             <p className="mt-1 text-xs text-gray-500">
               * O restore faz upload do arquivo e depois inicia o stream.
             </p>
           </div>
         )}
 
-        {/* Errors (UI + hook) */}
+        {/* Errors */}
         {(activeUiError || activeErrorFromHook) && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 flex gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5" />
@@ -479,8 +469,8 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
           {activeTab === "backup"
             ? t("backup.startBackup") || "Fazer Backup"
             : restoreIsUploading
-            ? "Enviando arquivo..."
-            : t("backup.startRestore") || "Fazer Restore"}
+              ? "Enviando arquivo..."
+              : t("backup.startRestore") || "Fazer Restore"}
         </button>
       </div>
     </div>

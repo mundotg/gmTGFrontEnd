@@ -1,21 +1,39 @@
-import React, { useCallback, useMemo } from "react";
-import { ShieldCheck, FileText, Plus, X } from "lucide-react";
-import { FORMDATA, inputClass, labelClass, defaultValueOptionsGeneric } from "../utils"; // 🔥 Faltava importar defaultValueOptionsGeneric
+import React, { useCallback, useMemo, useEffect } from "react";
+import {
+    ShieldCheck,
+    FileText,
+    Plus,
+    X,
+} from "lucide-react";
+
+import {
+    FORMDATA,
+    inputClass,
+    labelClass,
+    defaultValueOptionsGeneric,
+} from "../utils";
+
 import { ToggleCard } from "../ToggleCard";
-import { extrairTipoBase, mapColumnTypeToDbType } from "@/app/services";
+
+import {
+    extrairTipoBase,
+    mapColumnTypeToDbType,
+} from "@/app/services";
 
 interface AtributosRestricoesProps {
-    // Estado do formulário
     form: FORMDATA;
-    updateFormField: <K extends keyof FORMDATA>(key: K, value: FORMDATA[K]) => void;
 
-    // Lógica e Estado UI
+    updateFormField: <K extends keyof FORMDATA>(
+        key: K,
+        value: FORMDATA[K]
+    ) => void;
+
     busy: boolean;
     supportsUnsigned: boolean;
     isEnumType: boolean;
 
     dbType: string;
-    // Estilização e Tradução
+
     t: (key: string) => string;
 }
 
@@ -29,115 +47,233 @@ export default function AtributosRestricoes({
     dbType,
 }: AtributosRestricoesProps) {
 
+    // =====================================================
+    // 🔥 TYPE DB
+    // =====================================================
+
+    const baseType = useMemo(() => {
+        return mapColumnTypeToDbType(
+            extrairTipoBase(form.tipo)
+        );
+    }, [form.tipo]);
+
+    const isNumericType = useMemo(() => {
+        return [
+            "int",
+            "integer",
+            "bigint",
+            "smallint",
+            "decimal",
+            "numeric",
+            "float",
+            "double",
+            "real",
+            "number",
+        ].includes(baseType);
+    }, [baseType]);
+
+    const supportsAutoIncrement = isNumericType;
+
+    // =====================================================
+    // 🔥 DEFAULTS & REGRAS DE CHAVE ESTRANGEIRA
+    // =====================================================
+
     const defaultValueOptionsByDb = useMemo(() => {
         const base = defaultValueOptionsGeneric;
 
-        const mysql = {
-            ...base,
-            date: ["", "NULL", "CURRENT_DATE"],
-            datetime: ["", "NULL", "CURRENT_TIMESTAMP"],
-            timestamp: ["", "NULL", "CURRENT_TIMESTAMP"],
-            boolean: ["", "NULL", "0", "1"],
-        };
-
-        const postgres = {
-            ...base,
-            date: ["", "NULL", "CURRENT_DATE"],
-            timestamp: ["", "NULL", "CURRENT_TIMESTAMP", "NOW()"],
-            datetime: ["", "NULL", "CURRENT_TIMESTAMP", "NOW()"],
-            boolean: ["", "NULL", "true", "false"],
-        };
-
-        const sqlserver = {
-            ...base,
-            date: ["", "NULL", "CAST(GETDATE() AS date)"],
-            datetime: ["", "NULL", "GETDATE()"],
-            timestamp: ["", "NULL"],
-            boolean: ["", "NULL", "0", "1"],
-        };
-
-        const sqlite = {
-            ...base,
-            date: ["", "NULL", "CURRENT_DATE"],
-            datetime: ["", "NULL", "CURRENT_TIMESTAMP"],
-            timestamp: ["", "NULL", "CURRENT_TIMESTAMP"],
-            boolean: ["", "NULL", "0", "1"],
-        };
-
         const map: Record<string, Record<string, string[]>> = {
-            mysql,
-            mariadb: mysql,
-            postgres,
-            postgresql: postgres,
-            sqlserver,
-            mssql: sqlserver,
-            sqlite,
+            mysql: {
+                ...base,
+                date: ["", "NULL", "CURRENT_DATE"],
+                datetime: ["", "NULL", "CURRENT_TIMESTAMP"],
+                timestamp: ["", "NULL", "CURRENT_TIMESTAMP"],
+                boolean: ["", "NULL", "0", "1"],
+            },
+            postgresql: {
+                ...base,
+                date: ["", "NULL", "CURRENT_DATE"],
+                datetime: ["", "NULL", "NOW()"],
+                timestamp: ["", "NULL", "NOW()"],
+                boolean: ["", "NULL", "true", "false"],
+            },
+            oracle: {
+                ...base,
+                date: ["", "NULL", "SYSDATE"],
+                datetime: ["", "NULL", "SYSTIMESTAMP"],
+                timestamp: ["", "NULL", "SYSTIMESTAMP"],
+                boolean: ["", "NULL", "0", "1"],
+            },
+            sqlserver: {
+                ...base,
+                date: ["", "NULL", "GETDATE()"],
+                datetime: ["", "NULL", "GETDATE()"],
+                timestamp: ["", "NULL"],
+                boolean: ["", "NULL", "0", "1"],
+            },
+            sqlite: {
+                ...base,
+                date: ["", "NULL", "CURRENT_DATE"],
+                datetime: ["", "NULL", "CURRENT_TIMESTAMP"],
+                timestamp: ["", "NULL", "CURRENT_TIMESTAMP"],
+                boolean: ["", "NULL", "0", "1"],
+            },
         };
 
-        return map[dbType] || base;
+        return map[dbType?.toLowerCase()] || base;
     }, [dbType]);
 
     const currentDefaults = useMemo(() => {
-        if (form.enumValues.length > 0) return ["", ...form.enumValues];
+        if (form.enumValues.length > 0) {
+            return ["", ...form.enumValues];
+        }
 
-        const baseType = mapColumnTypeToDbType(extrairTipoBase(form.tipo));
-        return defaultValueOptionsByDb[baseType] || ["", "NULL"];
-    }, [form.tipo, form.enumValues, defaultValueOptionsByDb]);
+        let defaults = defaultValueOptionsByDb[baseType] || ["", "NULL"];
 
-    // =========================
-    // ✅ ENUM handlers (Corrigidos para usar updateFormField em vez de setForm)
-    // =========================
+        // 🚨 REGRA: Se for chave estrangeira, não permite DEFAULT NULL
+        if (form.fieldReferences) {
+            defaults = defaults.filter((opt) => opt !== "NULL");
+        }
+
+        return defaults;
+    }, [
+        form.enumValues,
+        baseType,
+        defaultValueOptionsByDb,
+        form.fieldReferences, // <-- Adicionado como dependência
+    ]);
+
+    // 🚨 REGRA: Limpa o campo caso ele estivesse como NULL e virou Chave Estrangeira
+    useEffect(() => {
+        if (form.fieldReferences && form.defaultValue === "NULL") {
+            updateFormField("defaultValue", "");
+        }
+    }, [form.fieldReferences, form.defaultValue, updateFormField]);
+
+    // =====================================================
+    // 🔥 REGRAS INTELIGENTES
+    // =====================================================
+
+    const handlePrimaryKey = (value: boolean) => {
+        updateFormField("isPrimaryKey", value);
+
+        if (value) {
+            updateFormField("isNullable", false);
+            updateFormField("isUnique", true);
+        }
+    };
+
+    const handleUnique = (value: boolean) => {
+        updateFormField("isUnique", value);
+
+        if (value) {
+            updateFormField("isNullable", false);
+        }
+    };
+
+    const handleNullable = (value: boolean) => {
+        updateFormField("isNullable", value);
+
+        if (value) {
+            updateFormField("isPrimaryKey", false);
+            updateFormField("isUnique", false);
+        }
+    };
+
+    // =====================================================
+    // 🔥 ENUM
+    // =====================================================
+
     const addEnumValue = useCallback(() => {
         const val = form.newEnumValue.trim();
+
         if (val && !form.enumValues.includes(val)) {
-            // Atualiza os dois campos diretamente no pai
             updateFormField("enumValues", [...form.enumValues, val]);
             updateFormField("newEnumValue", "");
         }
     }, [form.newEnumValue, form.enumValues, updateFormField]);
 
     const removeEnumValue = useCallback((i: number) => {
-        const novosEnums = form.enumValues.filter((_, idx) => idx !== i);
-        updateFormField("enumValues", novosEnums);
+        updateFormField(
+            "enumValues",
+            form.enumValues.filter((_, idx) => idx !== i)
+        );
     }, [form.enumValues, updateFormField]);
 
+    // =====================================================
+    // 🔥 UI
+    // =====================================================
+
     return (
-        <>
-            {/* Restrições */}
-            <div className="space-y-4">
-                <h3 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-2 flex items-center gap-2">
-                    <ShieldCheck size={16} className="text-blue-600" /> Atributos e Restrições
+        <div className="space-y-5">
+            {/* ================================================= */}
+            {/* HEADER */}
+            {/* ================================================= */}
+            <div>
+                <h3 className="text-xs sm:text-sm font-semibold text-gray-800 border-b border-gray-100 pb-2 flex items-center gap-2">
+                    <ShieldCheck size={15} className="text-blue-600" />
+                    Atributos e Restrições
                 </h3>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                    <ToggleCard label="Aceita NULL" checked={form.isNullable} onChange={(v: boolean) => updateFormField("isNullable", v)} disabled={busy} />
-                    <ToggleCard label="Único (UNIQUE)" checked={form.isUnique} onChange={(v: boolean) => updateFormField("isUnique", v)} disabled={busy} />
-                    <ToggleCard label="Chave Primária" checked={form.isPrimaryKey} onChange={(v: boolean) => updateFormField("isPrimaryKey", v)} isPrimary disabled={busy} />
-                    <ToggleCard label="Auto Increment" checked={form.isAutoIncrement} onChange={(v: boolean) => updateFormField("isAutoIncrement", v)} disabled={busy} />
-
-                    <ToggleCard
-                        label="Unsigned"
-                        checked={supportsUnsigned ? form.isUnsigned : false}
-                        onChange={(v: boolean) => updateFormField("isUnsigned", v)}
-                        disabled={busy || !supportsUnsigned}
-                        hint={!supportsUnsigned ? "Unsigned só é suportado em MySQL/MariaDB." : undefined}
-                    />
-                </div>
             </div>
 
-            {/* Default e Comentário */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            {/* ================================================= */}
+            {/* TOGGLES */}
+            {/* ================================================= */}
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
+                <ToggleCard
+                    label="NULL"
+                    checked={form.isNullable}
+                    onChange={handleNullable}
+                    disabled={busy}
+                />
+
+                <ToggleCard
+                    label="UNIQUE"
+                    checked={form.isUnique}
+                    onChange={handleUnique}
+                    disabled={busy || form.isPrimaryKey}
+                />
+
+                <ToggleCard
+                    label="PRIMARY"
+                    checked={form.isPrimaryKey}
+                    onChange={handlePrimaryKey}
+                    isPrimary
+                    disabled={busy}
+                />
+
+                <ToggleCard
+                    label="AUTO INC"
+                    checked={form.isAutoIncrement}
+                    onChange={(v: boolean) => updateFormField("isAutoIncrement", v)}
+                    disabled={busy || !supportsAutoIncrement}
+                />
+
+                <ToggleCard
+                    label="UNSIGNED"
+                    checked={supportsUnsigned ? form.isUnsigned : false}
+                    onChange={(v: boolean) => updateFormField("isUnsigned", v)}
+                    disabled={busy || !supportsUnsigned || !isNumericType}
+                />
+            </div>
+
+            {/* ================================================= */}
+            {/* DEFAULT + COMMENT */}
+            {/* ================================================= */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
-                    <label className={labelClass}>{t("fields.defaultValue") || "Valor Padrão (Default)"}</label>
+                    <label className={labelClass}>
+                        {t("fields.defaultValue") || "Valor Padrão"}
+                    </label>
+
                     <select
                         value={form.defaultValue}
                         onChange={(e) => updateFormField("defaultValue", e.target.value)}
-                        className={`${inputClass} appearance-none cursor-pointer`}
+                        className={`${inputClass} text-sm`}
                         disabled={busy}
                     >
                         {currentDefaults.map((opt) => (
                             <option key={opt} value={opt}>
-                                {opt === "" ? "-- Sem valor padrão --" : opt}
+                                {opt === "" ? "-- Nenhum --" : opt}
                             </option>
                         ))}
                     </select>
@@ -145,24 +281,28 @@ export default function AtributosRestricoes({
 
                 <div>
                     <label className={labelClass}>
-                        <FileText size={14} className="inline mr-1" /> {t("fields.comment") || "Dicionário de Dados (Comentário)"}
+                        <FileText size={13} className="inline mr-1" />
+                        {t("fields.comment") || "Comentário"}
                     </label>
+
                     <input
                         value={form.comentario}
                         onChange={(e) => updateFormField("comentario", e.target.value)}
-                        className={inputClass}
-                        placeholder="Descreva o propósito deste campo..."
+                        className={`${inputClass} text-sm`}
+                        placeholder="Descrição do campo..."
                         disabled={busy}
                     />
                 </div>
             </div>
 
+            {/* ================================================= */}
             {/* ENUM */}
+            {/* ================================================= */}
             {isEnumType && (
-                <div className="p-5 bg-blue-50/50 border border-blue-100 rounded-2xl animate-in fade-in mt-6">
-                    <label className={labelClass}>Valores ENUM Restritos</label>
+                <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/40">
+                    <label className={labelClass}>Valores ENUM</label>
 
-                    <div className="flex gap-3 mb-4 mt-2">
+                    <div className="flex flex-col sm:flex-row gap-2 mt-2">
                         <input
                             value={form.newEnumValue}
                             onChange={(e) => updateFormField("newEnumValue", e.target.value)}
@@ -172,44 +312,50 @@ export default function AtributosRestricoes({
                                     addEnumValue();
                                 }
                             }}
-                            className={inputClass}
-                            placeholder="Novo valor permitido..."
+                            className={`${inputClass} text-sm`}
+                            placeholder="Novo valor..."
                             disabled={busy}
                         />
+
+                        {/* Botão Menor e Estável */}
                         <button
                             type="button"
                             onClick={addEnumValue}
                             disabled={busy}
-                            className="px-5 py-3 bg-blue-600 text-white font-bold text-sm rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm shrink-0 disabled:opacity-50"
+                            className="h-9 px-3 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 flex-shrink-0"
                         >
-                            <Plus size={16} /> Add
+                            <Plus size={14} />
+                            Add
                         </button>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 mt-4">
                         {form.enumValues.map((val, i) => (
                             <span
                                 key={`${val}-${i}`}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 shadow-sm"
+                                className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-md text-xs sm:text-sm text-gray-700"
                             >
                                 {val}
+
                                 <button
                                     type="button"
                                     onClick={() => removeEnumValue(i)}
-                                    className="text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
-                                    aria-label={`Remover enum ${val}`}
+                                    className="text-gray-400 hover:text-red-500 transition-colors"
                                     disabled={busy}
                                 >
-                                    <X size={14} />
+                                    <X size={12} />
                                 </button>
                             </span>
                         ))}
+
                         {form.enumValues.length === 0 && (
-                            <span className="text-xs text-gray-500 italic">Nenhum valor ENUM definido.</span>
+                            <span className="text-xs text-gray-500 italic">
+                                Nenhum ENUM definido.
+                            </span>
                         )}
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 }

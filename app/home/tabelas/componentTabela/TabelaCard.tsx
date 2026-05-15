@@ -1,7 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  AlertCircle,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -28,6 +27,7 @@ interface PropsTableCard {
   tableStructure?: DBStructure;
   isExpanded?: boolean;
   isLoadingCols?: boolean;
+  table_lista: TableInfo[];
   toggleTable: (tableName: string) => void;
   colunasShow?: MetadataTableResponse;
   setColunasShow?: React.Dispatch<React.SetStateAction<Record<string, MetadataTableResponse | undefined>>>;
@@ -47,6 +47,7 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
   tableStructure,
   isExpanded = false,
   isLoadingCols = false,
+  table_lista,
   toggleTable,
   colunasShow,
   setColunasShow,
@@ -66,8 +67,8 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
   const [auxColunasShow, setAuxColunasShow] = useState<MetadataTableResponse[]>(colunasShow ? [colunasShow] : []);
 
   // Analisa se a tabela atual é de sistema
-  const { isSystem, reason: systemReason } = isSystemTable(table.name, tableStructure?.schema_name);
 
+  const { isSystem, reason: systemReason } = isSystemTable(table.name, tableStructure?.schema_name, user?.info_extra?.type);
   // --- NOVA LÓGICA DE ADMIN ---
   // Ajuste "user?.role?.nome === 'admin'" para o formato real do seu sistema.
   const isAdmin = user?.roles?.some(r => r.name === 'admin' || r.name === 'Administrador') || user?.cargo?.position === 'admin';
@@ -307,43 +308,32 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
         </div>
       </div>
 
-      {isExpanded && (!isSystem || isAdmin) && (
+      {isExpanded && (!isSystem || isAdmin) && colunasShow && (
         <div className={`border-t ${isDarkMode ? "border-gray-800" : "border-gray-200"} bg-gray-50/50 dark:bg-black/20 rounded-b-xl`}>
-          {colunasShow?.colunas ? (
-            <div className="p-4 sm:p-6">
-              <TableColumnsDisplay
-                names_caches_value={{
-                  _modal_Create_Open: "_modal_Create_Open_TB" + colunasShow.table_name, _thema: "_thema_tb" + colunasShow.table_name, _modal_Edit_Open: "_modal_Edit_Open_tb" + colunasShow.table_name,
-                  consulta_showFilterColunas: "consulta_showFilterColunas_tg" + colunasShow.table_name, consulta_showSortColunas: "consulta_showSortColunas_tg" + colunasShow.table_name
-                }}
-                tableNames={table.name}
-                columns={[colunasShow]}
-                setColumns={setAuxColunasShow}
-                isLoading={loadingFields}
-                setIsLoading={() => { }}
-                error={null}
-                theme={isDarkMode ? "dark" : "light"}
-                tabelaExistenteNaDB={[table.name]}
-                showExport
-                itemsPerPage={12}
-                select={selectListAsArray}
-                setSelect={handleColumnsSelectionChange}
-              />
-            </div>
-          ) : (
-            <div className={`px-6 py-10 text-center ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-              <div className={`w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center ${isDarkMode ? "bg-gray-800" : "bg-gray-100"
-                }`}>
-                <AlertCircle size={24} className={isDarkMode ? "text-gray-500" : "text-gray-400"} />
-              </div>
-              <p className={`font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
-                {t('messages.noColumnsFound') || "Nenhuma coluna encontrada"}
-              </p>
-              <p className="text-sm mt-1">
-                {t('messages.noVisibleColumns') || "Esta tabela não possui colunas visíveis"}
-              </p>
-            </div>
-          )}
+          <div className="p-4 sm:p-6">
+            <TableColumnsDisplay
+              names_caches_value={{
+                _modal_Create_Open: "_modal_Create_Open_TB" + colunasShow?.table_name, _thema: "_thema_tb" + colunasShow?.table_name, _modal_Edit_Open: "_modal_Edit_Open_tb" + colunasShow?.table_name,
+                consulta_showFilterColunas: "consulta_showFilterColunas_tg" + colunasShow?.table_name, consulta_showSortColunas: "consulta_showSortColunas_tg" + colunasShow?.table_name
+              }}
+              tableNames={table.name}
+              columns={[colunasShow]}
+              setColumns={setAuxColunasShow}
+              isLoading={loadingFields}
+              setIsLoading={() => { }}
+              error={null}
+              theme={isDarkMode ? "dark" : "light"}
+              tabelaExistenteNaDB={
+                table_lista
+                  ?.filter((t) => t.name !== table.name)
+                  ?.map((t) => t.name)
+              }
+              showExport
+              itemsPerPage={12}
+              select={selectListAsArray}
+              setSelect={handleColumnsSelectionChange}
+            />
+          </div>
         </div>
       )}
     </div>

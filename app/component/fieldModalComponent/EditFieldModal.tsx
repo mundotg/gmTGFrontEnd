@@ -299,7 +299,7 @@ const FieldModal: React.FC<FieldModalProps> = ({
       is_primary_key: form.isPrimaryKey,
       is_auto_increment: form.isAutoIncrement,
       is_unsigned: form.isUnsigned,
-
+      is_foreign_key: isFk,
       default: form.defaultValue,
       comentario: form.comentario,
       enum_valores_encontrados: form.enumValues,

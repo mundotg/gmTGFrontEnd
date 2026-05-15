@@ -29,9 +29,7 @@ interface Step3MappingProps {
   setTargetConnection: Dispatch<SetStateAction<DBConnection | undefined>>;
   sourceConnection?: DBConnection;
   targetConnection?: DBConnection;
-
   selectedTables: Record<string, string>; // { sourceTableId: targetTableId }
-
   tableMappings: Record<string, TableMapping>;
   onTableMappingsChange: (mappings: Record<string, TableMapping>) => void;
 }
@@ -52,16 +50,16 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   const [expandedTables, setExpandedTables] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
 
-  // --- 0) Índices memoizados (evita find() repetido e deps “profundas”) ---
+  // --- 0) Índices memoizados ---
   const srcById = useMemo(() => {
     const m = new Map<string, DBStructure>();
-    for (const t of sourceConnection?.structures ?? []) m.set(String(t.id), t);
+    sourceConnection?.structures?.forEach(t => m.set(String(t.id), t));
     return m;
   }, [sourceConnection?.structures]);
 
   const tgtById = useMemo(() => {
     const m = new Map<string, DBStructure>();
-    for (const t of targetConnection?.structures ?? []) m.set(String(t.id), t);
+    targetConnection?.structures?.forEach(t => m.set(String(t.id), t));
     return m;
   }, [targetConnection?.structures]);
 
@@ -72,7 +70,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
     [srcById, tgtById]
   );
 
-  // --- 1) Hook de Sincronização (Fetch & Skeleton) ---
+  // --- 1) Hook de Sincronização ---
   useFetchColumns({
     selectedTables,
     sourceConnection,
@@ -84,52 +82,36 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
     setIsLoading,
   });
 
-  // --- 2) Auto-Mapping (blindado: não apaga nem sobrescreve) ---
+  // --- 2) Auto-Mapping ---
   useEffect(() => {
-    if (isLoading) return;
-    if (!Object.keys(selectedTables ?? {}).length) return;
-
-    // Se ainda não temos estruturas, não tenta
-    if (!sourceConnection?.structures?.length) return;
+    if (isLoading || !Object.keys(selectedTables ?? {}).length || !sourceConnection?.structures?.length) {
+      return;
+    }
 
     let changed = false;
     const next: Record<string, TableMapping> = { ...tableMappings };
 
     for (const [sourceId, targetId] of Object.entries(selectedTables)) {
       const current = next[sourceId];
-      if (!current) continue;
-
-      // ✅ Nunca sobrescreve se usuário já tem colunas (ou já foi auto-mapeado antes)
-      if ((current.colunas_relacionados_para_transacao?.length ?? 0) > 0) continue;
+      if (!current || (current.colunas_relacionados_para_transacao?.length ?? 0) > 0) continue;
 
       const srcStruct = getStructureById("src", sourceId);
       const tgtStruct = targetId ? getStructureById("tgt", targetId) : undefined;
 
-      // ✅ só auto-map quando os fields de origem existirem mesmo
       const srcFields = srcStruct?.fields ?? [];
       if (!srcFields.length) continue;
 
-      // ✅ destino pode não existir (ou ainda não ter fields) — então mapeia com fallback
       const tgtFields = tgtStruct?.fields ?? [];
-
-      // índice por nome do destino (mais rápido e consistente)
-      const tgtByName = new Map<string, (typeof tgtFields)[number]>();
-      for (const f of tgtFields) tgtByName.set(norm(f.name), f);
+      const tgtByName = new Map(tgtFields.map(f => [norm(f.name), f]));
 
       const cols: ColumnMapping[] = srcFields.map((sf) => {
         const sfName = norm(sf.name);
 
-        // 1) match exato por nome
-        let tf = tgtByName.get(sfName);
-
-        // 2) fallback fuzzy simples (só se não achou)
-        if (!tf && tgtFields.length) {
-          tf = tgtFields.find((x) => {
-            const tn = norm(x.name);
-            if (!tn || !sfName) return false;
-            return tn === sfName || tn.includes(sfName) || sfName.includes(tn);
-          });
-        }
+        // 1) match exato, 2) fallback fuzzy
+        let tf = tgtByName.get(sfName) || (tgtFields.length ? tgtFields.find(x => {
+          const tn = norm(x.name);
+          return tn && sfName && (tn === sfName || tn.includes(sfName) || sfName.includes(tn));
+        }) : undefined);
 
         return {
           coluna_origen_name: sf.name,
@@ -143,88 +125,56 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
       });
 
       if (cols.length) {
-        next[sourceId] = {
-          ...current,
-          // ✅ apenas preenche uma vez (estava vazio)
-          colunas_relacionados_para_transacao: cols,
-        };
+        next[sourceId] = { ...current, colunas_relacionados_para_transacao: cols };
         changed = true;
       }
     }
 
     if (changed) onTableMappingsChange(next);
-  }, [
-    isLoading,
-    selectedTables,
-    sourceConnection?.structures?.length,
-    tableMappings,
-    onTableMappingsChange,
-    getStructureById,
-  ]);
+  }, [isLoading, selectedTables, sourceConnection?.structures?.length, tableMappings, onTableMappingsChange, getStructureById]);
 
   // --- 3) UI Actions ---
-  const toggleColumnMapping = useCallback(
-    (tableId: string, columnIndex: number) => {
-      const current = tableMappings[tableId];
-      if (!current) return;
+  const toggleColumnMapping = useCallback((tableId: string, columnIndex: number) => {
+    const current = tableMappings[tableId];
+    if (!current) return;
 
-      const cols = [...(current.colunas_relacionados_para_transacao ?? [])];
-      if (!cols[columnIndex]) return;
+    const cols = [...(current.colunas_relacionados_para_transacao ?? [])];
+    if (!cols[columnIndex]) return;
 
-      cols[columnIndex] = { ...cols[columnIndex], enabled: !cols[columnIndex].enabled };
+    cols[columnIndex] = { ...cols[columnIndex], enabled: !cols[columnIndex].enabled };
+    onTableMappingsChange({ ...tableMappings, [tableId]: { ...current, colunas_relacionados_para_transacao: cols } });
+  }, [tableMappings, onTableMappingsChange]);
 
-      onTableMappingsChange({
-        ...tableMappings,
-        [tableId]: { ...current, colunas_relacionados_para_transacao: cols },
-      });
-    },
-    [tableMappings, onTableMappingsChange]
-  );
+  const updateColumnMapping = useCallback((tableId: string, columnIndex: number, targetFieldId: string) => {
+    const current = tableMappings[tableId];
+    if (!current) return;
 
-  const updateColumnMapping = useCallback(
-    (tableId: string, columnIndex: number, targetFieldId: string) => {
-      const current = tableMappings[tableId];
-      if (!current) return;
+    const cols = [...(current.colunas_relacionados_para_transacao ?? [])];
+    if (!cols[columnIndex]) return;
 
-      const cols = [...(current.colunas_relacionados_para_transacao ?? [])];
-      const existing = cols[columnIndex];
-      if (!existing) return;
+    const targetTableId = selectedTables[tableId];
+    const targetStruct = targetTableId ? getStructureById("tgt", targetTableId) : undefined;
+    const targetField = targetStruct?.fields?.find((f) => String(f.id) === String(targetFieldId));
 
-      const targetTableId = selectedTables[tableId];
-      const targetStruct = targetTableId ? getStructureById("tgt", targetTableId) : undefined;
-      const targetField = targetStruct?.fields?.find((f) => String(f.id) === String(targetFieldId));
+    if (!targetField) return;
 
-      if (!targetField) return;
+    cols[columnIndex] = {
+      ...cols[columnIndex],
+      coluna_distino_name: targetField.name,
+      id_coluna_destino: targetField.id,
+      type_coluna_destino: targetField.type || "",
+    };
 
-      cols[columnIndex] = {
-        ...existing,
-        coluna_distino_name: targetField.name,
-        id_coluna_destino: targetField.id,
-        type_coluna_destino: targetField.type || "",
-      };
-
-      onTableMappingsChange({
-        ...tableMappings,
-        [tableId]: { ...current, colunas_relacionados_para_transacao: cols },
-      });
-    },
-    [tableMappings, onTableMappingsChange, selectedTables, getStructureById]
-  );
+    onTableMappingsChange({ ...tableMappings, [tableId]: { ...current, colunas_relacionados_para_transacao: cols } });
+  }, [tableMappings, onTableMappingsChange, selectedTables, getStructureById]);
 
   const toggleTableExpansion = useCallback((tableId: string) => {
-  setExpandedTables((prev) => {
-    const next = new Set(prev);
-    
-    // Substituímos o ternário por if/else
-    if (next.has(tableId)) {
-      next.delete(tableId);
-    } else {
-      next.add(tableId);
-    }
-    
-    return next;
-  });
-}, []);
+    setExpandedTables((prev) => {
+      const next = new Set(prev);
+      next.has(tableId) ? next.delete(tableId) : next.add(tableId);
+      return next;
+    });
+  }, []);
 
   const expandAllTables = useCallback(() => {
     setExpandedTables(new Set(Object.keys(tableMappings)));
@@ -241,26 +191,24 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
 
     if (!term) return entries;
 
-    return entries.filter(([, mapping]) => {
-      return (
-        mapping.tabela_name_origem.toLowerCase().includes(term) ||
-        mapping.tabela_name_destino.toLowerCase().includes(term)
-      );
-    });
+    return entries.filter(([, mapping]) =>
+      mapping.tabela_name_origem.toLowerCase().includes(term) ||
+      mapping.tabela_name_destino.toLowerCase().includes(term)
+    );
   }, [tableMappings, searchTable]);
 
   const { totalColumns, enabledColumns } = useMemo(() => {
-    let total = 0;
-    let enabled = 0;
-
-    for (const mapping of Object.values(tableMappings)) {
+    return Object.values(tableMappings).reduce((acc, mapping) => {
       const cols = mapping.colunas_relacionados_para_transacao ?? [];
-      total += cols.length;
-      enabled += cols.filter((c) => c.enabled).length;
-    }
-
-    return { totalColumns: total, enabledColumns: enabled };
+      acc.totalColumns += cols.length;
+      acc.enabledColumns += cols.filter(c => c.enabled).length;
+      return acc;
+    }, { totalColumns: 0, enabledColumns: 0 });
   }, [tableMappings]);
+
+  // Controles de estado para botões
+  const hasTables = Object.keys(tableMappings).length > 0;
+  const isControlsDisabled = isLoading || !hasTables;
 
   // --- Render ---
   if (Object.keys(selectedTables).length === 0) {
@@ -313,7 +261,8 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
             placeholder="Pesquisar tabela..."
             value={searchTable}
             onChange={(e) => setSearchTable(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            disabled={isControlsDisabled}
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
         </div>
 
@@ -321,7 +270,8 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
           <button
             type="button"
             onClick={expandAllTables}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+            disabled={isControlsDisabled}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-50"
           >
             <ChevronDown className="w-4 h-4" />
             <span className="hidden sm:inline">Expandir tudo</span>
@@ -330,7 +280,8 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
           <button
             type="button"
             onClick={collapseAllTables}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            disabled={isControlsDisabled}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-100"
           >
             <ChevronUp className="w-4 h-4" />
             <span className="hidden sm:inline">Recolher tudo</span>
@@ -342,7 +293,6 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
       <div className="space-y-4">
         {filteredTableMappings.map(([tableId, mapping]) => {
           const isExpanded = expandedTables.has(tableId);
-
           const targetTableId = selectedTables[tableId];
           const targetStruct = targetTableId ? getStructureById("tgt", targetTableId) : undefined;
           const targetCols = targetStruct?.fields ?? [];
@@ -365,13 +315,16 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
         })}
       </div>
 
+      {/* Empty State / Loading State */}
       {filteredTableMappings.length === 0 && (
         <div className="text-center py-12">
           <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">
-            {Object.keys(tableMappings).length === 0
-              ? "Carregando tabelas..."
-              : `Nenhuma tabela encontrada com o termo "${searchTable}"`}
+            {isLoading
+              ? "Carregando tabelas e mapeando colunas..."
+              : !hasTables
+                ? "Nenhuma tabela carregada."
+                : `Nenhuma tabela encontrada com o termo "${searchTable}"`}
           </p>
         </div>
       )}
