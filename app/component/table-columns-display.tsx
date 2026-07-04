@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Moon, Sun, Loader2, Plus, Filter, X } from "lucide-react";
+import { Moon, Sun, Loader2, Plus, Filter, X, AlertCircle } from "lucide-react";
 import {
   CampoDetalhado,
   EditedFieldForQuery,
@@ -723,7 +723,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
       )}
 
       {/* Grid */}
-      {showFilters && (
+      {showFilters ? (
         <FilterableGrid
           data={paginatedColumns}
           isColumnSelected={isColumnSelected}
@@ -757,7 +757,18 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
             </p>
           }
         />
-      )}
+      ) : (<div className={`px-6 py-10 text-center ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+        <div className={`w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center ${isDarkMode ? "bg-gray-800" : "bg-gray-100"
+          }`}>
+          <AlertCircle size={24} className={isDarkMode ? "text-gray-500" : "text-gray-400"} />
+        </div>
+        <p className={`font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
+          {t('messages.noColumnsFound') || "Nenhuma coluna encontrada"}
+        </p>
+        <p className="text-sm mt-1">
+          {t('messages.noVisibleColumns') || "Esta tabela não possui colunas visíveis"}
+        </p>
+      </div>)}
     </div>
   );
 };

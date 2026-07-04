@@ -7,7 +7,6 @@ import {
     formatBytes,
     MessageType,
     Pagination,
-    StatCard,
     StatCardType,
     StatsData,
     STYLES,
@@ -116,7 +115,7 @@ export default function CloudStoragePage() {
         setUploadProgress(0);
 
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", `${api.defaults.baseURL}/storage/upload`, true);
+        xhr.open("POST", `${api.defaults.baseURL}storage/upload`, true);
         xhr.withCredentials = true;
 
         xhr.upload.onprogress = ({ lengthComputable, loaded, total }) => {

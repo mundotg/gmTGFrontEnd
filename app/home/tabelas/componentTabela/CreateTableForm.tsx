@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { X, Save, Plus, Trash2, Database, FileText, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/context/I18nContext";
 import { TableInfoCreate } from "@/types";
+import { useSession } from "@/context/SessionContext";
 
 type ModalMode = "create" | "edit";
 
@@ -77,14 +78,46 @@ const TableModal: React.FC<TableModalProps> = ({
   onDelete,
 }) => {
   const { t } = useI18n();
+  const { user } = useSession();
+
   const dialogRef = useRef<HTMLDivElement>(null);
 
   const [localBusy, setLocalBusy] = useState(false);
   const busy = !!isBusy || localBusy;
 
+  const schema_padrao = useMemo(() => {
+    const dbType = user?.info_extra?.type?.toLowerCase();
+
+    const DEFAULT_SCHEMAS: Record<string, string> = {
+      postgresql: "public",
+      postgres: "public",
+
+      sqlserver: "dbo",
+      mssql: "dbo",
+
+      oracle: "",
+
+      mysql: "",
+      mariadb: "",
+
+      sqlite: "",
+
+      mongodb: "default",
+      redis: "default",
+
+      snowflake: "PUBLIC",
+      redshift: "public",
+      cockroachdb: "public",
+    };
+
+    return DEFAULT_SCHEMAS[dbType || ""] ?? "";
+  }, [user]);
+
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [form, setForm] = useState<FORMDATA>(EMPTY);
+
+  const [creatingSchema, setCreatingSchema] = useState(false);
 
   const snapRef = useRef(sjson(EMPTY));
   const syncSnapshot = useCallback((next: FORMDATA) => (snapRef.current = sjson(next)), []);
@@ -139,6 +172,7 @@ const TableModal: React.FC<TableModalProps> = ({
         ...EMPTY,
         name: table.name || "",
         schema: table.schema || "",
+
         comment: table.comment || "",
         temporary: !!table.temporary,
         engine: table.engine || "",
@@ -179,6 +213,14 @@ const TableModal: React.FC<TableModalProps> = ({
     return !!nm && !/\s/.test(nm);
   }, [form.name]);
 
+  const handleSchemaChange = (value: string) => {
+    if (value === "__create__") {
+      setCreatingSchema(true);
+    } else {
+      setK("schema", value);
+    }
+  };
+
   const resolveOld = useCallback(() => {
     const n = (oldName ?? table?.name ?? "").trim();
     const s = (oldSchema ?? table?.schema ?? "").trim();
@@ -197,6 +239,7 @@ const TableModal: React.FC<TableModalProps> = ({
       const payload: TableInfoCreate = {
         name: form.name.trim(),
         schema: form.schema || undefined,
+        newSchema: creatingSchema,
         comment: form.comment.trim() || undefined,
         temporary: form.temporary,
         engine: form.engine || undefined,
@@ -333,20 +376,47 @@ const TableModal: React.FC<TableModalProps> = ({
               </div>
 
               <div className="md:col-span-2">
-                <label className={labelClass}>{t("tableForm.schemaLabel") || "Schema (opcional)"}</label>
-                <select
+                <label className={labelClass}>
+                  {t("tableForm.schemaLabel") || "Schema (opcional)"}
+                </label>
+
+                {!creatingSchema && <select
                   value={form.schema}
-                  onChange={(e) => setK("schema", e.target.value)}
+                  onChange={(e) => handleSchemaChange(e.target.value)}
                   className={`${inputClass} appearance-none cursor-pointer`}
                   disabled={busy}
                 >
-                  <option value="">{t("tableForm.defaultSchema") || "(padrão)"}</option>
+                  <option value={schema_padrao}>
+                    {t("tableForm.defaultSchema") || "(padrão)"}
+                  </option>
+
                   {schemas.map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
                   ))}
-                </select>
+
+                  {/* 🔥 criar novo */}
+                  <option value="__create__">➕ Criar novo schema</option>
+                </select>}
+
+                {/* 🔥 input inline */}
+                {creatingSchema && (
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      value={form.schema}
+                      onChange={(e) => handleSchemaChange(e.target.value)}
+                      placeholder="Nome do schema"
+                      className={inputClass}
+                    />
+                    <button
+                      onClick={() => setCreatingSchema(false)}
+                      className="px-3 py-2 bg-gray-300 rounded"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="md:col-span-2">
@@ -516,10 +586,9 @@ const ToggleCard = ({
     className={`
       flex flex-col justify-center items-center text-center p-3 rounded-xl border-2 transition-all select-none
       ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-      ${
-        checked
-          ? "bg-blue-50 border-blue-400 text-blue-900 shadow-sm"
-          : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300"
+      ${checked
+        ? "bg-blue-50 border-blue-400 text-blue-900 shadow-sm"
+        : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300"
       }
     `}
   >

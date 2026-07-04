@@ -22,6 +22,7 @@ import {
   QueryRowItem,
 } from "./ComponentAnlytics/AnalyticsUI";
 import { QueryHistory } from "../historico/types";
+import { DBConnection } from "@/types/db-structure";
 
 /* =======================
    TYPES
@@ -73,6 +74,12 @@ export function DatabaseModule() {
     },
     [api]
   );
+
+  useEffect(() => {
+    console.log("olá mundo", user?.info_extra)
+    if (user?.info_extra?.id_connection)
+      api.get<DBConnection>(`/conn/db_full/${user?.info_extra?.id_connection}`)
+  }, [user?.info_extra?.id_connection])
 
   /* =======================
      LOAD DATA

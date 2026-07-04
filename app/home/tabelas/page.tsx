@@ -21,6 +21,7 @@ import { DeadlocksMonitor } from "./componentTabela/DeadlocksMonitor";
 
 import { DBStructure } from "@/types/db-structure";
 import TableModal from "./componentTabela/CreateTableForm";
+import { getDefaultSchemas, isSystemTable } from "./componentTabela/util";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -43,6 +44,7 @@ const DatabaseTablesPage: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isDarkMode, setIsDarkMode] = usePersistedState("tema_menu_tabela", false);
+  const [desableTablesSystem, setDesableTablesSystem] = usePersistedState("desable_tables_menu_tabela", false);
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [filterSchema, setFilterSchema] = useState("all");
@@ -56,6 +58,7 @@ const DatabaseTablesPage: React.FC = () => {
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [tableModalMode, setTableModalMode] = useState<"create" | "edit">("create");
   const [editingTable, setEditingTable] = useState<string | null>(null);
+  const [menosTableSytem, setMenosTableSystem] = useState<number>(0);
 
   const [isTransactionOpen, setIsTransactionOpen] = usePersistedState("openisTransactionOpen", false);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
@@ -64,11 +67,6 @@ const DatabaseTablesPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => setCurrentPage(1), [searchTerm, filterSchema, sortBy]);
-
-  // useEffect(()=>{
-  //   console.log("metadata: ",metadata)
-
-  // },[metadata])
 
   const loadInitialData = useCallback(async () => {
     try {
@@ -112,8 +110,10 @@ const DatabaseTablesPage: React.FC = () => {
   const schemas = useMemo(() => {
     const set = new Set<string>();
     structures.forEach((s) => s.schema_name && set.add(s.schema_name));
+    if (user?.info_extra?.type)
+      set.add(getDefaultSchemas(user?.info_extra?.type))
     return Array.from(set);
-  }, [structures]);
+  }, [structures, user?.info_extra?.type]);
 
   const handleSelectTables = useCallback(
     async (tableName: string) => {
@@ -166,6 +166,8 @@ const DatabaseTablesPage: React.FC = () => {
           (st?.description || "").toLowerCase().includes(searchTerm.toLowerCase());
 
         const matchesSchema = filterSchema === "all" || st?.schema_name === filterSchema;
+        const { isSystem, reason: systemReason } = isSystemTable(table.name, st?.schema_name, user?.info_extra?.type);
+        if (desableTablesSystem && isSystem) return false;
         return matchesSearch && matchesSchema;
       }) || [];
 
@@ -181,7 +183,7 @@ const DatabaseTablesPage: React.FC = () => {
     });
 
     return list;
-  }, [metadata, searchTerm, filterSchema, sortBy, getTableStructure]);
+  }, [metadata, searchTerm, filterSchema, sortBy, getTableStructure, desableTablesSystem]);
 
   const totalPages = Math.ceil(filteredAndSortedTables.length / ITEMS_PER_PAGE);
 
@@ -311,12 +313,14 @@ const DatabaseTablesPage: React.FC = () => {
           return;
         }
 
+        console.log("Payload para criação de tabela:", payload);
+
         await api.post(
           "/database/table",
           {
             connection_id: user?.info_extra?.id_connection,                 // ✅ REQUIRED (body)
             table_name: payload.name,                    // ✅ REQUIRED (body)
-
+            newSchema: payload.newSchema,
             schema_name: payload.schema || undefined,    // ✅ se teu backend usa schema_name
             description: payload.comment || undefined,   // ✅ description (teu backend aceita)
             if_not_exists: payload.ifNotExists ?? true,  // ⚠️ depende do teu schema (snake_case vs camelCase)
@@ -486,9 +490,10 @@ const DatabaseTablesPage: React.FC = () => {
         isDarkMode={isDarkMode}
         isLoading={isLoading}
         setIsDarkMode={setIsDarkMode}
-        cardClasses={cardClasses}
         healthStatus={healthStatus}
         metadata={metadata}
+        desableTablesSystem={desableTablesSystem}
+        setDesableTablesSystem={setDesableTablesSystem}
         user={user}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -516,12 +521,12 @@ const DatabaseTablesPage: React.FC = () => {
             const isExpanded = expandedTables.has(table.name);
             const isLoadingCols = loadingColumns.has(table.name);
             const tableStructure = getTableStructure(table.name);
-
             return (
               <TableCard
                 key={`${table.name}-${idx}`}
                 table={table}
                 tableStructure={tableStructure}
+                table_lista={metadata?.table_names || []}
                 isExpanded={isExpanded}
                 isLoadingCols={isLoadingCols}
                 toggleTable={toggleTable}
@@ -561,9 +566,7 @@ const DatabaseTablesPage: React.FC = () => {
           setSearchTerm={setSearchTerm}
           setFilterSchema={setFilterSchema}
         />
-
         {/* ✅ Modal ÚNICO */}
-
         {isTableModalOpen && <TableModal
           isOpen={isTableModalOpen}
           mode={tableModalMode}

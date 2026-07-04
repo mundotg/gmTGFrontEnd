@@ -301,6 +301,9 @@
     "indexes": "Indexes"
   },
   "actions": {
+    "disableTablesSystem": "Desativar tabelas de sistema",
+    "editSqlAdvanced": "Editar SQL Avançado",
+    "diagramClass": "Diagrama de Classes",
     "clearDistinct": "Limpar Distinct",
     "selectAllDistinct": "Selecionar todos como Distinct",
     "stop": "Parar",
@@ -1027,6 +1030,7 @@
     }
   },
   "fields": {
+    "mainDefinition": "Definição Principal",
     "columnName": "Nome da Coluna",
     "dataType": "Tipo de Dado",
     "length": "Tamanho",

@@ -51,6 +51,7 @@ export interface FORMDATA {
     isUnique: boolean;
     isPrimaryKey: boolean;
     isAutoIncrement: boolean;
+    isForeignKey?: boolean; // <-- Adicionado para controle interno
 
     defaultValue: string;
     comentario: string;
