@@ -444,41 +444,63 @@ const DatabaseConnectionForm = () => {
                 {paginatedConnections.length > 0 ? (
                   paginatedConnections.map((connection, index) => {
                     const db = databases.find((item) => item.id === connection.type);
+                    const displayName = connection.name?.trim() || connection.database || t("unnamedConnection");
 
                     return (
                       <div
                         key={`sav-connection-${connection.id}-${index}`}
                         className="group rounded-xl border border-gray-200 bg-white p-4 transition-all hover:border-blue-300 hover:shadow-sm"
                       >
-                        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                          <div className="flex min-w-0 items-center gap-4">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-100 bg-gray-50 shadow-sm">
-                              <span className="text-xl">{db?.icon}</span>
+                        <div className="flex flex-col gap-3">
+                          {/* Cabeçalho: ícone + nome + status */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-100 bg-gray-50 shadow-sm">
+                                <span className="text-xl">{db?.icon}</span>
+                              </div>
+
+                              <div className="min-w-0">
+                                <h3
+                                  className="truncate text-sm font-bold text-gray-900"
+                                  title={displayName}
+                                >
+                                  {displayName}
+                                </h3>
+                                {db?.name && (
+                                  <p className="mt-0.5 text-[11px] font-semibold text-gray-400">
+                                    {db.name}
+                                  </p>
+                                )}
+                              </div>
                             </div>
 
-                            <div className="min-w-0">
-                              <h3 className="truncate text-sm font-bold text-gray-900">
-                                {connection.name}
-                              </h3>
-                              <p className="mt-0.5 truncate text-xs font-medium text-gray-500">
-                                {connection.host} • {connection.database}
-                              </p>
-                              <p className="mt-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                                {t("lastUsed")}: {formatDate(connection.last_used)}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 sm:ml-auto">
                             <span
-                              className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${getStatusColor(
+                              className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${getStatusColor(
                                 connection.status
                               )}`}
                             >
                               {getStatusIcon(connection.status)}
                               {connection.status}
                             </span>
+                          </div>
 
+                          {/* Detalhes: host / database / last used */}
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-gray-100 pt-3 pl-13 text-xs text-gray-500">
+                            <span className="flex items-center gap-1 font-medium">
+                              <span className="text-gray-400">{t("host")}:</span>
+                              <span className="truncate max-w-[160px]">{connection.host}</span>
+                            </span>
+                            <span className="flex items-center gap-1 font-medium">
+                              <span className="text-gray-400">{t("database")}:</span>
+                              <span className="truncate max-w-[160px]">{connection.database}</span>
+                            </span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                              {t("lastUsed")}: {formatDate(connection.last_used)}
+                            </span>
+                          </div>
+
+                          {/* Ações */}
+                          <div className="flex items-center justify-end gap-2 border-t border-gray-100 pt-3">
                             <button
                               onClick={() => loadConnection(connection)}
                               className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
