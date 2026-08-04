@@ -117,6 +117,10 @@ export const tiposPorBanco: Record<BancoSuportado, db_column_types[]> = {
     'string', 'int', 'long', 'double', 'decimal',
     'boolean', 'date', 'timestamp',
     'object', 'array', 'null', 'objectId', 'binary', 'regex'
+  ],
+  redis: [
+    'string', 'integer', 'bigint', 'boolean', 'date', 'timestamp',
+    'json', 'array', 'null', 'binary', 'blob'
   ]
 };
 
