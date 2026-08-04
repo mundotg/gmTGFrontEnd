@@ -13,6 +13,12 @@ import React, {
 // TYPES
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * O evento "error" do stream pode chegar como texto simples ou como o payload
+ * bruto do backend (`{ error, message, ... }`), por isso a união.
+ */
+type ExecError = string | { error?: string; message?: string } | null;
+
 interface ExecutePayload {
     query: string;
     limit?: number;
@@ -188,7 +194,8 @@ export default function SqlEditor() {
     const [queryId, setQueryId] = useState<string | null>(null);
     const [columns, setColumns] = useState<string[]>([]);
     const [rows, setRows] = useState<Record<string, unknown>[]>([]);
-    const [execError, setExecError] = useState<string | null>(null);
+    // O stream de erro pode devolver uma string ou o objeto bruto do backend
+    const [execError, setExecError] = useState<ExecError>(null);
     const [statusText, setStatusText] = useState("Pronto");
 
     // ── selection badge ──

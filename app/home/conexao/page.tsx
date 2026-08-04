@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Database, Trash2, Edit, History, Link as LinkIcon, PlusCircle } from "lucide-react";
 
 import { useI18n } from "@/context/I18nContext";
@@ -129,7 +129,7 @@ const DatabaseConnectionForm = () => {
   );
 
   // Debounce para refresh connections
-  const refreshConnectionsTimeout = React.useRef<NodeJS.Timeout>();
+  const refreshConnectionsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshConnections = useCallback(() => {
     // Limpa o cache para forçar nova requisição
@@ -198,7 +198,15 @@ const DatabaseConnectionForm = () => {
   );
 
   // Rate limiting para test connection
-  const testConnectionTimeout = React.useRef<NodeJS.Timeout>();
+  const testConnectionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Evita timers pendentes depois que o componente é desmontado
+  useEffect(() => {
+    return () => {
+      if (refreshConnectionsTimeout.current) clearTimeout(refreshConnectionsTimeout.current);
+      if (testConnectionTimeout.current) clearTimeout(testConnectionTimeout.current);
+    };
+  }, []);
 
   const testConnection = useCallback(async () => {
     // Evita múltiplos cliques rápidos
@@ -208,7 +216,7 @@ const DatabaseConnectionForm = () => {
 
     try {
       testConnectionTimeout.current = setTimeout(() => {
-        testConnectionTimeout.current = undefined;
+        testConnectionTimeout.current = null;
       }, 2000);
 
       setConnectionStatus("");
