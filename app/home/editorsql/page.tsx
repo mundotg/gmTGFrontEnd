@@ -1045,7 +1045,7 @@ export default function SqlEditor() {
                                 <span>
                                     {typeof execError === "string"
                                         ? execError
-                                        : execError?.error || "Erro desconhecido"}
+                                        : "Erro desconhecido"}
                                 </span>
                             </div>
                         )}

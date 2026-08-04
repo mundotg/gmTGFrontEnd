@@ -129,7 +129,7 @@ const DatabaseConnectionForm = () => {
   );
 
   // Debounce para refresh connections
-  const refreshConnectionsTimeout = React.useRef<NodeJS.Timeout>();
+  const refreshConnectionsTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshConnections = useCallback(() => {
     // Limpa o cache para forçar nova requisição
@@ -198,7 +198,7 @@ const DatabaseConnectionForm = () => {
   );
 
   // Rate limiting para test connection
-  const testConnectionTimeout = React.useRef<NodeJS.Timeout>();
+  const testConnectionTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const testConnection = useCallback(async () => {
     // Evita múltiplos cliques rápidos
@@ -208,7 +208,7 @@ const DatabaseConnectionForm = () => {
 
     try {
       testConnectionTimeout.current = setTimeout(() => {
-        testConnectionTimeout.current = undefined;
+        testConnectionTimeout.current = null;
       }, 2000);
 
       setConnectionStatus("");
