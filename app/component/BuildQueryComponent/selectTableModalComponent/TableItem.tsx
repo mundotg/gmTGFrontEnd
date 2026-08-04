@@ -50,8 +50,8 @@ export const GenericListItem: React.FC<GenericListItemProps> = memo(({
   const { t } = useI18n();
 
   const isSelected = selected.some((selectedItem) => {
-    let sItem = selectedItem.trim().toLowerCase().replace(/^dbo\./, "");
-    let tItem = item.trim().toLowerCase().replace(/^dbo\./, "");
+    const sItem = selectedItem.trim().toLowerCase().replace(/^dbo\./, "");
+    const tItem = item.trim().toLowerCase().replace(/^dbo\./, "");
     return sItem === tItem || sItem.endsWith(`.${tItem}`) || tItem.endsWith(`.${sItem}`);
   });
 

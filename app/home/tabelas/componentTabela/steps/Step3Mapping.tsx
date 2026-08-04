@@ -108,7 +108,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
         const sfName = norm(sf.name);
 
         // 1) match exato, 2) fallback fuzzy
-        let tf = tgtByName.get(sfName) || (tgtFields.length ? tgtFields.find(x => {
+        const tf = tgtByName.get(sfName) || (tgtFields.length ? tgtFields.find(x => {
           const tn = norm(x.name);
           return tn && sfName && (tn === sfName || tn.includes(sfName) || sfName.includes(tn));
         }) : undefined);

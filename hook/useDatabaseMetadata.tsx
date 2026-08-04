@@ -57,7 +57,7 @@ export function useDatabaseMetadata(op?: string): UseDatabaseMetadataResult {
   // 🔹 Consome SSE para atualizar contagem de linhas das tabelas
   useEffect(() => {
     console.info("aviso no ficheiro useDatabaseMetadata desabilitei a contagem de registro das tabelas por erros linha 59")
-    let cancel = true
+    const cancel = true
     if (!user || !initmetadata || cancel) return;
 
     const eventSource = new EventSource(

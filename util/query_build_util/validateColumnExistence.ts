@@ -18,8 +18,8 @@ const validateColumn = (
 ): boolean => {
   if (!fullColumnName) return false;
 
-  let [tableName, columnName] = fullColumnName.split(".");
-  columnName = columnName?.toLowerCase() ?? tableName?.toLowerCase();
+  const [tableName, rawColumnName] = fullColumnName.split(".");
+  const columnName = rawColumnName?.toLowerCase() ?? tableName?.toLowerCase();
 
   if (!columnName) return false;
 
