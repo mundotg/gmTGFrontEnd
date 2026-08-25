@@ -5,6 +5,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback,
 import type { Axios } from "axios";
 import api from "./axioCuston";
 import usePersistedState from "@/hook/localStoreUse";
+import { onConnectionChanged } from "./connectionEvents";
 import { aes_decrypt } from "@/service";
 import { AuthProvider, LoginOptions, Usuario } from "@/types";
 
@@ -16,6 +17,8 @@ interface SessionData {
     isLoading: boolean;
     login: (provider: AuthProvider, options?: LoginOptions) => Promise<boolean>;
     logout: (redirect?: string | null) => Promise<boolean>;
+    /** Relê o /auth/me — usar depois de mudar a conexão ativa. */
+    refreshUser: () => Promise<void>;
     api: Axios;
 }
 
@@ -173,6 +176,24 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         setUser(desencriptarUser(user));
     }, []);
 
+    /**
+     * Relê o `/auth/me`. O `info_extra` (base de dados ativa, nº de tabelas…)
+     * só era lido no arranque, por isso o menu ficava a mostrar a conexão
+     * antiga até se recarregar a página.
+     */
+    const refreshUser = useCallback(async () => {
+        try {
+            const response = await api.get("/auth/me", { withCredentials: true });
+            storeLoginData(response.data);
+        } catch (err) {
+            // Falhar aqui não deve deslogar: é uma revalidação, não o arranque.
+            console.warn("Não foi possível atualizar a sessão:", err);
+        }
+    }, [storeLoginData]);
+
+    // Qualquer alteração à conexão ativa (nesta aba ou noutra) atualiza o menu.
+    useEffect(() => onConnectionChanged(() => { void refreshUser(); }), [refreshUser]);
+
     const login = useCallback(async (provider: AuthProvider, options?: LoginOptions) => {
         setIsLoading(true);
         const providerUrls: Record<AuthProvider, string> = {
@@ -224,7 +245,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
     return (
 
-        <SessionContext.Provider value={{ user, isAuthenticated: isAuthenticated, isLoading, login, logout, api }}>
+        <SessionContext.Provider value={{ user, isAuthenticated: isAuthenticated, isLoading, login, logout, refreshUser, api }}>
             {children}
         </SessionContext.Provider>
     );

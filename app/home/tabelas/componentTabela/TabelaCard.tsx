@@ -139,7 +139,7 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
             {/* Checkbox bloqueado apenas se for sistema E não for admin */}
             <button
               disabled={isSystemAndNotAdmin}
-              onClick={() => onToggleSelect?.(tableStructure?.schema_name + "." + table.name)}
+              onClick={() => onToggleSelect?.(table.name)}
               className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 border ${isSystemAndNotAdmin
                 ? "bg-gray-100 border-gray-200 text-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-600 cursor-not-allowed"
                 : selected
@@ -155,7 +155,7 @@ export const TableCard: React.FC<PropsTableCard> = React.memo(({
             {/* Expansão bloqueada apenas se for sistema E não for admin */}
             <button
               disabled={isSystemAndNotAdmin}
-              onClick={() => toggleTable(tableStructure?.schema_name + "." + table.name)}
+              onClick={() => toggleTable(table.name)}
               className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors border ${isSystemAndNotAdmin
                 ? "bg-gray-100 border-gray-200 text-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-600 cursor-not-allowed"
                 : isDarkMode

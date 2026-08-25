@@ -1,4 +1,13 @@
-import { BarChart3, CheckCircle, TestTube } from "lucide-react";
+import {
+  Antenna,
+  BarChart3,
+  CheckCircle,
+  History,
+  KeyRound,
+  Radio,
+  Rocket,
+  TestTube,
+} from "lucide-react";
 import {
   ApiResponse,
   AuthType,
@@ -10,6 +19,11 @@ export const TESTER_TABS = [
   { id: "test" as const, label: "Teste Único", icon: TestTube },
   { id: "batch" as const, label: "Testes em Lote", icon: BarChart3 },
   { id: "validate" as const, label: "Validações", icon: CheckCircle },
+  { id: "bruteforce" as const, label: "Força Bruta", icon: KeyRound },
+  { id: "loadtest" as const, label: "Carga / Stress", icon: Rocket },
+  { id: "websocket" as const, label: "WebSocket", icon: Radio },
+  { id: "sse" as const, label: "SSE", icon: Antenna },
+  { id: "history" as const, label: "Histórico", icon: History },
 ];
 
 export const batchRequestsPlaceholder = `[

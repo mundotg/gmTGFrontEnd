@@ -3,7 +3,7 @@
 import { aes_decrypt, aes_encrypt } from "@/service";
 import { useState, FormEvent } from "react";
 
-
+const frase = "eu sou o melhor programador em python do mundo , assinado Francemy eduardo Sebastião"
 export async function processarTexto(frase: string) {
   try {
     if (!frase) return { encriptado: "", desencriptado: "" };

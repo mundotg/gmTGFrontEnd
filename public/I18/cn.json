@@ -15,7 +15,7 @@
     }
   },
   "nav": {
-    "brandName": "Brain DB",
+    "brandName": "MustaInf",
     "tasks": "任务 (Tasks)",
     "ocr": "OCR",
     "login": "登录",
@@ -31,7 +31,7 @@
     "roadmapBadge": "路线图",
     "featuresTitle": "核心功能",
     "futureTitle": "即将推出",
-    "footer": "Brain DB © 2026. 保留所有权利。由 Francemy Sebastião 使用 ❤️ 基于 Next.js + Python FastAPI 开发"
+    "footer": "MustaInf © 2026. 保留所有权利。由 Francemy Sebastião 使用 ❤️ 基于 Next.js + Python FastAPI 开发"
   },
   "features": {
     "consultas": "简化查询：只需输入表名即可。",
@@ -70,7 +70,14 @@
     "expand": "展开菜单",
     "darkMode": "深色模式",
     "lightMode": "浅色模式",
-    "gestorProjetos": "项目管理器"
+    "gestorProjetos": "项目管理器",
+    "sqlEditor": "SQL 编辑器",
+    "groupMore": "更多",
+    "mll": "机器学习 / 洞察",
+    "storage": "存储",
+    "devTest": "测试（开发）",
+    "reference": "参考",
+    "ai": "AI"
   },
   "status": {
     "online": "在线",
@@ -529,6 +536,8 @@
     "descProjects": "项目管理",
     "tabTeam": "团队",
     "descTeam": "用户和权限",
+    "tabAccess": "访问权限",
+    "descAccess": "谁可以访问每个数据库连接",
     "tabIntegrations": "集成",
     "descIntegrations": "外部连接",
     "tabSystem": "系统",

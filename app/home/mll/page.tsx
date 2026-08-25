@@ -184,12 +184,16 @@ export default function MLLPanel() {
 
     // ── Busca de dados ────────────────────────────────────────────────────────
 
-    const fetchData = useCallback(async (connectionId: string | number): Promise<void> => {
+    const fetchData = useCallback(async (connectionId: string | number, refresh = false): Promise<void> => {
         try {
             setLoading(true);
             setError(null);
 
-            const response = await api.get<DBConnection>(`/conn/db_full/${connectionId}`);
+            // O load inicial usa a cache Redis (rápido); "Tentar novamente"
+            // força recarga (refresh=true) para recalcular o schema.
+            const response = await api.get<DBConnection>(`/conn/db_full/${connectionId}`, {
+                params: refresh ? { refresh: true } : undefined,
+            });
             setData(response.data);
         } catch (err) {
             const errorMessage = err instanceof Error
@@ -216,7 +220,7 @@ export default function MLLPanel() {
 
     const handleRetry = useCallback(() => {
         const connectionId = user?.info_extra?.id_connection;
-        if (connectionId) fetchData(connectionId);
+        if (connectionId) fetchData(connectionId, true); // força recarga (ignora cache)
     }, [user?.info_extra?.id_connection, fetchData]);
 
     // ── Layout do diagrama ────────────────────────────────────────────────────

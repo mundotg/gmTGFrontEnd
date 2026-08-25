@@ -117,10 +117,6 @@ export const usePrimaryKeyExtractor = (
             null;
         }
 
-        console.log("rowData:", rowData);
-        console.log("possibleKeys:", possibleKeys);
-        console.log("correctKey:", correctKey);
-
         const isPrimarykeyOrUnique = !!(
           pkField.is_primary_key || pkField.is_unique
         );

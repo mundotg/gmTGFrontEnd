@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
@@ -8,21 +7,14 @@ import {
   HardDrive,
   Activity,
   AlertOctagon,
-  ShieldCheck,
-  Zap,
-  ArrowRightLeft,
-  FileDown,
-  FileSpreadsheet,
-  Loader2,
+  RefreshCw,
+  PlugZap,
+  Layers,
 } from "lucide-react";
 
-import {
-  AuditTrailItem,
-  MetricCard,
-  QueryRowItem,
-} from "./ComponentAnlytics/AnalyticsUI";
+import { MetricCard } from "./ComponentAnlytics/AnalyticsUI";
+import { AuditedQueries, AuditTrail } from "./ComponentAnlytics/AuditPanels";
 import { QueryHistory } from "../historico/types";
-import { DBConnection } from "@/types/db-structure";
 
 /* =======================
    TYPES
@@ -32,141 +24,246 @@ interface DbMetrics {
   rowCountTotal: number;
   activeTransactions: number;
   deadlocks: number;
+  engine?: string;
 }
 
+const PAGE_SIZE = 12;
+
 /* =======================
-   CACHE LOCAL (leve)
+   CACHE LOCAL (só métricas + trilha; a tabela pagina em servidor)
 ======================= */
 let memoryCache: {
   metrics?: DbMetrics;
-  queries?: QueryHistory[];
+  recent?: QueryHistory[];
   timestamp?: number;
 } = {};
+
+const fmtNumber = (n?: number | null) =>
+  typeof n === "number" ? n.toLocaleString("pt-PT") : "-";
 
 /* =======================
    COMPONENT
 ======================= */
-export function DatabaseModule() {
+export function DatabaseModule({
+  refreshKey = 0,
+  downloadSignal = 0,
+}: {
+  refreshKey?: number;
+  downloadSignal?: number;
+}) {
   const { user, api } = useSession();
 
   const [metrics, setMetrics] = useState<DbMetrics | null>(null);
-  const [queries, setQueries] = useState<QueryHistory[]>([]);
+  const [recent, setRecent] = useState<QueryHistory[]>([]); // trilha (últimos 6)
   const [loadingMetrics, setLoadingMetrics] = useState(false);
+  const [noConnection, setNoConnection] = useState(false);
+
+  // Tabela paginada
+  const [queries, setQueries] = useState<QueryHistory[]>([]);
   const [loadingQueries, setLoadingQueries] = useState(false);
+  const [page, setPage] = useState(0); // 0-based
+  const [hasNext, setHasNext] = useState(false);
+  const [search, setSearch] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
-
   const canExport = hasPermission(user?.permissions ?? [], "analytics:db:export");
 
   /* =======================
-     🔥 API SAFE FETCH
+     MÉTRICAS + TRILHA (últimos 6)
   ======================= */
-  const fetchSafe = useCallback(
-    async <T,>(url: string, signal: AbortSignal): Promise<T | null> => {
+  const loadTopLevel = useCallback(
+    async (force = false) => {
+      const now = Date.now();
+      if (!force && memoryCache.timestamp && now - memoryCache.timestamp < 30_000) {
+        setMetrics(memoryCache.metrics || null);
+        setRecent(memoryCache.recent || []);
+        return;
+      }
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      setLoadingMetrics(true);
+      setNoConnection(false);
+
+      const metricsPromise = api
+        .get<DbMetrics>("/analytics/db/", { signal: controller.signal })
+        .then((r) => r.data)
+        .catch((err) => {
+          if (err?.name === "CanceledError") return undefined;
+          if (err?.response?.status === 400) setNoConnection(true);
+          else console.error("Erro ao carregar métricas:", err);
+          return null;
+        });
+
+      const recentPromise = api
+        .get<QueryHistory[]>("/history/", {
+          params: { limit: 6 },
+          signal: controller.signal,
+        })
+        .then((r) => r.data)
+        .catch(() => null);
+
+      const [metricsRes, recentRes] = await Promise.all([metricsPromise, recentPromise]);
+      if (controller.signal.aborted) return;
+
+      if (metricsRes !== undefined) setMetrics(metricsRes || null);
+      if (recentRes) setRecent(recentRes);
+
+      memoryCache = {
+        metrics: metricsRes || undefined,
+        recent: recentRes || undefined,
+        timestamp: Date.now(),
+      };
+      setLoadingMetrics(false);
+    },
+    [api]
+  );
+
+  /* =======================
+     TABELA PAGINADA (offset/limit + pesquisa no servidor)
+  ======================= */
+  const loadQueries = useCallback(
+    async (pageToLoad: number, term: string) => {
+      setLoadingQueries(true);
       try {
-        const res = await api.get(url, { signal });
-        return res.data;
-      } catch (err: any) {
-        if (err.name === "CanceledError") return null;
-        console.error("Erro API:", err);
-        return null;
+        const { data } = await api.get<QueryHistory[]>("/history/", {
+          params: {
+            limit: PAGE_SIZE,
+            offset: pageToLoad * PAGE_SIZE,
+            ...(term.trim() ? { search: term.trim() } : {}),
+          },
+        });
+        const list = data ?? [];
+        setQueries(list);
+        // Há próxima página se recebemos uma página cheia.
+        setHasNext(list.length === PAGE_SIZE);
+      } catch (err) {
+        if ((err as Error)?.name !== "CanceledError") {
+          console.error("Erro ao carregar consultas:", err);
+        }
+      } finally {
+        setLoadingQueries(false);
       }
     },
     [api]
   );
 
+  /* AUTO LOAD + heartbeat das métricas/trilha */
   useEffect(() => {
-    console.log("olá mundo", user?.info_extra)
-    if (user?.info_extra?.id_connection)
-      api.get<DBConnection>(`/conn/db_full/${user?.info_extra?.id_connection}`)
-  }, [user?.info_extra?.id_connection])
-
-  /* =======================
-     LOAD DATA
-  ======================= */
-  const loadData = useCallback(async (force = false) => {
-    // 🔥 evita spam de requests
-    const now = Date.now();
-    if (!force && memoryCache.timestamp && now - memoryCache.timestamp < 30_000) {
-      setMetrics(memoryCache.metrics || null);
-      setQueries(memoryCache.queries || []);
-      return;
-    }
-
-    // 🔥 cancela request anterior
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      setLoadingMetrics(true);
-      setLoadingQueries(true);
-
-      const [metricsRes, queriesRes] = await Promise.all([
-        fetchSafe<DbMetrics>("/analytics/db", controller.signal),
-        fetchSafe<QueryHistory[]>("/history?limit=10", controller.signal),
-      ]);
-
-      if (!controller.signal.aborted) {
-        if (metricsRes) setMetrics(metricsRes);
-        if (queriesRes) setQueries(queriesRes);
-
-        // 🔥 cache local leve
-        memoryCache = {
-          metrics: metricsRes || undefined,
-          queries: queriesRes || undefined,
-          timestamp: Date.now(),
-        };
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setLoadingMetrics(false);
-        setLoadingQueries(false);
-      }
-    }
-  }, [fetchSafe]);
-
-  /* =======================
-     AUTO LOAD
-  ======================= */
-  useEffect(() => {
-    loadData();
-
-    // 🔥 refresh automático leve (tipo heartbeat)
-    const interval = setInterval(() => {
-      loadData();
-    }, 60_000);
-
+    loadTopLevel();
+    const interval = setInterval(() => loadTopLevel(), 60_000);
     return () => {
       abortRef.current?.abort();
       clearInterval(interval);
     };
-  }, [loadData]);
+  }, [loadTopLevel]);
+
+  /* Refresh do topo → recarrega tudo e volta à página 1 */
+  useEffect(() => {
+    if (!refreshKey) return;
+    loadTopLevel(true);
+    setPage(0);
+    loadQueries(0, search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
+
+  /* Pesquisa (debounce) → volta à página 1 */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(0);
+      loadQueries(0, search);
+    }, search ? 400 : 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  /* Mudança de página */
+  const goToPage = (p: number) => {
+    if (p < 0) return;
+    setPage(p);
+    loadQueries(p, search);
+  };
+
+  /* =======================
+     EXPORT CSV (página atual)
+  ======================= */
+  const exportCsv = useCallback(() => {
+    if (!queries.length) return;
+    const cabecalho = ["id", "tipo", "origem", "utilizador", "duracao_ms", "estado", "executado_em"];
+    const linhas = queries.map((q) =>
+      [
+        q.id,
+        q.query_type || "",
+        q.app_source || "",
+        q.executed_by || "",
+        q.duration_ms ?? 0,
+        q.error_message ? "erro" : "sucesso",
+        q.executed_at || "",
+      ]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(",")
+    );
+    const csv = [cabecalho.join(","), ...linhas].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `consultas-auditadas-p${page + 1}-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [queries, page]);
+
+  useEffect(() => {
+    if (downloadSignal && canExport) exportCsv();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [downloadSignal]);
 
   /* =======================
      UI
   ======================= */
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-8">
-
+    <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 space-y-6">
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <span className="bg-blue-600/20 text-blue-400 text-[10px] font-black px-2 py-0.5 rounded border border-blue-500/30 uppercase">
-            Engine Status
+          <span className="bg-blue-50 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded border border-blue-200 uppercase">
+            Engine {metrics?.engine || "—"}
           </span>
-          <span className="text-emerald-500 text-[10px] font-bold animate-pulse">
-            ● LIVE
-          </span>
+          {noConnection ? (
+            <span className="text-amber-600 text-[10px] font-bold">● SEM CONEXÃO</span>
+          ) : (
+            <span className="text-emerald-600 text-[10px] font-bold animate-pulse">● LIVE</span>
+          )}
         </div>
 
         <button
-          onClick={() => loadData(true)}
-          className="text-xs font-bold text-blue-400 flex items-center gap-2 hover:underline"
+          onClick={() => {
+            loadTopLevel(true);
+            loadQueries(page, search);
+          }}
+          className="text-xs font-bold text-blue-600 flex items-center gap-2 hover:underline"
         >
-          <ArrowRightLeft size={14} /> Atualizar
+          <RefreshCw size={14} className={loadingMetrics ? "animate-spin" : ""} /> Atualizar
         </button>
       </div>
+
+      {/* SEM CONEXÃO ATIVA */}
+      {noConnection && (
+        <div className="flex items-center gap-4 rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <div className="p-2.5 bg-amber-100 text-amber-600 rounded-lg">
+            <PlugZap className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="font-bold text-amber-800">Nenhuma conexão de base de dados ativa</p>
+            <p className="text-sm text-amber-700 mt-0.5">
+              Ative uma conexão na página <span className="font-semibold">Conexões</span> para ver
+              as métricas em tempo real. O histórico de consultas continua disponível abaixo.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* METRICS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -176,98 +273,42 @@ export function DatabaseModule() {
           subLabel="Storage Engine"
           icon={<HardDrive />}
         />
-
+        <MetricCard
+          label="Registos"
+          value={loadingMetrics ? "..." : fmtNumber(metrics?.rowCountTotal)}
+          subLabel="Linhas totais"
+          icon={<Layers />}
+        />
         <MetricCard
           label="Transações"
           value={loadingMetrics ? "..." : metrics?.activeTransactions ?? "-"}
-          subLabel="Transaction-safe"
-          icon={<Activity className="text-emerald-400" />}
+          subLabel="Ativas agora"
+          icon={<Activity className="text-emerald-500" />}
         />
-
         <MetricCard
           label="Deadlocks"
           value={loadingMetrics ? "..." : metrics?.deadlocks ?? "-"}
           subLabel="Integridade"
           icon={<AlertOctagon className="text-red-500" />}
         />
-
-        <MetricCard
-          label="Auditoria"
-          value="Ativo"
-          subLabel="MustaInf Protected"
-          icon={<ShieldCheck className="text-blue-500" />}
-        />
       </div>
 
-      {/* TABLE + AUDIT */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* QUERIES */}
-        <div className="lg:col-span-2 bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
-          <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
-            <h3 className="font-bold text-sm flex items-center gap-2">
-              <Zap size={16} className="text-amber-400" /> Consultas Auditadas
-            </h3>
-
-            <div className="flex gap-2 text-slate-500">
-              {canExport && (
-                <>
-                  <FileDown size={16} className="cursor-pointer hover:text-white" />
-                  <FileSpreadsheet size={16} className="cursor-pointer hover:text-white" />
-                </>
-              )}
-            </div>
-          </div>
-
-          <table className="w-full text-left text-xs">
-            <tbody className="divide-y divide-white/5 font-mono">
-              {loadingQueries && (
-                <tr>
-                  <td className="p-4 text-center text-gray-400">
-                    <Loader2 className="animate-spin inline mr-2" size={14} />
-                    Carregando...
-                  </td>
-                </tr>
-              )}
-
-              {!loadingQueries && queries.map((q) => (
-                <QueryRowItem
-                  key={q.id}
-                  target={q.app_source || "Unknown"}
-                  trail={`exec_${q.id}`}
-                  duration={`${q.duration_ms || 0}ms`}
-                  status={q.error_message ? "Error" : "Success"}
-                />
-              ))}
-
-              {!loadingQueries && queries.length === 0 && (
-                <tr>
-                  <td className="p-4 text-center text-gray-500">
-                    Sem dados
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* AUDIT */}
-        <div className="bg-gradient-to-br from-blue-900/20 to-transparent border border-blue-500/10 rounded-2xl p-6">
-          <h3 className="text-xs font-black uppercase tracking-widest text-blue-400 mb-6">
-            Trilha de Auditoria
-          </h3>
-
-          <div className="space-y-6">
-            {queries.slice(0, 3).map((q) => (
-              <AuditTrailItem
-                key={q.id}
-                user={q.executed_by || "system"}
-                action={q.query_type || "UNKNOWN"}
-                time={new Date(q.executed_at).toLocaleTimeString()}
-              />
-            ))}
-          </div>
-        </div>
+      {/* AUDIT: QUERIES + TRAIL */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <AuditedQueries
+          queries={queries}
+          loading={loadingQueries}
+          canExport={canExport}
+          onExport={exportCsv}
+          search={search}
+          onSearchChange={setSearch}
+          page={page}
+          pageSize={PAGE_SIZE}
+          hasNext={hasNext}
+          onPrev={() => goToPage(page - 1)}
+          onNext={() => goToPage(page + 1)}
+        />
+        <AuditTrail queries={recent} loading={loadingMetrics && recent.length === 0} />
       </div>
     </div>
   );

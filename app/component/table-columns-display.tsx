@@ -58,7 +58,14 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   select,
 }) => {
   const { t } = useI18n();
-  const { api } = useSession();
+  const { api, user } = useSession();
+
+  // MongoDB é schemaless: os documentos não têm colunas fixas, por isso as
+  // operações de esquema (criar/editar/eliminar coluna) não se aplicam.
+  const isMongo = useMemo(
+    () => String(user?.info_extra?.type ?? "").toLowerCase().includes("mongo"),
+    [user?.info_extra?.type]
+  );
 
   // ✅ garante select sempre como array
   const safeSelect = useMemo(() => (Array.isArray(select) ? select : []), [select]);
@@ -160,11 +167,14 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   const handleColumnClick = useCallback(
     (col: CampoDetalhado & { tableName: string }) => {
       setSelectedColumn(col);
-      setFieldModalMode("edit");
-      setFieldModalOpen(true);
+      // Mongo é schemaless → não abre a modal de esquema (DDL não se aplica).
+      if (!isMongo) {
+        setFieldModalMode("edit");
+        setFieldModalOpen(true);
+      }
       onColumnClick?.(col);
     },
-    [onColumnClick]
+    [onColumnClick, isMongo]
   );
 
   const handleColumnSelect = useCallback(
@@ -579,39 +589,51 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
             </button>
           )}
 
-          {/* ✅ Criar coluna */}
-          <button
-            onClick={openCreateColumnModal}
-            className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-emerald-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-            title={t("actions.addColumn") || "Criar nova coluna"}
-          >
-            <Plus className="w-3.5 xs:w-4 h-3.5 xs:h-4 flex-shrink-0" />
-            <span className="hidden sm:inline">{t("actions.addColumn") || "Coluna"}</span>
-            <span className="sm:hidden">+Col</span>
-          </button>
-
-          {/* ✅ Eliminar selecionada */}
-          {selectedColumn && (
-            <button
-              onClick={handleDeleteSelectedColumn}
-              className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-red-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
-              title={t("actions.delete") || "Eliminar coluna selecionada"}
+          {/* ✅ Operações de esquema (coluna) — não se aplicam a MongoDB */}
+          {isMongo ? (
+            <span
+              className="flex-1 xs:flex-none px-3 py-1.5 text-[11px] xs:text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg xs:rounded-xl flex items-center justify-center gap-1.5"
+              title="No MongoDB os documentos são livres (schemaless) — não há colunas de esquema para criar/editar."
             >
-              <span className="hidden xs:inline">{t("actions.delete") || "Eliminar"}</span>
-              <span className="xs:hidden">Del</span>
-            </button>
-          )}
+              🍃 <span className="hidden sm:inline">MongoDB (schemaless)</span>
+            </span>
+          ) : (
+            <>
+              {/* ✅ Criar coluna */}
+              <button
+                onClick={openCreateColumnModal}
+                className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-emerald-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                title={t("actions.addColumn") || "Criar nova coluna"}
+              >
+                <Plus className="w-3.5 xs:w-4 h-3.5 xs:h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{t("actions.addColumn") || "Coluna"}</span>
+                <span className="sm:hidden">+Col</span>
+              </button>
 
-          {/* ✅ Editar selecionada */}
-          {selectedColumn && (
-            <button
-              onClick={openEditSelectedColumnModal}
-              className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-blue-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              title={t("actions.edit") || "Editar coluna selecionada"}
-            >
-              <span className="hidden xs:inline">{t("actions.edit") || "Editar"}</span>
-              <span className="xs:hidden">✎</span>
-            </button>
+              {/* ✅ Eliminar selecionada */}
+              {selectedColumn && (
+                <button
+                  onClick={handleDeleteSelectedColumn}
+                  className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-red-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                  title={t("actions.delete") || "Eliminar coluna selecionada"}
+                >
+                  <span className="hidden xs:inline">{t("actions.delete") || "Eliminar"}</span>
+                  <span className="xs:hidden">Del</span>
+                </button>
+              )}
+
+              {/* ✅ Editar selecionada */}
+              {selectedColumn && (
+                <button
+                  onClick={openEditSelectedColumnModal}
+                  className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-blue-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  title={t("actions.edit") || "Editar coluna selecionada"}
+                >
+                  <span className="hidden xs:inline">{t("actions.edit") || "Editar"}</span>
+                  <span className="xs:hidden">✎</span>
+                </button>
+              )}
+            </>
           )}
 
           <button
@@ -632,10 +654,10 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
         </div>
       </div>
 
-      {/* Modal 3-em-1 */}
+      {/* Modal 3-em-1 (esquema de colunas) — não se aplica a MongoDB */}
       <FieldModal
         key={`${fieldModalMode}-${fieldModalMode === "create" ? selectedTableForCreate : selectedColumn?.tableName}-${selectedColumn?.nome || "new"}`}
-        isOpen={fieldModalOpen}
+        isOpen={fieldModalOpen && !isMongo}
         mode={fieldModalMode}
         field={selectedColumn}
         tableName={fieldModalMode === "create" ? selectedTableForCreate : selectedColumn?.tableName}

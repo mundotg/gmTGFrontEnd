@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from "react";
 import ProjectModal from "./components/ProjectModal";
 import { TaskModal } from "./components/TaskModal";
-import { Project, ProjectFormData, Sprint, Task, TaskCreate, TypeShowToste, UsuarioTaskCreate } from "./types";
+import { Project, ProjectFormData, Sprint, Task, TaskCreate, TypeShowToste } from "./types";
 import ProjectList from "./paginas/ProjectList";
 import TaskList from "./paginas/Tasklist";
 
@@ -41,6 +41,16 @@ const App: React.FC = () => {
 
   const [selectedSprint, setSelectedSprint] = usePersistedState<Sprint | null | undefined>("selectedSprint_", null)
 
+  /**
+   * Contador que força a TaskList a recarregar.
+   *
+   * ⚠️ Antes, criar/editar/apagar uma tarefa atualizava `projects[].tasks`,
+   * mas a lista visível vive dentro da TaskList, que busca as tarefas por
+   * `/geral/paginate`. O resultado era a operação ter sucesso no servidor e a
+   * UI não mexer até um refresh manual.
+   */
+  const [taskVersion, setTaskVersion] = useState(0);
+  const bumpTaskVersion = useCallback(() => setTaskVersion((v) => v + 1), []);
 
   // Função auxiliar para mostrar toast
   const showToast = useCallback((message: string, type: TypeShowToste = "info") => {
@@ -160,43 +170,34 @@ const App: React.FC = () => {
         return setFormError("Nenhum projeto selecionado.");
       }
 
+      // ⚠️ Sem `id`: a chave primária é gerada pela base de dados. O
+      // `crypto.randomUUID()` que aqui estava era enviado para uma coluna
+      // Integer. O criador também não vai no corpo — o servidor usa a sessão.
       const newTask: TaskCreate = {
-        id: crypto.randomUUID(),
         title: f.title!.trim(),
         description: f.description?.trim(),
         status: "pendente",
-        projectId: f.projectId,
+        projectId: projectId,
         priority: f.priority ?? "media",
-        assignedToId: f.assignedToId ?? user?.id ?? "desconhecido",
-        createdById: user?.id ?? "desconhecido",
+        assignedToId: f.assignedToId ?? user?.id ?? "",
         startDate: f.startDate,
         endDate: f.endDate
           ? f.endDate
           : new Date(Date.now() + DEFAULT_TASK_DURATION),
         estimatedHours: f.estimatedHours ?? 0,
         tags: f.tags ?? [],
-        isValidated: false,
         delegatedToId: f.delegatedToId,
         schedule: f.schedule,
-        sprintId: f.sprintId,
-
+        sprintId: f.sprintId ?? selectedSprintId ?? undefined,
       };
 
       setActionLoading(true);
       try {
-        const res = await api.post(`/task/${projectId}/tasks`, newTask);
-
-        setProjects((prev) => ({
-          ...prev,
-          items: prev.items.map((p) =>
-            p.id === projectId
-              ? { ...p, tasks: [...(p.tasks ?? []), res.data] }
-              : p
-          ),
-        }));
+        await api.post(`/task/${projectId}/tasks/`, newTask);
 
         setTaskModalOpen(false);
         setFormError(null);
+        bumpTaskVersion();
         showToast("Tarefa criada com sucesso!", "success");
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
@@ -208,7 +209,7 @@ const App: React.FC = () => {
         setActionLoading(false);
       }
     },
-    [user?.id, selectedProject?.id]
+    [user?.id, selectedProject?.id, selectedProjectId, selectedSprintId, api, bumpTaskVersion, showToast, validateTaskForm]
   );
 
   const handleDeleteTask = useCallback(
@@ -219,16 +220,8 @@ const App: React.FC = () => {
       try {
         await api.delete(`/task/${projectId}/tasks/${taskId}`);
 
-        setProjects((prev) => ({
-          ...prev,
-          items: prev.items.map((p) =>
-            p.id === projectId
-              ? { ...p, tasks: (p.tasks ?? []).filter((t) => t.id !== taskId) }
-              : p
-          ),
-        }));
-
         setFormError(null);
+        bumpTaskVersion();
         showToast("Tarefa excluída com sucesso!", "success");
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
@@ -239,7 +232,7 @@ const App: React.FC = () => {
         setActionLoading(false);
       }
     },
-    [api]
+    [api, bumpTaskVersion, showToast]
   );
 
   const handleEditTask = useCallback(
@@ -249,52 +242,38 @@ const App: React.FC = () => {
       if (!projectId) {
         return setFormError("Nenhum projeto selecionado.");
       }
-      const updatedTask: TaskCreate = {
-        id: crypto.randomUUID(),
-        title: f.title || "",
+
+      // ⚠️ Sem `id`: gerar um UUID novo a cada edição era um erro — a tarefa
+      // é identificada pelo id na URL. O endpoint aceita atualização parcial,
+      // por isso só se envia o que o formulário devolveu.
+      const updatedTask: Partial<TaskCreate> = {
+        title: f.title,
         description: f.description,
         status: f.status,
-        projectId: f.projectId || projectId,
         priority: f.priority,
-        assignedToId: f.assignedToId || user?.id || "",
-        createdById: f.createdById || user?.id,
+        assignedToId: f.assignedToId,
         startDate: f.startDate,
-        endDate: f.endDate || "",
-        estimatedHours: f.estimatedHours || 0,
+        endDate: f.endDate,
+        estimatedHours: f.estimatedHours,
         tags: f.tags,
-        isValidated: f.isValidated,
         completedAt: f.completedAt,
         delegatedToId: f.delegatedToId,
         schedule: f.schedule,
-        sprintId: f.sprintId
-
+        sprintId: f.sprintId,
       };
 
 
       setActionLoading(true);
       try {
-        const res = await api.put(
+        await api.put(
           `/task/${editingTask.project_id}/tasks/${editingTask.id}`,
           updatedTask
         );
 
-        setProjects((prev) => ({
-          ...prev,
-          items: prev.items.map((p) =>
-            p.id === editingTask.project_id
-              ? {
-                ...p,
-                tasks: (p.tasks ?? []).map((t) =>
-                  t.id === editingTask.id ? res.data : t
-                ),
-              }
-              : p
-          ),
-        }));
-
         setTaskModalOpen(false);
         setEditingTask(null);
         setFormError(null);
+        bumpTaskVersion();
         showToast("Tarefa atualizada com sucesso!", "success");
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
@@ -306,7 +285,44 @@ const App: React.FC = () => {
         setActionLoading(false);
       }
     },
-    [editingTask]
+    [editingTask, selectedProject?.id, selectedProjectId, api, bumpTaskVersion, showToast]
+  );
+
+  /**
+   * Alterna uma tarefa entre concluída e em andamento.
+   * Estava ligada a `() => {}` na TaskList — clicar na caixa não fazia nada.
+   */
+  const handleToggleTask = useCallback(
+    async (task: Task) => {
+      if (!task.id || !task.project_id) return;
+
+      const novoStatus = task.status === "concluida" ? "em_andamento" : "concluida";
+
+      setActionLoading(true);
+      try {
+        await api.put(`/task/${task.project_id}/tasks/${task.id}`, {
+          status: novoStatus,
+        });
+
+        bumpTaskVersion();
+        showToast(
+          novoStatus === "concluida"
+            ? "Tarefa marcada como concluída."
+            : "Tarefa reaberta.",
+          "success"
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        console.error("Erro ao alterar estado da tarefa:", error);
+        showToast(
+          error.response?.data?.detail || "Não foi possível alterar a tarefa.",
+          "error"
+        );
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [api, bumpTaskVersion, showToast]
   );
 
 
@@ -412,8 +428,9 @@ const App: React.FC = () => {
                 onDeleteTask={(taskId) =>
                   selectedProject.id && handleDeleteTask(selectedProject.id, taskId)
                 }
-                onToggleTask={() => { }}
-                onDelegateTask={() => { }}
+                onToggleTask={handleToggleTask}
+                onDelegateTask={() => bumpTaskVersion()}
+                refreshKey={taskVersion}
               />
             )}
           </div>

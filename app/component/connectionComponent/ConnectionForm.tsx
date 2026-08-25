@@ -1,10 +1,14 @@
 "use client";
-import React, { useCallback, useState } from "react";
-import { ChevronDown, Eye, EyeOff, Plus, Server, CheckCircle2, XCircle } from "lucide-react";
+import React, { useCallback, useMemo, useState } from "react";
+import { ChevronDown, Eye, EyeOff, Plus, Server, CheckCircle2, XCircle, Link2 } from "lucide-react";
 import { ConnectionFormData, DatabaseOption } from "@/types";
+import {
+  CONNECTION_URL_EXAMPLES,
+  checkConnectionUrl,
+} from "@/util/connectioPage/connectionUrl";
 
 interface ConnectionFormProps {
-  t: (key: string) => string;
+  t: (key: string, vars?: Record<string, string | number>) => string;
   databases: DatabaseOption[];
   selectedDatabase?: DatabaseOption | null;
   selectedDb: string | null;
@@ -36,6 +40,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   connect
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [showUrl, setShowUrl] = useState(false);
 
   /** Atualiza campo do formulário */
   const updateField = useCallback(
@@ -47,6 +52,26 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
     },
     [setFormData]
   );
+
+  const useUrl = !!formData.useUrl;
+
+  /**
+   * Erro da URL mostrado por baixo do campo. Só valida o esquema contra o tipo
+   * escolhido — quem interpreta a URL é o backend, que a recebe cifrada e a usa
+   * tal como está.
+   */
+  const urlError = useMemo(() => {
+    if (!useUrl || !selectedDb) return null;
+    if (!(formData.url || "").trim()) return null;
+
+    const check = checkConnectionUrl(formData.url || "", selectedDb);
+    return check.ok ? null : check.error;
+  }, [formData.url, selectedDb, useUrl]);
+
+  const exemplos = (selectedDb && CONNECTION_URL_EXAMPLES[selectedDb]) || [];
+
+  /** Falta preencher a URL, ou o que está lá não serve. */
+  const urlIncompleta = useUrl && (!(formData.url || "").trim() || !!urlError);
 
   /** Garante placeholders e valores padrão dinâmicos */
   const getPlaceholder = (field: string) => {
@@ -127,8 +152,100 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         {/* Campos dinâmicos */}
         {selectedDb && (
           <div className="space-y-5 animate-in fade-in slide-in-from-top-4 duration-300">
+
+            {/* Como ligar a ESTE tipo: campos separados ou uma URL única */}
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 transition-colors hover:border-blue-300 hover:bg-white">
+              <input
+                type="checkbox"
+                checked={useUrl}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, useUrl: e.target.checked }))
+                }
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500/50"
+              />
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
+                  <Link2 className="h-4 w-4 text-gray-400" />
+                  {t("connectUseUrl")}
+                </span>
+                <span className="mt-1 block text-xs font-medium text-gray-500">
+                  {t("connectUseUrlHint", {
+                    db: selectedDatabase?.name ?? "",
+                  })}
+                </span>
+              </span>
+            </label>
+
+            {useUrl ? (
+              <div className="space-y-5">
+                <InputField
+                  label={t("connectionName") || "NOME DA CONEXÃO"}
+                  value={formData.name || ""}
+                  onChange={(e) => updateField("name", e.target.value)}
+                  placeholder={getPlaceholder("name")}
+                />
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-2">
+                    {t("connectUrlLabel")}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showUrl ? "text" : "password"}
+                      value={formData.url || ""}
+                      onChange={(e) => updateField("url", e.target.value)}
+                      placeholder={exemplos[0] || ""}
+                      autoComplete="off"
+                      spellCheck={false}
+                      className={`w-full px-4 py-3 pr-12 bg-gray-50 border rounded-xl text-sm font-mono text-gray-900 focus:bg-white focus:outline-none focus:ring-2 transition-colors placeholder:text-gray-400 placeholder:font-normal ${
+                        urlError
+                          ? "border-red-300 focus:ring-red-500/50"
+                          : "border-gray-200 focus:ring-blue-500/50"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowUrl((p) => !p)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 p-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
+                      title={showUrl ? t("connectUrlHide") : t("connectUrlShow")}
+                    >
+                      {showUrl ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  {urlError ? (
+                    <p className="mt-2 flex items-start gap-2 text-xs font-semibold text-red-600">
+                      <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span className="break-words">{urlError}</span>
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs font-medium text-gray-500">
+                      {t("connectUrlHint")}
+                    </p>
+                  )}
+                </div>
+
+                {exemplos.length > 0 && (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <p className="text-xs font-bold text-gray-700">
+                      {t("connectUrlExamples")} · {selectedDatabase?.name}
+                    </p>
+                    <ul className="mt-2 space-y-1.5">
+                      {exemplos.map((exemplo) => (
+                        <li
+                          key={exemplo}
+                          className="break-all font-mono text-[11px] text-gray-600"
+                        >
+                          {exemplo}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              
+
               <InputField
                 label={t("connectionName") || "NOME DA CONEXÃO"}
                 value={formData.name || ""}
@@ -213,6 +330,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
                 </div>
               )}
             </div>
+            )}
           </div>
         )}
 
@@ -243,7 +361,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         <div className="flex flex-col sm:flex-row gap-3 pt-6 mt-6 border-t border-gray-100">
           <ActionButton
             onClick={testConnection}
-            disabled={isConnecting || !selectedDb}
+            disabled={isConnecting || !selectedDb || urlIncompleta}
             icon={<Server className="w-4 h-4" />}
             text={isConnecting ? (t("testing") || "Testando...") : (t("test") || "Testar Conexão")}
             loading={isConnecting}
@@ -251,7 +369,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
           />
           <ActionButton
             onClick={connect}
-            disabled={isConnecting || !selectedDb}
+            disabled={isConnecting || !selectedDb || urlIncompleta}
             icon={<Plus className="w-4 h-4" />}
             text={isConnecting ? (t("connecting") || "Conectando...") : (t("connect") || "Salvar & Conectar")}
             loading={isConnecting}

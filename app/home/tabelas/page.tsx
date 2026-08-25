@@ -101,6 +101,26 @@ const DatabaseTablesPage: React.FC = () => {
     loadInitialData();
   }, [loadInitialData]);
 
+  // 🔄 Ao mudar de conexão, limpa o estado dependente dela. Sem isto, as
+  // colunas expandidas (persistidas no localStorage por NOME de tabela) de
+  // uma conexão apareciam noutra com tabelas de nome igual — colunas erradas
+  // a renderizar. Só limpa numa MUDANÇA real (não na 1ª montagem), preservando
+  // a persistência dentro da mesma conexão.
+  const prevConnRef = React.useRef<number | string | undefined>(
+    user?.info_extra?.id_connection
+  );
+  useEffect(() => {
+    const cur = user?.info_extra?.id_connection;
+    if (prevConnRef.current !== undefined && cur !== prevConnRef.current) {
+      setColunaShow({});
+      setExpandedTables(new Set());
+      setLoadingColumns(new Set());
+      setSelectedTables(new Set());
+      setSeleColunaForTable({});
+    }
+    prevConnRef.current = cur;
+  }, [user?.info_extra?.id_connection, setColunaShow]);
+
   const getTableStructure = useCallback(
     (tableName: string): DBStructure | undefined =>
       structures.find((s) => s.table_name.toLowerCase() === tableName.toLowerCase()),
@@ -141,14 +161,17 @@ const DatabaseTablesPage: React.FC = () => {
 
   const toggleTable = useCallback(
     (tableName: string) => {
-      const split = tableName.split(".");
-      const actualTableName = split.length > 1 ? split[1] : split[0];
+      // Usa o nome EXATO recebido (o mesmo `table.name` usado no render e nas
+      // chaves de `expandedTables`/`colunasShow`). Antes fazia split(".") e
+      // guardava só o nome sem schema, mas o render verificava `table.name` —
+      // e o TableCard chegava a enviar "undefined.tabela" quando não havia
+      // estrutura, deixando expansão/colunas/seleção dessincronizados.
       setExpandedTables((prev) => {
         const n = new Set(prev);
-        if (n.has(actualTableName)) n.delete(actualTableName);
+        if (n.has(tableName)) n.delete(tableName);
         else {
-          n.add(actualTableName);
-          handleSelectTables(actualTableName);
+          n.add(tableName);
+          handleSelectTables(tableName);
         }
         return n;
       });

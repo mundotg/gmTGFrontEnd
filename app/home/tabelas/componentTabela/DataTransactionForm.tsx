@@ -14,7 +14,7 @@ import type { TableMapping } from "@/app/task/types/transfer-types";
 import type { DBConnection } from "@/types/db-structure";
 
 import usePersistedState from "@/hook/localStoreUse";
-import { useSSEStream } from "@/hook/useTransferStream";
+import { useTransferWs } from "@/hook/useTransferWs";
 import { usePaginatedFetcher } from "../../hooks/useDBConnections";
 import { getDatabaseIcon } from "./steps/utils";
 import { buildTransferPayload } from "./transacao_query_component/compactar-payload";
@@ -127,11 +127,9 @@ export const DataTransactionForm: React.FC<{ onClose: () => void }> = ({ onClose
   /** =========================
    * EXECUÇÃO E MENSAGENS
    ========================== */
-  const { error, isRunning, messages, startStream, stopStream } = useSSEStream({
-    url: "transfer/stream",
-    params: montarParametro,
-    autoRetry: false,
-  });
+  // WebSocket: o payload viaja na mensagem (sem limite de URL) e permite
+  // cancelar a meio. API igual à do antigo useSSEStream.
+  const { error, isRunning, messages, startStream, stopStream } = useTransferWs(montarParametro);
 
   /** =========================
    * CONTROLES DE ETAPAS

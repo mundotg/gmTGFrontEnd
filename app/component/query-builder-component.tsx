@@ -9,7 +9,9 @@ import {
   MetadataTableResponse,
   MultiOrderByOption,
   QueryBuilderProps,
+  QueryPayload,
 } from "@/types";
+import QueryHistoryPanel from "./BuildQueryComponent/QueryHistoryPanel";
 import { JoinOptions } from "./JoinOptions";
 import { OrderByOptions } from "./OrderByOptions";
 import { GenericSelectModal } from "./BuildQueryComponent/TableSelectModal";
@@ -110,6 +112,65 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     setAdvancedConditions,
   });
 
+  // ---------------- HISTÓRICO & REUTILIZAÇÃO ----------------
+  // Sinal que muda a cada execução para o painel re-buscar (tempo real).
+  const [historySignal, setHistorySignal] = useState(0);
+  const bumpHistory = useCallback(() => {
+    // O histórico é gravado no fim do stream SSE; espera um pouco antes de re-buscar.
+    setTimeout(() => setHistorySignal((s) => s + 1), 1500);
+  }, []);
+
+  // Botão "Executar": corre a partir do estado atual e atualiza o histórico.
+  const handleRun = useCallback(async () => {
+    await executeQuery();
+    bumpHistory();
+  }, [executeQuery, bumpHistory]);
+
+  // "Correr novamente": reproduz EXACTAMENTE a consulta guardada (inclui joins).
+  const handleRerunPayload = useCallback(
+    (payload: QueryPayload) => {
+      Promise.resolve(onExecuteQuery(payload)).catch((e) =>
+        console.error("Erro ao reexecutar consulta:", e)
+      );
+      bumpHistory();
+    },
+    [onExecuteQuery, bumpHistory]
+  );
+
+  // "Carregar no construtor": repõe os campos editáveis a partir do payload.
+  // Os joins não são reeditáveis a partir do payload convertido — para
+  // reproduzir uma consulta com joins tal e qual, usa antes "Correr novamente".
+  const handleLoadPayload = useCallback(
+    (payload: QueryPayload) => {
+      setTable_list(
+        payload.table_list?.length
+          ? payload.table_list
+          : payload.baseTable
+            ? [payload.baseTable]
+            : []
+      );
+      setSelect(payload.select ?? []);
+      setConditions((payload.where as CondicaoFiltro[]) ?? []);
+      setOrderBy((payload.orderBy as MultiOrderByOption) ?? []);
+      setDistinctList(payload.distinct ?? { useDistinct: false, distinct_columns: [] });
+      setAliasTables?.(payload.aliaisTables ?? {});
+      addNotification(
+        "success",
+        t("builder.queryLoaded") || "Consulta carregada",
+        t("builder.queryLoadedDesc") || "Ajusta e executa, ou usa 'Correr novamente' para reproduzir tal e qual."
+      );
+    },
+    [setTable_list, setSelect, setConditions, setOrderBy, setDistinctList, setAliasTables, addNotification, t]
+  );
+
+  // Clicar numa sugestão de tabela adiciona-a à lista.
+  const handlePickTable = useCallback(
+    (table: string) => {
+      setTable_list(table_list.includes(table) ? table_list : [...table_list, table]);
+    },
+    [setTable_list, table_list]
+  );
+
   // ---------------- EFFECTS ----------------
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -158,7 +219,15 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       if (!prevOrder.length) return prevOrder;
 
       const validorder = prevOrder.filter((order) => {
-        const [tableName, columnName] = order.column.split(".");
+        // A coluna pode vir como `coluna`, `tabela.coluna` ou
+        // `schema.tabela.coluna`. A tabela é TUDO menos a última parte —
+        // com o antigo `[tableName, columnName] = split(".")` uma coluna
+        // com schema virava tableName="schema", removendo ordenações
+        // válidas; e um sort obsoleto (ex. `tables.table_catalog` de outra
+        // query) escapava e partia a query no backend.
+        const parts = order.column.split(".");
+        const columnName = parts[parts.length - 1];
+        const tableName = parts.slice(0, -1).join(".");
 
         const tableExists = table_list.includes(tableName);
         if (!tableExists) return false;
@@ -584,7 +653,7 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
 
         {/* Botão padronizado (Blue em vez de Green) */}
         <button
-          onClick={executeQuery}
+          onClick={handleRun}
           disabled={isExecuting}
           className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-bold text-sm transition-colors shadow-sm focus:ring-2 focus:ring-blue-500/50"
         >
@@ -605,6 +674,14 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
             </>
           )}
         </button>
+
+        {/* Histórico de consultas + sugestões (usar novamente / carregar) */}
+        <QueryHistoryPanel
+          reloadSignal={historySignal}
+          onRerun={handleRerunPayload}
+          onLoad={handleLoadPayload}
+          onPickTable={handlePickTable}
+        />
       </div>
     </div>
   );

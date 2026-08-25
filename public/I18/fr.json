@@ -15,7 +15,7 @@
     }
   },
   "nav": {
-    "brandName": "Brain DB",
+    "brandName": "MustaInf",
     "tasks": "Tâches",
     "ocr": "OCR",
     "login": "Connexion",
@@ -31,7 +31,7 @@
     "roadmapBadge": "FEUILLE DE ROUTE",
     "featuresTitle": "Fonctionnalités Principales",
     "futureTitle": "À venir",
-    "footer": "Brain DB © 2026. Tous droits réservés. Développé avec ❤️ en Next.js + Python FastAPI par Francemy Sebastião"
+    "footer": "MustaInf © 2026. Tous droits réservés. Développé avec ❤️ en Next.js + Python FastAPI par Francemy Sebastião"
   },
   "features": {
     "consultas": "Requêtes simplifiées : saisissez uniquement le nom de la table.",
@@ -70,7 +70,14 @@
     "expand": "Développer le menu",
     "darkMode": "Mode Sombre",
     "lightMode": "Mode Clair",
-    "gestorProjetos": "Gestionnaire de Projets"
+    "gestorProjetos": "Gestionnaire de Projets",
+    "sqlEditor": "Éditeur SQL",
+    "groupMore": "Plus",
+    "mll": "ML / Analyses",
+    "storage": "Stockage",
+    "devTest": "Tests (dev)",
+    "reference": "Référence",
+    "ai": "IA"
   },
   "status": {
     "online": "En ligne",
@@ -529,6 +536,8 @@
     "descProjects": "Gestion de projets",
     "tabTeam": "Équipe",
     "descTeam": "Utilisateurs et autorisations",
+    "tabAccess": "Accès",
+    "descAccess": "Qui accède à chaque connexion BD",
     "tabIntegrations": "Intégrations",
     "descIntegrations": "Connexions externes",
     "tabSystem": "Système",

@@ -62,8 +62,27 @@ function ResultTable({
   const [openModalConfirmeDelete, setOpenModalConfirmeDele] = useState(false);
 
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const loadingMoreRef = useRef(false); // evita "carregar mais" concorrente (duplicados)
+  const hasMoreRef = useRef(true);       // false quando a paginação por cursor esgota
+
+  // Nova query → reinicia o estado da paginação por cursor.
+  useEffect(() => {
+    hasMoreRef.current = true;
+  }, [queryResults.QueryPayload]);
 
   const { getPrimaryKeysInfo } = usePrimaryKeyExtractor(columnsInfo);
+
+  // Tabelas envolvidas na query (derivadas das colunas qualificadas
+  // schema.tabela.coluna). Serve de fallback para a eliminação quando não se
+  // escolhe manualmente, e permite saltar o modal em queries de 1 só tabela.
+  const derivedTables = useMemo(() => {
+    const set = new Set<string>();
+    (queryResults.columns || []).forEach((c) => {
+      const parts = String(c).split(".").filter(Boolean);
+      if (parts.length >= 2) set.add(parts.slice(0, -1).join("."));
+    });
+    return Array.from(set);
+  }, [queryResults.columns]);
 
   const {
     eliminarRegistrosSelecionados,
@@ -203,32 +222,70 @@ function ResultTable({
     ]
   );
 
+  // Lê o valor de uma coluna (de ordem) numa linha, tolerando chaves
+  // qualificadas (schema.tabela.coluna) ou só o nome da coluna.
+  const valueOfRow = useCallback((row: Record<string, unknown> | undefined, col: string) => {
+    if (!row || !col) return undefined;
+    if (col in row) return row[col];
+    const leaf = String(col).split(".").pop() as string;
+    if (leaf in row) return row[leaf];
+    const k = Object.keys(row).find((k) => String(k).split(".").pop() === leaf);
+    return k ? row[k] : undefined;
+  }, []);
+
   const carregarMaisLinhas = useCallback(async () => {
-    const query = queryResults.QueryPayload;
-    if (!query) return;
+    const base = queryResults.QueryPayload;
+    // Guarda: chamadas concorrentes (scroll dispara várias vezes) usariam o
+    // mesmo cursor e apenderiam DUPLICADOS; e para quando esgota.
+    if (!base || loadingMoreRef.current || hasMoreRef.current === false) return;
+    loadingMoreRef.current = true;
 
-    return logger.measure("Carregar mais linhas", async () => {
-      query.offset = queryResults.preview.length;
-      query.isCountQuery = false;
-
+    return logger.measure("Carregar mais linhas (cursor)", async () => {
       try {
-        const { data } = await api.post<QueryResultType>(
-          "/exe/execute_query/",
-          query,
+        const preview = queryResults.preview;
+        // Coluna de ordem (para o cursor keyset). O backend usa a que enviamos.
+        const orderByArr = Array.isArray(base.orderBy)
+          ? base.orderBy
+          : base.orderBy
+            ? [base.orderBy]
+            : [];
+        const firstOrder = orderByArr[0];
+        const orderCol = firstOrder?.column || base.select?.[0] || columns[0];
+        const direction = firstOrder?.direction || "ASC";
+
+        // Cursor = valor da coluna de ordem na ÚLTIMA linha já carregada.
+        const lastRow = preview[preview.length - 1] as Record<string, unknown> | undefined;
+        const cursorVal = valueOfRow(lastRow, orderCol);
+        const cursor = cursorVal != null ? String(cursorVal) : null;
+
+        const { data } = await api.post(
+          "/exe/query-more",
+          {
+            payload: base,
+            order_column: orderCol,
+            direction,
+            cursor,
+            limit: base.limit || 50,
+          },
           { withCredentials: true }
         );
 
-        if (data.success) {
+        if (data?.success && Array.isArray(data.preview) && data.preview.length > 0) {
           setQueryResults({
             ...queryResults,
             preview: [...queryResults.preview, ...data.preview],
           });
+          hasMoreRef.current = !!data.has_more;
+        } else {
+          hasMoreRef.current = false; // sem mais linhas
         }
       } catch (error) {
         logger.error("Erro ao carregar mais linhas", error);
+      } finally {
+        loadingMoreRef.current = false;
       }
     });
-  }, [queryResults, setQueryResults]);
+  }, [queryResults, setQueryResults, columns, valueOfRow]);
 
   const toggleSelectionMode = useCallback(() => {
     setIsSelectionMode((prev) => !prev);
@@ -268,13 +325,21 @@ function ResultTable({
  
 
   const confirmeDelet_open_modal_for_selection_table = useCallback(() => {
+    // Query de 1 só tabela → não precisa do modal de escolha; elimina direto.
+    if (derivedTables.length <= 1) {
+      setOpenModalConfirmeDele(true);
+      setModalFetchOpen(false); // dispara o useEffect que chama handleDeleteSelection
+      return;
+    }
     setOptionModalTable("oneDelet");
     setModalFetchOpen(true);
     setOpenModalConfirmeDele(true);
-  }, [setOptionModalTable, setModalFetchOpen]);
+  }, [setOptionModalTable, setModalFetchOpen, derivedTables.length]);
 
   const handleDeleteSelection = useCallback(() => {
-    const tablesForDelete = responseModal || [];
+    // Usa as tabelas escolhidas no modal; se vierem vazias, cai nas tabelas
+    // derivadas da própria query (evita o delete falhar em silêncio).
+    const tablesForDelete = (responseModal && responseModal.length ? responseModal : derivedTables);
 
     if (!tablesForDelete.length) {
       logger.warn("Nenhuma tabela foi selecionada para exclusão.");
@@ -306,6 +371,7 @@ function ResultTable({
     });
   }, [
     responseModal,
+    derivedTables,
     getPrimaryKeysInfo,
     selectionState.selectedRecords,
     selectionState.selectedCount,

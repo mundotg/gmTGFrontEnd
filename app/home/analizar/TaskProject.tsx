@@ -23,7 +23,13 @@ import {
   StatCard,
 } from "./ComponentAnlytics/TaskUiAnalytics";
 
-export function ProjectModule() {
+export function ProjectModule({
+  refreshKey = 0,
+  downloadSignal = 0,
+}: {
+  refreshKey?: number;
+  downloadSignal?: number;
+}) {
   const { user, api } = useSession();
   const { t } = useI18n();
 
@@ -42,14 +48,14 @@ export function ProjectModule() {
       setLoading(true);
       setError(null);
 
-      const response = await api.get("/analytics/projects", {
+      const response = await api.get("/analytics/projects/", {
         params: { range: timeRange },
         signal,
       });
 
       setData(response.data);
-    } catch (err: any) {
-      if (err.name === "CanceledError") return;
+    } catch (err) {
+      if ((err as Error)?.name === "CanceledError") return;
 
       console.error("[PROJECT_ANALYTICS_ERROR]", err);
       setError("Erro ao carregar dados");
@@ -59,6 +65,7 @@ export function ProjectModule() {
     }
   }, [api, timeRange]);
 
+  // refreshKey força novo fetch quando o botão do topo é premido.
   useEffect(() => {
     if (!canView) return;
 
@@ -66,7 +73,37 @@ export function ProjectModule() {
     fetchData(controller.signal);
 
     return () => controller.abort(); // evita memory leak 👌
-  }, [fetchData, canView]);
+  }, [fetchData, canView, refreshKey]);
+
+  // Exporta o resumo em CSV (botão Download do topo ou o próprio botão).
+  const exportCsv = useCallback(() => {
+    if (!data) return;
+    const o = data.overview;
+    const linhas: string[][] = [
+      ["Métrica", "Valor"],
+      ["Projetos ativos", String(o.activeProjects)],
+      ["Tasks concluídas", String(o.completedTasks)],
+      ["Total de membros", String(o.teamMembers)],
+      ["Projetos atrasados", String(o.overdueProjects)],
+      ["Total de projetos", String(o.totalProjects)],
+      ["Total de tasks", String(o.totalTasks)],
+    ];
+    const csv = linhas
+      .map((l) => l.map((v) => `"${v.replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `analytics-projetos-${timeRange}-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [data, timeRange]);
+
+  useEffect(() => {
+    if (downloadSignal && canExport) exportCsv();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [downloadSignal]);
 
   if (!canView) return <AccessDenied t={t} />;
   if (loading) return <SkeletonLoader />;
@@ -105,7 +142,10 @@ export function ProjectModule() {
 
           {/* EXPORT */}
           {canExport && (
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border text-sm rounded-lg hover:bg-gray-50 shadow-sm">
+            <button
+              onClick={exportCsv}
+              className="flex items-center gap-2 px-4 py-2 bg-white border text-sm rounded-lg hover:bg-gray-50 shadow-sm"
+            >
               <Download size={16} />
               <span className="hidden sm:inline">
                 {t("actions.export") || "Exportar"}
@@ -143,9 +183,19 @@ export function ProjectModule() {
         />
       </div>
 
+      {/* TASK STATUS BREAKDOWN */}
+      {data.taskStatus?.length ? (
+        <div className="bg-white border rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-bold mb-4 flex items-center gap-2 text-gray-900">
+            <Activity size={16} /> Distribuição de tarefas por estado
+          </h3>
+          <TaskStatusBar items={data.taskStatus} />
+        </div>
+      ) : null}
+
       {/* CONTENT */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* ACTIVITY */}
         <div className="lg:col-span-1 bg-white border rounded-xl p-6 shadow-sm">
           <h3 className="text-sm font-bold mb-6 flex items-center gap-2">
@@ -252,6 +302,61 @@ function EmptyState({ label }: { label: string }) {
   return (
     <div className="text-center text-gray-400 text-sm py-6">
       {label}
+    </div>
+  );
+}
+
+/* =======================
+   TASK STATUS BAR
+======================= */
+const STATUS_COLORS: Record<string, string> = {
+  concluida: "bg-emerald-500",
+  em_andamento: "bg-blue-500",
+  pendente: "bg-amber-500",
+  em_revisao: "bg-purple-500",
+  bloqueada: "bg-red-500",
+  cancelada: "bg-gray-400",
+};
+
+function TaskStatusBar({
+  items,
+}: {
+  items: { status: string; label: string; count: number }[];
+}) {
+  const total = items.reduce((sum, i) => sum + i.count, 0);
+  if (total === 0) return <EmptyState label="Sem tarefas registadas" />;
+
+  return (
+    <div className="space-y-4">
+      {/* Barra proporcional */}
+      <div className="flex h-3 w-full overflow-hidden rounded-full bg-gray-100">
+        {items.map((i) => (
+          <div
+            key={i.status}
+            className={`${STATUS_COLORS[i.status] || "bg-gray-300"} transition-all`}
+            style={{ width: `${(i.count / total) * 100}%` }}
+            title={`${i.label}: ${i.count}`}
+          />
+        ))}
+      </div>
+
+      {/* Legenda */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {items.map((i) => (
+          <div key={i.status} className="flex items-center gap-2 text-xs">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                STATUS_COLORS[i.status] || "bg-gray-300"
+              }`}
+            />
+            <span className="text-gray-600">{i.label}</span>
+            <span className="ml-auto font-bold text-gray-900">{i.count}</span>
+            <span className="text-gray-400">
+              ({Math.round((i.count / total) * 100)}%)
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

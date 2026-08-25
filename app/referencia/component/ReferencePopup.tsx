@@ -1,4 +1,4 @@
-import { AlertCircle, Database, RefreshCw, Save, Trash2, X } from "lucide-react";
+import { AlertCircle, Database, RefreshCw, X } from "lucide-react";
 import { FieldEditor } from "../../component/ResultadosQueryComponent/FieldEditor";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -134,10 +134,12 @@ export const ReferencePopup = () => {
         setRow(selectedRow);
         setInformacaosOftables([metadata]);
         setSelectColumns(Object.keys(selectCols));
-      } catch (error: any) {
-        if (error.name !== "CanceledError") {
+      } catch (error) {
+        const e = error as { name?: string; response?: { data?: { message?: string } } };
+        // Ignora apenas o cancelamento (AbortController ao desmontar).
+        if (e?.name !== "CanceledError" && e?.name !== "AbortError") {
           console.error("Erro ao carregar dados:", error);
-          setLoadError(error.response?.data?.message || t("referencePopup.loadError") || 'Erro ao carregar dados');
+          setLoadError(e?.response?.data?.message || t("referencePopup.loadError") || 'Erro ao carregar dados');
         }
       } finally {
         setIsLoading(false);
@@ -212,7 +214,9 @@ export const ReferencePopup = () => {
         hasChanged: false,
         type_column: "text"
       };
-      initialEnabledFields[table + key] = false;
+      // A chave tem de ser a MESMA usada no render/toggle (`correctKey`),
+      // caso contrário o estado de "editável" nunca casa e ficava morto.
+      initialEnabledFields[key] = false;
     });
 
     setEditedFields(initialEditedFields);

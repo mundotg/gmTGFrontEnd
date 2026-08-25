@@ -1,10 +1,17 @@
-version: "3.9"
+# Compose de desenvolvimento, só do frontend.
+# Para subir o frontend com a API, usar o docker-compose.yml da raiz.
 
 services:
   front:
     build:
       context: .
-      dockerfile: Dockerfile
+      # Nome real do ficheiro nesta pasta: `dockerfile`, minúsculas.
+      dockerfile: dockerfile
+      # O último estágio do Dockerfile é o `runner` de produção: só contém o
+      # bundle standalone, sem código-fonte nem devDependencies, portanto o
+      # `npm run dev` abaixo não teria com que trabalhar. O estágio `builder`
+      # tem as duas coisas.
+      target: builder
     container_name: mustainfo-front
 
     ports:
@@ -12,16 +19,22 @@ services:
 
     volumes:
       - .:/app
+      # Volume anónimo: preserva o node_modules instalado na imagem em vez de
+      # o deixar tapado pelo bind mount do host acima.
+      - /app/node_modules
+      # Idem para o cache de build do Next, que não deve viajar do Windows.
+      - /app/.next
 
     environment:
       NODE_ENV: development
       HOME: /home/user
+      # Lido pelo BROWSER: tem de ser alcançável a partir do separador do
+      # utilizador, não da rede interna do Docker.
+      NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-http://localhost:8000/}
+      NEXT_PUBLIC_BACKEND_AUTH_URL: ${NEXT_PUBLIC_BACKEND_AUTH_URL:-http://localhost:8000/auth}
 
     command: "npm run dev"
 
     restart: unless-stopped
     tty: true
     stdin_open: true
-
-volumes:
-  node_modules:

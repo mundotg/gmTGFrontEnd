@@ -3,10 +3,13 @@
 import { useI18n } from "@/context/I18nContext";
 import { useSession } from "@/context/SessionContext";
 import {
-  BarChart3, Database, TableProperties, Search, History,
+  Database, TableProperties, Search, History,
   TrendingUp, Menu, X, ChevronLeft, ChevronRight,
-  ScanLine, LucideProjector, Activity
+  ScanLine, LucideProjector, Activity,
+  Settings, Terminal, Cloud, BookOpen, Sparkles, FlaskConical,
+  LayoutDashboard, Bot,
 } from "lucide-react";
+import type { ElementType } from "react";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { SidebarFooter } from "./silederMenuComponent/SidebarFooter";
@@ -22,25 +25,48 @@ const COLLAPSED_WIDTH = 80;
 type SidebarItem = {
   id: string;
   label: string;
-  icon: any;
+  /** Texto de reserva quando não há tradução para `label`. */
+  title?: string;
+  /** Grupo/submenu a que pertence. */
+  group?: string;
+  icon: ElementType;
   href: string;
   badge?: string;
   permission?: string | string[];
   requiresConnection?: boolean;
 };
 
+/**
+ * Menu do app.
+ *
+ * As rotas de GESTÃO DE BASE DE DADOS ficam no topo (sem `group`), sempre
+ * visíveis. Todas as outras rotas ficam num submenu recolhível ("Mais") — é
+ * onde entram as que antes nem apareciam (configuração, ML, armazenamento,
+ * referência, etc.).
+ */
+const GROUP_MORE = "sidebar.groupMore";
+
 export const sidebarItems: SidebarItem[] = [
-  { id: "overview", label: "sidebar.overview", icon: BarChart3, href: "/home" },
-  { id: "connections", label: "sidebar.connections", icon: Database, badge: "active", href: "/home/conexao", permission: ["db_connection:read_own", "db_connection:read_company", "db_connection:read_all"] },
-  { id: "tables", label: "sidebar.tables", icon: TableProperties, badge: "num_table", href: "/home/tabelas", permission: "query:execute", requiresConnection: true },
-  { id: "query", label: "sidebar.query", icon: Search, badge: "num_consultas", href: "/home/consultas", permission: "query:execute", requiresConnection: true },
-  { id: "analysis", label: "sidebar.analysis", icon: TrendingUp, href: "/home/analizar", permission: "project:view", requiresConnection: true },
-  { id: "task", label: "sidebar.gestorProjetos", icon: LucideProjector, badge: "num_tasks", href: "/task", permission: "project:view" },
-  { id: "ai", label: "sidebar.ai", icon: BarChart3, href: "/home/ai" },
-  { id: "template", label: "sidebar.templates", icon: TableProperties, href: "/createtamplete", permission: "project:view" },
-  { id: "tester", label: "sidebar.apiTester", icon: Activity, href: "/home/tester" },
-  { id: "ocr", label: "scanner.texto", icon: ScanLine, badge: "registros_analizados", href: "/home/ocr" },
-  { id: "history", label: "sidebar.history", icon: History, badge: "registros_analizados", href: "/home/historico", permission: "query:execute", requiresConnection: true },
+  // ─────────── Gestão de Base de Dados (topo, sempre visível) ───────────
+  { id: "overview", label: "sidebar.overview", title: "Visão geral", icon: LayoutDashboard, href: "/home" },
+  { id: "connections", label: "sidebar.connections", title: "Conexões", icon: Database, badge: "active", href: "/home/conexao", permission: ["db_connection:read_own", "db_connection:read_company", "db_connection:read_all"] },
+  { id: "tables", label: "sidebar.tables", title: "Tabelas", icon: TableProperties, badge: "num_table", href: "/home/tabelas", permission: "query:execute", requiresConnection: true },
+  { id: "query", label: "sidebar.query", title: "Consultas", icon: Search, badge: "num_consultas", href: "/home/consultas", permission: "query:execute", requiresConnection: true },
+  { id: "editorsql", label: "sidebar.sqlEditor", title: "Editor SQL", icon: Terminal, href: "/home/editorsql", permission: "query:execute", requiresConnection: true },
+  { id: "history", label: "sidebar.history", title: "Histórico", icon: History, badge: "registros_analizados", href: "/home/historico", permission: "query:execute", requiresConnection: true },
+  { id: "analysis", label: "sidebar.analysis", title: "Análise de BD", icon: TrendingUp, href: "/home/analizar", permission: "project:view", requiresConnection: true },
+
+  // ─────────── Submenu "Mais" (tudo o que não é gestão de BD) ───────────
+  { id: "task", group: GROUP_MORE, label: "sidebar.gestorProjetos", title: "Gestor de Projetos", icon: LucideProjector, badge: "num_tasks", href: "/task", permission: "project:view" },
+  { id: "template", group: GROUP_MORE, label: "sidebar.templates", title: "Templates", icon: TableProperties, href: "/createtamplete", permission: "project:view" },
+  { id: "ai", group: GROUP_MORE, label: "sidebar.ai", title: "Assistente IA", icon: Bot, href: "/home/ai" },
+  { id: "mll", group: GROUP_MORE, label: "sidebar.mll", title: "ML / Insights", icon: Sparkles, href: "/home/mll" },
+  { id: "ocr", group: GROUP_MORE, label: "scanner.texto", title: "OCR / Scanner", icon: ScanLine, badge: "registros_analizados", href: "/home/ocr" },
+  { id: "tester", group: GROUP_MORE, label: "sidebar.apiTester", title: "API Tester", icon: Activity, href: "/home/tester" },
+  { id: "clouds", group: GROUP_MORE, label: "sidebar.storage", title: "Armazenamento", icon: Cloud, href: "/clouds" },
+  // { id: "referencia", group: GROUP_MORE, label: "sidebar.reference", title: "Referência", icon: BookOpen, href: "/referencia" },
+  { id: "configuracao", group: GROUP_MORE, label: "sidebar.settings", title: "Configurações", icon: Settings, href: "/home/configuracao", permission: ["settings:user", "settings:company", "settings:projects", "settings:team", "settings:integrations", "settings:system"] },
+  { id: "test", group: GROUP_MORE, label: "sidebar.devTest", title: "Testes (dev)", icon: FlaskConical, href: "/home/test", permission: ["settings:system", "admin:*"] },
 ];
 
 export default function Sidebar({ children }: { children: React.ReactNode }) {
@@ -136,9 +162,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
 
     const move = (e: MouseEvent) => {
       if (!isResizing.current) return;
-      setWidth((prev) =>
-        Math.min(Math.max(e.clientX, MIN_WIDTH), MAX_WIDTH)
-      );
+      setWidth(Math.min(Math.max(e.clientX, MIN_WIDTH), MAX_WIDTH));
     };
 
     const stop = () => {

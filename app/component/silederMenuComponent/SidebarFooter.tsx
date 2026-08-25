@@ -364,7 +364,7 @@ export function SidebarFooter({
 
   if (!user) {
     return (
-      <div className="absolute bottom-0 left-0 right-0 border-t bg-white p-4">
+      <div className="relative border-t bg-white p-4">
         <div className="flex items-center justify-center">
           <p className="text-sm text-gray-500">Carregando...</p>
         </div>
@@ -384,7 +384,7 @@ export function SidebarFooter({
     ].join("\n");
 
     return (
-      <div className="absolute bottom-0 left-0 right-0 border-t bg-white p-4">
+      <div className="relative border-t bg-white p-4">
         <div className="flex flex-col items-center space-y-3">
           <Tooltip content={tooltipContent}>
             <UserAvatar user={user} size="small" showStatus={false} />
@@ -409,7 +409,7 @@ export function SidebarFooter({
   // ── Expanded view ─────────────────────────────────────────
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 border-t bg-white">
+    <div className="relative border-t bg-white">
       {/* Pop-up menu */}
       <FooterMenu
         open={menuOpen}

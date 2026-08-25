@@ -15,7 +15,7 @@
     }
   },
   "nav": {
-    "brandName": "Brain DB",
+    "brandName": "MustaInf",
     "tasks": "Tasks",
     "ocr": "OCR",
     "login": "Login",
@@ -31,7 +31,7 @@
     "roadmapBadge": "ROADMAP",
     "featuresTitle": "Main Features",
     "futureTitle": "What's Next",
-    "footer": "Brain DB © 2026. All rights reserved. Developed with ❤️ in Next.js + Python FastAPI by Francemy Sebastião"
+    "footer": "MustaInf © 2026. All rights reserved. Developed with ❤️ in Next.js + Python FastAPI by Francemy Sebastião"
   },
   "features": {
     "consultas": "Simplified queries: just type the table name.",
@@ -74,7 +74,13 @@
     "expand": "Expand menu",
     "darkMode": "Dark Mode",
     "lightMode": "Light Mode",
-    "gestorProjetos": "Project Manager"
+    "gestorProjetos": "Project Manager",
+    "sqlEditor": "SQL Editor",
+    "groupMore": "More",
+    "mll": "ML / Insights",
+    "storage": "Storage",
+    "devTest": "Tests (dev)",
+    "reference": "Reference"
   },
   "status": {
     "online": "Online",
@@ -231,6 +237,13 @@
   "test": "Test Connection",
   "connecting": "Connecting...",
   "connect": "Save & Connect",
+  "connectUseUrl": "Connect by URL (connection string)",
+  "connectUseUrlHint": "Instead of separate host, port, user and database, paste the single URL your {{db}} provider gave you.",
+  "connectUrlLabel": "CONNECTION URL",
+  "connectUrlHint": "The URL is sent encrypted and used exactly as pasted — any options it carries (sslmode, authSource, retryWrites…) are honoured.",
+  "connectUrlExamples": "Expected format",
+  "connectUrlShow": "Show URL",
+  "connectUrlHide": "Hide URL",
   "modal": {
     "duplicateAlias": "This alias already exists for another table.",
     "typeAlias": "Enter an alias for the table",
@@ -585,6 +598,8 @@
     "descProjects": "Project management",
     "tabTeam": "Team",
     "descTeam": "Users and permissions",
+    "tabAccess": "Access",
+    "descAccess": "Who accesses each DB connection",
     "tabIntegrations": "Integrations",
     "descIntegrations": "External connections",
     "tabSystem": "System",

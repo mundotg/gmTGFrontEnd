@@ -43,6 +43,7 @@ import { FORMATS, ReportButton } from "@/app/services/ReportButton";
 import { FormatoRelatorio, useRelatorioAvancado } from "@/app/services/useRelatorio";
 import { RelatorioPayload } from "@/hook/useRelatorio";
 import { useSession } from "@/context/SessionContext";
+import { extractApiError } from "@/hook/useRbac";
 
 /* ------------------------------------
 
@@ -54,10 +55,13 @@ interface TaskListProps {
   onBack: () => void;
   showToast: (message: string, type: TypeShowToste) => void;
   onOpenAddTask: (project_id: string, sprint_id?: string) => void;
-  onToggleTask: (taskId: string) => void;
+  /** Recebe a tarefa inteira: o pai precisa do estado atual para o alternar. */
+  onToggleTask: (task: Task) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   onDelegateTask: (taskId: string, user: string) => void;
+  /** Incrementado pelo pai após criar/editar/apagar, para forçar nova busca. */
+  refreshKey?: number;
 }
 
 /* ------------------------------------
@@ -68,11 +72,13 @@ function TaskList({
   project,
   sprint,
   onBack,
+  showToast,
   onOpenAddTask,
   onToggleTask,
   onEditTask,
   onDeleteTask,
   onDelegateTask,
+  refreshKey = 0,
 }: TaskListProps) {
   const { api } = useSession();
 
@@ -89,12 +95,14 @@ function TaskList({
     completed: 0,
     in_progress: 0,
     pending: 0,
-    inReview: 0,
+    in_review: 0,
     blocked: 0,
     cancelled: 0,
+    validated: 0,
+    overdue_tasks: 0,
     progress_percent: 0,
     total_estimated_hours: 0,
-    priorityCounts: {
+    priority_counts: {
       baixa: 0,
       media: 0,
       alta: 0,
@@ -174,7 +182,9 @@ function TaskList({
       if (priorityFilter) filtro.priority = priorityFilter;
       if (sprint) { filtro.sprint_id = sprint.id }
       else if (sprintFilter) {
-        if (sprintFilter === "backlog") { filtro.sprint_id = null; }
+        // "backlog" = tarefas sem sprint. O backend descarta filtros a null,
+        // por isso pede-se explicitamente pela sentinela __null__.
+        if (sprintFilter === "backlog") { filtro.sprint_id = "__null__"; }
         else { filtro.sprint_id = sprintFilter; }
       }
       if (searchTerm) {
@@ -241,7 +251,9 @@ function TaskList({
     setRefreshing(true);
     await Promise.all([fetchTasks(), fetchStats()]);
     setRefreshing(false);
-  }, [refreshing]);
+    // Dependia de `[refreshing]`, o que congelava as funções de busca numa
+    // versão antiga (closure obsoleta) e ignorava os filtros ativos.
+  }, [fetchTasks, fetchStats]);
 
   /* -----------------------------
   
@@ -258,37 +270,85 @@ function TaskList({
     [tasks],
   );
 
+  // O TaskGroup entrega só o id; o pai precisa da tarefa para saber o estado
+  // atual antes de o alternar.
+  const handleToggle = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (task) onToggleTask(task);
+    },
+    [tasks, onToggleTask],
+  );
+
   const handleConfirmDelegate = useCallback(
     async (userId: string) => {
       if (!taskToDelegate?.id) return;
       setDelegateLoading(true);
       try {
-        await api.put(`/ tasks / delegar / ${taskToDelegate.id} `, null, {
+        // ⚠️ A URL estava escrita como `/ tasks / delegar / ${id} `, com
+        // espaços: o pedido saía para um caminho inexistente e dava sempre 404.
+        await api.put(`/tasks/delegar/${taskToDelegate.id}`, null, {
           params: { assigned_to: userId },
         });
+
         onDelegateTask(taskToDelegate.id, userId);
         setShowDelegateModal(false);
         setTaskToDelegate(null);
+        showToast("Tarefa delegada com sucesso.", "success");
+
+        // A tarefa mudou de responsável: recarregar para refletir na lista.
+        await Promise.all([fetchTasks(), fetchStats()]);
       } catch (error) {
         console.error("Erro ao delegar tarefa:", error);
+        showToast(
+          extractApiError(error, "Não foi possível delegar a tarefa."),
+          "error"
+        );
       } finally {
         setDelegateLoading(false);
       }
     },
-    [api, taskToDelegate, onDelegateTask],
-
-
+    [api, taskToDelegate, onDelegateTask, showToast, fetchTasks, fetchStats],
   );
 
   /* -----------------------------
-  
-  * Inicialização
+  * Inicialização e reação a filtros
+  *
+  * ⚠️ Antes havia um único useEffect com `[]`: os filtros, a pesquisa e a
+  * paginação mudavam de estado mas nunca disparavam nova busca — a UI de
+  * filtros existia e não filtrava nada.
   * ----------------------------- */
   useEffect(() => {
     fetchSprints();
-    fetchTasks();
+  }, [fetchSprints]);
+
+  // A pesquisa é debounced para não disparar um pedido por tecla.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchTasks();
+    }, searchTerm ? 400 : 0);
+
+    return () => clearTimeout(timer);
+  }, [fetchTasks, searchTerm]);
+
+  useEffect(() => {
     fetchStats();
-  }, []);
+  }, [fetchStats, refreshKey]);
+
+  // O componente-pai (page.tsx) incrementa `refreshKey` depois de criar,
+  // editar ou apagar uma tarefa. Sem isto a lista só mudava ao recarregar,
+  // porque o pai atualizava o seu próprio estado `projects`, que não é a
+  // fonte desta lista.
+  useEffect(() => {
+    if (refreshKey) fetchTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
+
+  // Voltar à primeira página sempre que o filtro muda, senão ficava-se numa
+  // página que já não existe no novo conjunto de resultados.
+  useEffect(() => {
+    setPaginate((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
+  }, [searchTerm, statusFilter, priorityFilter, sprintFilter]);
 
 
 
@@ -356,12 +416,27 @@ function TaskList({
     try {
       const task = tasks.find((t) => t.id === taskId);
       if (!task || !project.id) return;
-      const { data } = await api.put(`/tasks/validar/${taskId}`, null, { params: { aprovado, comentario: comentario || "", }, });
-      console.log("✅ Tarefa validada:", data); // Atualiza lista após validação buscarTasksPorProjeto(); 
+
+      await api.put(`/tasks/validar/${taskId}`, null, {
+        params: { aprovado, comentario: comentario || "" },
+      });
+
+      showToast(
+        aprovado ? "Tarefa aprovada." : "Tarefa reprovada e devolvida ao responsável.",
+        aprovado ? "success" : "info"
+      );
+
+      // A validação muda o estado da tarefa: sem recarregar, o cartão ficava
+      // com a informação antiga (o refresh estava comentado no código).
+      await Promise.all([fetchTasks(), fetchStats()]);
     } catch (error) {
       console.error("❌ Erro ao validar tarefa:", error);
+      showToast(
+        extractApiError(error, "Não foi possível validar a tarefa."),
+        "error"
+      );
     }
-  }, [tasks, project.id, api]);
+  }, [tasks, project.id, api, showToast, fetchTasks, fetchStats]);
 
   /* -----------------------------
   
@@ -394,9 +469,9 @@ function TaskList({
             <Menu size={18} /> </button>
           {/* Desktop Buttons */}
           <div className="hidden sm:flex items-center gap-2">
-            <button onClick={handleRefresh} disabled={loading}
+            <button onClick={handleRefresh} disabled={loading || refreshing}
               className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-all" >
-              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+              <RefreshCw size={16} className={loading || refreshing ? "animate-spin" : ""} />
               <span>Atualizar</span>
             </button>
             <button onClick={() => onOpenAddTask(project.id!, sprint?.id)}
@@ -431,7 +506,7 @@ function TaskList({
           color="green" description={`${stats.progress_percent}% do total`} />
         <StatCard label="Em Andamento" value={stats.in_progress} icon={<Clock size={16} className="sm:w-[18px] sm:h-[18px]" />}
           color="orange" description="Tarefas ativas" /> <StatCard label="Pendentes" value={stats.pending} icon={<AlertCircle size={16} className="sm:w-[18px] sm:h-[18px]" />} color="yellow" description="Aguardando início" />
-        <StatCard label="Em Revisão" value={stats.inReview} icon={<BarChart3 size={16} className="sm:w-[18px] sm:h-[18px]" />} color="purple" description="Aguardando aprovação" />
+        <StatCard label="Em Revisão" value={stats.in_review} icon={<BarChart3 size={16} className="sm:w-[18px] sm:h-[18px]" />} color="purple" description="Aguardando aprovação" />
         <StatCard label="Horas Estimadas" value={stats.total_estimated_hours} icon={<TrendingUp size={16} className="sm:w-[18px] sm:h-[18px]" />} color="indigo" description="Total de horas planejadas" isHours={true} />
       </div>
       {/* Barra de Controles */}
@@ -533,7 +608,7 @@ function TaskList({
             const isBacklog = groupName.includes("Backlog");
             const isSprint = groupName.includes("Sprint");
             return (<TaskGroup key={groupName} groupName={groupName} groupTasks={groupTasks}
-              groupProgress={groupProgress} isBacklog={isBacklog} isSprint={isSprint} onToggleTask={onToggleTask}
+              groupProgress={groupProgress} isBacklog={isBacklog} isSprint={isSprint} onToggleTask={handleToggle}
               onEditTask={onEditTask}
               onDeleteTask={onDeleteTask}
               onDelegateTask={handleDelegateTask}

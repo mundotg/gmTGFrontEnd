@@ -13,6 +13,7 @@ import {
   Cloud
 } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
+import { hasPermission } from "@/permissions_val";
 
 /* ======================
    TYPES & MOCK DATA
@@ -71,7 +72,17 @@ export const IntegracoesTab = () => {
     },
   ], []);
 
-  const canManage = permissions.includes("integration:manage") || permissions.includes("admin:*");
+  // Só quem pode criar/editar/remover integrações (ou o super admin) gere ligações.
+  const canManage = hasPermission(permissions as string[], [
+    "integration:create",
+    "integration:update",
+    "integration:delete",
+    "admin:*",
+  ]);
+  const canManageWebhooks = hasPermission(permissions as string[], [
+    "integration:webhook",
+    "admin:*",
+  ]);
 
   const handleToggleIntegration = async (integration: Integration) => {
     if (integration.connected && !window.confirm(`Desconectar ${integration.name} removerá o acesso aos dados sincronizados. Continuar?`)) {
@@ -179,7 +190,7 @@ export const IntegracoesTab = () => {
       </div>
 
       {/* WEBHOOKS ADVANCED SECTION */}
-      {permissions.includes("integration:webhook_manage") && (
+      {canManageWebhooks && (
         <div className="bg-gray-900 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
           <div className="relative z-10 grid md:grid-cols-2 gap-8 items-center">
             <div className="space-y-4">

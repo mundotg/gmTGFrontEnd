@@ -170,7 +170,7 @@ function EngineSection() {
       </div>
 
       <Callout tone="info">
-        Esta arquitetura permite que o Brain DB abstraia a complexidade dos SGBDs,
+        Esta arquitetura permite que o MustaInf abstraia a complexidade dos SGBDs,
         oferecendo uma interface visual poderosa sem comprometer a performance.
       </Callout>
     </>
@@ -181,7 +181,7 @@ function IntroSection() {
   return (
     <>
       <p className="text-lg font-medium leading-relaxed text-gray-500 dark:text-gray-400">
-        Uma plataforma centralizada para engenharia de dados e análise preditiva. O Brain DB
+        Uma plataforma centralizada para engenharia de dados e análise preditiva. O MustaInf
         atua como o motor de visualização e manipulação de bases de dados, com suporte para
         PostgreSQL, MySQL, Oracle, SQL Server, SQLite, MongoDB e Redis.
       </p>
@@ -333,7 +333,7 @@ const DOC_GROUPS: DocGroup[] = [
     items: [
       {
         id: "intro",
-        label: "O que é o Brain DB?",
+        label: "O que é o MustaInf?",
         eyebrow: "Introdução ao Projeto",
         title: "OrionForgeNexus.",
         keywords: ["visao geral", "plataforma", "nextjs", "arquitetura"],
@@ -489,7 +489,7 @@ export default function DocsPage() {
               <Database size={18} strokeWidth={2.5} aria-hidden />
             </div>
             <span className="text-lg font-bold tracking-tight">
-              Brain DB <span className="text-blue-600 dark:text-blue-400">Docs</span>
+              MustaInf <span className="text-blue-600 dark:text-blue-400">Docs</span>
             </span>
           </Link>
 

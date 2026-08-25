@@ -339,6 +339,21 @@ const ConsultaPage = () => {
           executingQuery={executingQuery}
         />
 
+        {/* Atalho: analisar o resultado (ciência de dados, em tempo real) */}
+        {queryResults && (queryResults.preview?.length ?? 0) > 0 && (
+          <div className="flex justify-end">
+            <a
+              href="/datascience"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              title="Abre a análise estatística deste resultado numa nova aba"
+            >
+              📊 Analisar dados
+            </a>
+          </div>
+        )}
+
         {/* Results Table */}
         {queryResults && (
           <ResultTable
