@@ -3,7 +3,6 @@ import { LanguageSelector } from "./LanguageSelector";
 import {
   updateProfile,
   changePassword,
-  updateTwoFactor,
   uploadAvatar,
   updateNotifications,
   updateAppearance,
@@ -46,7 +45,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
     senhaAtual: "",
     novaSenha: "",
     confirmarSenha: "",
-    doisFatoresAtivo: false,
 
     // notifications
     notifEmail: true,
@@ -80,7 +78,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
         : [],
       avatar_url: user?.avatar_url || "",
 
-      doisFatoresAtivo: Boolean((user as any)?.security?.twoFactorEnabled ?? false),
       notifEmail: Boolean((user as any)?.settings?.notifications?.email ?? true),
       notifPush: Boolean((user as any)?.settings?.notifications?.push ?? false),
       notifSms: Boolean((user as any)?.settings?.notifications?.sms ?? false),
@@ -116,7 +113,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
         senhaAtual: "",
         novaSenha: "",
         confirmarSenha: "",
-        doisFatoresAtivo: false,
         notifEmail: true,
         notifPush: false,
         notifSms: false,
@@ -161,7 +157,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
           await changePassword({ senhaAtual: form.senhaAtual, novaSenha: form.novaSenha });
         }
 
-        await updateTwoFactor({ enabled: form.doisFatoresAtivo });
       }
 
       if (settingId === "profile") {
@@ -428,9 +423,9 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
               <Shield className="text-orange-500 dark:text-orange-400 shrink-0 mt-0.5 xs:mt-0 w-5 xs:w-5 h-5" size={20} />
               <div className="text-xs xs:text-sm text-orange-800 dark:text-orange-300">
                 <span className="font-bold block mb-1">
-                  {t("modal.securityRecommendation") || "Recomendação de Segurança"}
+                  {t("modal.securityRecommendation") || "Segurança da conta"}
                 </span>
-                {t("modal.securityAdvice") || "Ative a autenticação de dois fatores para evitar acessos não autorizados."}
+                {t("modal.securityAdvice") || "Ao alterar a palavra-passe, as outras sessões são terminadas. Use pelo menos 8 caracteres."}
               </div>
             </div>
 
@@ -478,13 +473,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
               </div>
             </div>
 
-            <ToggleRow
-              icon={Key}
-              title={t("modal.twoFactorAuth") || "Autenticação em 2 Fatores (2FA)"}
-              description={t("modal.twoFactorDescription") || "Adiciona uma camada extra de segurança"}
-              value={form.doisFatoresAtivo}
-              onToggle={() => handleInputChange("doisFatoresAtivo", !form.doisFatoresAtivo)}
-            />
           </div>
         );
 

@@ -696,8 +696,14 @@ export interface Usuario {
   email: string;
   telefone?: string;
   status?: "ativo" | "inativo" | "suspenso";
+  /**
+   * `createdAt` e `lastLogin` estavam aqui mas o `/auth/me` nunca os enviou —
+   * apareciam sempre como "N/A". O que a API devolve é `created_at`; o último
+   * login lê-se das sessões (`GET /user/sessions`).
+   */
   createdAt?: string;
   lastLogin?: string;
+  created_at?: string;
   projects_participating?: string[];
   created_projects?: string[];
   assigned_tasks?: string[];
