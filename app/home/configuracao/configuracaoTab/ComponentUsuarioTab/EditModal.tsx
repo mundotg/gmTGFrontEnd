@@ -9,6 +9,7 @@ import {
   updateLanguage,
 } from "@/app/services/settingsApi";
 import { useEffect, useMemo, useState } from "react";
+import { ThemeMode, applyTheme } from "@/util";
 import { useI18n } from "@/context/I18nContext";
 import { Bell, Camera, CheckCircle2, Construction, Globe, LucideIcon, Palette, Save, Shield, X } from "lucide-react";
 import { Usuario } from "@/types";
@@ -24,7 +25,6 @@ interface EditModalProps {
   user?: Usuario | null;
 }
 
-type ThemeMode = "light" | "dark" | "system";
 
 export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId, title, user }) => {
   const [loading, setLoading] = useState(false);
@@ -125,13 +125,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
     value: string | boolean | string[]
   ) => setForm((prev) => ({ ...prev, [field]: value as any }));
 
-  const applyThemeClient = async (mode: ThemeMode) => {
-    const root = document.documentElement;
-    const systemDark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
-    const isDark = mode === "dark" || (mode === "system" && systemDark);
-    root.classList.toggle("dark", isDark);
-    localStorage.setItem("theme", mode);
-  };
 
   const handleSave = async () => {
     setLoading(true);
@@ -177,7 +170,7 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
 
       if (settingId === "appearance") {
         await updateAppearance({ theme: form.theme });
-        applyThemeClient(form.theme);
+        applyTheme(form.theme);
 
         await updateLanguage({ language: form.language });
       }

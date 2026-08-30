@@ -86,3 +86,51 @@ export const getColumnIcon = (column: CampoDetalhado, theme: 'light' | 'dark') =
         return null;
     }
   };
+
+/* ============================================================
+ * 🌗 TEMA
+ * ==========================================================*/
+
+export type ThemeMode = "light" | "dark" | "system";
+
+/** Chave em localStorage. É a mesma que o formulário de aparência já usava. */
+export const THEME_KEY = "theme";
+
+/**
+ * O tema escolhido, ou "system" se ainda não houver escolha.
+ *
+ * Lê do localStorage; durante o render no servidor não há `window`, e devolver
+ * "system" evita a divergência de hidratação.
+ */
+export function getStoredTheme(): ThemeMode {
+  if (typeof window === "undefined") return "system";
+  const guardado = window.localStorage.getItem(THEME_KEY);
+  return guardado === "light" || guardado === "dark" || guardado === "system"
+    ? guardado
+    : "system";
+}
+
+/** True se `mode` deve resultar em escuro agora. */
+export function isDarkTheme(mode: ThemeMode): boolean {
+  if (mode === "dark") return true;
+  if (mode === "light") return false;
+  if (typeof window === "undefined") return false;
+  return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
+}
+
+/**
+ * Põe (ou tira) a classe `dark` na raiz e guarda a escolha.
+ *
+ * É a classe que o Tailwind lê (`darkMode: "class"`), por isso sem esta chamada
+ * as classes `dark:` não reagem. Estava duplicada no formulário de aparência e
+ * na tabela de colunas, cada uma com a sua cópia; vive aqui para haver uma só.
+ */
+export function applyTheme(mode: ThemeMode): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("dark", isDarkTheme(mode));
+  try {
+    window.localStorage.setItem(THEME_KEY, mode);
+  } catch {
+    // Modo privado ou storage cheio: o tema fica só nesta sessão.
+  }
+}

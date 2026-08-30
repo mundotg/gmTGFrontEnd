@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* O Tailwind 4 NÃO lê o `tailwind.config.ts` sozinho — é preciso apontá-lo.
+   Sem esta linha o `darkMode: "class"` era ignorado e as 449 classes `dark:` da
+   aplicação seguiam o `prefers-color-scheme` do sistema operativo, não o botão
+   de tema: o CSS compilado não tinha um único seletor `.dark`.
+   (As cores próprias declaradas no config — primary, danger, … — continuam sem
+   ser usadas em lado nenhum; passam a estar disponíveis, mas não é isso que
+   esta linha vem resolver.) */
+@config "../tailwind.config.ts";
+
 .chatMain {
 
     --background-bubble-primary: #611C9B;

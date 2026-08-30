@@ -9,7 +9,7 @@ import {
   TableColumnsDisplayProps,
 } from "@/types";
 import { useTableColumns } from "@/hook/useTable";
-import { ColumnSkeleton, ErrorDisplay } from "@/util";
+import { ColumnSkeleton, ErrorDisplay, applyTheme } from "@/util";
 import CriarRegistroNovo from "./criar-registro";
 import ModalAutoCreate from "./ModalIntermediario";
 import usePersistedState from "@/hook/localStoreUse";
@@ -74,9 +74,11 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   const [isDarkMode, setIsDarkMode] = usePersistedState<boolean>(names_caches_value._thema, theme === "dark");
   const currentTheme = isDarkMode ? "dark" : "light";
 
+  // O tema é da aplicação inteira, não deste componente: escrever aqui a classe
+  // `dark` na raiz fazia esta tabela sobrepor-se à preferência do utilizador
+  // sempre que era montada. Agora acompanha o tema em vez de o impor.
   useEffect(() => {
-    if (isDarkMode) document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
+    applyTheme(isDarkMode ? "dark" : "light");
   }, [isDarkMode]);
 
   const [openIntermediario, setOpenIntermediario] = useState(false);

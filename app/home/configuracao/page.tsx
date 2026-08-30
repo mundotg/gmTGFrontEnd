@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense, useMemo, useEffect } from "react";
+import { applyTheme, getStoredTheme, isDarkTheme } from "@/util";
 import {
   User,
   Building,
@@ -13,7 +14,6 @@ import {
   Menu,
   X,
   ChevronDown,
-  Bell,
   Moon,
   Sun,
   LogOut,
@@ -22,7 +22,6 @@ import {
 
 import { useSession } from "@/context/SessionContext";
 import { useI18n } from "@/context/I18nContext";
-import usePersistedState from "@/hook/localStoreUse";
 import { matchesSearch, SettingsTab, Skeleton, TabConfig } from "./utils";
 import { UsuarioTab } from "./configuracaoTab/UsuarioTab";
 import { EmpresaTab } from "./configuracaoTab/EmpresaTab";
@@ -59,11 +58,21 @@ export default function SettingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  // Persistido: a escolha de tema sobrevive a recargas da página.
-  const [darkMode, setDarkMode] = usePersistedState<boolean>(
-    "settings_dark_mode",
-    false
-  );
+  // O tema é partilhado com o formulário de aparência e com o resto da app.
+  // Antes isto era um `settings_dark_mode` só desta página: mudava as cores
+  // escritas à mão aqui e mais nada, porque as classes `dark:` do Tailwind
+  // dependem da classe `dark` na raiz, que ninguém punha.
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    setDarkMode(isDarkTheme(getStoredTheme()));
+  }, []);
+
+  const alternarTema = () => {
+    const escuro = !darkMode;
+    setDarkMode(escuro);
+    applyTheme(escuro ? "dark" : "light");
+  };
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   /* ===== CONFIGURAÇÃO DAS ABAS (Movido para dentro para usar useI18n) ===== */
@@ -218,22 +227,12 @@ export default function SettingsPage() {
 
             {/* Actions Desktop */}
             <div className="hidden md:flex items-center gap-2">
-              {/* Notificações */}
-              <button
-                className={`p-2 rounded-lg ${
-                  darkMode
-                    ? "hover:bg-gray-700 text-gray-300"
-                    : "hover:bg-gray-100 text-gray-700"
-                } transition-colors relative border border-transparent`}
-                title={t("actions.notifications") || "Notificações"}
-              >
-                <Bell size={20} />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-gray-800"></span>
-              </button>
-
               {/* Ajuda */}
-              <button
-                className={`p-2 rounded-lg ${
+              <a
+                href="/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`p-2 rounded-lg inline-flex ${
                   darkMode
                     ? "hover:bg-gray-700 text-gray-300"
                     : "hover:bg-gray-100 text-gray-700"
@@ -241,11 +240,11 @@ export default function SettingsPage() {
                 title={t("actions.help") || "Ajuda"}
               >
                 <HelpCircle size={20} />
-              </button>
+              </a>
 
               {/* Dark Mode Toggle */}
               <button
-                onClick={() => setDarkMode(!darkMode)}
+                onClick={alternarTema}
                 className={`p-2 rounded-lg ${
                   darkMode
                     ? "bg-gray-700 text-yellow-400 border border-gray-600"
