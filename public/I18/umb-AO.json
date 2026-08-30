@@ -171,8 +171,7 @@
     "recentActivity": "Ovapange vi Etali",
     "noActivity": "Ka kuli ovapange etali",
     "dangerZone": {
-      "title": "Ombandu yo Cĩvi",
-      "description": "Ovapange ka vi tiuka, ndoku ima conta yove."
+      "title": "Ombandu yo Cĩvi"
     },
     "export": "Exportar",
     "deleteAccount": "Ima Conta",
@@ -240,14 +239,10 @@
     "companyName": "Onduko yo empresa",
     "roles": "Ovapange",
     "rolesHint": "Kvata Ctrl/Cmd oco o nõle vialua",
-    "securityRecommendation": "Onumbi yo Segurança",
-    "securityAdvice": "Lingila autenticação yo vali fatores oco o lave oku iñila.",
     "currentPassword": "Onduko yoku iñila ya cilo",
     "newPassword": "Onduko yoku iñila yokaliye",
     "confirmPassword": "Lingila onduko yoku iñila yokaliye",
     "passwordRequirements": "Ci suapo 8 caracteres lo letras, números kuenda símbolos.",
-    "twoFactorAuth": "Autenticação ko 2 Fatores (2FA)",
-    "twoFactorDescription": "Yi vokiya imue camada yo segurança",
     "enable2FA": "Lingila autenticação yo vali fatores",
     "disable2FA": "Ima autenticação yo vali fatores",
     "inDevelopment": "Ovisokiyo vi kasi oku tungiwa",

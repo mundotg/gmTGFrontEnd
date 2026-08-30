@@ -36,8 +36,13 @@ export async function changePassword(payload: ChangePasswordPayload) {
 export type NotificationSettingsPayload = {
   email: boolean;
   push: boolean;
-  sms: boolean;
-  weeklyDigest: boolean;
+  /**
+   * O backend aceita estes dois mas devolve-os em `ignorados`: não há canal de
+   * SMS nem digest semanal no sistema. Ficam opcionais para não partir quem já
+   * os envie; a interface deixou de os oferecer.
+   */
+  sms?: boolean;
+  weeklyDigest?: boolean;
 };
 
 export async function updateNotifications(payload: NotificationSettingsPayload) {

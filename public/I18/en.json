@@ -184,7 +184,7 @@
     "noActivity": "No recent activity",
     "dangerZone": {
       "title": "Danger Zone",
-      "description": "Irreversible actions, such as deleting your account."
+      "description": "Deactivating ends all sessions and removes your access. Only an administrator can reactivate it."
     },
     "export": "Export",
     "deleteAccount": "Delete Account",
@@ -192,8 +192,21 @@
     "logout": "Log out",
     "stats": {
       "tasks": "Tasks",
-      "active": "Active"
-    }
+      "active": "Active",
+      "activeSessions": "Active sessions",
+      "permissions": "Permissions"
+    },
+    "sessions": "Sessions",
+    "noSessions": "No sessions recorded.",
+    "unknownOrigin": "Unknown origin",
+    "active": "active",
+    "sessionId": "id",
+    "endSession": "End",
+    "sessionError": "Could not end the session.",
+    "exportError": "Could not export your data.",
+    "deleteError": "Could not deactivate the account.",
+    "deactivateAccount": "Deactivate Account",
+    "deactivateConfirmation": "Deactivating your account ends all sessions and removes your access. Only an administrator can reactivate it. Continue?"
   },
   "activity": {
     "login": "Login performed",
@@ -275,14 +288,12 @@
     "companyName": "Company name",
     "roles": "Roles",
     "rolesHint": "Hold Ctrl/Cmd to select multiple",
-    "securityRecommendation": "Security Recommendation",
-    "securityAdvice": "Enable two-factor authentication to prevent unauthorized access.",
+    "securityRecommendation": "Account security",
+    "securityAdvice": "Changing your password ends your other sessions. Use at least 8 characters.",
     "currentPassword": "Current password",
     "newPassword": "New password",
     "confirmPassword": "Confirm new password",
     "passwordRequirements": "Minimum of 8 characters with letters, numbers, and symbols.",
-    "twoFactorAuth": "Two-Factor Authentication (2FA)",
-    "twoFactorDescription": "Adds an extra layer of security",
     "enable2FA": "Enable two-factor authentication",
     "disable2FA": "Disable two-factor authentication",
     "inDevelopment": "Configuration in development",
@@ -419,7 +430,9 @@
     "createAccount": "Create account",
     "creatingAccount": "Creating account...",
     "ignoreOrCancel": "Ignore / Cancel",
-    "confirmSelection": "Confirm Selection"
+    "confirmSelection": "Confirm Selection",
+    "lightMode": "Light Mode",
+    "logout": "Log out"
   },
   "referencePopup": {
     "invalidParams": "Invalid parameters: table, field and value are required",
@@ -484,7 +497,8 @@
     "firstName": "First Name",
     "lastName": "Last Name",
     "select": "Select",
-    "and": "and"
+    "and": "and",
+    "refresh": "Refresh"
   },
   "messages": {
     "noColumnsFound": "No columns found",
@@ -606,7 +620,8 @@
     "descSystem": "Logs and maintenance",
     "emptyStateTitle": "No settings available",
     "emptyStateDesc": "You do not have permission to access these settings at this time.",
-    "footerText": "Management System"
+    "footerText": "Management System",
+    "noSearchResults": "No setting matches your search."
   },
   "company": {
     "title": "Organization Management",
@@ -1111,5 +1126,11 @@
       "data": "Analyze data",
       "plan": "Create a plan"
     }
+  },
+  "notif": {
+    "email": "Email",
+    "emailDesc": "Receive alerts by email",
+    "push": "In-app",
+    "pushDesc": "Notifications inside the app"
   }
 }

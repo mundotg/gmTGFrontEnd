@@ -172,7 +172,7 @@
     "noActivity": "Aucune activité récente",
     "dangerZone": {
       "title": "Zone de Danger",
-      "description": "Actions irréversibles, telles que la suppression de votre compte."
+      "description": "La désactivation met fin à toutes les sessions et vous retire l'accès. Seul un administrateur peut la réactiver."
     },
     "export": "Exporter",
     "deleteAccount": "Supprimer le Compte",
@@ -180,7 +180,26 @@
     "logout": "Se déconnecter",
     "stats": {
       "tasks": "Tâches",
-      "active": "Actif"
+      "active": "Actif",
+      "activeSessions": "Sessions actives",
+      "permissions": "Permissions"
+    },
+    "sessions": "Sessions",
+    "noSessions": "Aucune session enregistrée.",
+    "unknownOrigin": "Origine inconnue",
+    "active": "active",
+    "sessionId": "id",
+    "endSession": "Terminer",
+    "sessionError": "Impossible de terminer la session.",
+    "exportError": "Impossible d'exporter vos données.",
+    "deleteError": "Impossible de désactiver le compte.",
+    "deactivateAccount": "Désactiver le compte",
+    "deactivateConfirmation": "Désactiver le compte met fin à toutes les sessions et vous retire l'accès. Seul un administrateur peut le réactiver. Continuer ?",
+    "appearance": {
+      "titleTheme": "Thème",
+      "descriptionTheme": "Choisissez entre le mode clair, sombre ou automatique.",
+      "titleIdioma": "Langue du système",
+      "descriptionIdioma": "Sélectionnez la langue par défaut de l'interface."
     }
   },
   "activity": {
@@ -240,14 +259,12 @@
     "companyName": "Nom de l'entreprise",
     "roles": "Rôles",
     "rolesHint": "Maintenez la touche Ctrl/Cmd enfoncée pour en sélectionner plusieurs",
-    "securityRecommendation": "Recommandation de Sécurité",
-    "securityAdvice": "Activez l'authentification à deux facteurs pour éviter les accès non autorisés.",
+    "securityRecommendation": "Sécurité du compte",
+    "securityAdvice": "Changer votre mot de passe met fin à vos autres sessions. Utilisez au moins 8 caractères.",
     "currentPassword": "Mot de passe actuel",
     "newPassword": "Nouveau mot de passe",
     "confirmPassword": "Confirmer le nouveau mot de passe",
     "passwordRequirements": "Minimum 8 caractères avec lettres, chiffres et symboles.",
-    "twoFactorAuth": "Authentification à 2 Facteurs (A2F)",
-    "twoFactorDescription": "Ajoute une couche de sécurité supplémentaire",
     "enable2FA": "Activer l'authentification à deux facteurs",
     "disable2FA": "Désactiver l'authentification à deux facteurs",
     "inDevelopment": "Configuration en développement",
@@ -375,7 +392,12 @@
     "enter": "Entrer",
     "entering": "Entrée en cours...",
     "createAccount": "Créer un compte",
-    "creatingAccount": "Création du compte..."
+    "creatingAccount": "Création du compte...",
+    "lightMode": "Mode clair",
+    "logout": "Se déconnecter",
+    "darkMode": "Mode sombre",
+    "help": "Aide",
+    "notifications": "Notifications"
   },
   "common": {
     "table": "table",
@@ -423,7 +445,8 @@
     "firstName": "Prénom",
     "lastName": "Nom",
     "select": "Sélectionner",
-    "and": "et"
+    "and": "et",
+    "refresh": "Actualiser"
   },
   "messages": {
     "noColumnsFound": "Aucune colonne trouvée",
@@ -544,7 +567,8 @@
     "descSystem": "Journaux et maintenance",
     "emptyStateTitle": "Aucun paramètre disponible",
     "emptyStateDesc": "Vous n'avez pas l'autorisation d'accéder à ces paramètres pour le moment.",
-    "footerText": "Système de Gestion"
+    "footerText": "Système de Gestion",
+    "noSearchResults": "Aucun paramètre ne correspond à votre recherche."
   },
   "ocr": {
     "title": "Scanner Intelligent.",
@@ -872,5 +896,11 @@
   },
   "results": {
     "title": "Résultats de la Requête"
+  },
+  "notif": {
+    "email": "E-mail",
+    "emailDesc": "Recevoir des alertes par e-mail",
+    "push": "Dans l'application",
+    "pushDesc": "Notifications dans l'application"
   }
 }

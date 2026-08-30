@@ -171,8 +171,7 @@
     "recentActivity": "Ikalakalu ya Lelu",
     "noActivity": "Kana ikalakalu ya lelu",
     "dangerZone": {
-      "title": "Hunda ya Kilwezu",
-      "description": "Ikalakalu ki i vutuka, kala kuzima o conta yé."
+      "title": "Hunda ya Kilwezu"
     },
     "export": "Exportar",
     "deleteAccount": "Zima Conta",
@@ -240,14 +239,10 @@
     "companyName": "Dijina dya empresa",
     "roles": "Ikalakalu",
     "rolesHint": "Kuta Ctrl/Cmd phala kusola yavulu",
-    "securityRecommendation": "Kidifi kya Segurança",
-    "securityAdvice": "Zubha o autenticação ya iyadi fatores phala kulanga kubokela.",
     "currentPassword": "Ndaka ya kubokela ya lelu",
     "newPassword": "Ndaka ya kubokela ya ubhe",
     "confirmPassword": "Zubha o ndaka ya kubokela ya ubhe",
     "passwordRequirements": "Kyabhu 8 caracteres ni letras, números ni símbolos.",
-    "twoFactorAuth": "Autenticação mu 2 Fatores (2FA)",
-    "twoFactorDescription": "Bandekesa imoxi camada ya segurança",
     "enable2FA": "Zubha autenticação ya iyadi fatores",
     "disable2FA": "Zima autenticação ya iyadi fatores",
     "inDevelopment": "Ijidilu a kalakala",

@@ -172,7 +172,7 @@
     "noActivity": "无近期活动",
     "dangerZone": {
       "title": "危险区域",
-      "description": "不可逆的操作，例如删除您的账户。"
+      "description": "停用将结束所有会话并撤销您的访问权限。只有管理员可以重新启用。"
     },
     "export": "导出",
     "deleteAccount": "删除账户",
@@ -180,7 +180,26 @@
     "logout": "退出账户",
     "stats": {
       "tasks": "任务",
-      "active": "活跃"
+      "active": "活跃",
+      "activeSessions": "活跃会话",
+      "permissions": "权限"
+    },
+    "sessions": "会话",
+    "noSessions": "没有会话记录。",
+    "unknownOrigin": "来源未知",
+    "active": "活跃",
+    "sessionId": "id",
+    "endSession": "结束",
+    "sessionError": "无法结束该会话。",
+    "exportError": "无法导出您的数据。",
+    "deleteError": "无法停用该账户。",
+    "deactivateAccount": "停用账户",
+    "deactivateConfirmation": "停用账户将结束所有会话并撤销您的访问权限。只有管理员可以重新启用。是否继续？",
+    "appearance": {
+      "titleTheme": "主题",
+      "descriptionTheme": "在浅色、深色或自动模式之间选择。",
+      "titleIdioma": "系统语言",
+      "descriptionIdioma": "选择界面的默认语言。"
     }
   },
   "activity": {
@@ -240,14 +259,12 @@
     "companyName": "公司名称",
     "roles": "角色",
     "rolesHint": "按住 Ctrl/Cmd 键进行多选",
-    "securityRecommendation": "安全建议",
-    "securityAdvice": "启用双因素身份验证以防止未经授权的访问。",
+    "securityRecommendation": "账户安全",
+    "securityAdvice": "更改密码将结束您的其他会话。请使用至少 8 个字符。",
     "currentPassword": "当前密码",
     "newPassword": "新密码",
     "confirmPassword": "确认新密码",
     "passwordRequirements": "至少 8 个字符，包含字母、数字和符号。",
-    "twoFactorAuth": "双因素身份验证 (2FA)",
-    "twoFactorDescription": "增加额外的安全层",
     "enable2FA": "启用双因素身份验证",
     "disable2FA": "停用双因素身份验证",
     "inDevelopment": "配置开发中",
@@ -375,7 +392,12 @@
     "enter": "进入",
     "entering": "正在进入...",
     "createAccount": "创建账户",
-    "creatingAccount": "正在创建账户..."
+    "creatingAccount": "正在创建账户...",
+    "lightMode": "浅色模式",
+    "logout": "退出",
+    "darkMode": "深色模式",
+    "help": "帮助",
+    "notifications": "通知"
   },
   "common": {
     "table": "数据表",
@@ -423,7 +445,8 @@
     "firstName": "名",
     "lastName": "姓",
     "select": "选择",
-    "and": "和"
+    "and": "和",
+    "refresh": "刷新"
   },
   "messages": {
     "noColumnsFound": "未找到列",
@@ -544,7 +567,8 @@
     "descSystem": "日志和维护",
     "emptyStateTitle": "没有可用的设置",
     "emptyStateDesc": "您目前没有访问这些设置的权限。",
-    "footerText": "管理系统"
+    "footerText": "管理系统",
+    "noSearchResults": "没有符合搜索条件的设置。"
   },
   "ocr": {
     "title": "智能扫描仪",
@@ -872,5 +896,11 @@
   },
   "results": {
     "title": "查询结果"
+  },
+  "notif": {
+    "email": "电子邮件",
+    "emailDesc": "通过电子邮件接收提醒",
+    "push": "应用内",
+    "pushDesc": "应用内通知"
   }
 }

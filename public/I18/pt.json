@@ -184,7 +184,7 @@
     "noActivity": "Nenhuma atividade recente",
     "dangerZone": {
       "title": "Zona de Perigo",
-      "description": "Ações irreversíveis, como excluir a sua conta."
+      "description": "Desativar termina todas as sessões e retira-lhe o acesso. Só um administrador pode reativar."
     },
     "export": "Exportar",
     "deleteAccount": "Excluir Conta",
@@ -192,8 +192,21 @@
     "logout": "Sair da conta",
     "stats": {
       "tasks": "Tarefas",
-      "active": "Ativo"
-    }
+      "active": "Ativo",
+      "activeSessions": "Sessões ativas",
+      "permissions": "Permissões"
+    },
+    "sessions": "Sessões",
+    "noSessions": "Sem sessões registadas.",
+    "unknownOrigin": "Origem desconhecida",
+    "active": "ativa",
+    "sessionId": "id",
+    "endSession": "Terminar",
+    "sessionError": "Não foi possível terminar a sessão.",
+    "exportError": "Não foi possível exportar os seus dados.",
+    "deleteError": "Não foi possível desativar a conta.",
+    "deactivateAccount": "Desativar Conta",
+    "deactivateConfirmation": "Desativar a conta termina todas as sessões e retira-lhe o acesso. Só um administrador a pode reativar. Continuar?"
   },
   "activity": {
     "login": "Login realizado",
@@ -275,14 +288,12 @@
     "companyName": "Nome da empresa",
     "roles": "Funções",
     "rolesHint": "Mantenha Ctrl/Cmd pressionado para selecionar múltiplas",
-    "securityRecommendation": "Recomendação de Segurança",
-    "securityAdvice": "Ative a autenticação de dois fatores para evitar acessos não autorizados.",
+    "securityRecommendation": "Segurança da conta",
+    "securityAdvice": "Ao alterar a palavra-passe, as outras sessões são terminadas. Use pelo menos 8 caracteres.",
     "currentPassword": "Palavra-passe atual",
     "newPassword": "Nova palavra-passe",
     "confirmPassword": "Confirmar nova palavra-passe",
     "passwordRequirements": "Mínimo de 8 caracteres com letras, números e símbolos.",
-    "twoFactorAuth": "Autenticação em 2 Fatores (2FA)",
-    "twoFactorDescription": "Adiciona uma camada extra de segurança",
     "enable2FA": "Ativar autenticação de dois fatores",
     "disable2FA": "Desativar autenticação de dois fatores",
     "inDevelopment": "Configuração em desenvolvimento",
@@ -422,7 +433,9 @@
     "createAccount": "Criar conta",
     "creatingAccount": "A criar conta...",
     "ignoreOrCancel": "Ignorar / Cancelar",
-    "confirmSelection": "Confirmar Seleção"
+    "confirmSelection": "Confirmar Seleção",
+    "lightMode": "Modo Claro",
+    "logout": "Sair"
   },
   "referencePopup": {
     "invalidParams": "Parâmetros inválidos: table, field e value são obrigatórios",
@@ -487,7 +500,8 @@
     "firstName": "Nome",
     "lastName": "Apelido",
     "select": "Selecione",
-    "and": "e"
+    "and": "e",
+    "refresh": "Atualizar"
   },
   "messages": {
     "noColumnsFound": "Nenhuma coluna encontrada",
@@ -609,7 +623,8 @@
     "descSystem": "Logs e manutenção",
     "emptyStateTitle": "Nenhuma configuração disponível",
     "emptyStateDesc": "Não possui permissões para aceder a estas configurações de momento.",
-    "footerText": "Sistema de Gestão"
+    "footerText": "Sistema de Gestão",
+    "noSearchResults": "Nenhuma configuração corresponde à pesquisa."
   },
   "company": {
     "title": "Gestão da Organização",
@@ -1115,5 +1130,11 @@
       "data": "Analisa dados",
       "plan": "Cria um plano"
     }
+  },
+  "notif": {
+    "email": "Email",
+    "emailDesc": "Receber alertas por email",
+    "push": "Na aplicação",
+    "pushDesc": "Notificações dentro da aplicação"
   }
 }

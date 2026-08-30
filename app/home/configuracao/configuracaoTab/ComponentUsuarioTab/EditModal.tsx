@@ -10,7 +10,7 @@ import {
 } from "@/app/services/settingsApi";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/context/I18nContext";
-import { Bell, Camera, CheckCircle2, Clock, Construction, Globe, Key, LucideIcon, Palette, Save, Shield, X } from "lucide-react";
+import { Bell, Camera, CheckCircle2, Construction, Globe, LucideIcon, Palette, Save, Shield, X } from "lucide-react";
 import { Usuario } from "@/types";
 
 /* =======================
@@ -49,8 +49,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
     // notifications
     notifEmail: true,
     notifPush: false,
-    notifSms: false,
-    notifWeekly: true,
 
     // appearance
     theme: "system" as ThemeMode,
@@ -80,8 +78,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
 
       notifEmail: Boolean((user as any)?.settings?.notifications?.email ?? true),
       notifPush: Boolean((user as any)?.settings?.notifications?.push ?? false),
-      notifSms: Boolean((user as any)?.settings?.notifications?.sms ?? false),
-      notifWeekly: Boolean((user as any)?.settings?.notifications?.weeklyDigest ?? true),
       theme: ((user as any)?.settings?.appearance?.theme ?? "system") as ThemeMode,
       language: ((user as any)?.settings?.language ?? "pt") as string,
     }));
@@ -115,8 +111,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
         confirmarSenha: "",
         notifEmail: true,
         notifPush: false,
-        notifSms: false,
-        notifWeekly: true,
         theme: "system",
         language: "pt",
       });
@@ -178,8 +172,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
         await updateNotifications({
           email: form.notifEmail,
           push: form.notifPush,
-          sms: form.notifSms,
-          weeklyDigest: form.notifWeekly,
         });
       }
 
@@ -492,20 +484,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
               description={t("notif.pushDesc") || "Notificações no dispositivo"}
               value={form.notifPush}
               onToggle={() => handleInputChange("notifPush", !form.notifPush)}
-            />
-            <ToggleRow
-              icon={Clock}
-              title={t("notif.sms") || "SMS"}
-              description={t("notif.smsDesc") || "Mensagens por SMS (pode ter custos)"}
-              value={form.notifSms}
-              onToggle={() => handleInputChange("notifSms", !form.notifSms)}
-            />
-            <ToggleRow
-              icon={Clock}
-              title={t("notif.weekly") || "Resumo semanal"}
-              description={t("notif.weeklyDesc") || "Resumo de atividades toda semana"}
-              value={form.notifWeekly}
-              onToggle={() => handleInputChange("notifWeekly", !form.notifWeekly)}
             />
           </div>
         );
