@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { COLORS, HEADER_HEIGHT, ROW_HEIGHT } from '../constant';
+import { COLORS, HEADER_HEIGHT, PositionedTable, Relationship, ROW_HEIGHT } from '../constant';
 import { DBConnection } from '@/types/db-structure';
 
 // ─── Tipagens ────────────────────────────────────────────────────────────────
 
 interface SchemaViewerProps {
     data: DBConnection;
-    tables: any[];
-    relationships: any[];
+    tables: PositionedTable[];
+    relationships: Relationship[];
     svgWidth: number;
     svgHeight: number;
     svgRef: React.RefObject<SVGSVGElement | null>;
@@ -226,6 +226,39 @@ function ZoomControls({
     );
 }
 
+/**
+ * Curva de uma relação, respeitando por que aresta sai e por onde entra.
+ *
+ * A versão anterior usava sempre o ponto médio horizontal como controlo, o que
+ * só funciona quando a linha vai da direita para a esquerda. Aqui os pontos de
+ * controlo saem para FORA de cada caixa, na direção da respetiva aresta, e a
+ * curva nunca entra por trás da tabela.
+ */
+function caminhoDaRelacao(rel: Relationship): string {
+    const { startX, startY, endX, endY } = rel;
+
+    if (rel.selfReference) {
+        // Laço à direita da caixa. A largura acompanha a altura para que uma
+        // tabela alta não fique com um laço achatado.
+        const alcance = Math.max(40, Math.abs(startY - endY) * 0.6);
+        return `M ${startX} ${startY} C ${startX + alcance} ${startY}, ${startX + alcance} ${endY}, ${endX} ${endY}`;
+    }
+
+    const paraDireita = (lado?: 'left' | 'right') => (lado === 'right' ? 1 : -1);
+    const dirInicio = paraDireita(rel.startSide);
+    const dirFim = paraDireita(rel.endSide);
+
+    // Quanto mais longe, mais aberta a curva — mas com limite, senão as
+    // ligações entre extremos do diagrama viram semicírculos gigantes.
+    const distancia = Math.hypot(endX - startX, endY - startY);
+    const alcance = Math.min(180, Math.max(50, distancia * 0.35));
+
+    const c1x = startX + dirInicio * alcance;
+    const c2x = endX + dirFim * alcance;
+
+    return `M ${startX} ${startY} C ${c1x} ${startY}, ${c2x} ${endY}, ${endX} ${endY}`;
+}
+
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 export default function SchemaViewer({
@@ -234,6 +267,15 @@ export default function SchemaViewer({
 }: SchemaViewerProps) {
 
     const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
+
+    // Nome da tabela em foco — seja por ter sido escolhida na lista, seja por
+    // ter sido selecionado um campo dentro dela.
+    const tabelaSelecionada = useMemo(() => {
+        if (!selectedItem) return null;
+        return selectedItem.type === 'table'
+            ? selectedItem.data.table_name
+            : selectedItem.parentTable;
+    }, [selectedItem]);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [activeTab, setActiveTab] = useState<SidebarTab>('tables');
     const [tableSearch, setTableSearch] = useState('');
@@ -450,6 +492,9 @@ export default function SchemaViewer({
                             <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
                                 <polygon points="0 0, 10 3.5, 0 7" fill={COLORS.arrowColor} />
                             </marker>
+                            <marker id="arrowheadActive" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb" />
+                            </marker>
                             <filter id="tableShadow" x="-8%" y="-8%" width="116%" height="116%">
                                 <feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.08" />
                             </filter>
@@ -469,17 +514,32 @@ export default function SchemaViewer({
                             {/* Relacionamentos */}
                             <g id="relationships-layer">
                                 {relationships.map(rel => {
-                                    const cx = (rel.startX + rel.endX) / 2;
+                                    const ligadaAoSelecionado =
+                                        !!tabelaSelecionada &&
+                                        (rel.fromTable === tabelaSelecionada || rel.toTable === tabelaSelecionada);
+
+                                    // Com uma tabela escolhida, as outras linhas
+                                    // esbatem-se: num diagrama com dezenas de
+                                    // tabelas é a diferença entre ver as
+                                    // ligações e ver um novelo.
+                                    const cor = ligadaAoSelecionado ? '#2563eb' : COLORS.relationLine;
+                                    const opacidade = !tabelaSelecionada ? 1 : ligadaAoSelecionado ? 1 : 0.12;
+
                                     return (
                                         <path
                                             key={rel.id}
-                                            d={`M ${rel.startX} ${rel.startY} C ${cx} ${rel.startY}, ${cx} ${rel.endY}, ${rel.endX} ${rel.endY}`}
+                                            d={caminhoDaRelacao(rel)}
                                             fill="none"
-                                            stroke={COLORS.relationLine}
-                                            strokeWidth="1.5"
-                                            markerEnd="url(#arrowhead)"
-                                            className="transition-colors duration-150 hover:stroke-blue-400"
-                                        />
+                                            stroke={cor}
+                                            strokeWidth={ligadaAoSelecionado ? 2 : 1.5}
+                                            opacity={opacidade}
+                                            markerEnd={ligadaAoSelecionado ? 'url(#arrowheadActive)' : 'url(#arrowhead)'}
+                                            className="transition-all duration-150 hover:stroke-blue-400"
+                                        >
+                                            <title>
+                                                {`${rel.fromTable}.${rel.fieldName ?? '?'} → ${rel.toTable}`}
+                                            </title>
+                                        </path>
                                     );
                                 })}
                             </g>

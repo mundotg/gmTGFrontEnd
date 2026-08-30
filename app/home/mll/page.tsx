@@ -238,12 +238,67 @@ export default function MLLPanel() {
             return { tables: [], relationships: [], svgWidth: 0, svgHeight: 0, hasValidTables: false };
         }
 
+        // ── Ordenação por vizinhança ──────────────────────────────────────
+        //
+        // A ordem alfabética (ou a que vem da API) espalha tabelas relacionadas
+        // pelo diagrama todo e as linhas atravessam tudo. Percorre-se o grafo de
+        // chaves estrangeiras em largura, a partir da tabela com mais ligações,
+        // para que cada grupo relacionado fique junto no grid.
+        const porNome = new Map(validStructures.map(t => [t.table_name, t]));
+
+        const vizinhos = new Map<string, Set<string>>();
+        validStructures.forEach(t => vizinhos.set(t.table_name, new Set()));
+        validStructures.forEach(tabela => {
+            tabela.fields?.forEach(campo => {
+                const alvo = campo.is_foreign_key ? campo.referenced_table : null;
+                if (!alvo || alvo === tabela.table_name || !porNome.has(alvo)) return;
+                vizinhos.get(tabela.table_name)!.add(alvo);
+                vizinhos.get(alvo)!.add(tabela.table_name);
+            });
+        });
+
+        const grau = (nome: string) => vizinhos.get(nome)?.size ?? 0;
+        // Empate desfeito pelo nome: sem isso a mesma base dava layouts
+        // diferentes entre recargas.
+        const porRelevancia = [...validStructures].sort(
+            (a, b) => grau(b.table_name) - grau(a.table_name)
+                || a.table_name.localeCompare(b.table_name)
+        );
+
+        const visitadas = new Set<string>();
+        const ordenadas: typeof validStructures = [];
+
+        porRelevancia.forEach(inicio => {
+            if (visitadas.has(inicio.table_name)) return;
+
+            const fila = [inicio.table_name];
+            visitadas.add(inicio.table_name);
+
+            while (fila.length) {
+                const nome = fila.shift()!;
+                const tabela = porNome.get(nome);
+                if (tabela) ordenadas.push(tabela);
+
+                [...(vizinhos.get(nome) ?? [])]
+                    .sort((a, b) => grau(b) - grau(a) || a.localeCompare(b))
+                    .forEach(vizinho => {
+                        if (visitadas.has(vizinho)) return;
+                        visitadas.add(vizinho);
+                        fila.push(vizinho);
+                    });
+            }
+        });
+
+        // ── Posicionamento ────────────────────────────────────────────────
         const positionedTables: PositionedTable[] = [];
         const yOffsets = new Array(COLUMNS).fill(50);
         let maxColumnHeight = 0;
 
-        validStructures.forEach((table, index) => {
-            const column = index % COLUMNS;
+        ordenadas.forEach(table => {
+            // Coluna mais curta em vez de `index % COLUMNS`: com tabelas de
+            // alturas muito diferentes, o resto da divisão deixava uma coluna
+            // gigante ao lado de duas quase vazias.
+            const column = yOffsets.indexOf(Math.min(...yOffsets));
             const x = 50 + column * (BOX_WIDTH + GAP_X);
             const y = yOffsets[column];
             const height = HEADER_HEIGHT + (table.fields?.length || 0) * ROW_HEIGHT + 10;
@@ -260,24 +315,57 @@ export default function MLLPanel() {
         positionedTables.forEach(sourceTable => {
             if (!sourceTable.fields) return;
             sourceTable.fields.forEach((field, fieldIndex) => {
-                if (field.is_foreign_key && field.referenced_table) {
-                    const targetTable = tableMap.get(field.referenced_table);
-                    if (targetTable) {
-                        const startY = sourceTable.y + HEADER_HEIGHT + fieldIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
-                        const endY = targetTable.y + HEADER_HEIGHT / 2;
-                        relationshipsList.push({
-                            id: `${sourceTable.table_name}-${field.name}-${targetTable.table_name}`,
-                            fromTable: sourceTable.table_name,
-                            toTable: targetTable.table_name,
-                            startX: sourceTable.x,
-                            startY,
-                            endX: targetTable.x + BOX_WIDTH,
-                            endY,
-                        });
-                    } else {
-                        console.warn(`FK referência tabela inexistente ou de sistema: ${field.referenced_table}`);
-                    }
+                if (!field.is_foreign_key || !field.referenced_table) return;
+
+                const targetTable = tableMap.get(field.referenced_table);
+                if (!targetTable) {
+                    console.warn(`FK referência tabela inexistente ou de sistema: ${field.referenced_table}`);
+                    return;
                 }
+
+                const startY = sourceTable.y + HEADER_HEIGHT + fieldIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+                const selfReference = targetTable.table_name === sourceTable.table_name;
+
+                // Uma FK para a própria tabela (árvores, hierarquias) tinha
+                // início e fim na mesma caixa e desenhava um risco por cima
+                // dela. Sai e entra pela direita, como laço.
+                if (selfReference) {
+                    relationshipsList.push({
+                        id: `${sourceTable.table_name}-${field.name}-self`,
+                        fromTable: sourceTable.table_name,
+                        toTable: targetTable.table_name,
+                        fieldName: field.name,
+                        startX: sourceTable.x + BOX_WIDTH,
+                        startY,
+                        endX: sourceTable.x + BOX_WIDTH,
+                        endY: sourceTable.y + HEADER_HEIGHT / 2,
+                        startSide: 'right',
+                        endSide: 'right',
+                        selfReference: true,
+                    });
+                    return;
+                }
+
+                // A linha sai pela aresta virada para o destino e entra pela
+                // aresta virada para a origem. Antes eram fixas (esquerda →
+                // direita) e, quando o destino estava à direita, a curva
+                // atravessava o diagrama de volta.
+                const alvoADireita = targetTable.x > sourceTable.x;
+                const startSide = alvoADireita ? 'right' : 'left';
+                const endSide = alvoADireita ? 'left' : 'right';
+
+                relationshipsList.push({
+                    id: `${sourceTable.table_name}-${field.name}-${targetTable.table_name}`,
+                    fromTable: sourceTable.table_name,
+                    toTable: targetTable.table_name,
+                    fieldName: field.name,
+                    startX: startSide === 'right' ? sourceTable.x + BOX_WIDTH : sourceTable.x,
+                    startY,
+                    endX: endSide === 'right' ? targetTable.x + BOX_WIDTH : targetTable.x,
+                    endY: targetTable.y + HEADER_HEIGHT / 2,
+                    startSide,
+                    endSide,
+                });
             });
         });
 
@@ -288,14 +376,20 @@ export default function MLLPanel() {
             svgHeight: maxColumnHeight + 50,
             hasValidTables: true,
         };
-    }, [data]);
+        // `user?.info_extra?.type` entra no filtro de tabelas de sistema: sem ele
+        // na lista, trocar de conexão reutilizava o layout da anterior.
+    }, [data, user?.info_extra?.type]);
 
     // ── Exportação ────────────────────────────────────────────────────────────
 
     const downloadSVG = useCallback((): void => {
         if (!svgRef.current) return;
         try {
-            const svgData = new XMLSerializer().serializeToString(svgRef.current);
+            // Sem o xmlns, o ficheiro abre no navegador mas é recusado por
+            // editores (Inkscape, Illustrator) e por qualquer conversor.
+            const svgData = new XMLSerializer()
+                .serializeToString(svgRef.current)
+                .replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
             const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -313,20 +407,30 @@ export default function MLLPanel() {
     const downloadPNG = useCallback((): void => {
         if (!svgRef.current) return;
         try {
-            const svgData = new XMLSerializer().serializeToString(svgRef.current);
+            const svgData = new XMLSerializer()
+                .serializeToString(svgRef.current)
+                .replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
             const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
             const url = URL.createObjectURL(svgBlob);
             const img = new Image();
             const canvas = document.createElement('canvas');
-            canvas.width = svgWidth;
-            canvas.height = svgHeight;
+
+            // O PNG saía à escala 1:1 do SVG e ficava ilegível assim que se
+            // ampliava — num diagrama com dezenas de tabelas, os nomes dos
+            // campos são o que interessa. Exporta-se a 2×, com teto para não
+            // rebentar o limite de área do canvas em bases muito grandes.
+            const escala = Math.min(2, Math.max(1, 16_000_000 / (svgWidth * svgHeight)));
+            canvas.width = Math.round(svgWidth * escala);
+            canvas.height = Math.round(svgHeight * escala);
+
             const ctx = canvas.getContext('2d');
             if (!ctx) throw new Error('Falha no contexto 2D');
+            ctx.scale(escala, escala);
 
             img.onload = () => {
                 try {
                     ctx.fillStyle = COLORS.background;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillRect(0, 0, svgWidth, svgHeight);
                     ctx.drawImage(img, 0, 0);
                     const link = document.createElement('a');
                     link.href = canvas.toDataURL('image/png');
