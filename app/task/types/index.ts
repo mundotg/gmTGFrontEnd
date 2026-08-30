@@ -176,6 +176,8 @@ export interface Project {
   sprints?: Sprint[];
   created_at?: string | Date;
   due_date?: string | Date;
+  /** False = arquivado. Vem da API; faltava aqui. */
+  is_active?: boolean;
 }
 
 /* ============================================================

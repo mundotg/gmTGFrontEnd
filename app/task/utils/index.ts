@@ -66,7 +66,7 @@ export function safeDateTime2(value?: string | Date | null): string {
 }
 
 
-import { Project, ProjectFormData } from "../types";
+import { Project, ProjectFormData, Task } from "../types";
 
 /**
  * Converte entre Project <-> ProjectFormData
@@ -122,3 +122,63 @@ export function convertProject(
   }
 }
 
+
+/* ============================================================
+ * 🔹 ESTADO DERIVADO DE UM PROJETO
+ * ==========================================================*/
+
+/** Resumo das tarefas de um projeto. O backend não o calcula. */
+export interface ResumoProjeto {
+  total: number;
+  concluidas: number;
+  emCurso: number;
+  emRevisao: number;
+  pendentes: number;
+  /** 0–100. Zero tarefas conta como 0%, não como 100%. */
+  progresso: number;
+}
+
+export type EstadoProjeto = "ativo" | "arquivado" | "atrasado";
+
+/**
+ * Conta as tarefas por estado e devolve o progresso.
+ *
+ * Vive aqui, e não dentro de um ecrã, porque a lista de projetos do quadro e a
+ * aba de configurações precisam do mesmo número — e duas cópias divergem.
+ */
+export function resumirTarefas(tarefas: Task[] = []): ResumoProjeto {
+  const total = tarefas.length;
+  const conta = (estado: string) =>
+    tarefas.filter((t) => (t.status ?? "").toLowerCase() === estado).length;
+
+  const concluidas = conta("concluida");
+
+  return {
+    total,
+    concluidas,
+    emCurso: conta("em_andamento"),
+    emRevisao: conta("em_revisao"),
+    pendentes: conta("pendente"),
+    // Um projeto sem tarefas está a 0%: mostrar 100% seria dizer que está
+    // pronto quando ainda nem começou.
+    progresso: total === 0 ? 0 : Math.round((concluidas / total) * 100),
+  };
+}
+
+/** Estado visível de um projeto, a partir dos dados que já vêm da API. */
+export function estadoDoProjeto(projeto: Project): EstadoProjeto {
+  if ((projeto as Project & { is_active?: boolean }).is_active === false) {
+    return "arquivado";
+  }
+
+  if (projeto.due_date) {
+    const prazo = new Date(projeto.due_date);
+    // Só está atrasado se ainda houver trabalho por fazer — um projeto
+    // terminado depois do prazo já não precisa de alarme.
+    if (prazo.getTime() < Date.now() && resumirTarefas(projeto.tasks).progresso < 100) {
+      return "atrasado";
+    }
+  }
+
+  return "ativo";
+}

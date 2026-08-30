@@ -10,24 +10,24 @@ import {
   Archive,
   ArchiveRestore,
   Trash2,
-  Loader2,
   ChevronRight,
   Search,
   AlertTriangle,
   CalendarClock,
   RefreshCw,
-  CheckCircle2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/context/SessionContext";
+import ProjectModal from "@/app/task/components/ProjectModal";
+import { Project, ProjectFormData } from "@/app/task/types";
 import {
-  ConexaoDisponivel,
   EstadoProjeto,
-  Projeto,
+  convertProject,
   estadoDoProjeto,
   resumirTarefas,
-  useProjetos,
-} from "@/hook/useProjetos";
+  safeDateView,
+} from "@/app/task/utils";
+import { useProjetos } from "@/hook/useProjetos";
 
 /* =====================
    APARÊNCIA POR ESTADO
@@ -39,9 +39,6 @@ const TEMA_ESTADO: Record<EstadoProjeto, { rotulo: string; classe: string }> = {
 };
 
 type Filtro = "todos" | "ativos" | "arquivados";
-
-const formatarData = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("pt-PT") : null;
 
 /* =====================
    COMPONENTE
@@ -58,7 +55,6 @@ export const ProjetosTab = () => {
 
   const {
     projetos,
-    conexoes,
     totais,
     loading,
     erro,
@@ -71,7 +67,7 @@ export const ProjetosTab = () => {
   } = useProjetos();
 
   const [modalAberto, setModalAberto] = useState(false);
-  const [emEdicao, setEmEdicao] = useState<Projeto | null>(null);
+  const [emEdicao, setEmEdicao] = useState<Project | null>(null);
   const [procura, setProcura] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("ativos");
 
@@ -92,8 +88,8 @@ export const ProjetosTab = () => {
     });
   }, [projetos, procura, filtro]);
 
-  const guardar = async (dados: Partial<Projeto>) => {
-    const resultado = emEdicao
+  const guardar = async (dados: ProjectFormData) => {
+    const resultado = emEdicao?.id
       ? await atualizar(emEdicao.id, dados)
       : await criar(dados);
 
@@ -103,19 +99,19 @@ export const ProjetosTab = () => {
     }
   };
 
-  const abrirEdicao = (projeto: Projeto) => {
+  const abrirEdicao = (projeto: Project) => {
     setEmEdicao(projeto);
     setModalAberto(true);
   };
 
-  const eliminar = async (projeto: Projeto) => {
+  const eliminar = async (projeto: Project) => {
     const resumo = resumirTarefas(projeto.tasks);
     const aviso =
       resumo.total > 0
         ? `“${projeto.name}” tem ${resumo.total} tarefa(s). Eliminar remove-as também.\n\n`
         : "";
     if (!confirm(`${aviso}Eliminar “${projeto.name}” definitivamente?`)) return;
-    await remover(projeto.id);
+    if (projeto.id) await remover(projeto.id);
   };
 
   return (
@@ -269,18 +265,21 @@ export const ProjetosTab = () => {
         </div>
       )}
 
-      {modalAberto && (
-        <ModalProjeto
-          projeto={emEdicao}
-          conexoes={conexoes}
-          aGuardar={aGuardar}
-          onFechar={() => {
-            setModalAberto(false);
-            setEmEdicao(null);
-          }}
-          onGuardar={guardar}
-        />
-      )}
+      {/* O modal de projeto já existe no quadro e traz seletor de conexão,
+          tipo de projeto, equipa e prazo — mais completo do que o que eu tinha
+          escrito aqui. Reutiliza-se em vez de manter duas versões. */}
+      <ProjectModal
+        isOpen={modalAberto}
+        editingProject={
+          emEdicao ? (convertProject(emEdicao) as ProjectFormData) : null
+        }
+        formError={erro}
+        onClose={() => {
+          setModalAberto(false);
+          setEmEdicao(null);
+        }}
+        onSubmit={guardar}
+      />
     </div>
   );
 };
@@ -328,7 +327,7 @@ const CartaoProjeto = ({
   onArquivar,
   onEliminar,
 }: {
-  projeto: Projeto;
+  projeto: Project;
   podeEditar: boolean;
   podeApagar: boolean;
   ocupado: boolean;
@@ -341,7 +340,7 @@ const CartaoProjeto = ({
   const estado = estadoDoProjeto(projeto);
   const tema = TEMA_ESTADO[estado];
   const arquivado = projeto.is_active === false;
-  const prazo = formatarData(projeto.due_date);
+  const prazo = safeDateView(projeto.due_date);
 
   return (
     <div
@@ -495,150 +494,3 @@ const Stat = ({
     <div className="text-[10px] text-gray-400 uppercase tracking-tight">{label}</div>
   </div>
 );
-
-/* =====================
-   MODAL (criar e editar)
-===================== */
-const ModalProjeto = ({
-  projeto,
-  conexoes,
-  aGuardar,
-  onFechar,
-  onGuardar,
-}: {
-  projeto: Projeto | null;
-  conexoes: ConexaoDisponivel[];
-  aGuardar: boolean;
-  onFechar: () => void;
-  onGuardar: (dados: Partial<Projeto>) => void;
-}) => {
-  const [nome, setNome] = useState(projeto?.name ?? "");
-  const [descricao, setDescricao] = useState(projeto?.description ?? "");
-  const [conexaoId, setConexaoId] = useState<string>(
-    String(projeto?.id_conexao_db ?? projeto?.connection?.id ?? "")
-  );
-  const [prazo, setPrazo] = useState(
-    projeto?.due_date ? projeto.due_date.slice(0, 10) : ""
-  );
-
-  const editar = projeto !== null;
-
-  const submeter = (e: React.FormEvent) => {
-    e.preventDefault();
-    onGuardar({
-      name: nome.trim(),
-      description: descricao.trim() || null,
-      id_conexao_db: conexaoId ? Number(conexaoId) : null,
-      // O input dá só a data; o backend espera datetime.
-      due_date: prazo ? new Date(`${prazo}T23:59:59`).toISOString() : null,
-      is_active: projeto?.is_active ?? true,
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-auto">
-        <div className="mb-6">
-          <h3 className="text-2xl font-bold text-gray-900">
-            {editar ? "Editar projeto" : "Novo Workspace"}
-          </h3>
-          <p className="text-gray-500 text-sm">
-            {editar
-              ? "Altere os dados do projeto."
-              : "Inicie um novo projeto para sua equipe."}
-          </p>
-        </div>
-
-        <form className="space-y-4" onSubmit={submeter}>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase ml-1">
-              Nome do Projeto
-            </label>
-            <input
-              autoFocus
-              required
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: Expansão Q3"
-              className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase ml-1">
-              Descrição (Opcional)
-            </label>
-            <textarea
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              placeholder="Breve resumo do objetivo…"
-              className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all min-h-[90px]"
-            />
-          </div>
-
-          {/* A conexão entra aqui, no mesmo formulário, e não num passo à parte:
-              é o alvo do projeto e escolhe-se ao criá-lo. */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase ml-1">
-              Conexão de dados
-            </label>
-            <select
-              value={conexaoId}
-              onChange={(e) => setConexaoId(e.target.value)}
-              className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            >
-              <option value="">Sem conexão</option>
-              {conexoes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.type})
-                </option>
-              ))}
-            </select>
-            {conexoes.length === 0 && (
-              <p className="text-[11px] text-gray-400 ml-1">
-                Nenhuma conexão disponível — crie uma em Conexões.
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase ml-1">
-              Prazo (Opcional)
-            </label>
-            <input
-              type="date"
-              value={prazo}
-              onChange={(e) => setPrazo(e.target.value)}
-              className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onFechar}
-              className="px-6 py-3 text-gray-600 font-semibold hover:bg-gray-100 rounded-xl transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={aGuardar || !nome.trim()}
-              className="flex-1 px-6 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-all shadow-lg shadow-gray-200 flex items-center justify-center gap-2"
-            >
-              {aGuardar ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : editar ? (
-                <>
-                  <CheckCircle2 size={18} /> Guardar
-                </>
-              ) : (
-                "Criar Workspace"
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
