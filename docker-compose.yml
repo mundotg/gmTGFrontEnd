@@ -1,7 +1,152 @@
-# Compose de desenvolvimento, só do frontend.
-# Para subir o frontend com a API, usar o docker-compose.yml da raiz.
+# =============================================================================
+#  MustaInf — stack de desenvolvimento
+#
+#  Sobe frontend + API + Redis. O Postgres fica de fora de propósito: a base de
+#  dados desta máquina já corre no Windows, com dados reais, e containerizá-la
+#  aqui criaria uma segunda base vazia com o mesmo nome — a confusão mais cara
+#  que este ficheiro poderia produzir. A API liga-se à do anfitrião por
+#  `host.docker.internal`.
+#
+#      docker compose up -d          sobe tudo
+#      docker compose logs -f api    acompanha a API
+#      docker compose down           pára (os dados do Redis ficam no volume)
+#
+#  O contexto de build é esta pasta para o front e `../gmTGBackend` para a API,
+#  por isso este ficheiro tem de continuar em `gmTGFrontEnd/`.
+# =============================================================================
 
 services:
+  # ---------------------------------------------------------------------------
+  #  Redis — cache da API
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: mustainfo-redis
+
+    # `--requirepass` é o que torna a password obrigatória. Sem isto o Redis
+    # aceita qualquer ligação, e a porta publicada abaixo fica aberta a quem
+    # estiver na mesma rede.
+    #
+    # `--save 60 1` grava em disco ao fim de 60s se houver pelo menos 1
+    # alteração: o cache é recalculável, mas reiniciar o contentor a meio de um
+    # dia de trabalho não deve esvaziar tudo.
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:-mustainf_redis_dev}
+      # `save` leva sempre um PAR — segundos e nº de alterações. Só com os
+      # segundos, o Redis recusa o arranque com "Invalid save parameters" e o
+      # contentor fica em ciclo de reinício.
+      - --save
+      - "60"
+      - "1"
+      - --loglevel
+      - warning
+
+    ports:
+      # 6380 no anfitrião para não chocar com um Redis já instalado no Windows
+      # na 6379. Dentro da rede do compose a porta continua a ser 6379.
+      - "${REDIS_PORT_HOST:-6380}:6379"
+
+    volumes:
+      - redisdata:/data
+
+    healthcheck:
+      # O `-a` é preciso agora que há password: sem ele o ping responde
+      # NOAUTH e o contentor ficava eternamente "unhealthy".
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-mustainf_redis_dev}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  #  API — FastAPI + Uvicorn
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ../gmTGBackend
+      dockerfile: Dockerfile
+    image: mustainfo-backend
+    container_name: mustainfo-api
+
+    depends_on:
+      redis:
+        # Espera pelo healthcheck: sem isto a API arrancava antes do Redis
+        # aceitar ligações e passava os primeiros pedidos sem cache.
+        condition: service_healthy
+
+    ports:
+      - "${API_PORT:-8000}:8000"
+
+    # ⚠️ NÃO usar `env_file: ../gmTGBackend/.env`.
+    #
+    # O Compose interpola `$` nos valores do env_file. A SECRET_KEY e a
+    # ENCRYPTION_KEY contêm `$O`, que seria expandido para a variável `O`
+    # — inexistente — e substituído por vazio, truncando as duas chaves em
+    # silêncio. Com a SECRET_KEY diferente, os JWT assinados dentro do Docker
+    # não são aceites fora dele; com a ENCRYPTION_KEY diferente, as credenciais
+    # das ligações guardadas na base deixam de poder ser desencriptadas.
+    #
+    # O ficheiro é montado e lido pela própria app com python-dotenv, que não
+    # toca em `$O`. Como usa override=False, o `environment:` abaixo ganha.
+    environment:
+      PYTHONPATH: /app
+
+      # --- Base de dados do anfitrião ---------------------------------------
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:1234@host.docker.internal:5432/gestordb?sslmode=disable}
+      DATABASE_URL_ALEMBIC: ${DATABASE_URL_ALEMBIC:-postgresql+psycopg2://postgres:1234@host.docker.internal:5432/gestordb?sslmode=disable}
+
+      # --- Redis -------------------------------------------------------------
+      # `redis` é o nome do serviço e resolve dentro da rede do compose; a porta
+      # é a interna (6379), não a publicada no anfitrião.
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-mustainf_redis_dev}
+
+      # O .env do backend tem `app_cache_REDIS_URL` a apontar para o Redis do
+      # Windows. Essa variável ganha a tudo o resto em `_build_url()`, por isso
+      # é reescrita aqui — senão a API no contentor ignorava este Redis e ia
+      # bater a `localhost`, que dentro do contentor é o próprio contentor.
+      app_cache_REDIS_URL: redis://:${REDIS_PASSWORD:-mustainf_redis_dev}@redis:6379/0
+
+      # --- Outros -----------------------------------------------------------
+      # O front corre em http://localhost:3000 do ponto de vista do browser.
+      # Sem esta origem, o login por cookie é bloqueado pelo CORS.
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
+      # O .env tem ENV=production, o que desligaria o /docs.
+      ENABLE_DOCS: ${ENABLE_DOCS:-true}
+
+    # Faz `host.docker.internal` resolver para o anfitrião também em Linux,
+    # onde — ao contrário do Docker Desktop — não existe por omissão.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # /health/live não toca na base de dados: reporta o processo, não as
+    # dependências. Uma base em baixo não deve marcar o contentor como morto.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s # o arranque corre seed_data e carrega o PaddleOCR
+
+    volumes:
+      - ../gmTGBackend/.env:/app/.env:ro
+      # Escritos em runtime. Sem volume, perdem-se a cada `docker compose down`.
+      - api_logs:/app/logs
+      - api_storage:/app/storage_cache
+      - api_ocr_cache:/app/ocr_cache_data
+      - api_reports:/app/temp_reports
+
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  #  Frontend — Next.js em modo dev
+  # ---------------------------------------------------------------------------
   front:
     build:
       context: .
@@ -14,8 +159,15 @@ services:
       target: builder
     container_name: mustainfo-front
 
+    depends_on:
+      # Só `started`: o front arranca e mostra o ecrã de login enquanto a API
+      # ainda está a carregar o PaddleOCR. Esperar por `service_healthy` seriam
+      # 90s de ecrã preto sem necessidade.
+      api:
+        condition: service_started
+
     ports:
-      - "3000:3000"
+      - "${FRONT_PORT:-3000}:3000"
 
     volumes:
       - .:/app
@@ -29,7 +181,8 @@ services:
       NODE_ENV: development
       HOME: /home/user
       # Lido pelo BROWSER: tem de ser alcançável a partir do separador do
-      # utilizador, não da rede interna do Docker.
+      # utilizador, não da rede interna do Docker. Por isso `localhost` e não
+      # `api`, que só resolve dentro do compose.
       NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-http://localhost:8000/}
       NEXT_PUBLIC_BACKEND_AUTH_URL: ${NEXT_PUBLIC_BACKEND_AUTH_URL:-http://localhost:8000/auth}
 
@@ -38,3 +191,10 @@ services:
     restart: unless-stopped
     tty: true
     stdin_open: true
+
+volumes:
+  redisdata:
+  api_logs:
+  api_storage:
+  api_ocr_cache:
+  api_reports:
