@@ -1136,5 +1136,11 @@
     "emailDesc": "Receber alertas por email",
     "push": "Na aplicação",
     "pushDesc": "Notificações dentro da aplicação"
+  },
+  "error": {
+    "title": "Esta página não carregou",
+    "description": "O resto da aplicação continua a funcionar — pode mudar de secção pelo menu ao lado.",
+    "retry": "Tentar novamente",
+    "home": "Ir para o início"
   }
 }

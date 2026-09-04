@@ -1132,5 +1132,11 @@
     "emailDesc": "Receive alerts by email",
     "push": "In-app",
     "pushDesc": "Notifications inside the app"
+  },
+  "error": {
+    "title": "This page failed to load",
+    "description": "The rest of the app still works — you can switch sections from the menu.",
+    "retry": "Try again",
+    "home": "Go to start"
   }
 }

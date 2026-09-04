@@ -902,5 +902,11 @@
     "emailDesc": "Recevoir des alertes par e-mail",
     "push": "Dans l'application",
     "pushDesc": "Notifications dans l'application"
+  },
+  "error": {
+    "title": "Cette page n'a pas pu se charger",
+    "description": "Le reste de l'application fonctionne toujours — vous pouvez changer de section depuis le menu.",
+    "retry": "Réessayer",
+    "home": "Aller à l'accueil"
   }
 }
