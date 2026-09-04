@@ -186,6 +186,19 @@ services:
       NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-http://localhost:8000/}
       NEXT_PUBLIC_BACKEND_AUTH_URL: ${NEXT_PUBLIC_BACKEND_AUTH_URL:-http://localhost:8000/auth}
 
+    # ⚠️ Sintoma conhecido: sub-rotas a devolver 404.
+    #
+    # O `next dev` aqui dentro vê o código por um bind mount do Windows, e o
+    # Docker Desktop não propaga bem os eventos de ficheiro. Quando isso falha,
+    # o servidor perde as rotas encontradas no arranque e passa a responder 404
+    # a `/home/conexao`, `/home/mll`, etc. — enquanto `/home` continua a 200,
+    # o que faz parecer um problema de autenticação e não é. Os ficheiros estão
+    # lá dentro (confirma com `docker compose exec front ls /app/app/home`).
+    #
+    #     docker compose restart front
+    #
+    # resolve. Se acontecer com frequência, correr o frontend no anfitrião
+    # (`npm run dev` ou o `dev.ps1` da raiz) evita o bind mount por completo.
     command: "npm run dev"
 
     restart: unless-stopped
