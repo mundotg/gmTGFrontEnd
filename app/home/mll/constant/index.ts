@@ -39,6 +39,20 @@ export interface Relationship {
     startY: number;
     endX: number;
     endY: number;
+    /** Nome da coluna que faz a referência — mostrado ao passar o rato. */
+    fieldName?: string;
+    /**
+     * Aresta de onde a linha sai e onde entra.
+     *
+     * Antes as extremidades eram fixas (sai sempre pela esquerda, entra sempre
+     * pela direita), o que assumia que o destino estava à esquerda da origem.
+     * Metade das relações num grid aponta para o outro lado, e a curva voltava
+     * para trás por cima do diagrama.
+     */
+    startSide?: 'left' | 'right';
+    endSide?: 'left' | 'right';
+    /** Chave estrangeira para a própria tabela: desenha-se como laço. */
+    selfReference?: boolean;
 }
 
 // ============================================================================

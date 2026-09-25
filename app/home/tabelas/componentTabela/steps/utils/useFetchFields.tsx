@@ -214,14 +214,25 @@ export function useFetchColumns({
         // ✅ marca done só do que foi pedido
         srcKeys.forEach((k) => doneRef.current.add(k));
         tgtKeys.forEach((k) => doneRef.current.add(k));
-      } catch (err: { name?: string; code?: string; message?: string } | unknown) {
-        if (err && typeof err === "object" ) return;
+      } catch (err) {
+        // ⚠️ Só ignorar o CANCELAMENTO (StrictMode / troca de seleção aborta
+        // o pedido anterior). A condição antiga `typeof err === "object"`
+        // apanhava TODOS os erros — qualquer falha ao buscar as colunas era
+        // engolida em silêncio e o mapeamento ficava vazio sem qualquer pista.
+        const e = err as { name?: string; code?: string; message?: string };
+        const isAbort =
+          e?.name === "CanceledError" ||
+          e?.name === "AbortError" ||
+          e?.code === "ERR_CANCELED" ||
+          controller.signal.aborted;
 
-        // ✅ se falhar, libera para retry
+        if (isAbort) return;
+
+        // Erro real: liberar as chaves para retry e reportar (não em silêncio).
         srcKeys.forEach((k) => doneRef.current.delete(k));
         tgtKeys.forEach((k) => doneRef.current.delete(k));
 
-        console.error("[useFetchColumns] erro:", err);
+        console.error("[useFetchColumns] erro ao carregar colunas:", err);
       } finally {
         setIsLoading(false);
         srcKeys.forEach((k) => inFlightRef.current.delete(k));

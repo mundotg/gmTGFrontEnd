@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
-import { Database, Trash2, Edit, History, Link as LinkIcon, PlusCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Database, Trash2, Edit, History, Link as LinkIcon, PlusCircle, Users } from "lucide-react";
 
 import { useI18n } from "@/context/I18nContext";
 import { useSession } from "@/context/SessionContext";
+import { notifyConnectionChanged } from "@/context/connectionEvents";
 
 import { ConnectionFormData, ConnectionLog, SavedConnection } from "@/types";
 import { databases } from "@/constant";
 
-import { usePagination } from "@/hook";
+import { PaginationData, usePagination } from "@/hook";
 import usePersistedState from "@/hook/localStoreUse";
 
 import Pagination from "@/app/component/pagination-component";
@@ -17,8 +18,10 @@ import { ConnectionToggleButton } from "@/app/component/ConnectionToggleButton";
 import { ConnectionForm } from "@/app/component/connectionComponent/ConnectionForm";
 
 import { formatDate, getStatusColor, getStatusIcon } from "@/util/connectioPage/func";
+import { cleanConnectionUrl } from "@/util/connectioPage/connectionUrl";
 import { aes_decrypt, aes_encrypt } from "@/service";
 import { DatasetImportModal, DatasetImportResponse } from "./component/DatasetImportModal";
+import { ShareConnectionModal } from "./component/ShareConnectionModal";
 import { useRouter } from "next/navigation";
 
 const DEFAULT_FORM_DATA: ConnectionFormData = {
@@ -32,10 +35,32 @@ const DEFAULT_FORM_DATA: ConnectionFormData = {
   trustServerCertificate: "yes",
   sslmode: "",
   service: "",
+  useUrl: false,
+  url: "",
 };
 
-// Cache para evitar requisições duplicadas
-const requestCache = new Map<string, Promise<any>>();
+/**
+ * Deduplica pedidos **em voo** — nada mais.
+ *
+ * A versão anterior guardava a RESPOSTA durante 30s, e era essa a razão de a
+ * página não atualizar depois de criar, apagar ou alterar uma conexão: a
+ * chamada seguinte devolvia a cópia antiga sem tocar na rede. Aqui a entrada
+ * sai do mapa assim que o pedido termina, portanto continua a evitar pedidos
+ * simultâneos iguais (StrictMode, cliques repetidos) sem servir dados velhos.
+ */
+const inFlight = new Map<string, Promise<any>>();
+
+function dedupe<T>(key: string, run: () => Promise<{ data: T }>): Promise<T> {
+  const existente = inFlight.get(key);
+  if (existente) return existente;
+
+  const promise = run()
+    .then((res) => res.data)
+    .finally(() => inFlight.delete(key));
+
+  inFlight.set(key, promise);
+  return promise;
+}
 
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
@@ -53,65 +78,48 @@ const DatabaseConnectionForm = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("");
   const [isDatasetModalOpen, setIsDatasetModalOpen] = useState(false);
+
+  // Conexão cuja partilha está aberta no modal (null = modal fechado)
+  const [sharingConnection, setSharingConnection] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+
+  // Erro técnico do último toggle (para dar feedback acionável ao gestor).
+  const [toggleError, setToggleError] = useState<{
+    connectionId: string;
+    status: number;
+    detail: string;
+  } | null>(null);
+
   const router = useRouter();
 
-  // Função memoizada para buscar dados com cache por página
-  const fetchConnectionLogs = useCallback(async (page: number) => {
-    const cacheKey = `logs_${page}`;
-
-    if (requestCache.has(cacheKey)) {
-      return requestCache.get(cacheKey)!;
-    }
-
-    const promise = api
-      .get("/log/connection_logs/", {
+  const fetchConnectionLogs = useCallback(
+    (page: number) => dedupe<PaginationData<ConnectionLog>>(`logs_${page}`, () =>
+      api.get<PaginationData<ConnectionLog>>("/log/connection_logs/", {
         params: { page, limit: 10 },
         withCredentials: true,
       })
-      .then((res) => {
-        // Remove do cache após 30 segundos para permitir atualizações
-        setTimeout(() => requestCache.delete(cacheKey), 30000);
-        return res.data;
-      })
-      .catch((error) => {
-        requestCache.delete(cacheKey);
-        throw error;
-      });
+    ),
+    [api]
+  );
 
-    requestCache.set(cacheKey, promise);
-    return promise;
-  }, [api]);
-
-  const fetchConnections = useCallback(async (page: number) => {
-    const cacheKey = `connections_${page}`;
-
-    if (requestCache.has(cacheKey)) {
-      return requestCache.get(cacheKey)!;
-    }
-
-    const promise = api
-      .get("/conn/connections/", {
+  const fetchConnections = useCallback(
+    (page: number) => dedupe<PaginationData<SavedConnection>>(`connections_${page}`, () =>
+      api.get<PaginationData<SavedConnection>>("/conn/connections/", {
         params: { page, limit: 10 },
         withCredentials: true,
       })
-      .then((res) => {
-        setTimeout(() => requestCache.delete(cacheKey), 30000);
-        return res.data;
-      })
-      .catch((error) => {
-        requestCache.delete(cacheKey);
-        throw error;
-      });
-
-    requestCache.set(cacheKey, promise);
-    return promise;
-  }, [api]);
+    ),
+    [api]
+  );
 
   const {
     page: historyPage,
     totalPages: historyTotal,
     data: paginatedHistory = [],
     setPage: setHistoryPage,
+    setExecute: setExecuteHistory,
   } = usePagination<ConnectionLog>(fetchConnectionLogs);
 
   const {
@@ -129,23 +137,61 @@ const DatabaseConnectionForm = () => {
   );
 
   // Debounce para refresh connections
-  const refreshConnectionsTimeout = React.useRef<NodeJS.Timeout>();
+  const refreshConnectionsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshConnections = useCallback(() => {
-    // Limpa o cache para forçar nova requisição
-    requestCache.clear();
-
     // Debounce para evitar múltiplas execuções rápidas
     if (refreshConnectionsTimeout.current) {
       clearTimeout(refreshConnectionsTimeout.current);
     }
 
     refreshConnectionsTimeout.current = setTimeout(() => {
+      // As DUAS listas. O histórico ficava para trás porque só a paginação
+      // das conexões era re-executada — daí os eventos nunca aparecerem
+      // depois de criar, apagar ou alternar uma conexão.
       setExecute((prev) => !prev);
+      setExecuteHistory((prev) => !prev);
+
+      // E o menu lateral, que mostra a base de dados ativa a partir da sessão.
+      notifyConnectionChanged();
     }, 300);
-  }, [setExecute]);
+  }, [setExecute, setExecuteHistory]);
+
+  // Voltar à página (ou ao separador) revalida: sem isto, ficava-se a olhar
+  // para o estado de quando se saiu.
+  useEffect(() => {
+    const revalidar = () => {
+      if (document.visibilityState === "visible") refreshConnections();
+    };
+    window.addEventListener("focus", revalidar);
+    document.addEventListener("visibilitychange", revalidar);
+    return () => {
+      window.removeEventListener("focus", revalidar);
+      document.removeEventListener("visibilitychange", revalidar);
+    };
+  }, [refreshConnections]);
 
   const buildConnectionPayload = useCallback(() => {
+    // Modo "ligar por URL": vai só a connection string, cifrada. O backend usa-a
+    // como está e deriva host/porta/base para as colunas e para a listagem —
+    // remontar a URI a partir de campos perderia as opções que o fornecedor
+    // mete na URL (channel_binding, retryWrites, options=…).
+    if (formData.useUrl) {
+      return {
+        name: formData.name.trim(),
+        type: selectedDb.toLowerCase(),
+        url: aes_encrypt(cleanConnectionUrl(formData.url || "")),
+        host: "",
+        port: 0,
+        database_name: "",
+        username: "",
+        password: "",
+        service: "",
+        sslmode: "",
+        trustServerCertificate: "yes",
+      };
+    }
+
     return {
       name: formData.name.trim(),
       host: aes_encrypt(formData.host.trim()),
@@ -157,6 +203,8 @@ const DatabaseConnectionForm = () => {
       service: formData.service?.trim() || "",
       sslmode: formData.sslmode?.trim() || "",
       trustServerCertificate: formData.trustServerCertificate || "yes",
+      // Explícito: limpa a URL de uma conexão que antes era por URL.
+      url: null,
     };
   }, [formData, selectedDb]);
 
@@ -184,6 +232,10 @@ const DatabaseConnectionForm = () => {
           database: existingConnection.database,
           username: "",
           password: "",
+          // A listagem não traz a connection string (só o host derivado dela);
+          // quem quiser editá-la usa o botão de carregar a conexão.
+          useUrl: false,
+          url: "",
         }));
         return;
       }
@@ -192,13 +244,24 @@ const DatabaseConnectionForm = () => {
         ...prev,
         ...DEFAULT_FORM_DATA,
         port: db.port,
+        // Trocar de tipo não desmarca a opção — muda só o exemplo e o esquema
+        // esperado.
+        useUrl: prev.useUrl,
       }));
     },
     [paginatedConnections, setFormData, setSelectedDb, setShowDropdown]
   );
 
   // Rate limiting para test connection
-  const testConnectionTimeout = React.useRef<NodeJS.Timeout>();
+  const testConnectionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Evita timers pendentes depois que o componente é desmontado
+  useEffect(() => {
+    return () => {
+      if (refreshConnectionsTimeout.current) clearTimeout(refreshConnectionsTimeout.current);
+      if (testConnectionTimeout.current) clearTimeout(testConnectionTimeout.current);
+    };
+  }, []);
 
   const testConnection = useCallback(async () => {
     // Evita múltiplos cliques rápidos
@@ -208,7 +271,7 @@ const DatabaseConnectionForm = () => {
 
     try {
       testConnectionTimeout.current = setTimeout(() => {
-        testConnectionTimeout.current = undefined;
+        testConnectionTimeout.current = null;
       }, 2000);
 
       setConnectionStatus("");
@@ -274,7 +337,11 @@ const DatabaseConnectionForm = () => {
           withCredentials: true,
         });
 
-        const { password, username, service, sslmode, trustServerCertificate } = data;
+        const { password, username, service, sslmode, trustServerCertificate, url } = data;
+
+        // Conexões criadas por URL voltam a abrir nesse modo, com a própria
+        // string — os campos separados que a acompanham são só os derivados.
+        const urlGuardada = url ? aes_decrypt(url) : "";
 
         setFormData((prev) => ({
           ...prev,
@@ -289,6 +356,8 @@ const DatabaseConnectionForm = () => {
           sslmode: sslmode || "",
           trustServerCertificate:
             trustServerCertificate || prev.trustServerCertificate || "yes",
+          useUrl: !!urlGuardada,
+          url: urlGuardada,
         }));
 
         resetStatus();
@@ -359,10 +428,12 @@ const DatabaseConnectionForm = () => {
           });
         });
 
-        const response = await api.put(
+        setToggleError(null);
+
+        await api.put(
           "/conn/connect-toggle/",
           { conn_id: connectionId },
-          { withCredentials: true, timeout: 6000 }
+          { withCredentials: true, timeout: 12000 }
         );
 
         // Atualiza com dados reais do servidor
@@ -371,8 +442,26 @@ const DatabaseConnectionForm = () => {
         router.refresh();
       } catch (error: unknown) {
         console.error("❌ Erro ao alternar conexão:", error);
-        // Reverte em caso de erro
+        // Reverte o estado otimista e mostra o motivo técnico real.
         refreshConnections();
+
+        const axErr = error as {
+          response?: { status?: number; data?: { detail?: string } };
+          code?: string;
+          message?: string;
+        };
+        const detalhe =
+          axErr?.response?.data?.detail ||
+          (axErr?.code === "ECONNABORTED"
+            ? "O teste de ligação excedeu o tempo limite — o servidor de destino não respondeu."
+            : axErr?.message) ||
+          "Não foi possível alternar a conexão.";
+
+        setToggleError({
+          connectionId,
+          status: axErr?.response?.status ?? 0,
+          detail: detalhe,
+        });
       }
     },
     [api, refreshConnections, setPaginatedConnections, router]
@@ -415,6 +504,14 @@ const DatabaseConnectionForm = () => {
           onImported={handleDatasetImported}
         />
 
+        {sharingConnection && (
+          <ShareConnectionModal
+            connectionId={sharingConnection.id}
+            connectionName={sharingConnection.name}
+            onClose={() => setSharingConnection(null)}
+          />
+        )}
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
           <ConnectionForm
             t={t}
@@ -434,6 +531,32 @@ const DatabaseConnectionForm = () => {
           />
 
           <div className="space-y-6 lg:space-y-8">
+            {toggleError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 text-sm font-bold">
+                    !
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-red-800">
+                      Falha ao ligar
+                      {toggleError.status ? ` (HTTP ${toggleError.status})` : ""}
+                    </p>
+                    <p className="mt-1 text-sm text-red-700 break-words">
+                      {toggleError.detail}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setToggleError(null)}
+                    className="shrink-0 rounded-lg p-1 text-red-400 transition-colors hover:bg-red-100 hover:text-red-600"
+                    aria-label="Fechar"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex h-fit max-h-[500px] flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-gray-900">
                 <LinkIcon className="h-5 w-5 text-gray-400" />
@@ -516,6 +639,21 @@ const DatabaseConnectionForm = () => {
                               titleConnect={t("upConnection")}
                               titleDisconnect={t("offConnection")}
                             />
+
+                            <button
+                              onClick={() =>
+                                setSharingConnection({
+                                  // `SavedConnection.id` está tipado como string,
+                                  // mas a API devolve o id numérico da conexão.
+                                  id: Number(connection.id),
+                                  name: displayName,
+                                })
+                              }
+                              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                              title="Partilhar acesso"
+                            >
+                              <Users className="h-4 w-4" />
+                            </button>
 
                             <button
                               onClick={() => deleteConnection(connection.id)}

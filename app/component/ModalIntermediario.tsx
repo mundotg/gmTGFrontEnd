@@ -1,9 +1,10 @@
 "use client";
 import { useMemo, useState, useCallback } from "react";
-import { X, Save, AlertCircle, Plus, Trash2 } from "lucide-react";
+import { X, Save, AlertCircle, Plus, Trash2, Search, Check, Database, Sparkles, Hand } from "lucide-react";
 import { CampoDetalhado, MetadataTableResponse } from "@/types";
 import DynamicInputByType from "./DynamicInputByType";
 import api from "@/context/axioCuston";
+import { useSession } from "@/context/SessionContext";
 
 interface ModalAutoCreateProps {
   isOpen: boolean;
@@ -33,11 +34,31 @@ export default function ModalAutoCreate({
   setModelDeCriacaoDeRegistro,
   metadataList,
 }: ModalAutoCreateProps) {
+  const { user } = useSession();
+  const isMongo = useMemo(
+    () => String(user?.info_extra?.type ?? "").toLowerCase().includes("mongo"),
+    [user?.info_extra?.type]
+  );
+
   const [tabelas, setTabelas] = useState<string[]>([]);
   const [quantidade, setQuantidade] = useState(1);
   const [camposPadronizados, setCamposPadronizados] = useState<CampoPadronizado[]>([]);
   const [chooseOp, setChooseOp] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [tableSearch, setTableSearch] = useState("");
+
+  // Tabelas/coleções filtradas pela pesquisa.
+  const tabelasFiltradas = useMemo(() => {
+    const q = tableSearch.trim().toLowerCase();
+    const list = metadataList ?? [];
+    return q ? list.filter((t) => t.table_name.toLowerCase().includes(q)) : list;
+  }, [metadataList, tableSearch]);
+
+  const toggleTabela = useCallback((name: string) => {
+    setTabelas((prev) => (prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name]));
+    setCamposPadronizados([]);
+    setErrors({});
+  }, []);
 
   // Campos válidos para TODAS as tabelas escolhidas (interseção)
   const camposValidos: CampoDetalhado[] = useMemo(() => {
@@ -181,13 +202,6 @@ export default function ModalAutoCreate({
     onClose();
   }, [resetForm, onClose]);
 
-  const handleTabelaChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    const values = Array.from(e.target.selectedOptions, option => option.value);
-    setTabelas(values);
-    setCamposPadronizados([]); // Reset campos ao mudar tabelas
-    setErrors({}); // Limpar erros
-  }, []);
-
   if (!isOpen) return null;
 
   // Tela de escolha da operação
@@ -198,29 +212,38 @@ export default function ModalAutoCreate({
         onClick={(e) => e.target === e.currentTarget && handleClose()}
       >
         <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 flex flex-col items-center">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">
-            Como deseja criar registros?
+          <h2 className="text-lg font-bold text-gray-800 mb-1">
+            Como deseja criar {isMongo ? "documentos" : "registos"}?
           </h2>
-          <div className="flex flex-col gap-4 w-full">
+          <p className="text-sm text-gray-500 mb-5 text-center">Escolhe a forma mais prática para o teu caso.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
             <button
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 w-full transition-colors"
+              className="p-4 rounded-xl border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50/40 transition-all flex flex-col items-center gap-2 text-center"
               onClick={() => {
                 setModelDeCriacaoDeRegistro();
                 handleClose();
               }}
             >
-              Criar registro manualmente
+              <span className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                <Hand size={20} />
+              </span>
+              <span className="text-sm font-semibold text-gray-800">Manualmente</span>
+              <span className="text-[11px] text-gray-500">Preenche os campos um a um</span>
             </button>
             <button
-              className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 w-full transition-colors"
+              className="p-4 rounded-xl border-2 border-gray-200 hover:border-emerald-400 hover:bg-emerald-50/40 transition-all flex flex-col items-center gap-2 text-center"
               onClick={() => setChooseOp(1)}
             >
-              Usar gerador automático
+              <span className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                <Sparkles size={20} />
+              </span>
+              <span className="text-sm font-semibold text-gray-800">Gerador automático</span>
+              <span className="text-[11px] text-gray-500">Cria vários de uma vez</span>
             </button>
           </div>
           <button
             onClick={handleClose}
-            className="mt-6 px-4 py-2 rounded-lg border text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors"
+            className="mt-6 px-4 py-2 rounded-lg border text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors w-full"
           >
             Cancelar
           </button>
@@ -252,31 +275,69 @@ export default function ModalAutoCreate({
         {/* Conteúdo scrollável */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
-            {/* Seleção das tabelas */}
+            {isMongo && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-start gap-2">
+                <Database className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>
+                  <strong>MongoDB:</strong> serão inseridos <strong>documentos</strong> nas coleções escolhidas,
+                  com os campos padronizados que definires (e valores auto-gerados nos campos já conhecidos).
+                </span>
+              </div>
+            )}
+
+            {/* Seleção das tabelas/coleções — lista com pesquisa + checkboxes */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Tabela(s) *
-              </label>
-              <select
-                multiple
-                value={tabelas}
-                onChange={handleTabelaChange}
-                className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.tabelas ? 'border-red-500' : ''
-                  }`}
-                size={Math.min(metadataList.length, 6)}
-              >
-                {metadataList.map((t, index) => (
-                  <option key={t.table_name + index} value={t.table_name}>
-                    {t.table_name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium">
+                  {isMongo ? "Coleção(ões)" : "Tabela(s)"} * <span className="text-gray-400 font-normal">({tabelas.length} selecionada{tabelas.length !== 1 ? "s" : ""})</span>
+                </label>
+                {tabelas.length > 0 && (
+                  <button
+                    onClick={() => { setTabelas([]); setCamposPadronizados([]); }}
+                    className="text-xs text-gray-500 hover:text-red-600"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
+
+              <div className={`border rounded-lg overflow-hidden ${errors.tabelas ? "border-red-500" : "border-gray-300"}`}>
+                <div className="relative border-b border-gray-200 bg-gray-50">
+                  <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                  <input
+                    value={tableSearch}
+                    onChange={(e) => setTableSearch(e.target.value)}
+                    placeholder={`Pesquisar ${isMongo ? "coleção" : "tabela"}...`}
+                    className="w-full bg-transparent py-2 pl-9 pr-3 text-sm focus:outline-none"
+                  />
+                </div>
+                <div className="max-h-52 overflow-y-auto">
+                  {tabelasFiltradas.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4">Nada encontrado.</p>
+                  ) : (
+                    tabelasFiltradas.map((t, index) => {
+                      const checked = tabelas.includes(t.table_name);
+                      return (
+                        <button
+                          key={t.table_name + index}
+                          type="button"
+                          onClick={() => toggleTabela(t.table_name)}
+                          className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${checked ? "bg-blue-50 text-blue-800" : "hover:bg-gray-50 text-gray-700"}`}
+                        >
+                          <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${checked ? "bg-blue-600 border-blue-600" : "border-gray-300"}`}>
+                            {checked && <Check size={12} className="text-white" />}
+                          </span>
+                          <span className="truncate">{t.table_name}</span>
+                          {t.schema_name && <span className="ml-auto text-[10px] text-gray-400">{t.schema_name}</span>}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
               {errors.tabelas && (
                 <p className="text-sm text-red-600 mt-1">{errors.tabelas}</p>
               )}
-              <p className="text-sm text-gray-500 mt-1">
-                Use Ctrl/Cmd + clique para selecionar múltiplas tabelas
-              </p>
             </div>
 
             {/* Quantidade */}
@@ -289,7 +350,10 @@ export default function ModalAutoCreate({
                 min={1}
                 max={1000}
                 value={quantidade}
-                onChange={(e) => setQuantidade(parseInt(e.target.value))}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setQuantidade(Number.isNaN(n) ? 1 : Math.min(1000, Math.max(1, n)));
+                }}
                 className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.quantidade ? 'border-red-500' : ''
                   }`}
               />

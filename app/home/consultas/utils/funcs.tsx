@@ -287,7 +287,7 @@ export const useHandleRowClick = ({
     const handleDelete = useCallback(async (payload: PayloadDeleteRow) => {
         try {
             // 1. Clona o payload da query original para não mutar o estado do React
-            let filteredPayloadSelectedRow = queryResults?.QueryPayload
+            const filteredPayloadSelectedRow = queryResults?.QueryPayload
                 ? { ...queryResults.QueryPayload }
                 : undefined;
 

@@ -25,17 +25,8 @@ export type ChangePasswordPayload = {
   novaSenha: string;
 };
 
-export type Update2FAPayload = {
-  enabled: boolean;
-};
-
 export async function changePassword(payload: ChangePasswordPayload) {
   const { data } = await api.put("/user/security/password", payload, { withCredentials: true });
-  return data;
-}
-
-export async function updateTwoFactor(payload: Update2FAPayload) {
-  const { data } = await api.put("/user/security/2fa", payload, { withCredentials: true });
   return data;
 }
 
@@ -45,8 +36,13 @@ export async function updateTwoFactor(payload: Update2FAPayload) {
 export type NotificationSettingsPayload = {
   email: boolean;
   push: boolean;
-  sms: boolean;
-  weeklyDigest: boolean;
+  /**
+   * O backend aceita estes dois mas devolve-os em `ignorados`: não há canal de
+   * SMS nem digest semanal no sistema. Ficam opcionais para não partir quem já
+   * os envie; a interface deixou de os oferecer.
+   */
+  sms?: boolean;
+  weeklyDigest?: boolean;
 };
 
 export async function updateNotifications(payload: NotificationSettingsPayload) {
@@ -83,7 +79,23 @@ export async function updateLanguage(payload: UpdateLanguagePayload) {
 ======================= */
 export async function exportUserData() {
   const { data } = await api.get("/user/export", { withCredentials: true });
-  return data; // json
+  return data;
+}
+
+/** Descarrega a exportação como ficheiro, que é o que o botão promete. */
+export async function downloadUserData() {
+  const dados = await exportUserData();
+
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" })
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `mustainf-meus-dados-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export async function deleteAccount() {
@@ -114,3 +126,26 @@ export async function uploadAvatar(file: File) {
 //   const { data } = await api.get("/user/me", { withCredentials: true });
 //   return data;
 // }
+/* =======================
+   SESSÕES
+======================= */
+export interface Sessao {
+  id: number;
+  ip?: string | null;
+  /** Identificador curto da sessão — não é o nome do navegador. */
+  dispositivo?: string | null;
+  criada_em?: string | null;
+  expira_em?: string | null;
+  ativa: boolean;
+  atual: boolean;
+}
+
+export async function listarSessoes(): Promise<Sessao[]> {
+  const { data } = await api.get<Sessao[]>("/user/sessions", { withCredentials: true });
+  return data;
+}
+
+export async function terminarSessao(id: number) {
+  const { data } = await api.delete(`/user/sessions/${id}`, { withCredentials: true });
+  return data;
+}

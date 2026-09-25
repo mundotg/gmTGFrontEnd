@@ -78,7 +78,7 @@ export default function HistoricoPage() {
     params.append("limit", "50");
 
     return params.toString();
-  }, [debouncedSearch, filter]);
+  }, [debouncedSearch, filter, user?.info_extra?.id_connection]);
 
   const handleRefresh = useCallback(async () => {
     if (!canView) return;
@@ -192,12 +192,6 @@ export default function HistoricoPage() {
     <div className="min-h-screen bg-gray-50 p-6 space-y-6 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 1. HEADER */}
-        <input
-          placeholder="Pesquisar..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="..."
-        />
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center">
@@ -417,6 +411,10 @@ export default function HistoricoPage() {
           log={selectedLog}
           onClose={() => setSelectedLog(null)}
           t={t}
+          api={api}
+          onFavorite={(id, fav) =>
+            setLogs((prev) => prev.map((l) => (l.id === id ? { ...l, is_favorite: fav } : l)))
+          }
         />
       )}
     </div>

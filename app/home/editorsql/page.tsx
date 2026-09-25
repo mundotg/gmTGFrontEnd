@@ -1,6 +1,8 @@
 "use client";
 
 import usePersistedState from "@/hook/localStoreUse";
+import { useSession } from "@/context/SessionContext";
+import { useDatabaseMetadata } from "@/hook/useDatabaseMetadata";
 import React, {
     useState,
     useMemo,
@@ -9,9 +11,24 @@ import React, {
     useCallback,
 } from "react";
 
+// Deriva o URL do WebSocket a partir do backend HTTP.
+const WS_BASE = ((process.env.NEXT_PUBLIC_BACKEND_URL ?? "")
+    .replace(/^http/, "ws")
+    .replace(/\/$/, "")) + "/sql-editor/ws";
+
+type AcItem = { label: string; type: string; detail?: string; insert: string };
+type LintMsg = { severity?: string; type?: string; message: string; replace?: string; with?: string };
+type ValidationState = { errors: LintMsg[]; suggestions: LintMsg[] } | null;
+
 // ─────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────
+
+/**
+ * O evento "error" do stream pode chegar como texto simples ou como o payload
+ * bruto do backend (`{ error, message, ... }`), por isso a união.
+ */
+type ExecError = string | { error?: string; message?: string } | null;
 
 interface ExecutePayload {
     query: string;
@@ -188,7 +205,8 @@ export default function SqlEditor() {
     const [queryId, setQueryId] = useState<string | null>(null);
     const [columns, setColumns] = useState<string[]>([]);
     const [rows, setRows] = useState<Record<string, unknown>[]>([]);
-    const [execError, setExecError] = useState<string | null>(null);
+    // O stream de erro pode devolver uma string ou o objeto bruto do backend
+    const [execError, setExecError] = useState<ExecError>(null);
     const [statusText, setStatusText] = useState("Pronto");
 
     // ── selection badge ──
@@ -766,36 +784,143 @@ export default function SqlEditor() {
     }, [executeQuery, sql]);
 
     // ─────────────────────────────────────────────────────────
-    // AUTOCOMPLETE (simple prefix match via /autocomplete)
+    // AUTOCOMPLETE + VALIDAÇÃO EM TEMPO REAL (WebSocket)
     // ─────────────────────────────────────────────────────────
 
-    const [acSuggestions, setAcSuggestions] = useState<string[]>([]);
+    const { user } = useSession();
+    const { metadata } = useDatabaseMetadata("light"); // só nomes de tabela (barato)
 
-    const handleEditorChange = useCallback(
-        async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-            const val = e.target.value;
-            setSql(val);
+    // Schema para autocomplete/validação: nomes de tabela (colunas vêm vazias
+    // por agora — evita N chamadas; o backend sugere keywords + tabelas).
+    const schemaTables = useMemo(
+        () =>
+            (metadata?.table_names ?? []).map((t) => ({
+                name: t.name,
+                columns: [] as string[],
+            })),
+        [metadata?.table_names]
+    );
 
-            // grab the word being typed
-            const pos = e.target.selectionStart;
-            const before = val.slice(0, pos);
-            const match = before.match(/\b([A-Za-z_]+)$/);
-            if (match && match[1].length >= 2) {
-                try {
-                    const res = await fetch(
-                        `${BASE_URL}/autocomplete?q=${encodeURIComponent(match[1])}`,
-                        { credentials: "include" }
-                    );
-                    const json = await res.json();
-                    setAcSuggestions((json.data as string[]) ?? []);
-                } catch {
-                    setAcSuggestions([]);
-                }
+    // Deteta MongoDB pela conexão ativa (o backend também deteta, mas a UI
+    // precisa de saber para não marcar sintaxe Mongo como erro de SQL).
+    const isMongo = useMemo(() => {
+        const t = String(
+            (user?.info_extra as Record<string, unknown> | undefined)?.type ??
+            (user?.info_extra as Record<string, unknown> | undefined)?.db_type ??
+            ""
+        ).toLowerCase();
+        return t.includes("mongo");
+    }, [user?.info_extra]);
+
+    const [acItems, setAcItems] = useState<AcItem[]>([]);
+    const [validation, setValidation] = useState<ValidationState>(null);
+    const [wsReady, setWsReady] = useState(false);
+
+    const wsRef = useRef<WebSocket | null>(null);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const cursorRef = useRef<number>(0);
+
+    // Liga o WebSocket (religa se cair).
+    useEffect(() => {
+        let closed = false;
+        let retry: ReturnType<typeof setTimeout> | null = null;
+
+        const connect = () => {
+            if (closed) return;
+            try {
+                const ws = new WebSocket(WS_BASE);
+                wsRef.current = ws;
+
+                ws.onopen = () => setWsReady(true);
+                ws.onclose = () => {
+                    setWsReady(false);
+                    if (!closed) retry = setTimeout(connect, 2500);
+                };
+                ws.onerror = () => ws.close();
+                ws.onmessage = (ev) => {
+                    try {
+                        const msg = JSON.parse(ev.data);
+                        if (msg.type === "autocomplete") setAcItems(msg.items ?? []);
+                        else if (msg.type === "validate")
+                            setValidation({ errors: msg.errors ?? [], suggestions: msg.suggestions ?? [] });
+                    } catch {
+                        //
+                    }
+                };
+            } catch {
+                retry = setTimeout(connect, 2500);
+            }
+        };
+
+        connect();
+        return () => {
+            closed = true;
+            if (retry) clearTimeout(retry);
+            wsRef.current?.close();
+            wsRef.current = null;
+        };
+    }, []);
+
+    // Envia validação + autocomplete ao WS (debounced).
+    const pushRealtime = useCallback(
+        (val: string, cursor: number) => {
+            const ws = wsRef.current;
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+            const tables = schemaTables;
+            // autocomplete só quando há uma palavra a ser escrita
+            const before = val.slice(0, cursor);
+            const typing = /([\w.]{1,})$/.exec(before)?.[1] ?? "";
+            if (typing.length >= 1) {
+                ws.send(JSON.stringify({ type: "autocomplete", query: val, cursor, tables }));
             } else {
-                setAcSuggestions([]);
+                setAcItems([]);
+            }
+            // validação (o Mongo não é SQL → não valida como SQL)
+            if (!isMongo) {
+                ws.send(JSON.stringify({ type: "validate", query: val, tables }));
+            } else {
+                setValidation(null);
             }
         },
-        []
+        [schemaTables, isMongo]
+    );
+
+    const handleEditorChange = useCallback(
+        (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+            const val = e.target.value;
+            const pos = e.target.selectionStart;
+            cursorRef.current = pos;
+            setSql(val);
+
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            debounceRef.current = setTimeout(() => pushRealtime(val, pos), 220);
+        },
+        [pushRealtime, setSql]
+    );
+
+    // Insere um item do autocomplete no ponto do cursor.
+    const applyAcItem = useCallback(
+        (item: AcItem) => {
+            const ta = textareaRef.current;
+            if (!ta) return;
+            const pos = ta.selectionStart;
+            const before = sql.slice(0, pos);
+            const m = before.match(/([\w.]+)$/);
+            const start = m ? pos - m[1].length : pos;
+            // se estiver a completar `tabela.col`, mantém o prefixo `tabela.`
+            const dot = m && m[1].includes(".") ? m[1].slice(0, m[1].lastIndexOf(".") + 1) : "";
+            const insert = dot && !item.insert.includes(".") ? dot + item.insert : item.insert;
+            const next = sql.slice(0, start) + insert + " " + sql.slice(pos);
+            setSql(next);
+            setAcItems([]);
+            requestAnimationFrame(() => {
+                const np = start + insert.length + 1;
+                ta.selectionStart = ta.selectionEnd = np;
+                ta.focus();
+            });
+        },
+        [sql, setSql]
     );
 
     // ─────────────────────────────────────────────────────────
@@ -838,12 +963,32 @@ export default function SqlEditor() {
         .hl-cmt { color:#6a9955; font-style:italic; }
 
         /* ── autocomplete dropdown ── */
-        .ac-list { position:absolute; bottom:0; left:16px; background:#252526; border:0.5px solid #444; border-radius:6px; z-index:10; overflow:hidden; transform:translateY(100%); }
-        .ac-item { padding:5px 12px; font-family:monospace; font-size:12px; color:#ccc; cursor:pointer; }
+        .ac-list { position:absolute; bottom:0; left:16px; min-width:220px; max-height:240px; overflow-y:auto; background:#252526; border:0.5px solid #444; border-radius:6px; z-index:10; transform:translateY(100%); box-shadow:0 8px 24px rgba(0,0,0,.4); }
+        .ac-item { display:flex; align-items:center; gap:8px; padding:5px 12px; font-family:monospace; font-size:12px; color:#ccc; cursor:pointer; }
         .ac-item:hover { background:#37373d; }
+        .ac-tag { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:3px; font-size:10px; font-weight:700; flex-shrink:0; }
+        .ac-keyword { background:#264f78; color:#9cdcfe; }
+        .ac-table { background:#3d2f5c; color:#c9a8f4; }
+        .ac-column { background:#2d4a35; color:#9fe0b0; }
+        .ac-label { flex:1; }
+        .ac-detail { font-size:10px; color:#777; }
+
+        /* ── painel de lint (erros/sugestões) ── */
+        .lint-panel { max-height:120px; overflow-y:auto; border-top:0.5px solid #2d2d2d; background:#1b1b1b; padding:4px 0; }
+        .lint-row { display:flex; align-items:center; gap:8px; padding:3px 14px; font-size:11.5px; }
+        .lint-ico { flex-shrink:0; }
+        .lint-err { color:#f4a3a3; }
+        .lint-warn { color:#e9c46a; }
+        .lint-sug { color:#8ab4f8; }
+        .lint-fix { margin-left:auto; font-size:10px; background:#264f78; color:#cfe6ff; border:0; border-radius:4px; padding:2px 8px; cursor:pointer; }
+        .lint-fix:hover { background:#2f5f90; }
 
         /* ── status bar ── */
         .status-bar { height:28px; border-top:0.5px solid #2d2d2d; background:#252526; padding:0 14px; display:flex; align-items:center; justify-content:space-between; font-size:11px; color:#666; }
+        .status-mid { display:flex; align-items:center; gap:10px; }
+        .badge-mongo { color:#6fcf97; font-weight:600; }
+        .badge-ws.on { color:#6fcf97; }
+        .badge-ws.off { color:#a05a5a; }
 
         /* ── secondary tabs ── */
         .sec-tabs { display:flex; gap:2px; border-bottom:0.5px solid var(--color-border-tertiary,#e0e0e0); background:var(--color-background-primary,#fff); }
@@ -985,35 +1130,65 @@ export default function SqlEditor() {
                         spellCheck={false}
                         className="sql-ta"
                     />
-                    {acSuggestions.length > 0 && (
+                    {acItems.length > 0 && (
                         <div className="ac-list">
-                            {acSuggestions.map((s, i) => (
+                            {acItems.map((it, i) => (
                                 <div
-                                    key={s + i + "_acSuggestions"}
+                                    key={it.label + i + "_ac"}
                                     className="ac-item"
                                     onMouseDown={(e) => {
                                         e.preventDefault();
-                                        const ta = textareaRef.current!;
-                                        const pos = ta.selectionStart;
-                                        const before = sql.slice(0, pos);
-                                        const match = before.match(/\b([A-Za-z_]+)$/);
-                                        if (match) {
-                                            const start = pos - match[1].length;
-                                            setSql(sql.slice(0, start) + s + " " + sql.slice(pos));
-                                        }
-                                        setAcSuggestions([]);
+                                        applyAcItem(it);
                                     }}
                                 >
-                                    {s}
+                                    <span className={`ac-tag ac-${it.type}`}>{it.type[0].toUpperCase()}</span>
+                                    <span className="ac-label">{it.label}</span>
+                                    {it.detail && <span className="ac-detail">{it.detail}</span>}
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
 
+                {/* PAINEL DE ERROS / SUGESTÕES (tempo real) */}
+                {(validation?.errors?.length || validation?.suggestions?.length) ? (
+                    <div className="lint-panel">
+                        {validation?.errors?.map((e, i) => (
+                            <div key={"err" + i} className={`lint-row ${e.severity === "error" ? "lint-err" : "lint-warn"}`}>
+                                <span className="lint-ico">{e.severity === "error" ? "⛔" : "⚠️"}</span>
+                                <span>{e.message}</span>
+                            </div>
+                        ))}
+                        {validation?.suggestions?.map((s, i) => (
+                            <div key={"sug" + i} className="lint-row lint-sug">
+                                <span className="lint-ico">💡</span>
+                                <span>{s.message}</span>
+                                {s.replace && s.with && (
+                                    <button
+                                        className="lint-fix"
+                                        onClick={() =>
+                                            setSql((prev) =>
+                                                prev.replace(new RegExp(`\\b${s.replace}\\b`), s.with as string)
+                                            )
+                                        }
+                                    >
+                                        corrigir
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+
                 {/* STATUS BAR */}
                 <div className="status-bar">
                     <span>{statusText}</span>
+                    <span className="status-mid">
+                        {isMongo && <span className="badge-mongo">🍃 MongoDB</span>}
+                        <span className={`badge-ws ${wsReady ? "on" : "off"}`}>
+                            {wsReady ? "● tempo real" : "○ offline"}
+                        </span>
+                    </span>
                     <span>{rows.length} linha{rows.length !== 1 ? "s" : ""}</span>
                 </div>
             </div>

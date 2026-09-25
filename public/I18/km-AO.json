@@ -15,7 +15,7 @@
     }
   },
   "nav": {
-    "brandName": "Brain DB",
+    "brandName": "MustaInf",
     "tasks": "Ikalakalu",
     "ocr": "OCR",
     "login": "Bokela",
@@ -31,7 +31,7 @@
     "roadmapBadge": "ROADMAP",
     "featuresTitle": "Ikalakalu ya Muxima",
     "futureTitle": "Ihi yanda kwiza",
-    "footer": "Brain DB © 2026. Todos os direitos reservados. Desenvolvido com ❤️ em Next.js + Python FastAPI por Francemy Sebastião"
+    "footer": "MustaInf © 2026. Todos os direitos reservados. Desenvolvido com ❤️ em Next.js + Python FastAPI por Francemy Sebastião"
   },
   "features": {
     "consultas": "Kusota kwaleluka: soneka ngó o dijina dya tabela.",
@@ -70,7 +70,14 @@
     "expand": "Bandekesa menu",
     "darkMode": "Kukuta (Modo Escuro)",
     "lightMode": "Kukenguluka (Modo Claro)",
-    "gestorProjetos": "Mutwameni ya Projetos"
+    "gestorProjetos": "Mutwameni ya Projetos",
+    "sqlEditor": "Editor SQL",
+    "groupMore": "Ima Yavulu (Mais)",
+    "mll": "ML / Insights",
+    "storage": "Kubamba (Armazenamento)",
+    "devTest": "Iteta (Testes dev)",
+    "reference": "Referência",
+    "ai": "IA"
   },
   "status": {
     "online": "Ku internet",
@@ -164,8 +171,7 @@
     "recentActivity": "Ikalakalu ya Lelu",
     "noActivity": "Kana ikalakalu ya lelu",
     "dangerZone": {
-      "title": "Hunda ya Kilwezu",
-      "description": "Ikalakalu ki i vutuka, kala kuzima o conta yé."
+      "title": "Hunda ya Kilwezu"
     },
     "export": "Exportar",
     "deleteAccount": "Zima Conta",
@@ -233,14 +239,10 @@
     "companyName": "Dijina dya empresa",
     "roles": "Ikalakalu",
     "rolesHint": "Kuta Ctrl/Cmd phala kusola yavulu",
-    "securityRecommendation": "Kidifi kya Segurança",
-    "securityAdvice": "Zubha o autenticação ya iyadi fatores phala kulanga kubokela.",
     "currentPassword": "Ndaka ya kubokela ya lelu",
     "newPassword": "Ndaka ya kubokela ya ubhe",
     "confirmPassword": "Zubha o ndaka ya kubokela ya ubhe",
     "passwordRequirements": "Kyabhu 8 caracteres ni letras, números ni símbolos.",
-    "twoFactorAuth": "Autenticação mu 2 Fatores (2FA)",
-    "twoFactorDescription": "Bandekesa imoxi camada ya segurança",
     "enable2FA": "Zubha autenticação ya iyadi fatores",
     "disable2FA": "Zima autenticação ya iyadi fatores",
     "inDevelopment": "Ijidilu a kalakala",
@@ -529,6 +531,8 @@
     "descProjects": "Gestão dya projetos",
     "tabTeam": "Equipa",
     "descTeam": "Utilizadores ni permissões",
+    "tabAccess": "Acessos",
+    "descAccess": "Nga u kala ku conexão ya BD",
     "tabIntegrations": "Integrações",
     "descIntegrations": "Conexões njila",
     "tabSystem": "Sistema",

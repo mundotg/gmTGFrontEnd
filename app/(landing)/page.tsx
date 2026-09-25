@@ -72,7 +72,7 @@ export default function HomePage() {
               <Database size={20} strokeWidth={2.5} />
             </div>
             <span className="font-bold tracking-tight text-lg hidden sm:block">
-              {t("nav.brandName") || "Brain DB"}
+              {t("nav.brandName") || "MustaInf"}
             </span>
           </div>
           <Script
@@ -194,7 +194,7 @@ export default function HomePage() {
           </div>
           <div className="space-y-2">
             <p className="text-gray-400 text-xs font-black uppercase tracking-[0.2em]">{t("home.footer")}</p>
-            <p className="text-[10px] text-gray-400 font-medium">© 2026 Brain DB Project • OrionForgeNexus Enterprise</p>
+            <p className="text-[10px] text-gray-400 font-medium">© 2026 MustaInf Project • OrionForgeNexus Enterprise</p>
           </div>
         </footer>
       </main>

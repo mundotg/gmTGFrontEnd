@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense, useMemo, useEffect } from "react";
+import { applyTheme, getStoredTheme, isDarkTheme } from "@/util";
 import {
   User,
   Building,
@@ -8,11 +9,11 @@ import {
   Users,
   Plug,
   Settings,
+  KeyRound,
   Search,
   Menu,
   X,
   ChevronDown,
-  Bell,
   Moon,
   Sun,
   LogOut,
@@ -26,6 +27,7 @@ import { UsuarioTab } from "./configuracaoTab/UsuarioTab";
 import { EmpresaTab } from "./configuracaoTab/EmpresaTab";
 import { ProjetosTab } from "./configuracaoTab/ProjetosTab";
 import { EquipeTab } from "./configuracaoTab/EquipeTab";
+import { AcessosTab } from "./configuracaoTab/AcessosTab";
 import { IntegracoesTab } from "./configuracaoTab/IntegracoesTab";
 import { hasPermission } from "@/permissions_val";
 import { SistemaTab } from "./configuracaoTab/SistemaTab";
@@ -39,6 +41,7 @@ const TAB_COMPONENTS: Record<SettingsTab, React.FC> = {
   empresa: EmpresaTab,
   projetos: ProjetosTab,
   equipe: EquipeTab,
+  acessos: AcessosTab,
   integracoes: IntegracoesTab,
   sistema: SistemaTab,
 };
@@ -55,7 +58,21 @@ export default function SettingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  // O tema é partilhado com o formulário de aparência e com o resto da app.
+  // Antes isto era um `settings_dark_mode` só desta página: mudava as cores
+  // escritas à mão aqui e mais nada, porque as classes `dark:` do Tailwind
+  // dependem da classe `dark` na raiz, que ninguém punha.
   const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    setDarkMode(isDarkTheme(getStoredTheme()));
+  }, []);
+
+  const alternarTema = () => {
+    const escuro = !darkMode;
+    setDarkMode(escuro);
+    applyTheme(escuro ? "dark" : "light");
+  };
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   /* ===== CONFIGURAÇÃO DAS ABAS (Movido para dentro para usar useI18n) ===== */
@@ -85,8 +102,16 @@ export default function SettingsPage() {
       id: "equipe",
       label: t("settings.tabTeam") || "Equipe",
       icon: Users,
-      permission: "settings:team",
+      permission: ["settings:team", "team:read", "role:read"],
       description: t("settings.descTeam") || "Usuários e permissões",
+    },
+    {
+      id: "acessos",
+      label: t("settings.tabAccess") || "Acessos",
+      icon: KeyRound,
+      permission: ["settings:team", "db_connection:read_company"],
+      description:
+        t("settings.descAccess") || "Quem acede a cada conexão de BD",
     },
     {
       id: "integracoes",
@@ -104,21 +129,29 @@ export default function SettingsPage() {
     },
   ], [t]);
 
-  /* ===== Tabs permitidas (RBAC) ===== */
+  /* ===== Tabs permitidas (RBAC) =====
+     Só o filtro de permissões. A pesquisa não entra aqui: se entrasse,
+     escrever na caixa de pesquisa trocava a aba ativa a cada tecla. */
   const allowedTabs = useMemo(
     () =>
-      tabs.filter(
-        (tab) =>
-          hasPermission(user?.permissions || [], tab.permission) &&
-          matchesSearch(tab, searchQuery)
+      tabs.filter((tab) =>
+        hasPermission(user?.permissions || [], tab.permission)
       ),
-    [user?.permissions, searchQuery, tabs]
+    [user?.permissions, tabs]
+  );
+
+  /* ===== Tabs mostradas na navegação (permissões + pesquisa) ===== */
+  const visibleTabs = useMemo(
+    () => allowedTabs.filter((tab) => matchesSearch(tab, searchQuery)),
+    [allowedTabs, searchQuery]
   );
 
   /* ===== Garantir tab válida ===== */
   useEffect(() => {
-    if (!allowedTabs.find((t) => t.id === activeTab)) {
-      setActiveTab(allowedTabs[0]?.id ?? "usuario");
+    if (!allowedTabs.length) return;
+
+    if (!allowedTabs.some((t) => t.id === activeTab)) {
+      setActiveTab(allowedTabs[0].id);
     }
   }, [allowedTabs, activeTab]);
 
@@ -194,22 +227,12 @@ export default function SettingsPage() {
 
             {/* Actions Desktop */}
             <div className="hidden md:flex items-center gap-2">
-              {/* Notificações */}
-              <button
-                className={`p-2 rounded-lg ${
-                  darkMode
-                    ? "hover:bg-gray-700 text-gray-300"
-                    : "hover:bg-gray-100 text-gray-700"
-                } transition-colors relative border border-transparent`}
-                title={t("actions.notifications") || "Notificações"}
-              >
-                <Bell size={20} />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-gray-800"></span>
-              </button>
-
               {/* Ajuda */}
-              <button
-                className={`p-2 rounded-lg ${
+              <a
+                href="/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`p-2 rounded-lg inline-flex ${
                   darkMode
                     ? "hover:bg-gray-700 text-gray-300"
                     : "hover:bg-gray-100 text-gray-700"
@@ -217,11 +240,11 @@ export default function SettingsPage() {
                 title={t("actions.help") || "Ajuda"}
               >
                 <HelpCircle size={20} />
-              </button>
+              </a>
 
               {/* Dark Mode Toggle */}
               <button
-                onClick={() => setDarkMode(!darkMode)}
+                onClick={alternarTema}
                 className={`p-2 rounded-lg ${
                   darkMode
                     ? "bg-gray-700 text-yellow-400 border border-gray-600"
@@ -342,7 +365,7 @@ export default function SettingsPage() {
 
           {/* Tabs Desktop */}
           <nav className="hidden md:flex gap-2 mt-4 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-            {allowedTabs.map((tab) => {
+            {visibleTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
 
@@ -363,6 +386,15 @@ export default function SettingsPage() {
                 </button>
               );
             })}
+
+            {/* A pesquisa filtra a navegação, não o conteúdo — sem isto o
+                utilizador via a barra de abas vazia sem perceber porquê. */}
+            {searchQuery && visibleTabs.length === 0 && (
+              <span className="px-2 py-2 text-sm font-medium text-gray-400">
+                {t("settings.noSearchResults") ||
+                  `Nenhuma configuração corresponde a "${searchQuery}".`}
+              </span>
+            )}
           </nav>
         </div>
 
@@ -373,7 +405,7 @@ export default function SettingsPage() {
               darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"
             } px-4 py-3 space-y-1.5 max-h-[70vh] overflow-y-auto`}
           >
-            {allowedTabs.map((tab) => {
+            {visibleTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
 

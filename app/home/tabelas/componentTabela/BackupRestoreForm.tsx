@@ -1,12 +1,21 @@
 "use client";
 
-import { useSSEStream } from "@/hook/useTransferStream";
-import { Download, Loader2, Upload, Square, AlertTriangle } from "lucide-react";
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import {
+  Download,
+  Loader2,
+  Upload,
+  AlertTriangle,
+  CheckCircle2,
+  FileDown,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
+import React, { useMemo, useRef, useState } from "react";
 import { useI18n } from "@/context/I18nContext";
 import { DBConnection } from "@/app/task/types";
 import { usePaginatedFetcher } from "../../hooks/useDBConnections";
 import { JoinSelect } from "@/app/task/components/select_Component";
+import { useBackupJob } from "@/hook/useBackupJob";
 
 interface BackupRestoreFormProps {
   onCancel: () => void;
@@ -14,9 +23,9 @@ interface BackupRestoreFormProps {
   connectionId: string;
 }
 
-/** limites e validações */
+/** limites e validações — inclui formatos NoSQL (Mongo). */
 const MAX_FILE_MB = 5000;
-const ACCEPT_EXT = [".sql", ".backup", ".dump", ".gz"];
+const ACCEPT_EXT = [".sql", ".backup", ".dump", ".gz", ".archive", ".bson", ".db", ".bak"];
 
 function getDatabaseIcon(type: string) {
   const icons: Record<string, string> = {
@@ -26,63 +35,15 @@ function getDatabaseIcon(type: string) {
     sqlite: "💾",
     oracle: "🔶",
     mariadb: "🌊",
+    mongodb: "🍃",
   };
   return icons[type] || "🗄️";
 }
 
-function isValidConnId(v: string) {
-  return /^\d+$/.test(v.trim());
-}
-
-function fileHasAllowedExt(file: File) {
-  const name = file.name.toLowerCase();
-  return ACCEPT_EXT.some((ext) => name.endsWith(ext));
-}
-
-function fileSizeOk(file: File) {
-  // CORREÇÃO: Cálculo de MB corrigido (1024 * 1024)
-  const mb = file.size / (1024 * 1024);
-  return mb <= MAX_FILE_MB;
-}
-
-async function uploadRestoreFile(opts: {
-  connectionId: string;
-  file: File;
-  signal?: AbortSignal;
-}): Promise<{ filepath: string }> {
-  const fd = new FormData();
-  fd.append("file", opts.file);
-
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL}database/restore/${opts.connectionId}/upload`,
-    {
-      method: "POST",
-      body: fd,
-      credentials: "include",
-      signal: opts.signal,
-    }
-  );
-
-  if (!res.ok) {
-    let msg = `Falha no upload (${res.status}).`;
-    try {
-      const data = await res.json();
-      msg = data?.detail || data?.message || msg;
-    } catch {
-      try {
-        msg = await res.text();
-      } catch { }
-    }
-    throw new Error(msg);
-  }
-
-  const data = (await res.json()) as any;
-  const filepath = String(data?.filepath || "").trim();
-  if (!filepath) {
-    throw new Error("Upload concluído, mas o servidor não retornou 'filepath'.");
-  }
-  return { filepath };
-}
+const isValidConnId = (v: string) => /^\d+$/.test(v.trim());
+const fileHasAllowedExt = (file: File) =>
+  ACCEPT_EXT.some((ext) => file.name.toLowerCase().endsWith(ext));
+const fileSizeOk = (file: File) => file.size / (1024 * 1024) <= MAX_FILE_MB;
 
 export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
   onCancel,
@@ -93,195 +54,88 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
 
   const [activeTab, setActiveTab] = useState<"backup" | "restore">("backup");
 
-  // Backup
   const [backupConnId, setBackupConnId] = useState<string>(connectionId || "");
-  const [backupType, setBackupType] = useState<"full" | "schema" | "data">("full");
-
-  // Restore
   const [restoreConnId, setRestoreConnId] = useState<string>(connectionId || "");
   const [backupFile, setBackupFile] = useState<File | null>(null);
-  const [restoreFilepath, setRestoreFilepath] = useState<string>("");
-  const [restoreIsUploading, setRestoreIsUploading] = useState(false);
-  const [readyToRestore, setReadyToRestore] = useState(false); // NOVO: Gatilho para iniciar o stream
 
-  // Erros por aba
-  const [backupUiError, setBackupUiError] = useState<string | null>(null);
-  const [restoreUiError, setRestoreUiError] = useState<string | null>(null);
-
+  const [uiError, setUiError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const uploadAbortRef = useRef<AbortController | null>(null);
 
-  const { fetchPaginated, loading: loadingConnections } =
-    usePaginatedFetcher<DBConnection>((row) => ({
-      value: String(row.id),
-      label: `${getDatabaseIcon(row.type)} ${row.name}`,
-    }));
+  const { job, connected, error: jobError, isRunning, startBackup, startRestore, downloadUrl, reset } =
+    useBackupJob();
+
+  const { fetchPaginated, loading: loadingConnections } = usePaginatedFetcher<DBConnection>(
+    (row) => ({ value: String(row.id), label: `${getDatabaseIcon(row.type)} ${row.name}` })
+  );
 
   const effectiveBackupConnId = (backupConnId || connectionId || "").trim();
   const effectiveRestoreConnId = (restoreConnId || connectionId || "").trim();
 
-  /** SSE: backup */
-  const backupStream = useSSEStream({
-    url: `database/backup/${effectiveBackupConnId}/stream`,
-    autoStart: false,
-    autoRetry: false,
-    retryDelay: 9000,
-  });
+  const logs = job?.logs ?? [];
+  const progress = job?.progress ?? 0;
+  const status = job?.status;
+  const activeError = uiError || jobError || job?.error || null;
 
-  /** SSE: restore */
-  const restoreStream = useSSEStream({
-    url: `database/restore/${effectiveRestoreConnId}/stream`,
-    params: restoreFilepath ? { filepath: restoreFilepath } : {},
-    autoStart: false,
-    autoRetry: false,
-    retryDelay: 9000,
-  });
-
-  const messages = useMemo(() => {
-    return activeTab === "backup" ? backupStream.messages : restoreStream.messages;
-  }, [activeTab, backupStream.messages, restoreStream.messages]);
-
-  const isRunning = activeTab === "backup" ? backupStream.isRunning : restoreStream.isRunning;
-  const activeErrorFromHook = activeTab === "backup" ? backupStream.error : restoreStream.error;
-  const activeUiError = activeTab === "backup" ? backupUiError : restoreUiError;
-
-  // Limpa erros ao trocar de aba
-  useEffect(() => {
-    setBackupUiError(null);
-    setRestoreUiError(null);
-  }, [activeTab]);
-
-  // Se mudar o arquivo do restore, invalida filepath antigo
-  useEffect(() => {
-    setRestoreFilepath("");
-  }, [backupFile]);
-
-  // CORREÇÃO: Dispara o stream de restore apenas após o state 'restoreFilepath' atualizar
-  useEffect(() => {
-    if (readyToRestore && restoreFilepath) {
-      restoreStream.startStream();
-      setReadyToRestore(false);
-    }
-  }, [readyToRestore, restoreFilepath, restoreStream]);
+  const busy = loading || isRunning;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRestoreUiError(null);
-
+    setUiError(null);
     const file = e.target.files?.[0] || null;
     if (!file) {
       setBackupFile(null);
-      setRestoreFilepath("");
       return;
     }
-
     if (!fileHasAllowedExt(file)) {
-      setBackupFile(null);
-      setRestoreFilepath(""); // Segurança adicional
       if (fileInputRef.current) fileInputRef.current.value = "";
-      setRestoreUiError(`Extensão inválida. Aceito: ${ACCEPT_EXT.join(", ")}`);
+      setUiError(`Extensão inválida. Aceito: ${ACCEPT_EXT.join(", ")}`);
       return;
     }
-
     if (!fileSizeOk(file)) {
-      setBackupFile(null);
-      setRestoreFilepath(""); // Segurança adicional
       if (fileInputRef.current) fileInputRef.current.value = "";
-      setRestoreUiError(`Arquivo muito grande. Máximo: ${MAX_FILE_MB} MB.`);
+      setUiError(`Ficheiro muito grande. Máximo: ${MAX_FILE_MB} MB.`);
       return;
     }
-
     setBackupFile(file);
   };
 
-  function validateBackup(): string | null {
-    if (!effectiveBackupConnId) return "Selecione uma conexão para o backup.";
-    if (!isValidConnId(effectiveBackupConnId)) return "ConnId inválido para backup.";
-    return null;
-  }
-
-  function validateRestoreBeforeUpload(): string | null {
-    if (!effectiveRestoreConnId) return "Selecione uma conexão para o restore.";
-    if (!isValidConnId(effectiveRestoreConnId)) return "ConnId inválido para restore.";
-    if (!backupFile) return "Selecione um arquivo de backup para restaurar.";
-    if (!fileHasAllowedExt(backupFile)) return `Extensão inválida. Aceito: ${ACCEPT_EXT.join(", ")}`;
-    if (!fileSizeOk(backupFile)) return `Arquivo muito grande. Máximo: ${MAX_FILE_MB} MB.`;
-    return null;
-  }
-
-  const handleStartBackup = () => {
-    setBackupUiError(null);
-
-    const err = validateBackup();
-    if (err) {
-      backupStream.stopStream();
-      setBackupUiError(err);
-      return;
-    }
-
-    backupStream.startStream();
-  };
-
-  const handleStartRestore = async () => {
-    setRestoreUiError(null);
-
-    const err = validateRestoreBeforeUpload();
-    if (err) {
-      restoreStream.stopStream();
-      setRestoreUiError(err);
-      return;
-    }
-
-    if (restoreIsUploading || restoreStream.isRunning) return;
-
-    setRestoreIsUploading(true);
-    uploadAbortRef.current?.abort();
-    uploadAbortRef.current = new AbortController();
-
-    try {
-      const { filepath } = await uploadRestoreFile({
-        connectionId: effectiveRestoreConnId,
-        file: backupFile!,
-        signal: uploadAbortRef.current.signal,
-      });
-
-      // CORREÇÃO: Atualiza o caminho e avisa o useEffect para rodar o stream
-      setRestoreFilepath(filepath);
-      setReadyToRestore(true);
-
-    } catch (e: any) {
-      const msg = e?.message ? String(e.message) : "Erro ao enviar arquivo para restore.";
-      setRestoreUiError(msg);
-    } finally {
-      setRestoreIsUploading(false);
+  const handleStart = async () => {
+    setUiError(null);
+    if (activeTab === "backup") {
+      if (!effectiveBackupConnId || !isValidConnId(effectiveBackupConnId)) {
+        setUiError("Selecione uma conexão válida para o backup.");
+        return;
+      }
+      await startBackup(Number(effectiveBackupConnId), true);
+    } else {
+      if (!effectiveRestoreConnId || !isValidConnId(effectiveRestoreConnId)) {
+        setUiError("Selecione uma conexão válida para o restauro.");
+        return;
+      }
+      if (!backupFile) {
+        setUiError("Selecione um ficheiro de backup para restaurar.");
+        return;
+      }
+      await startRestore(Number(effectiveRestoreConnId), backupFile);
     }
   };
 
-  const handleStopBackup = () => backupStream.stopStream();
-
-  const handleStopRestore = () => {
-    uploadAbortRef.current?.abort();
-    setRestoreIsUploading(false);
-    restoreStream.stopStream();
+  const switchTab = (tab: "backup" | "restore") => {
+    if (isRunning) return;
+    setActiveTab(tab);
+    setUiError(null);
+    reset();
   };
 
-  const handleAction = async () => {
-    if (activeTab === "backup") return handleStartBackup();
-    return handleStartRestore();
-  };
-
-  const handleStop = () => {
-    if (activeTab === "backup") return handleStopBackup();
-    return handleStopRestore();
-  };
-
-  const canRunBackup = !loading && !backupStream.isRunning && !restoreIsUploading;
-  const canRunRestore = !loading && !restoreStream.isRunning && !restoreIsUploading;
-
-  const isDisabled =
-    loading ||
-    isRunning ||
-    restoreIsUploading ||
-    (activeTab === "backup" ? !canRunBackup : !canRunRestore);
+  const statusPill = useMemo(() => {
+    if (!status) return null;
+    const map = {
+      queued: { cls: "bg-amber-50 text-amber-700 border-amber-200", label: "Na fila" },
+      running: { cls: "bg-blue-50 text-blue-700 border-blue-200", label: "A executar" },
+      done: { cls: "bg-emerald-50 text-emerald-700 border-emerald-200", label: "Concluído" },
+      error: { cls: "bg-red-50 text-red-700 border-red-200", label: "Erro" },
+    } as const;
+    return map[status];
+  }, [status]);
 
   return (
     <div className="space-y-5 p-1 bg-white rounded-xl">
@@ -290,14 +144,15 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
         {(["backup", "restore"] as const).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === tab
-              ? "border-blue-600 text-blue-600 bg-blue-50"
-              : "border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
-              }`}
+            onClick={() => switchTab(tab)}
+            className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === tab
+                ? "border-blue-600 text-blue-600 bg-blue-50"
+                : "border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
+            }`}
             type="button"
-            disabled={isRunning || restoreIsUploading}
-            title={isRunning || restoreIsUploading ? "Pare a operação antes de trocar de aba." : ""}
+            disabled={isRunning}
+            title={isRunning ? "Pare a operação antes de trocar de aba." : ""}
           >
             {tab === "backup" ? <Download className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
             {tab === "backup" ? t("backup.backupTab") || "Backup" : t("backup.restoreTab") || "Restore"}
@@ -307,79 +162,40 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
 
       {/* Form */}
       <div className="space-y-4 px-2">
-        {activeTab === "backup" ? (
-          <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1.5">
-              {t("backup.databaseLabel") || "Base de Dados (Backup)"}
-            </label>
-            <JoinSelect
-              value={String(backupConnId || "")}
-              onChange={(value) => {
-                setBackupUiError(null);
-                setBackupConnId(String(value || ""));
-              }}
-              fetchOptions={loadingConnections ? undefined : fetchPaginated}
-              placeholder={t("backup.databasePlaceholder") || "Selecione a conexão"}
-              className="w-full"
-              buttonClassName="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors"
-            />
-            {effectiveBackupConnId && (
-              <p className="mt-1 text-xs text-gray-600">
-                ConnId: <span className="font-mono">{effectiveBackupConnId}</span>
-              </p>
-            )}
-          </div>
-        ) : (
-          <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1.5">
-              {t("backup.databaseLabel") || "Base de Dados (Restore)"}
-            </label>
-            <JoinSelect
-              value={String(restoreConnId || "")}
-              onChange={(value) => {
-                setRestoreUiError(null);
-                setRestoreConnId(String(value || ""));
-              }}
-              fetchOptions={loadingConnections ? undefined : fetchPaginated}
-              placeholder={t("backup.databasePlaceholder") || "Selecione a conexão"}
-              className="w-full"
-              buttonClassName="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors"
-            />
-            {effectiveRestoreConnId && (
-              <p className="mt-1 text-xs text-gray-600">
-                ConnId: <span className="font-mono">{effectiveRestoreConnId}</span>
-              </p>
-            )}
-          </div>
-        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-800 mb-1.5">
+            {activeTab === "backup"
+              ? t("backup.databaseLabel") || "Base de Dados (Backup)"
+              : "Base de Dados (Restauro)"}
+          </label>
+          <JoinSelect
+            value={String((activeTab === "backup" ? backupConnId : restoreConnId) || "")}
+            onChange={(value) => {
+              setUiError(null);
+              if (activeTab === "backup") setBackupConnId(String(value || ""));
+              else setRestoreConnId(String(value || ""));
+            }}
+            fetchOptions={loadingConnections ? undefined : fetchPaginated}
+            placeholder={t("backup.databasePlaceholder") || "Selecione a conexão"}
+            className="w-full"
+            buttonClassName="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors"
+          />
+        </div>
 
-        {/* Backup options */}
+        {/* Backup: nota de suporte */}
         {activeTab === "backup" && (
-          <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1.5">
-              {t("backup.typeLabel") || "Tipo de Backup"}
-            </label>
-            <select
-              value={backupType}
-              onChange={(e) => setBackupType(e.target.value as any)}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all appearance-none"
-              disabled={backupStream.isRunning || restoreIsUploading}
-            >
-              <option value="full">{t("backup.typeFull") || "Completo"}</option>
-              <option value="schema">{t("backup.typeSchema") || "Apenas Schema"}</option>
-              <option value="data">{t("backup.typeData") || "Apenas Dados"}</option>
-            </select>
-            <p className="mt-1 text-xs text-gray-600">
-              Tipo selecionado: <span className="font-mono">{backupType}</span>
-            </p>
-          </div>
+          <p className="text-xs text-gray-500">
+            Suporta PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, SQLite e{" "}
+            <span className="font-semibold text-emerald-600">MongoDB</span> (NoSQL). O ficheiro é
+            comprimido automaticamente.
+          </p>
         )}
 
-        {/* Restore options */}
+        {/* Restore: ficheiro */}
         {activeTab === "restore" && (
           <div>
             <label className="block text-sm font-medium text-gray-800 mb-1.5">
-              {t("backup.fileLabel") || "Arquivo de Backup"}
+              {t("backup.fileLabel") || "Ficheiro de Backup"}
             </label>
             <input
               ref={fileInputRef}
@@ -387,41 +203,76 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
               accept={ACCEPT_EXT.join(",")}
               onChange={handleFileChange}
               className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              disabled={restoreStream.isRunning || restoreIsUploading}
+              disabled={isRunning}
             />
             {backupFile && (
               <p className="mt-1 text-xs text-gray-600">
-                Arquivo: <span className="font-mono">{backupFile.name}</span> (
-                {Math.round(backupFile.size / 1024)} KB)
-              </p>
-            )}
-            {restoreFilepath && (
-              <p className="mt-1 text-xs text-gray-600">
-                Server path: <span className="font-mono">{restoreFilepath}</span>
+                {backupFile.name} ({Math.round(backupFile.size / 1024)} KB)
               </p>
             )}
             <p className="mt-1 text-xs text-gray-500">
-              * O restore faz upload do arquivo e depois inicia o stream.
+              Mongo: <span className="font-mono">.archive</span> /{" "}
+              <span className="font-mono">.gz</span>. SQL:{" "}
+              <span className="font-mono">.sql</span>,{" "}
+              <span className="font-mono">.backup</span>,{" "}
+              <span className="font-mono">.dump</span>.
             </p>
           </div>
         )}
 
         {/* Errors */}
-        {(activeUiError || activeErrorFromHook) && (
+        {activeError && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 flex gap-2">
-            <AlertTriangle className="w-4 h-4 mt-0.5" />
-            <div>
-              {activeUiError && <div>{activeUiError}</div>}
-              {activeErrorFromHook && <div>{activeErrorFromHook}</div>}
-            </div>
+            <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <div>{activeError}</div>
           </div>
         )}
       </div>
 
+      {/* Estado + progresso */}
+      {job && (
+        <div className="mx-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {statusPill && (
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${statusPill.cls}`}>
+                  {statusPill.label}
+                </span>
+              )}
+              <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                {connected ? (
+                  <>
+                    <Wifi size={12} className="text-emerald-500" /> ligado
+                  </>
+                ) : (
+                  <>
+                    <WifiOff size={12} /> desligado
+                  </>
+                )}
+              </span>
+            </div>
+            <span className="text-xs font-bold text-gray-700">{progress}%</span>
+          </div>
+
+          <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className={`h-full transition-all duration-500 ${
+                status === "error"
+                  ? "bg-red-500"
+                  : status === "done"
+                  ? "bg-emerald-500"
+                  : "bg-blue-500"
+              }`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Logs */}
-      {messages.length > 0 && (
-        <div className="mx-2 mt-4 bg-gray-900 rounded-lg p-3 h-48 overflow-y-auto border border-gray-800 shadow-inner">
-          {messages.map((msg, i) => (
+      {logs.length > 0 && (
+        <div className="mx-2 mt-3 bg-gray-900 rounded-lg p-3 h-44 overflow-y-auto border border-gray-800 shadow-inner">
+          {logs.map((msg, i) => (
             <div key={i} className="text-green-400 font-mono text-xs mb-1 whitespace-pre-wrap">
               <span className="text-gray-500 mr-2">{">"}</span>
               {msg}
@@ -430,48 +281,65 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
         </div>
       )}
 
+      {/* Download do backup concluído */}
+      {job?.kind === "backup" && status === "done" && job.result && (
+        <div className="mx-2 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-emerald-800">
+            <CheckCircle2 className="w-5 h-5" />
+            <span>
+              <span className="font-semibold">{job.result.filename}</span> ({job.result.size_mb} MB)
+            </span>
+          </div>
+          <a
+            href={downloadUrl(job.result.filename)}
+            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            <FileDown className="w-4 h-4" /> Descarregar
+          </a>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex justify-end gap-3 pt-4 mt-2 border-t border-gray-100 px-2">
         <button
           onClick={onCancel}
           className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          disabled={loading || isRunning || restoreIsUploading}
+          disabled={busy}
           type="button"
         >
           {t("actions.cancel") || "Cancelar"}
         </button>
 
-        <button
-          onClick={handleStop}
-          disabled={!isRunning && !restoreIsUploading}
-          className="px-4 py-2 text-sm font-medium text-gray-900 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          type="button"
-        >
-          <Square className="w-4 h-4" />
-          {t("actions.stop") || "Parar"}
-        </button>
-
-        <button
-          onClick={handleAction}
-          disabled={isDisabled}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          type="button"
-          title={
-            activeTab === "restore" && !backupFile
-              ? "Selecione um arquivo antes de restaurar."
-              : ""
-          }
-        >
-          {(loading || isRunning || restoreIsUploading) && (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          )}
-
-          {activeTab === "backup"
-            ? t("backup.startBackup") || "Fazer Backup"
-            : restoreIsUploading
-              ? "Enviando arquivo..."
-              : t("backup.startRestore") || "Fazer Restore"}
-        </button>
+        {status === "done" || status === "error" ? (
+          <button
+            onClick={reset}
+            className="px-4 py-2 text-sm font-medium text-gray-900 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            type="button"
+          >
+            Nova operação
+          </button>
+        ) : (
+          <button
+            onClick={isRunning ? undefined : handleStart}
+            disabled={isRunning || loading}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            type="button"
+          >
+            {isRunning ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> A processar…
+              </>
+            ) : activeTab === "backup" ? (
+              <>
+                <Download className="w-4 h-4" /> {t("backup.startBackup") || "Fazer Backup"}
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4" /> {t("backup.startRestore") || "Fazer Restore"}
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ export type SettingsTab =
   | "empresa"
   | "projetos"
   | "equipe"
+  | "acessos"
   | "integracoes"
   | "sistema";
 
@@ -17,7 +18,8 @@ export interface TabConfig {
   id: SettingsTab;
   label: string;
   icon: React.ElementType;
-  permission: string;
+  /** Uma string, ou várias — basta ter uma delas (ver `hasPermission`). */
+  permission: string | string[];
   description: string;
 }
 

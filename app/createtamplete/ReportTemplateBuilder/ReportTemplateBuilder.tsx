@@ -34,6 +34,9 @@ import { generateDefaultTemplate } from "./generateDefaultTemplate";
 import usePersistedState from "@/hook/localStoreUse";
 import { IconButton, PreviewRenderer, ToolButton } from "./SUBCOMPONENTS";
 import { useSectionsManager } from "../hooks/useSectionsManager";
+import VariablesPanel from "./VariablesPanel";
+import { substituteSections, TABLE_BIND } from "../variables";
+import type { HeaderSectionData, TextSectionData, FooterSectionData, ListSectionData } from "../types";
 
 // 🔥 Helper para encontrar seções em QUALQUER nível
 const findSectionById = (sections: Section[], id: string): Section | undefined => {
@@ -60,6 +63,7 @@ export default function OrionForgeTemplateStudio() {
     const [view, setView] = useState<"editor" | "preview">("editor");
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const [showValidation, setShowValidation] = useState(false);
+    const [sampleData, setSampleData] = useState(false); // preview com dados de exemplo
 
     // ============================================================================
     // HOOK MANAGER
@@ -157,6 +161,39 @@ export default function OrionForgeTemplateStudio() {
     // HELPERS
     // ============================================================================
     const selectedSection = selectedId ? findSectionById(sections, selectedId) : undefined;
+
+    // 🔤 Inserir uma variável {{key}} no campo principal da seção selecionada.
+    const insertVariable = (key: string) => {
+        if (!selectedSection) return;
+        const token = `{{${key}}}`;
+        const id = selectedSection.id;
+        const append = (cur?: string) => `${cur ?? ""}${cur ? " " : ""}${token}`;
+
+        if (selectedSection.type === "text") {
+            const d = selectedSection.data as TextSectionData;
+            updateSection(id, { value: append(d.value) } as Partial<TextSectionData>);
+        } else if (selectedSection.type === "header") {
+            const d = selectedSection.data as HeaderSectionData;
+            updateSection(id, { subtitle: append(d.subtitle) } as Partial<HeaderSectionData>);
+        } else if (selectedSection.type === "footer") {
+            const d = selectedSection.data as FooterSectionData;
+            updateSection(id, { center: append(d.center) } as Partial<FooterSectionData>);
+        } else if (selectedSection.type === "list") {
+            const d = selectedSection.data as ListSectionData;
+            updateSection(id, { items: [...(d.items ?? []), token] } as Partial<ListSectionData>);
+        }
+    };
+
+    // Liga a tabela selecionada aos dados da consulta (binding dinâmico).
+    const bindTable = () => {
+        if (!selectedSection || selectedSection.type !== "table") return;
+        updateSection(selectedSection.id, {
+            rows_from: TABLE_BIND.rows_from,
+            columns_from: TABLE_BIND.columns_from,
+        });
+    };
+
+    const previewSections = sampleData ? substituteSections(sections) : sections;
 
     const getSectionIcon = (type: SectionType) => {
         const icons: Record<SectionType, any> = {
@@ -376,6 +413,12 @@ export default function OrionForgeTemplateStudio() {
                     </button>
                 </div>
 
+                <VariablesPanel
+                    selectedSection={selectedSection}
+                    onInsertVariable={insertVariable}
+                    onBindTable={bindTable}
+                />
+
                 {showValidation && validationErrors.length > 0 && (
                     <div className="p-3 bg-red-50 border-b border-red-200">
                         <p className="text-xs font-semibold text-red-700 mb-2">ERROS DE VALIDAÇÃO</p>
@@ -430,6 +473,17 @@ export default function OrionForgeTemplateStudio() {
                             </button>
                         ))}
                     </div>
+
+                    {/* Toggle: preencher variáveis com dados de exemplo (só no preview) */}
+                    {view === "preview" && (
+                        <button
+                            onClick={() => setSampleData((v) => !v)}
+                            title="Substitui as variáveis {{...}} por valores de exemplo"
+                            className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 ${sampleData ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                        >
+                            <Code size={15} /> Dados de exemplo
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex-1 overflow-auto p-6 bg-slate-50">
@@ -446,7 +500,7 @@ export default function OrionForgeTemplateStudio() {
                         </div>
                     ) : (
                         <div className="max-w-4xl mx-auto bg-white shadow-[0_20px_60px_rgba(0,0,0,0.15)] rounded-xl p-16 border border-slate-200">
-                            <PreviewRenderer sections={sections} />
+                            <PreviewRenderer sections={previewSections} />
                         </div>
                     )}
                 </div>

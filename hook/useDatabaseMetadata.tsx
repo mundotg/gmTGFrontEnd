@@ -9,7 +9,7 @@ interface UseDatabaseMetadataResult {
   setMetadata: Dispatch<SetStateAction<DatabaseMetadata | null>>;
   loading: boolean;
   error: string | null;
-  refresh: () => Promise<(() => void) | undefined>;
+  refresh: () => Promise<void>;
 }
 
 export function useDatabaseMetadata(op?: string): UseDatabaseMetadataResult {
@@ -22,42 +22,51 @@ export function useDatabaseMetadata(op?: string): UseDatabaseMetadataResult {
   const fetchMetadata = useCallback(async () => {
     setLoading(true);
     setError(null);
-    let isCancelled = false;
 
     try {
-      // 1. Busca informações gerais
-      const baseMetadata = await fetchSyncMetadata();
-      if (isCancelled) return;
+      // ⚠️ A lista de tabelas e as estatísticas de sync são INDEPENDENTES.
+      // Antes vinham em série (`await fetchSyncMetadata()` e só depois
+      // `fetchTables()`); se o `/consu/sync` devolvesse `data: null` (o
+      // `fetchSyncMetadata` lança nesse caso), o `fetchTables` nunca chegava a
+      // correr e a página ficava SEM tabelas. Agora correm em paralelo e uma
+      // falha do sync não impede a listagem das tabelas.
+      const [baseResult, tablesResult] = await Promise.allSettled([
+        fetchSyncMetadata(),
+        op ? Promise.resolve<string[]>([]) : fetchTables(),
+      ]);
 
-      // 2. Busca lista de tabelas
-      const tables =op ? [] : await fetchTables();
-      if (isCancelled) return;
+      const base = baseResult.status === "fulfilled" ? baseResult.value : null;
+      const tables = tablesResult.status === "fulfilled" ? tablesResult.value : [];
 
-      const initial: DatabaseMetadata = {
-        ...baseMetadata,
+      // Só é erro "duro" se AMBOS falharem (nada para mostrar).
+      if (!base && tablesResult.status === "rejected") {
+        const reason =
+          (baseResult.status === "rejected" && baseResult.reason) ||
+          (tablesResult.status === "rejected" && tablesResult.reason);
+        setError(reason?.message || "Erro ao buscar metadados");
+        return;
+      }
+
+      if (baseResult.status === "rejected") {
+        console.warn("⚠️ /consu/sync falhou (estatísticas ignoradas):", baseResult.reason?.message);
+      }
+
+      setMetadata({
+        ...(base ?? {}),
         table_names: tables.map((t) => ({ name: t, rowcount: -1 })),
-      };
-      setMetadata(initial);
+      } as DatabaseMetadata);
     } catch (err: any) {
-      if (!isCancelled) {
-        setError(err?.message || "Erro inesperado ao buscar metadados");
-      }
+      setError(err?.message || "Erro inesperado ao buscar metadados");
     } finally {
-      setInitmetadata(true)
-      if (!isCancelled) {
-        setLoading(false);
-      }
+      setInitmetadata(true);
+      setLoading(false);
     }
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
+  }, [op]);
 
   // 🔹 Consome SSE para atualizar contagem de linhas das tabelas
   useEffect(() => {
     console.info("aviso no ficheiro useDatabaseMetadata desabilitei a contagem de registro das tabelas por erros linha 59")
-    let cancel = true
+    const cancel = true
     if (!user || !initmetadata || cancel) return;
 
     const eventSource = new EventSource(

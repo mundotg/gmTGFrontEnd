@@ -18,6 +18,10 @@ type Props = {
     onPageChange: (page: number) => void;
     onDownload: (filename: string) => void;
     onDelete: (filename: string) => void;
+    /** Arrastar um ficheiro para uma pasta move-o (ver page.tsx). */
+    onFileDragStart?: (file: FileItem) => void;
+    onFileDragEnd?: () => void;
+    draggingFileId?: string | null;
 };
 
 export const FileList = memo(function FileList({
@@ -32,9 +36,11 @@ export const FileList = memo(function FileList({
     uploadProgress,
     onDownload,
     onDelete,
+    onFileDragStart,
+    onFileDragEnd,
+    draggingFileId,
 }: Props) {
 
-    console.log(files);
     // ⏱️ Estado local para o input (feedback visual imediato sem travar o React)
     const [localSearch, setLocalSearch] = useState(search);
 
@@ -146,6 +152,9 @@ export const FileList = memo(function FileList({
                                     onDownload={() => onDownload(file.filename)}
                                     onDelete={() => onDelete(file.filename)}
                                     disabled={downloadingFile !== null || uploadProgress !== null}
+                                    onDragStart={onFileDragStart ? () => onFileDragStart(file) : undefined}
+                                    onDragEnd={onFileDragEnd}
+                                    isDragging={draggingFileId === file.id}
                                 />
                             ))}
                         </ul>

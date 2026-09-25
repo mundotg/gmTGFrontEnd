@@ -3,15 +3,15 @@ import { LanguageSelector } from "./LanguageSelector";
 import {
   updateProfile,
   changePassword,
-  updateTwoFactor,
   uploadAvatar,
   updateNotifications,
   updateAppearance,
   updateLanguage,
 } from "@/app/services/settingsApi";
 import { useEffect, useMemo, useState } from "react";
+import { ThemeMode, applyTheme } from "@/util";
 import { useI18n } from "@/context/I18nContext";
-import { Bell, Camera, CheckCircle2, Clock, Construction, Globe, Key, LucideIcon, Palette, Save, Shield, X } from "lucide-react";
+import { Bell, Camera, CheckCircle2, Construction, Globe, LucideIcon, Palette, Save, Shield, X } from "lucide-react";
 import { Usuario } from "@/types";
 
 /* =======================
@@ -25,7 +25,6 @@ interface EditModalProps {
   user?: Usuario | null;
 }
 
-type ThemeMode = "light" | "dark" | "system";
 
 export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId, title, user }) => {
   const [loading, setLoading] = useState(false);
@@ -46,13 +45,10 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
     senhaAtual: "",
     novaSenha: "",
     confirmarSenha: "",
-    doisFatoresAtivo: false,
 
     // notifications
     notifEmail: true,
     notifPush: false,
-    notifSms: false,
-    notifWeekly: true,
 
     // appearance
     theme: "system" as ThemeMode,
@@ -80,11 +76,8 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
         : [],
       avatar_url: user?.avatar_url || "",
 
-      doisFatoresAtivo: Boolean((user as any)?.security?.twoFactorEnabled ?? false),
       notifEmail: Boolean((user as any)?.settings?.notifications?.email ?? true),
       notifPush: Boolean((user as any)?.settings?.notifications?.push ?? false),
-      notifSms: Boolean((user as any)?.settings?.notifications?.sms ?? false),
-      notifWeekly: Boolean((user as any)?.settings?.notifications?.weeklyDigest ?? true),
       theme: ((user as any)?.settings?.appearance?.theme ?? "system") as ThemeMode,
       language: ((user as any)?.settings?.language ?? "pt") as string,
     }));
@@ -116,11 +109,8 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
         senhaAtual: "",
         novaSenha: "",
         confirmarSenha: "",
-        doisFatoresAtivo: false,
         notifEmail: true,
         notifPush: false,
-        notifSms: false,
-        notifWeekly: true,
         theme: "system",
         language: "pt",
       });
@@ -135,13 +125,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
     value: string | boolean | string[]
   ) => setForm((prev) => ({ ...prev, [field]: value as any }));
 
-  const applyThemeClient = async (mode: ThemeMode) => {
-    const root = document.documentElement;
-    const systemDark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
-    const isDark = mode === "dark" || (mode === "system" && systemDark);
-    root.classList.toggle("dark", isDark);
-    localStorage.setItem("theme", mode);
-  };
 
   const handleSave = async () => {
     setLoading(true);
@@ -161,7 +144,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
           await changePassword({ senhaAtual: form.senhaAtual, novaSenha: form.novaSenha });
         }
 
-        await updateTwoFactor({ enabled: form.doisFatoresAtivo });
       }
 
       if (settingId === "profile") {
@@ -183,14 +165,12 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
         await updateNotifications({
           email: form.notifEmail,
           push: form.notifPush,
-          sms: form.notifSms,
-          weeklyDigest: form.notifWeekly,
         });
       }
 
       if (settingId === "appearance") {
         await updateAppearance({ theme: form.theme });
-        applyThemeClient(form.theme);
+        applyTheme(form.theme);
 
         await updateLanguage({ language: form.language });
       }
@@ -428,9 +408,9 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
               <Shield className="text-orange-500 dark:text-orange-400 shrink-0 mt-0.5 xs:mt-0 w-5 xs:w-5 h-5" size={20} />
               <div className="text-xs xs:text-sm text-orange-800 dark:text-orange-300">
                 <span className="font-bold block mb-1">
-                  {t("modal.securityRecommendation") || "Recomendação de Segurança"}
+                  {t("modal.securityRecommendation") || "Segurança da conta"}
                 </span>
-                {t("modal.securityAdvice") || "Ative a autenticação de dois fatores para evitar acessos não autorizados."}
+                {t("modal.securityAdvice") || "Ao alterar a palavra-passe, as outras sessões são terminadas. Use pelo menos 8 caracteres."}
               </div>
             </div>
 
@@ -478,13 +458,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
               </div>
             </div>
 
-            <ToggleRow
-              icon={Key}
-              title={t("modal.twoFactorAuth") || "Autenticação em 2 Fatores (2FA)"}
-              description={t("modal.twoFactorDescription") || "Adiciona uma camada extra de segurança"}
-              value={form.doisFatoresAtivo}
-              onToggle={() => handleInputChange("doisFatoresAtivo", !form.doisFatoresAtivo)}
-            />
           </div>
         );
 
@@ -504,20 +477,6 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, settingId
               description={t("notif.pushDesc") || "Notificações no dispositivo"}
               value={form.notifPush}
               onToggle={() => handleInputChange("notifPush", !form.notifPush)}
-            />
-            <ToggleRow
-              icon={Clock}
-              title={t("notif.sms") || "SMS"}
-              description={t("notif.smsDesc") || "Mensagens por SMS (pode ter custos)"}
-              value={form.notifSms}
-              onToggle={() => handleInputChange("notifSms", !form.notifSms)}
-            />
-            <ToggleRow
-              icon={Clock}
-              title={t("notif.weekly") || "Resumo semanal"}
-              description={t("notif.weeklyDesc") || "Resumo de atividades toda semana"}
-              value={form.notifWeekly}
-              onToggle={() => handleInputChange("notifWeekly", !form.notifWeekly)}
             />
           </div>
         );

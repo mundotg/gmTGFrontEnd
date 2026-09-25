@@ -33,6 +33,15 @@ import ApiTesterSidebar from "./component/ApiTesterSidebar";
 import ValidationRulesPanel from "./component/ValidationRulesPanel";
 import BatchTestPanel from "./component/BatchTestPanel";
 import SingleTestPanel from "./component/SingleTestPanel";
+import BruteForcePanel from "./component/BruteForcePanel";
+import LoadTestPanel from "./component/LoadTestPanel";
+import WebSocketPanel from "./component/WebSocketPanel";
+import SsePanel from "./component/SsePanel";
+import HistoryPanel from "./component/HistoryPanel";
+import SettingsModal from "./component/SettingsModal";
+import { usePentestHistory } from "./hook/usePentest";
+import { SavedRequest } from "./types";
+import api from "@/context/axioCuston";
 
 const STORAGE_KEYS = {
   env: "apiTesterEnv",
@@ -87,8 +96,34 @@ export default function AdvancedApiTester() {
   const [expandedHistory, setExpandedHistory] = useState<number | null>(null);
   const [uiError, setUiError] = useState<string | null>(null);
 
+  // Limites/allowlist do backend (partilhados pelos painéis de pentest) e um
+  // sinal que faz o histórico recarregar quando um teste termina.
+  const { limits, reload: reloadPentest } = usePentestHistory();
+  const [historyRefresh, setHistoryRefresh] = useState(0);
+  const onTestFinished = () => setHistoryRefresh((n) => n + 1);
+
+  useEffect(() => {
+    reloadPentest();
+  }, [reloadPentest]);
+
+  // Carrega um request guardado (da coleção do utilizador) para o formulário.
+  const handleLoadSavedRequest = (req: SavedRequest) => {
+    setName(req.name || "");
+    setMethod(req.method);
+    setUrl(req.url);
+    if (req.headers) setHeaders(req.headers);
+    if (req.body !== undefined) setBody(req.body || "");
+    setAuthType(req.authType ?? "none");
+    setAuthToken(req.authToken ?? "");
+    if (req.encodeBasicAuth !== undefined) setEncodeBasicAuth(req.encodeBasicAuth);
+    setActiveTab("test");
+    setUiError(null);
+  };
+
   const responseRef = useRef<HTMLDivElement | null>(null);
 
+  // Carrega a configuração: a base de dados é a fonte da verdade; o
+  // localStorage serve de fallback offline / primeiro arranque.
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -104,7 +139,6 @@ export default function AdvancedApiTester() {
         //
       }
     }
-
     if (savedHistory) {
       try {
         setRequestHistory(JSON.parse(savedHistory) as ApiResponseSuccess[]);
@@ -112,12 +146,41 @@ export default function AdvancedApiTester() {
         //
       }
     }
+
+    // Sobrepõe com o que estiver guardado na BD, se houver.
+    api
+      .get("/pentest/settings")
+      .then(({ data }) => {
+        if (data?.env_vars && Object.keys(data.env_vars).length) {
+          setEnvVars(data.env_vars);
+          setEnvInput(JSON.stringify(data.env_vars, null, 2));
+        }
+      })
+      .catch(() => {
+        // Sem sessão ou sem config guardada — fica o localStorage.
+      });
   }, []);
 
+  // Guarda as variáveis de ambiente na BD (debounce) e no localStorage.
+  const envSyncedRef = useRef(false);
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEYS.env, JSON.stringify(envVars));
     }
+
+    // Salta a primeira renderização (o valor inicial), para não escrever um
+    // objeto vazio por cima do que veio da BD.
+    if (!envSyncedRef.current) {
+      envSyncedRef.current = true;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      api.put("/pentest/settings", { env_vars: envVars }).catch(() => {
+        //
+      });
+    }, 800);
+    return () => clearTimeout(timer);
   }, [envVars]);
 
   useEffect(() => {
@@ -270,6 +333,39 @@ export default function AdvancedApiTester() {
       setResponse(responseObj);
       setRequestHistory((prev) => [responseObj, ...prev].slice(0, 50));
 
+      // Regista no histórico partilhado da base de dados, com o pedido e a
+      // resposta completos (endpoint, headers, corpos). Se falhar, o erro é
+      // mostrado — antes era engolido em silêncio e parecia "não guardar".
+      const responseBodyText =
+        typeof responseData === "string" ? responseData : JSON.stringify(responseData);
+
+      api
+        .post("/pentest/requests/log", {
+          label: name || undefined,
+          target_url: finalUrl,
+          method,
+          status_code: res.status,
+          latency_ms: responseObj.timeMs,
+          size_bytes: responseObj.sizeBytes,
+          ok: res.ok,
+          request_headers: parsedHeaders,
+          request_body:
+            method !== "GET" && method !== "HEAD" && body.trim()
+              ? substituteVars(body, envVars)
+              : null,
+          response_headers: responseObj.headers,
+          response_body: responseBodyText,
+        })
+        .then(() => onTestFinished())
+        .catch((logErr) => {
+          const detail =
+            logErr?.response?.data?.detail ||
+            (logErr?.response?.status === 401
+              ? "Sessão expirada — inicie sessão para guardar o histórico."
+              : logErr?.message);
+          setUiError(`Teste executado, mas não foi guardado no histórico: ${detail}`);
+        });
+
       if (validationRules.trim()) {
         runValidations(responseObj, validationRules);
       }
@@ -379,7 +475,7 @@ export default function AdvancedApiTester() {
       const parsed = JSON.parse(envInput) as EnvVars;
       setEnvVars(parsed);
       setUiError(null);
-    } catch (err) {
+    } catch {
       setUiError("JSON inválido nas variáveis de ambiente.");
     }
   };
@@ -399,10 +495,12 @@ export default function AdvancedApiTester() {
           </div>
 
           <button
-            onClick={() => setShowSettings((prev) => !prev)}
-            className="p-2 hover:bg-slate-800 rounded-lg transition"
+            onClick={() => setShowSettings(true)}
+            title="Configurações (variáveis e requests guardados)"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-lg transition text-sm text-slate-300"
           >
             <Settings className="w-5 h-5" />
+            <span className="hidden sm:inline">Configurações</span>
           </button>
         </div>
       </div>
@@ -415,11 +513,11 @@ export default function AdvancedApiTester() {
 
       <div className="flex h-[calc(100vh-73px)]">
         <ApiTesterSidebar
-          showSettings={showSettings}
+          // As variáveis passaram para o modal de Settings (guardadas por
+          // utilizador na BD); a sidebar mantém o histórico rápido.
+          showSettings={false}
           envInput={envInput}
           setEnvInput={setEnvInput}
-          // envVars={envVars}
-          // setEnvVars={setEnvVars}
           requestHistory={requestHistory}
           expandedHistory={expandedHistory}
           setExpandedHistory={setExpandedHistory}
@@ -523,6 +621,22 @@ export default function AdvancedApiTester() {
                 />
               )}
 
+              {activeTab === "bruteforce" && (
+                <BruteForcePanel limits={limits} onFinished={onTestFinished} />
+              )}
+
+              {activeTab === "loadtest" && (
+                <LoadTestPanel limits={limits} onFinished={onTestFinished} />
+              )}
+
+              {activeTab === "websocket" && <WebSocketPanel />}
+
+              {activeTab === "sse" && <SsePanel />}
+
+              {activeTab === "history" && (
+                <HistoryPanel refreshSignal={historyRefresh} />
+              )}
+
               {activeTab === "batch" && batchResults.length > 0 && (
                 <div className="rounded-lg border border-slate-700 bg-slate-800/40 p-6 space-y-3">
                   <h3 className="text-sm font-semibold text-slate-200">Resultados do lote</h3>
@@ -558,6 +672,27 @@ export default function AdvancedApiTester() {
           </div>
         </div>
       </div>
+
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          current={{
+            name,
+            method,
+            url,
+            headers,
+            body,
+            authType,
+            authToken,
+            encodeBasicAuth,
+          }}
+          onLoadRequest={handleLoadSavedRequest}
+          onEnvSaved={(env) => {
+            setEnvVars(env);
+            setEnvInput(JSON.stringify(env, null, 2));
+          }}
+        />
+      )}
     </div>
   );
 }

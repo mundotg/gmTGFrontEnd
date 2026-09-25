@@ -264,6 +264,27 @@ export type tipo_db_Options =
   | 'double precision'
   | 'float4' | 'float8' | 'serial8' | 'mediumserial' | 'vector'
   | 'timestamp without time zone' | 'time with time zone' | 'time without time zone'
+  // ── PostgreSQL (aliases e tipos em falta) ──
+  | 'bool' | 'int2' | 'int4' | 'int8' | 'serial4'
+  | 'timestamptz' | 'timetz'
+  | 'character' | 'character varying' | 'bpchar' | 'name'
+  | 'varbit' | 'bit varying'
+  | 'box' | 'circle' | 'line' | 'lseg' | 'path'
+  | 'macaddr8' | 'hstore' | 'pg_lsn'
+  | 'int4range' | 'int8range' | 'numrange' | 'tsrange' | 'tstzrange' | 'daterange'
+  // ── MySQL / MariaDB ──
+  | 'fixed'
+  | 'geometrycollection' | 'geomcollection'
+  | 'multipoint' | 'multilinestring' | 'multipolygon'
+  // ── SQL Server ──
+  | 'ntext' | 'datetimeoffset' | 'sql_variant' | 'hierarchyid' | 'rowversion'
+  // ── Oracle ──
+  | 'rowid' | 'urowid' | 'long raw'
+  | 'interval year to month' | 'interval day to second'
+  // ── MongoDB / BSON ──
+  | 'decimal128' | 'binData' | 'bindata'
+  | 'minKey' | 'maxKey'
+  | 'javascript' | 'javascriptWithScope' | 'symbol' | 'dbPointer' | 'undefined'
 
 
 
@@ -489,6 +510,10 @@ export type ConnectionFormData = {
   service?: string;
   sslmode?: string;
   trustServerCertificate?: string
+  /** true = ligar pela connection string em `url`, ignorando os campos acima. */
+  useUrl?: boolean;
+  /** Connection string completa; vai cifrada para o backend, que a usa como está. */
+  url?: string;
 };
 
 export interface NamecachesValue {
@@ -566,9 +591,11 @@ export interface AnalizeDataType {
     completed: number;
   }[];
   taskStatus: {
-    name: string;
-    value: number;
+    status: string;
+    label: string;
+    count: number;
   }[];
+  range?: string;
   teamPerformance: {
     name: string;
     tasks: number;
@@ -669,8 +696,14 @@ export interface Usuario {
   email: string;
   telefone?: string;
   status?: "ativo" | "inativo" | "suspenso";
+  /**
+   * `createdAt` e `lastLogin` estavam aqui mas o `/auth/me` nunca os enviou —
+   * apareciam sempre como "N/A". O que a API devolve é `created_at`; o último
+   * login lê-se das sessões (`GET /user/sessions`).
+   */
   createdAt?: string;
   lastLogin?: string;
+  created_at?: string;
   projects_participating?: string[];
   created_projects?: string[];
   assigned_tasks?: string[];

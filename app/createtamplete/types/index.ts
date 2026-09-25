@@ -69,6 +69,11 @@ export interface TableSectionData {
   header?: boolean;
   border?: boolean;
   colWidths?: number[];
+  // 🔤 Binding a dados dinâmicos: preenche a tabela a partir de variáveis
+  // (ex.: rows_from="query.linhas", columns_from="query.colunas").
+  rows_from?: string;
+  columns_from?: string;
+  bind?: string;
 }
 
 export interface ImageSectionData {

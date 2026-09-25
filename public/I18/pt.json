@@ -15,7 +15,7 @@
     }
   },
   "nav": {
-    "brandName": "Brain DB",
+    "brandName": "MustaInf",
     "tasks": "Tasks",
     "ocr": "OCR",
     "login": "Login",
@@ -31,7 +31,7 @@
     "roadmapBadge": "ROADMAP",
     "featuresTitle": "Recursos Principais",
     "futureTitle": "O que vem por aí",
-    "footer": "Brain DB © 2026. Todos os direitos reservados. Desenvolvido com ❤️ em Next.js + Python FastAPI por Francemy Sebastião"
+    "footer": "MustaInf © 2026. Todos os direitos reservados. Desenvolvido com ❤️ em Next.js + Python FastAPI por Francemy Sebastião"
   },
   "features": {
     "consultas": "Consultas simplificadas: digite apenas o nome da tabela.",
@@ -74,7 +74,13 @@
     "expand": "Expandir menu",
     "darkMode": "Modo Escuro",
     "lightMode": "Modo Claro",
-    "gestorProjetos": "Gestor de Projetos"
+    "gestorProjetos": "Gestor de Projetos",
+    "sqlEditor": "Editor SQL",
+    "groupMore": "Mais",
+    "mll": "ML / Insights",
+    "storage": "Armazenamento",
+    "devTest": "Testes (dev)",
+    "reference": "Referência"
   },
   "status": {
     "online": "Online",
@@ -178,7 +184,7 @@
     "noActivity": "Nenhuma atividade recente",
     "dangerZone": {
       "title": "Zona de Perigo",
-      "description": "Ações irreversíveis, como excluir a sua conta."
+      "description": "Desativar termina todas as sessões e retira-lhe o acesso. Só um administrador pode reativar."
     },
     "export": "Exportar",
     "deleteAccount": "Excluir Conta",
@@ -186,8 +192,21 @@
     "logout": "Sair da conta",
     "stats": {
       "tasks": "Tarefas",
-      "active": "Ativo"
-    }
+      "active": "Ativo",
+      "activeSessions": "Sessões ativas",
+      "permissions": "Permissões"
+    },
+    "sessions": "Sessões",
+    "noSessions": "Sem sessões registadas.",
+    "unknownOrigin": "Origem desconhecida",
+    "active": "ativa",
+    "sessionId": "id",
+    "endSession": "Terminar",
+    "sessionError": "Não foi possível terminar a sessão.",
+    "exportError": "Não foi possível exportar os seus dados.",
+    "deleteError": "Não foi possível desativar a conta.",
+    "deactivateAccount": "Desativar Conta",
+    "deactivateConfirmation": "Desativar a conta termina todas as sessões e retira-lhe o acesso. Só um administrador a pode reativar. Continuar?"
   },
   "activity": {
     "login": "Login realizado",
@@ -231,6 +250,13 @@
   "test": "Testar Conexão",
   "connecting": "A conectar...",
   "connect": "Salvar & Conectar",
+  "connectUseUrl": "Ligar por URL (connection string)",
+  "connectUseUrlHint": "Em vez de host, porta, utilizador e base separados, cole a URL única que o {{db}} (ou o fornecedor) lhe deu.",
+  "connectUrlLabel": "URL DE CONEXÃO",
+  "connectUrlHint": "A URL é enviada cifrada e usada tal como está — as opções que traga (sslmode, authSource, retryWrites…) são respeitadas.",
+  "connectUrlExamples": "Formato esperado",
+  "connectUrlShow": "Mostrar URL",
+  "connectUrlHide": "Ocultar URL",
   "modal": {
     "duplicateAlias": "Este alias já existe para outra tabela.",
     "typeAlias": "Digite um alias para a tabela",
@@ -262,14 +288,12 @@
     "companyName": "Nome da empresa",
     "roles": "Funções",
     "rolesHint": "Mantenha Ctrl/Cmd pressionado para selecionar múltiplas",
-    "securityRecommendation": "Recomendação de Segurança",
-    "securityAdvice": "Ative a autenticação de dois fatores para evitar acessos não autorizados.",
+    "securityRecommendation": "Segurança da conta",
+    "securityAdvice": "Ao alterar a palavra-passe, as outras sessões são terminadas. Use pelo menos 8 caracteres.",
     "currentPassword": "Palavra-passe atual",
     "newPassword": "Nova palavra-passe",
     "confirmPassword": "Confirmar nova palavra-passe",
     "passwordRequirements": "Mínimo de 8 caracteres com letras, números e símbolos.",
-    "twoFactorAuth": "Autenticação em 2 Fatores (2FA)",
-    "twoFactorDescription": "Adiciona uma camada extra de segurança",
     "enable2FA": "Ativar autenticação de dois fatores",
     "disable2FA": "Desativar autenticação de dois fatores",
     "inDevelopment": "Configuração em desenvolvimento",
@@ -409,7 +433,9 @@
     "createAccount": "Criar conta",
     "creatingAccount": "A criar conta...",
     "ignoreOrCancel": "Ignorar / Cancelar",
-    "confirmSelection": "Confirmar Seleção"
+    "confirmSelection": "Confirmar Seleção",
+    "lightMode": "Modo Claro",
+    "logout": "Sair"
   },
   "referencePopup": {
     "invalidParams": "Parâmetros inválidos: table, field e value são obrigatórios",
@@ -474,7 +500,8 @@
     "firstName": "Nome",
     "lastName": "Apelido",
     "select": "Selecione",
-    "and": "e"
+    "and": "e",
+    "refresh": "Atualizar"
   },
   "messages": {
     "noColumnsFound": "Nenhuma coluna encontrada",
@@ -588,13 +615,16 @@
     "descProjects": "Gestão de projetos",
     "tabTeam": "Equipa",
     "descTeam": "Utilizadores e permissões",
+    "tabAccess": "Acessos",
+    "descAccess": "Quem acede a cada conexão de BD",
     "tabIntegrations": "Integrações",
     "descIntegrations": "Conexões externas",
     "tabSystem": "Sistema",
     "descSystem": "Logs e manutenção",
     "emptyStateTitle": "Nenhuma configuração disponível",
     "emptyStateDesc": "Não possui permissões para aceder a estas configurações de momento.",
-    "footerText": "Sistema de Gestão"
+    "footerText": "Sistema de Gestão",
+    "noSearchResults": "Nenhuma configuração corresponde à pesquisa."
   },
   "company": {
     "title": "Gestão da Organização",
@@ -1100,5 +1130,17 @@
       "data": "Analisa dados",
       "plan": "Cria um plano"
     }
+  },
+  "notif": {
+    "email": "Email",
+    "emailDesc": "Receber alertas por email",
+    "push": "Na aplicação",
+    "pushDesc": "Notificações dentro da aplicação"
+  },
+  "error": {
+    "title": "Esta página não carregou",
+    "description": "O resto da aplicação continua a funcionar — pode mudar de secção pelo menu ao lado.",
+    "retry": "Tentar novamente",
+    "home": "Ir para o início"
   }
 }

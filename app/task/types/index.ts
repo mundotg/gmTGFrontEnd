@@ -79,18 +79,26 @@ export interface TaskCreate {
   sprintId?: string;
 }
 
-/** Estatísticas globais de tarefas */
+/**
+ * Estatísticas globais de tarefas.
+ *
+ * ⚠️ Os nomes têm de bater certo com `TaskStatsSchema` no backend. `inReview` e
+ * `priorityCounts` estavam em camelCase e o servidor manda `in_review` e
+ * `priority_counts` — o cartão "Em Revisão" mostrava sempre vazio.
+ */
 export interface TaskStats {
   total: number;
   completed: number;
   in_progress: number;
   pending: number;
-  inReview: number;
+  in_review: number;
   blocked: number;
   cancelled: number;
+  validated: number;
+  overdue_tasks: number;
   progress_percent: number;
   total_estimated_hours: number;
-  priorityCounts: Record<TaskPriority, number>;
+  priority_counts: Record<TaskPriority, number>;
   project_id?: string | null;
   sprint_id?: string | null;
   updated_at?: string;
@@ -168,6 +176,8 @@ export interface Project {
   sprints?: Sprint[];
   created_at?: string | Date;
   due_date?: string | Date;
+  /** False = arquivado. Vem da API; faltava aqui. */
+  is_active?: boolean;
 }
 
 /* ============================================================

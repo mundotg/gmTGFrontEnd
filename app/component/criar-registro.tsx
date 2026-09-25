@@ -215,7 +215,13 @@ const CriarRegistroNovo: React.FC<RowDetailsModalCreateProps> = ({
       const createdRow = Object.entries(editedFields).reduce<EditedFieldForQuery>(
         (acc, [key, field]) => {
           if (!field.hasChanged) return acc;
-          const [tableName, column] = key.split(".");
+          // A coluna é a ÚLTIMA parte; a tabela é o resto. Assim funciona com
+          // nomes simples ("users.nome"), com schema ("public.users.nome") e
+          // com coleções MongoDB — em vez do antigo split que partia mal os
+          // nomes qualificados. Usa o `field.tableName` como fonte fiável.
+          const lastDot = key.lastIndexOf(".");
+          const tableName = field.tableName || (lastDot >= 0 ? key.slice(0, lastDot) : key);
+          const column = lastDot >= 0 ? key.slice(lastDot + 1) : key;
           if (!acc[tableName]) acc[tableName] = {};
           acc[tableName][column] = {
             value: String(field.value),

@@ -85,6 +85,13 @@ const TableModal: React.FC<TableModalProps> = ({
   const [localBusy, setLocalBusy] = useState(false);
   const busy = !!isBusy || localBusy;
 
+  // MongoDB: "tabela" = coleção; as opções de engine/charset/collation e
+  // TEMPORARY são só de SQL e não fazem sentido aqui.
+  const isMongo = useMemo(() => {
+    const t = String(user?.info_extra?.type ?? "").toLowerCase();
+    return t.includes("mongo");
+  }, [user?.info_extra?.type]);
+
   const schema_padrao = useMemo(() => {
     const dbType = user?.info_extra?.type?.toLowerCase();
 
@@ -453,29 +460,39 @@ const TableModal: React.FC<TableModalProps> = ({
                 }
               />
 
-              <ToggleCard
-                label="TEMPORARY"
-                checked={form.temporary}
-                onChange={(v) => setK("temporary", v)}
-                disabled={busy}
-                hint={t("tableForm.temporaryHint") || "Alguns bancos suportam tabelas temporárias."}
-              />
+              {!isMongo && (
+                <ToggleCard
+                  label="TEMPORARY"
+                  checked={form.temporary}
+                  onChange={(v) => setK("temporary", v)}
+                  disabled={busy}
+                  hint={t("tableForm.temporaryHint") || "Alguns bancos suportam tabelas temporárias."}
+                />
+              )}
 
-              <ToggleCard
-                label={
-                  showAdvanced
-                    ? t("tableForm.hideAdvanced") || "Ocultar Avançado"
-                    : t("tableForm.showAdvanced") || "Mostrar Avançado"
-                }
-                checked={showAdvanced}
-                onChange={setShowAdvanced}
-                disabled={busy}
-                hint={t("tableForm.advancedHint") || "Engine/Charset/Collation (principalmente MySQL/MariaDB)"}
-              />
+              {!isMongo && (
+                <ToggleCard
+                  label={
+                    showAdvanced
+                      ? t("tableForm.hideAdvanced") || "Ocultar Avançado"
+                      : t("tableForm.showAdvanced") || "Mostrar Avançado"
+                  }
+                  checked={showAdvanced}
+                  onChange={setShowAdvanced}
+                  disabled={busy}
+                  hint={t("tableForm.advancedHint") || "Engine/Charset/Collation (principalmente MySQL/MariaDB)"}
+                />
+              )}
             </div>
+
+            {isMongo && (
+              <p className="text-xs text-gray-500 font-medium">
+                🍃 MongoDB: isto cria uma <strong>coleção</strong> na base <strong>{form.schema || schema_padrao || "(atual)"}</strong>.
+              </p>
+            )}
           </div>
 
-          {showAdvanced && (
+          {!isMongo && showAdvanced && (
             <div className="p-5 bg-gray-50 border border-gray-200 rounded-2xl space-y-5">
               <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                 <ShieldCheck size={16} className="text-blue-600" /> {t("tableForm.advanced") || "Configurações Avançadas"}

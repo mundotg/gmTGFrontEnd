@@ -15,7 +15,7 @@
     }
   },
   "nav": {
-    "brandName": "Brain DB",
+    "brandName": "MustaInf",
     "tasks": "Ovapange",
     "ocr": "OCR",
     "login": "Iñila",
@@ -31,7 +31,7 @@
     "roadmapBadge": "ROADMAP",
     "featuresTitle": "Ovapange Avelapo",
     "futureTitle": "Eci cikeya",
-    "footer": "Brain DB © 2026. Todos os direitos reservados. Desenvolvido com ❤️ em Next.js + Python FastAPI por Francemy Sebastião"
+    "footer": "MustaInf © 2026. Todos os direitos reservados. Desenvolvido com ❤️ em Next.js + Python FastAPI por Francemy Sebastião"
   },
   "features": {
     "consultas": "Oku pula ca leluka: soneka lika onduko yo tabela.",
@@ -70,7 +70,14 @@
     "expand": "Yulula menu",
     "darkMode": "Uteke (Modo Escuro)",
     "lightMode": "Utanya (Modo Claro)",
-    "gestorProjetos": "Ukualondumbi yo Projetos"
+    "gestorProjetos": "Ukualondumbi yo Projetos",
+    "sqlEditor": "Editor SQL",
+    "groupMore": "Vikwavo (Mais)",
+    "mll": "ML / Insights",
+    "storage": "Epako (Armazenamento)",
+    "devTest": "Ovilikilo (Testes dev)",
+    "reference": "Referência",
+    "ai": "IA"
   },
   "status": {
     "online": "Kuli",
@@ -164,8 +171,7 @@
     "recentActivity": "Ovapange vi Etali",
     "noActivity": "Ka kuli ovapange etali",
     "dangerZone": {
-      "title": "Ombandu yo Cĩvi",
-      "description": "Ovapange ka vi tiuka, ndoku ima conta yove."
+      "title": "Ombandu yo Cĩvi"
     },
     "export": "Exportar",
     "deleteAccount": "Ima Conta",
@@ -233,14 +239,10 @@
     "companyName": "Onduko yo empresa",
     "roles": "Ovapange",
     "rolesHint": "Kvata Ctrl/Cmd oco o nõle vialua",
-    "securityRecommendation": "Onumbi yo Segurança",
-    "securityAdvice": "Lingila autenticação yo vali fatores oco o lave oku iñila.",
     "currentPassword": "Onduko yoku iñila ya cilo",
     "newPassword": "Onduko yoku iñila yokaliye",
     "confirmPassword": "Lingila onduko yoku iñila yokaliye",
     "passwordRequirements": "Ci suapo 8 caracteres lo letras, números kuenda símbolos.",
-    "twoFactorAuth": "Autenticação ko 2 Fatores (2FA)",
-    "twoFactorDescription": "Yi vokiya imue camada yo segurança",
     "enable2FA": "Lingila autenticação yo vali fatores",
     "disable2FA": "Ima autenticação yo vali fatores",
     "inDevelopment": "Ovisokiyo vi kasi oku tungiwa",
@@ -529,6 +531,8 @@
     "descProjects": "Gestão yo projetos",
     "tabTeam": "Ocimunga",
     "descTeam": "Utilizadores kuenda permissões",
+    "tabAccess": "Akesu",
+    "descAccess": "Helie o kala ku conexão ya BD",
     "tabIntegrations": "Integrações",
     "descIntegrations": "Conexões viombuelo",
     "tabSystem": "Sistema",

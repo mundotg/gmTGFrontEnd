@@ -9,3 +9,6 @@ tpomar notas :
 
 
 erros nos wheres e nos joins
+
+
+adicionar suport a nocode (mongodb,firebase,)

@@ -22,6 +22,9 @@ export function FileRow({
     onDownload,
     onDelete,
     disabled,
+    onDragStart,
+    onDragEnd,
+    isDragging,
 }: {
     file: FileItem;
     isDownloading: boolean;
@@ -29,9 +32,23 @@ export function FileRow({
     onDownload: () => void;
     onDelete: () => void;
     disabled: boolean;
+    onDragStart?: () => void;
+    onDragEnd?: () => void;
+    isDragging?: boolean;
 }) {
     return (
-        <li className="group px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-gray-50 transition-colors">
+        <li
+            draggable={!!onDragStart && !disabled}
+            onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = "move";
+                // Alguns browsers exigem dados no dataTransfer para iniciar o arrasto.
+                e.dataTransfer.setData("text/plain", file.filename);
+                onDragStart?.();
+            }}
+            onDragEnd={() => onDragEnd?.()}
+            className={`group px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-gray-50 transition-colors ${onDragStart && !disabled ? "cursor-grab active:cursor-grabbing" : ""
+                } ${isDragging ? "opacity-40" : ""}`}
+        >
 
             {/* LEFT */}
             <div className="flex items-center gap-3 flex-1 min-w-0">
