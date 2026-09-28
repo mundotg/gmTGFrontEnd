@@ -1,27 +1,34 @@
 "use client";
 
 import {
-  Download,
-  Loader2,
-  Upload,
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
+  Download,
+  FileArchive,
   FileDown,
+  Info,
+  Loader2,
+  Upload,
+  UploadCloud,
   Wifi,
   WifiOff,
+  X,
 } from "lucide-react";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/context/I18nContext";
 import { DBConnection } from "@/app/task/types";
 import { usePaginatedFetcher } from "../../hooks/useDBConnections";
 import { JoinSelect } from "@/app/task/components/select_Component";
-import { useBackupJob } from "@/hook/useBackupJob";
+import { useBackupJob, BackupJob } from "@/hook/useBackupJob";
 
 interface BackupRestoreFormProps {
   onCancel: () => void;
   loading?: boolean;
   connectionId: string;
 }
+
+type Tab = "backup" | "restore";
 
 /** limites e validações — inclui formatos NoSQL (Mongo). */
 const MAX_FILE_MB = 5000;
@@ -45,6 +52,32 @@ const fileHasAllowedExt = (file: File) =>
   ACCEPT_EXT.some((ext) => file.name.toLowerCase().endsWith(ext));
 const fileSizeOk = (file: File) => file.size / (1024 * 1024) <= MAX_FILE_MB;
 
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i++;
+  }
+  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+const STATUS_STYLE: Record<BackupJob["status"], string> = {
+  queued: "bg-amber-50 text-amber-700 border-amber-200",
+  running: "bg-blue-50 text-blue-700 border-blue-200",
+  done: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  error: "bg-red-50 text-red-700 border-red-200",
+};
+
+const STATUS_KEY: Record<BackupJob["status"], string> = {
+  queued: "backup.statusQueued",
+  running: "backup.statusRunning",
+  done: "backup.statusDone",
+  error: "backup.statusError",
+};
+
 export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
   onCancel,
   loading,
@@ -52,14 +85,19 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
 }) => {
   const { t } = useI18n();
 
-  const [activeTab, setActiveTab] = useState<"backup" | "restore">("backup");
+  const [activeTab, setActiveTab] = useState<Tab>("backup");
 
   const [backupConnId, setBackupConnId] = useState<string>(connectionId || "");
   const [restoreConnId, setRestoreConnId] = useState<string>(connectionId || "");
   const [backupFile, setBackupFile] = useState<File | null>(null);
+  const [restoreConfirmed, setRestoreConfirmed] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
 
   const [uiError, setUiError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logsContainerRef = useRef<HTMLDivElement>(null);
+  const jobPanelRef = useRef<HTMLDivElement>(null);
 
   const { job, connected, error: jobError, isRunning, startBackup, startRestore, downloadUrl, reset } =
     useBackupJob();
@@ -72,101 +110,163 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
   const effectiveRestoreConnId = (restoreConnId || connectionId || "").trim();
 
   const logs = job?.logs ?? [];
+  const lastLog = logs[logs.length - 1];
   const progress = job?.progress ?? 0;
   const status = job?.status;
+  const finished = status === "done" || status === "error";
   const activeError = uiError || jobError || job?.error || null;
 
   const busy = loading || isRunning;
+  // Os campos só voltam a ficar editáveis com "Nova operação": assim o
+  // resultado que está no ecrã corresponde sempre ao que está nos campos.
+  const locked = isRunning || finished;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const formats = ACCEPT_EXT.join(", ");
+  // Limite em unidades "redondas" (5000 MB → "5 GB", não "4.9 GB").
+  const maxSize = MAX_FILE_MB >= 1000 ? `${MAX_FILE_MB / 1000} GB` : `${MAX_FILE_MB} MB`;
+
+  // Mantém o painel de logs sempre a mostrar a linha mais recente.
+  useEffect(() => {
+    const el = logsContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [logs.length, showLogs]);
+
+  // Ao arrancar e ao terminar, traz o progresso/resultado para a vista: em
+  // ecrãs pequenos fica abaixo do formulário e passaria despercebido.
+  useEffect(() => {
+    if (status) jobPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [status]);
+
+  // Num erro, os detalhes são o que explica o que falhou: abre-os.
+  useEffect(() => {
+    if (status === "error" && logs.length > 0) setShowLogs(true);
+  }, [status, logs.length]);
+
+  const clearFile = () => {
+    setBackupFile(null);
+    setRestoreConfirmed(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const selectFile = (file: File | null) => {
     setUiError(null);
-    const file = e.target.files?.[0] || null;
     if (!file) {
-      setBackupFile(null);
+      clearFile();
       return;
     }
     if (!fileHasAllowedExt(file)) {
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      setUiError(`Extensão inválida. Aceito: ${ACCEPT_EXT.join(", ")}`);
+      clearFile();
+      setUiError(t("backup.errExtension", { formats }));
       return;
     }
     if (!fileSizeOk(file)) {
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      setUiError(`Ficheiro muito grande. Máximo: ${MAX_FILE_MB} MB.`);
+      clearFile();
+      setUiError(t("backup.errSize", { max: maxSize }));
       return;
     }
     setBackupFile(file);
   };
 
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+    if (locked) return;
+    selectFile(e.dataTransfer.files?.[0] ?? null);
+  };
+
   const handleStart = async () => {
     setUiError(null);
+    setShowLogs(false);
     if (activeTab === "backup") {
       if (!effectiveBackupConnId || !isValidConnId(effectiveBackupConnId)) {
-        setUiError("Selecione uma conexão válida para o backup.");
+        setUiError(t("backup.errConnectionBackup"));
         return;
       }
       await startBackup(Number(effectiveBackupConnId), true);
     } else {
       if (!effectiveRestoreConnId || !isValidConnId(effectiveRestoreConnId)) {
-        setUiError("Selecione uma conexão válida para o restauro.");
+        setUiError(t("backup.errConnectionRestore"));
         return;
       }
       if (!backupFile) {
-        setUiError("Selecione um ficheiro de backup para restaurar.");
+        setUiError(t("backup.errFile"));
+        return;
+      }
+      if (!restoreConfirmed) {
+        setUiError(t("backup.errConfirm"));
         return;
       }
       await startRestore(Number(effectiveRestoreConnId), backupFile);
     }
   };
 
-  const switchTab = (tab: "backup" | "restore") => {
-    if (isRunning) return;
-    setActiveTab(tab);
-    setUiError(null);
+  /** Depois de um erro: volta ao formulário com tudo o que estava preenchido. */
+  const retry = () => {
     reset();
+    setUiError(null);
+    setShowLogs(false);
   };
 
-  const statusPill = useMemo(() => {
-    if (!status) return null;
-    const map = {
-      queued: { cls: "bg-amber-50 text-amber-700 border-amber-200", label: "Na fila" },
-      running: { cls: "bg-blue-50 text-blue-700 border-blue-200", label: "A executar" },
-      done: { cls: "bg-emerald-50 text-emerald-700 border-emerald-200", label: "Concluído" },
-      error: { cls: "bg-red-50 text-red-700 border-red-200", label: "Erro" },
-    } as const;
-    return map[status];
-  }, [status]);
+  const newOperation = () => {
+    retry();
+    clearFile();
+  };
+
+  const switchTab = (tab: Tab) => {
+    if (isRunning || tab === activeTab) return;
+    setActiveTab(tab);
+    // Evita arrastar um ficheiro selecionado para uma nova operação.
+    newOperation();
+  };
+
+  const tabs: { id: Tab; icon: React.ReactNode; label: string }[] = [
+    { id: "backup", icon: <Download className="w-4 h-4" />, label: t("backup.backupTab") },
+    { id: "restore", icon: <Upload className="w-4 h-4" />, label: t("backup.restoreTab") },
+  ];
 
   return (
-    <div className="space-y-5 p-1 bg-white rounded-xl">
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200">
-        {(["backup", "restore"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => switchTab(tab)}
-            className={`flex items-center justify-center gap-2 flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === tab
-                ? "border-blue-600 text-blue-600 bg-blue-50"
-                : "border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
-            }`}
-            type="button"
-            disabled={isRunning}
-            title={isRunning ? "Pare a operação antes de trocar de aba." : ""}
-          >
-            {tab === "backup" ? <Download className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
-            {tab === "backup" ? t("backup.backupTab") || "Backup" : t("backup.restoreTab") || "Restore"}
-          </button>
-        ))}
+    <div className="flex flex-col gap-5" aria-busy={busy}>
+      {/* Separadores — controlo segmentado, alvo de toque ≥ 44px */}
+      <div>
+        <div role="tablist" aria-label={t("backup.operation")} className="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1">
+          {tabs.map((tab) => {
+            const selected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                id={`backup-tab-${tab.id}`}
+                role="tab"
+                type="button"
+                aria-selected={selected}
+                aria-controls="backup-tab-panel"
+                onClick={() => switchTab(tab.id)}
+                disabled={isRunning && !selected}
+                title={isRunning && !selected ? t("backup.switchLocked") : undefined}
+                className={`flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  selected ? "bg-white text-blue-700 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-sm text-gray-600">
+          {activeTab === "backup" ? t("backup.descriptionBackup") : t("backup.descriptionRestore")}
+        </p>
       </div>
 
-      {/* Form */}
-      <div className="space-y-4 px-2">
+      <div
+        id="backup-tab-panel"
+        role="tabpanel"
+        aria-labelledby={`backup-tab-${activeTab}`}
+        className="flex flex-col gap-4"
+      >
+        {/* Conexão */}
         <div>
-          <label className="block text-sm font-medium text-gray-800 mb-1.5">
-            {activeTab === "backup"
-              ? t("backup.databaseLabel") || "Base de Dados (Backup)"
-              : "Base de Dados (Restauro)"}
+          <label className="mb-1.5 block text-sm font-medium text-gray-800">
+            {t("backup.connectionLabel")}
           </label>
           <JoinSelect
             value={String((activeTab === "backup" ? backupConnId : restoreConnId) || "")}
@@ -176,166 +276,266 @@ export const BackupRestoreForm: React.FC<BackupRestoreFormProps> = ({
               else setRestoreConnId(String(value || ""));
             }}
             fetchOptions={loadingConnections ? undefined : fetchPaginated}
-            placeholder={t("backup.databasePlaceholder") || "Selecione a conexão"}
+            placeholder={t("backup.connectionPlaceholder")}
+            disabled={locked}
             className="w-full"
-            buttonClassName="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors"
+            buttonClassName="w-full min-h-[44px] border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
           />
         </div>
 
-        {/* Backup: nota de suporte */}
         {activeTab === "backup" && (
-          <p className="text-xs text-gray-500">
-            Suporta PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, SQLite e{" "}
-            <span className="font-semibold text-emerald-600">MongoDB</span> (NoSQL). O ficheiro é
-            comprimido automaticamente.
+          <p className="flex gap-2 rounded-lg bg-gray-50 px-3 py-2.5 text-xs leading-relaxed text-gray-600">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+            <span>{t("backup.supportNote")}</span>
           </p>
         )}
 
-        {/* Restore: ficheiro */}
         {activeTab === "restore" && (
-          <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1.5">
-              {t("backup.fileLabel") || "Ficheiro de Backup"}
-            </label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPT_EXT.join(",")}
-              onChange={handleFileChange}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              disabled={isRunning}
-            />
-            {backupFile && (
-              <p className="mt-1 text-xs text-gray-600">
-                {backupFile.name} ({Math.round(backupFile.size / 1024)} KB)
+          <>
+            {/* Ficheiro — arrastar e largar ou escolher */}
+            <div>
+              <span className="mb-1.5 block text-sm font-medium text-gray-800">
+                {t("backup.fileLabel")}
+              </span>
+
+              {backupFile ? (
+                <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+                  <FileArchive className="h-8 w-8 shrink-0 text-blue-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900" title={backupFile.name}>
+                      {backupFile.name}
+                    </p>
+                    <p className="text-xs text-gray-500">{formatBytes(backupFile.size)}</p>
+                  </div>
+                  {!locked && (
+                    <button
+                      type="button"
+                      onClick={clearFile}
+                      aria-label={t("backup.removeFile")}
+                      title={t("backup.removeFile")}
+                      className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <label
+                  htmlFor="backup-file-input"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (!locked) setDragActive(true);
+                  }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={handleDrop}
+                  className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors focus-within:ring-2 focus-within:ring-blue-500 ${
+                    dragActive
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-300 bg-white hover:border-blue-400 hover:bg-gray-50"
+                  }`}
+                >
+                  <UploadCloud className={`h-8 w-8 ${dragActive ? "text-blue-600" : "text-gray-400"}`} />
+                  <span className="text-sm text-gray-700">
+                    <span className="hidden sm:inline">{t("backup.dropHere")} </span>
+                    <span className="font-semibold text-blue-600">{t("backup.chooseFile")}</span>
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {t("backup.acceptedFormats", { formats, max: maxSize })}
+                  </span>
+                </label>
+              )}
+
+              <input
+                id="backup-file-input"
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPT_EXT.join(",")}
+                onChange={(e) => selectFile(e.target.files?.[0] ?? null)}
+                disabled={locked}
+                className="sr-only"
+              />
+            </div>
+
+            {/* Aviso + confirmação: o restauro escreve por cima dos dados */}
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+              <p className="flex gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <span>{t("backup.restoreWarning")}</span>
               </p>
-            )}
-            <p className="mt-1 text-xs text-gray-500">
-              Mongo: <span className="font-mono">.archive</span> /{" "}
-              <span className="font-mono">.gz</span>. SQL:{" "}
-              <span className="font-mono">.sql</span>,{" "}
-              <span className="font-mono">.backup</span>,{" "}
-              <span className="font-mono">.dump</span>.
-            </p>
-          </div>
+              <label className="mt-2.5 flex cursor-pointer items-start gap-2.5 pl-6">
+                <input
+                  type="checkbox"
+                  checked={restoreConfirmed}
+                  onChange={(e) => {
+                    setRestoreConfirmed(e.target.checked);
+                    setUiError(null);
+                  }}
+                  disabled={locked}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="font-medium">{t("backup.restoreConfirm")}</span>
+              </label>
+            </div>
+          </>
         )}
 
-        {/* Errors */}
         {activeError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 flex gap-2">
-            <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <div>{activeError}</div>
+          <div
+            role="alert"
+            className="flex gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="min-w-0 break-words">{activeError}</div>
           </div>
         )}
       </div>
 
       {/* Estado + progresso */}
       {job && (
-        <div className="mx-2 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {statusPill && (
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${statusPill.cls}`}>
-                  {statusPill.label}
+        <div ref={jobPanelRef} className="scroll-mb-24 rounded-xl border border-gray-200 p-3 sm:p-4" aria-live="polite">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {status && (
+                <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[status]}`}>
+                  {t(STATUS_KEY[status])}
                 </span>
               )}
-              <span className="text-[11px] text-gray-400 flex items-center gap-1">
-                {connected ? (
-                  <>
-                    <Wifi size={12} className="text-emerald-500" /> ligado
-                  </>
-                ) : (
-                  <>
-                    <WifiOff size={12} /> desligado
-                  </>
-                )}
-              </span>
+              {isRunning && (
+                <span className="flex items-center gap-1 text-xs text-gray-500">
+                  {connected ? (
+                    <>
+                      <Wifi size={12} className="text-emerald-500" /> {t("backup.live")}
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff size={12} /> {t("backup.offline")}
+                    </>
+                  )}
+                </span>
+              )}
             </div>
-            <span className="text-xs font-bold text-gray-700">{progress}%</span>
+            <span className="text-sm font-bold tabular-nums text-gray-800">{progress}%</span>
           </div>
 
-          <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+          <div
+            className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100"
+            role="progressbar"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
             <div
               className={`h-full transition-all duration-500 ${
-                status === "error"
-                  ? "bg-red-500"
-                  : status === "done"
-                  ? "bg-emerald-500"
-                  : "bg-blue-500"
+                status === "error" ? "bg-red-500" : status === "done" ? "bg-emerald-500" : "bg-blue-500"
               }`}
               style={{ width: `${progress}%` }}
             />
           </div>
+
+          {/* Passo atual, sem ter de abrir os detalhes */}
+          {lastLog && !showLogs && (
+            <p className="mt-2 truncate font-mono text-xs text-gray-500" title={lastLog}>
+              {lastLog}
+            </p>
+          )}
+
+          {isRunning && <p className="mt-2 text-xs text-gray-500">{t("backup.keepOpen")}</p>}
+
+          {logs.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowLogs((v) => !v)}
+                aria-expanded={showLogs}
+                className="mt-2 flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+              >
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showLogs ? "rotate-180" : ""}`} />
+                {showLogs ? t("backup.hideDetails") : t("backup.showDetails", { count: logs.length })}
+              </button>
+              {showLogs && (
+                <div
+                  ref={logsContainerRef}
+                  className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-800 bg-gray-900 p-3 shadow-inner sm:max-h-56"
+                >
+                  {logs.map((msg, i) => (
+                    <div key={i} className="mb-1 whitespace-pre-wrap break-words font-mono text-xs text-green-400">
+                      <span className="mr-2 text-gray-500">{">"}</span>
+                      {msg}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
-      {/* Logs */}
-      {logs.length > 0 && (
-        <div className="mx-2 mt-3 bg-gray-900 rounded-lg p-3 h-44 overflow-y-auto border border-gray-800 shadow-inner">
-          {logs.map((msg, i) => (
-            <div key={i} className="text-green-400 font-mono text-xs mb-1 whitespace-pre-wrap">
-              <span className="text-gray-500 mr-2">{">"}</span>
-              {msg}
+      {/* Resultado */}
+      {status === "done" && job?.kind === "backup" && job.result && (
+        <div className="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+          <div className="flex min-w-0 items-start gap-2 text-sm text-emerald-800">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+            <div className="min-w-0">
+              <p className="font-semibold">{t("backup.doneBackup")}</p>
+              <p className="truncate text-emerald-700" title={job.result.filename}>
+                {job.result.filename} · {job.result.size_mb} MB
+              </p>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Download do backup concluído */}
-      {job?.kind === "backup" && status === "done" && job.result && (
-        <div className="mx-2 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-emerald-800">
-            <CheckCircle2 className="w-5 h-5" />
-            <span>
-              <span className="font-semibold">{job.result.filename}</span> ({job.result.size_mb} MB)
-            </span>
           </div>
           <a
             href={downloadUrl(job.result.filename)}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+            download={job.result.filename}
+            className="flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
           >
-            <FileDown className="w-4 h-4" /> Descarregar
+            <FileDown className="h-4 w-4" /> {t("backup.download")}
           </a>
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex justify-end gap-3 pt-4 mt-2 border-t border-gray-100 px-2">
+      {status === "done" && job?.kind === "restore" && (
+        <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 sm:p-4">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+          {t("backup.doneRestore")}
+        </div>
+      )}
+
+      {/* Ações — empilhadas e a toda a largura em telemóvel */}
+      <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end sm:gap-3">
         <button
           onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           disabled={busy}
           type="button"
+          className="min-h-[44px] rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {t("actions.cancel") || "Cancelar"}
+          {finished ? t("backup.close") : t("actions.cancel")}
         </button>
 
-        {status === "done" || status === "error" ? (
+        {finished ? (
           <button
-            onClick={reset}
-            className="px-4 py-2 text-sm font-medium text-gray-900 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            onClick={status === "error" ? retry : newOperation}
             type="button"
+            className="min-h-[44px] rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
           >
-            Nova operação
+            {status === "error" ? t("backup.tryAgain") : t("backup.newOperation")}
           </button>
         ) : (
           <button
             onClick={isRunning ? undefined : handleStart}
             disabled={isRunning || loading}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             type="button"
+            className="flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isRunning ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> A processar…
+                <Loader2 className="h-4 w-4 animate-spin" /> {t("backup.processing")}
               </>
             ) : activeTab === "backup" ? (
               <>
-                <Download className="w-4 h-4" /> {t("backup.startBackup") || "Fazer Backup"}
+                <Download className="h-4 w-4" /> {t("backup.startBackup")}
               </>
             ) : (
               <>
-                <Upload className="w-4 h-4" /> {t("backup.startRestore") || "Fazer Restore"}
+                <Upload className="h-4 w-4" /> {t("backup.startRestore")}
               </>
             )}
           </button>

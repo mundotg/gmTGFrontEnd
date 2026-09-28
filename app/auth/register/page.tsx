@@ -1,7 +1,7 @@
 "use client";
-import React, { useState } from 'react';
-import { Eye, EyeOff, Database, User, Building, Shield, Loader2, Check } from 'lucide-react';
-import { Alert, Button, Input } from '@/app/component';
+import React, { useEffect, useState } from 'react';
+import { Eye, EyeOff, Database, User, Building, Shield, Loader2, Check, ExternalLink } from 'lucide-react';
+import { Alert, Button, Input, Modal } from '@/app/component';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '@/context/SessionContext';
@@ -9,13 +9,24 @@ import usePersistedState from '@/hook/localStoreUse';
 import { checkPasswordStrength, getPasswordStrengthText } from './utils';
 import { useI18n } from '@/context/I18nContext';
 import Script from 'next/script';
+import { LegalDocument } from '../_legal/LegalDocument';
+import { termos } from '../_legal/termos';
+import { privacidade } from '../_legal/privacidade';
+
+const LEGAL_DOCS = {
+  termos: { doc: termos, href: '/auth/termos' },
+  privacidade: { doc: privacidade, href: '/auth/privacidade' },
+} as const;
 
 const RegisterPage = () => {
   const { t } = useI18n();
   const router = useRouter();
   const { api } = useSession();
 
-  const [formData, setFormData] = usePersistedState("registerForm", {
+  // O rascunho do formulário é guardado no browser (IndexedDB) para não se
+  // perder num reload — mas SEM as passwords, que ficam só em memória. Antes
+  // iam para lá em texto simples e nunca eram apagadas.
+  const [formData, setFormData, clearSavedForm] = usePersistedState("registerForm", {
     firstName: '',
     lastName: '',
     email: '',
@@ -28,10 +39,19 @@ const RegisterPage = () => {
       position: '',
       descricao: ''
     },
-    password: '',
-    confirmPassword: '',
     terms: false
   });
+  const [passwords, setPasswords] = useState({ password: '', confirmPassword: '' });
+
+  // Rascunhos gravados por versões anteriores ainda trazem as passwords:
+  // regrava-se o rascunho sem elas.
+  useEffect(() => {
+    if ('password' in formData || 'confirmPassword' in formData) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, confirmPassword, ...rest } = formData as typeof formData & { password?: string; confirmPassword?: string };
+      setFormData(rest as typeof formData);
+    }
+  }, [formData, setFormData]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -39,6 +59,7 @@ const RegisterPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [legalOpen, setLegalOpen] = useState<keyof typeof LEGAL_DOCS | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, type } = e.target;
@@ -58,11 +79,11 @@ const RegisterPage = () => {
         ...prev,
         positionData: { ...prev.positionData, [field]: value }
       }));
+    } else if (name === 'password' || name === 'confirmPassword') {
+      setPasswords(prev => ({ ...prev, [name]: String(value) }));
+      if (name === 'password') setPasswordStrength(checkPasswordStrength(String(value)));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
-      if (name === 'password' && typeof value === 'string') {
-        setPasswordStrength(checkPasswordStrength(value));
-      }
     }
   };
 
@@ -71,12 +92,12 @@ const RegisterPage = () => {
 
     if (!formData.firstName || !formData.lastName || !formData.email ||
       !formData.companyData.company || !formData.companyData.companySize ||
-      !formData.password || !formData.confirmPassword) {
+      !passwords.password || !passwords.confirmPassword) {
       setError(t('auth.errorFields'));
       return;
     }
 
-    if (formData.password !== formData.confirmPassword) {
+    if (passwords.password !== passwords.confirmPassword) {
       setError(t('auth.errorPasswordMatch'));
       return;
     }
@@ -86,6 +107,7 @@ const RegisterPage = () => {
     try {
       const submitData = {
         ...formData,
+        ...passwords,
         positionData: formData.positionData.position ? formData.positionData : undefined
       };
 
@@ -93,7 +115,7 @@ const RegisterPage = () => {
 
       if (response.status === 201 || response.status === 200) {
         setSuccess(t('auth.successRegister'));
-        localStorage.removeItem("registerForm");
+        clearSavedForm(); // o rascunho está no IndexedDB, não no localStorage
         setTimeout(() => router.replace('/auth/login'), 2000);
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -119,7 +141,7 @@ const RegisterPage = () => {
           <div className="bg-blue-50 border border-blue-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
             <Database className="w-8 h-8 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">DataSmart</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">MustaInfo</h1>
           <p className="text-gray-500 text-sm font-medium">{t('auth.createAccountSubtitle')}</p>
         </div>
         <Script
@@ -205,7 +227,7 @@ const RegisterPage = () => {
               <div className="space-y-1">
                 <label className={labelClass}>{t('common.password')}</label>
                 <div className="relative">
-                  <Input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleInputChange} className={`${inputClass} pr-12`} placeholder="••••••••" required />
+                  <Input type={showPassword ? 'text' : 'password'} name="password" value={passwords.password} onChange={handleInputChange} className={`${inputClass} pr-12`} placeholder="••••••••" required />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 p-1.5 transition-colors">
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -219,7 +241,7 @@ const RegisterPage = () => {
               <div className="space-y-1">
                 <label className={labelClass}>{t('auth.confirmPassword')}</label>
                 <div className="relative">
-                  <Input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleInputChange} className={`${inputClass} pr-12`} placeholder="••••••••" required />
+                  <Input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={passwords.confirmPassword} onChange={handleInputChange} className={`${inputClass} pr-12`} placeholder="••••••••" required />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 p-1.5 transition-colors">
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -237,9 +259,9 @@ const RegisterPage = () => {
               </div>
               <span className="text-sm text-gray-600 font-medium leading-tight">
                 {t('auth.agreeTerms')}{' '}
-                <button type="button" className="text-blue-600 font-bold hover:underline">{t('auth.termsLink')}</button>
+                <button type="button" onClick={(e) => { e.preventDefault(); setLegalOpen('termos'); }} className="text-blue-600 font-bold hover:underline">{t('auth.termsLink')}</button>
                 {' '}{t('common.and')}{' '}
-                <button type="button" className="text-blue-600 font-bold hover:underline">{t('auth.privacyLink')}</button>
+                <button type="button" onClick={(e) => { e.preventDefault(); setLegalOpen('privacidade'); }} className="text-blue-600 font-bold hover:underline">{t('auth.privacyLink')}</button>
               </span>
             </label>
           </div>
@@ -255,6 +277,37 @@ const RegisterPage = () => {
           </div>
         </form>
       </div>
+
+      {/* Termos / Privacidade num modal: o formulário não se perde ao lê-los */}
+      <Modal
+        isOpen={legalOpen !== null}
+        onClose={() => setLegalOpen(null)}
+        title={legalOpen ? LEGAL_DOCS[legalOpen].doc.title : undefined}
+        size="lg"
+      >
+        {legalOpen && (
+          <>
+            <LegalDocument doc={LEGAL_DOCS[legalOpen].doc} embedded />
+            <div className="mt-6 flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <a
+                href={LEGAL_DOCS[legalOpen].href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-blue-700 hover:underline"
+              >
+                <ExternalLink className="h-4 w-4" /> Abrir numa página
+              </a>
+              <button
+                type="button"
+                onClick={() => setLegalOpen(null)}
+                className="min-h-[44px] rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Fechar
+              </button>
+            </div>
+          </>
+        )}
+      </Modal>
     </div>
   );
 };

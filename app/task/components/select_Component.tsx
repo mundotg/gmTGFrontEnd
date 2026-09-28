@@ -186,16 +186,25 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
     const rect = buttonRef.current.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
 
-    let top = rect.bottom + window.scrollY + 4;
+    // O Dropdown é `position: fixed`: as coordenadas são as do viewport, tal
+    // como as do getBoundingClientRect. Somar window.scrollY/X desalinhava a
+    // lista do botão sempre que a página estava com scroll.
+    let top = rect.bottom + 4;
     const width = autoWidth ? Math.max(rect.width, 200) : rect.width;
 
-    if (rect.bottom + 300 > viewportHeight) {
-      top = rect.top + window.scrollY - 300 - 4;
+    // Altura real da lista (varia com o nº de opções e o "a carregar"); antes
+    // de montar, o máximo (`max-h-80` = 320px). Com uma altura fixa assumida,
+    // a lista aberta para cima ficava a flutuar longe do botão.
+    const height = dropdownRef.current?.offsetHeight || 320;
+    const spaceBelow = viewportHeight - rect.bottom;
+    // Só abre para cima se não couber em baixo E houver mais espaço em cima.
+    if (spaceBelow < height + 8 && rect.top > spaceBelow) {
+      top = Math.max(8, rect.top - height - 4);
     }
 
     setDropdownPosition({
       top,
-      left: rect.left + window.scrollX,
+      left: rect.left,
       width,
     });
   }, [autoWidth]);
@@ -215,8 +224,11 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
     };
 
     document.addEventListener("mousedown", handleClickOutside);
+    // `capture: true` apanha também o scroll de contentores (ex.: o corpo de um
+    // modal) e não só o da janela — senão a lista fixa ficava para trás.
     window.addEventListener("scroll", calculateDropdownPosition, {
       passive: true,
+      capture: true,
     });
     window.addEventListener("resize", calculateDropdownPosition, {
       passive: true,
@@ -224,7 +236,7 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("scroll", calculateDropdownPosition);
+      window.removeEventListener("scroll", calculateDropdownPosition, { capture: true });
       window.removeEventListener("resize", calculateDropdownPosition);
     };
   }, [isOpen, calculateDropdownPosition]);
@@ -234,9 +246,16 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
     if (isOpen && searchable) setTimeout(() => searchInputRef.current?.focus(), 100);
   }, [isOpen, searchable]);
 
-  // Recalculate on open
+  // Recalculate on open — e sempre que a lista muda de altura (opções a
+  // chegar, pesquisa), para que, aberta para cima, fique encostada ao botão.
   useEffect(() => {
-    if(isOpen) calculateDropdownPosition();
+    if (!isOpen) return;
+    calculateDropdownPosition();
+    const el = dropdownRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => calculateDropdownPosition());
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [isOpen, calculateDropdownPosition]);
 
   // Option click

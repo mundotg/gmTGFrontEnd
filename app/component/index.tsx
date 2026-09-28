@@ -43,28 +43,46 @@ export interface ModalProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
+  /** Largura máxima em ecrãs grandes. `md` (omissão) = 28rem, `lg` = 36rem. */
+  size?: "md" | "lg";
 }
 
-export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
+const MODAL_WIDTH = { md: "sm:max-w-md", lg: "sm:max-w-xl" } as const;
+
+export const Modal = ({ isOpen, onClose, title, children, size = "md" }: ModalProps) => {
   if (!isOpen) return null;
 
+  // Em telemóvel abre como folha a partir do fundo, com a largura toda; a
+  // partir de `sm` volta a ser o cartão centrado. A altura fica limitada ao
+  // ecrã e o corpo faz scroll — antes o `overflow-hidden` cortava o conteúdo
+  // que não coubesse (ex.: logs do backup) sem forma de lá chegar.
   return (
-    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            {title && (
-              <h3 className="text-xl font-bold text-gray-900">
-                {title}
-              </h3>
-            )}
-            <button
-              onClick={onClose}
-              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X size={20} />
-            </button>
-          </div>
+    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={clsx(
+          "bg-white w-full rounded-t-2xl sm:rounded-2xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[92dvh] sm:max-h-[calc(100dvh-2rem)]",
+          MODAL_WIDTH[size]
+        )}
+      >
+        <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 shrink-0">
+          {title && (
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+              {title}
+            </h3>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="ml-auto p-2 -mr-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6 sm:pb-6">
           {children}
         </div>
       </div>

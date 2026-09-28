@@ -607,7 +607,7 @@ const DatabaseTablesPage: React.FC = () => {
 
         {isTransactionOpen && <DataTransactionForm onClose={() => setIsTransactionOpen(false)} />}
 
-        <Modal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} title="Backup e Restore">
+        <Modal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} title="Backup e Restore" size="lg">
           <BackupRestoreForm connectionId="" onCancel={() => setIsBackupOpen(false)} />
         </Modal>
 
