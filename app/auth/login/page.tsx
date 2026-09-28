@@ -10,7 +10,7 @@ import Script from "next/script"; // <-- Adicionado para lidar com o script do A
 import { useI18n } from "@/context/I18nContext";
 import { aes_encrypt } from "@/service";
 import { OtherProviders } from "./component/otherProviders";
-import usePersistedState from "@/hook/localStoreUse";
+import usePersistedState, { clearDataKey } from "@/hook/localStoreUse";
 
 type Toast = { type: "error" | "success"; message: string } | null;
 
@@ -22,7 +22,9 @@ const LoginPage = () => {
   const { t } = useI18n();
 
   const [email, setEmail] = useState("");
-  const [password, setPassword] = usePersistedState("password", "");
+  // A password fica só em memória. Antes era persistida em IndexedDB, em
+  // texto simples e sem nunca ser apagada — legível por quem usasse o browser.
+  const [password, setPassword] = useState("");
   const [remember, setRemember] = usePersistedState("remember", false);
 
   const [showPassword, setShowPassword] = useState(false);
@@ -31,6 +33,11 @@ const LoginPage = () => {
 
   const toastTimerRef = useRef<number | null>(null);
   const redirectTimerRef = useRef<number | null>(null);
+
+  // Apaga a cópia da password que versões anteriores deixaram no IndexedDB.
+  useEffect(() => {
+    clearDataKey("AppDB", "AppStore", "password");
+  }, []);
 
   // 1. Inicialização do "Lembrar de mim"
   useEffect(() => {

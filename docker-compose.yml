@@ -23,17 +23,31 @@ services:
     image: redis:7-alpine
     container_name: mustainfo-redis
 
-    # `--requirepass` é o que torna a password obrigatória. Sem isto o Redis
-    # aceita qualquer ligação, e a porta publicada abaixo fica aberta a quem
-    # estiver na mesma rede.
+    # Autenticação por ACL (utilizador + password). Sem isto o Redis aceita
+    # qualquer ligação, e a porta publicada abaixo fica aberta a quem estiver
+    # na mesma rede.
+    #
+    # `user default off` desliga o utilizador sem nome: quem não se identificar
+    # recebe NOAUTH, e `AUTH <password>` sozinho já não entra — as ligações
+    # passam a precisar de `redis://<user>:<password>@...`. O utilizador da app
+    # tem acesso total (`~*` chaves, `&*` canais, `+@all` comandos).
+    # A password vai com `>` à frente: é assim que o ACL a reconhece.
     #
     # `--save 60 1` grava em disco ao fim de 60s se houver pelo menos 1
     # alteração: o cache é recalculável, mas reiniciar o contentor a meio de um
     # dia de trabalho não deve esvaziar tudo.
     command:
       - redis-server
-      - --requirepass
-      - ${REDIS_PASSWORD:-mustainf_redis_dev}
+      - --user
+      - default
+      - "off"
+      - --user
+      - ${REDIS_USERNAME:-mustainf}
+      - "on"
+      - ">${REDIS_PASSWORD:-mustainf_redis_dev}"
+      - "~*"
+      - "&*"
+      - "+@all"
       # `save` leva sempre um PAR — segundos e nº de alterações. Só com os
       # segundos, o Redis recusa o arranque com "Invalid save parameters" e o
       # contentor fica em ciclo de reinício.
@@ -52,9 +66,9 @@ services:
       - redisdata:/data
 
     healthcheck:
-      # O `-a` é preciso agora que há password: sem ele o ping responde
-      # NOAUTH e o contentor ficava eternamente "unhealthy".
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-mustainf_redis_dev}", "ping"]
+      # `--user`/`--pass` são precisos com o `default` desligado: sem eles o
+      # ping responde NOAUTH e o contentor ficava eternamente "unhealthy".
+      test: ["CMD", "redis-cli", "--no-auth-warning", "--user", "${REDIS_USERNAME:-mustainf}", "--pass", "${REDIS_PASSWORD:-mustainf_redis_dev}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -105,13 +119,14 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_DB: "0"
+      REDIS_USERNAME: ${REDIS_USERNAME:-mustainf}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-mustainf_redis_dev}
 
       # O .env do backend tem `app_cache_REDIS_URL` a apontar para o Redis do
-      # Windows. Essa variável ganha a tudo o resto em `_build_url()`, por isso
-      # é reescrita aqui — senão a API no contentor ignorava este Redis e ia
+      # anfitrião (localhost:6380). Essa variável ganha a tudo o resto em
+      # `_build_url()`, por isso é reescrita aqui — senão a API no contentor ia
       # bater a `localhost`, que dentro do contentor é o próprio contentor.
-      app_cache_REDIS_URL: redis://:${REDIS_PASSWORD:-mustainf_redis_dev}@redis:6379/0
+      app_cache_REDIS_URL: redis://${REDIS_USERNAME:-mustainf}:${REDIS_PASSWORD:-mustainf_redis_dev}@redis:6379/0
 
       # --- Outros -----------------------------------------------------------
       # O front corre em http://localhost:3000 do ponto de vista do browser.
