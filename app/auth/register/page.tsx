@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { Eye, EyeOff, Database, User, Building, Shield, Loader2, Check, ExternalLink } from 'lucide-react';
+import { Eye, EyeOff, Database, User, Building, Shield, Loader2, Check, ExternalLink, Mail, Info, Clock, CheckCircle, RefreshCw } from 'lucide-react';
 import { Alert, Button, Input, Modal } from '@/app/component';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -59,7 +59,28 @@ const RegisterPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [countdown, setCountdown] = useState(5);
   const [legalOpen, setLegalOpen] = useState<keyof typeof LEGAL_DOCS | null>(null);
+
+  // Estados específicos para cada resposta do backend
+  const [responseStatusType, setResponseStatusType] = useState<
+    'idle' | 'new_user' | 'token_renewed' | 'pending_verification' | 'already_verified'
+  >('idle');
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
+  const [resendError, setResendError] = useState<string | null>(null);
+
+  // Redirecionamento automático com contagem regressiva após o envio do e-mail
+  useEffect(() => {
+    if (!registeredEmail) return;
+    if (countdown <= 0) {
+      router.replace(`/auth/login?registered=1&email=${encodeURIComponent(registeredEmail)}`);
+      return;
+    }
+    const timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [registeredEmail, countdown, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, type } = e.target;
@@ -87,10 +108,39 @@ const RegisterPage = () => {
     }
   };
 
+  // Reenvio direto a partir da tela de registo quando a conta aguarda confirmação
+  const handleQuickResend = async () => {
+    const targetEmail = formData.email.trim();
+    if (!targetEmail) return;
+
+    setIsResending(true);
+    setResendError(null);
+    setResendSuccess(null);
+
+    try {
+      const resp = await api.post('/auth/resend-verification', { email: targetEmail });
+      setResendSuccess(
+        resp.data?.message ||
+        t('auth.resendVerificationSuccess') ||
+        'Novo e-mail de confirmação enviado com sucesso! Por favor consulte a sua caixa de entrada.'
+      );
+    } catch (err: any) {
+      setResendError(
+        err?.response?.data?.detail ||
+        t('auth.errorConnection') ||
+        'Não foi possível reenviar o e-mail de confirmação.'
+      );
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setResendSuccess(null);
+    setResendError(null);
 
-    if (!formData.firstName || !formData.lastName || !formData.email ||
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone.trim() ||
       !formData.companyData.company || !formData.companyData.companySize ||
       !passwords.password || !passwords.confirmPassword) {
       setError(t('auth.errorFields'));
@@ -114,13 +164,46 @@ const RegisterPage = () => {
       const response = await api.post('/auth/register', submitData);
 
       if (response.status === 201 || response.status === 200) {
-        setSuccess(t('auth.successRegister'));
+        const action = response.headers?.['x-verification-action'];
+        if (action === 'token_renewed') {
+          setResponseStatusType('token_renewed');
+          setSuccess(t('auth.tokenRenewedTitle') || 'Nova Ligação de Confirmação Enviada!');
+        } else {
+          setResponseStatusType('new_user');
+          setSuccess(t('auth.successRegister'));
+        }
+        setRegisteredEmail(formData.email);
         clearSavedForm(); // o rascunho está no IndexedDB, não no localStorage
-        setTimeout(() => router.replace('/auth/login'), 2000);
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      setError(err?.response?.data?.detail || t('auth.errorConnection'));
+      // Num 422 o `detail` é genérico ("Dados inválidos no pedido."); o motivo
+      // concreto (ex.: telefone inválido) vem em `errors[].msg`.
+      const data = err?.response?.data;
+      const errorCode = err?.response?.headers?.['x-error-code'];
+      const detail = typeof data?.detail === 'string' ? data.detail : '';
+
+      const firstError = Array.isArray(data?.errors) && data.errors[0]?.msg
+        ? String(data.errors[0].msg).replace(/^Value error,\s*/, '')
+        : null;
+
+      if (
+        errorCode === 'ALREADY_REGISTERED_UNVERIFIED' ||
+        detail.toLowerCase().includes('aguarda confirmação') ||
+        detail.toLowerCase().includes('ainda se encontra válida')
+      ) {
+        setResponseStatusType('pending_verification');
+        setError(detail || t('auth.pendingVerificationDesc'));
+      } else if (
+        errorCode === 'ALREADY_REGISTERED_VERIFIED' ||
+        detail.toLowerCase().includes('já se encontra registado e confirmado')
+      ) {
+        setResponseStatusType('already_verified');
+        setError(detail || t('auth.alreadyRegisteredDesc'));
+      } else {
+        setResponseStatusType('idle');
+        setError(firstError || detail || t('auth.errorConnection'));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -136,24 +219,178 @@ const RegisterPage = () => {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 py-12">
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 w-full max-w-2xl animate-in fade-in zoom-in-95 duration-300">
 
-        {/* Header */}
-        <div className="text-center mb-10">
-          <div className="bg-blue-50 border border-blue-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-            <Database className="w-8 h-8 text-blue-600" />
+        {/* Header - visível apenas antes do registo */}
+        {!registeredEmail && (
+          <div className="text-center mb-10">
+            <div className="bg-blue-50 border border-blue-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <Database className="w-8 h-8 text-blue-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">MustaInfo</h1>
+            <p className="text-gray-500 text-sm font-medium">{t('auth.createAccountSubtitle')}</p>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">MustaInfo</h1>
-          <p className="text-gray-500 text-sm font-medium">{t('auth.createAccountSubtitle')}</p>
-        </div>
+        )}
         <Script
           id="adsense-script"
           strategy="lazyOnload"
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
           crossOrigin="anonymous"
         />
-        {error && <div className="mb-6"><Alert type='error' message={error} /></div>}
-        {success && <div className="mb-6"><Alert type='success' message={success} /></div>}
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        {registeredEmail ? (
+          /* Tela de Sucesso: Confirmação de E-mail enviado por SMTP */
+          <div className="text-center py-6 animate-in fade-in zoom-in-95 duration-300">
+            <div className={`border w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm ${
+              responseStatusType === 'token_renewed'
+                ? 'bg-amber-50 border-amber-200'
+                : 'bg-blue-50 border-blue-100'
+            }`}>
+              <Mail className={`w-10 h-10 animate-pulse ${
+                responseStatusType === 'token_renewed' ? 'text-amber-600' : 'text-blue-600'
+              }`} />
+            </div>
+
+            {responseStatusType === 'token_renewed' && (
+              <div className="inline-block mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-200 px-3 py-1 rounded-full shadow-xs">
+                  {t('auth.tokenRenewedBadge') || "Prazo Renovado"}
+                </span>
+              </div>
+            )}
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {responseStatusType === 'token_renewed'
+                ? (t('auth.tokenRenewedTitle') || "Nova Ligação de Confirmação Enviada!")
+                : t('auth.successRegisterTitle')}
+            </h2>
+
+            <p className="text-gray-600 text-sm max-w-md mx-auto mb-4 leading-relaxed">
+              {responseStatusType === 'token_renewed'
+                ? (t('auth.tokenRenewedNotice', { email: registeredEmail }) || `A ligação anterior havia expirado. Enviámos um novo e-mail com novo prazo de validade para ${registeredEmail}.`)
+                : t('auth.successRegisterEmail', { email: registeredEmail })}
+            </p>
+
+            <div className={`border rounded-xl p-4 max-w-md mx-auto mb-8 text-left flex items-start gap-3 ${
+              responseStatusType === 'token_renewed'
+                ? 'bg-amber-50/70 border-amber-200 text-amber-900'
+                : 'bg-blue-50/70 border-blue-100 text-blue-900'
+            }`}>
+              <Info className={`w-5 h-5 shrink-0 mt-0.5 ${
+                responseStatusType === 'token_renewed' ? 'text-amber-600' : 'text-blue-600'
+              }`} />
+              <p className="text-xs leading-relaxed">
+                {t('auth.checkInboxNotice')}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center max-w-md mx-auto">
+              <Button
+                type="button"
+                onClick={() => router.replace(`/auth/login?registered=1&email=${encodeURIComponent(registeredEmail)}`)}
+                className="w-full bg-blue-600 text-white py-3.5 px-6 rounded-xl font-bold hover:bg-blue-700 shadow-md flex items-center justify-center gap-2"
+              >
+                <Check className="w-4 h-4" /> {t('auth.goToLogin')}
+              </Button>
+            </div>
+
+            <p className="text-xs text-gray-400 mt-6">
+              {t('auth.autoRedirectNotice', { seconds: countdown })}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Tratamento específico por resposta do backend */}
+            {responseStatusType === 'pending_verification' ? (
+              <div className="mb-8 bg-amber-50/90 border border-amber-200 rounded-2xl p-6 text-left shadow-sm animate-in fade-in duration-300">
+                <div className="flex items-start gap-4">
+                  <div className="bg-amber-100 border border-amber-200 p-2.5 rounded-xl text-amber-700 shrink-0 mt-0.5">
+                    <Clock className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xs font-bold uppercase tracking-wider bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-md">
+                        {t('auth.pendingVerificationBadge') || "Confirmação Pendente"}
+                      </span>
+                    </div>
+                    <h4 className="text-base font-bold text-gray-900 mb-1">
+                      {t('auth.pendingVerificationTitle') || "Esta conta já foi registada e aguarda confirmação"}
+                    </h4>
+                    <p className="text-sm text-gray-700 leading-relaxed mb-4">
+                      {error}
+                    </p>
+
+                    {resendSuccess && (
+                      <div className="mb-4">
+                        <Alert type="success" message={resendSuccess} />
+                      </div>
+                    )}
+                    {resendError && (
+                      <div className="mb-4">
+                        <Alert type="error" message={resendError} />
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button
+                        type="button"
+                        onClick={handleQuickResend}
+                        disabled={isResending}
+                        className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all flex items-center gap-2"
+                      >
+                        {isResending ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Mail className="w-3.5 h-3.5" />
+                        )}
+                        {isResending ? (t('auth.resendingVerification') || "A reenviar...") : (t('auth.resendVerificationBtn') || "Reenviar e-mail de confirmação")}
+                      </Button>
+
+                      <Link
+                        href={`/auth/login?email=${encodeURIComponent(formData.email)}`}
+                        className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2.5 px-4 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-xs"
+                      >
+                        <Check className="w-3.5 h-3.5 text-blue-600" />
+                        {t('auth.goToLogin') || "Ir para o Início de Sessão"}
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : responseStatusType === 'already_verified' ? (
+              <div className="mb-8 bg-blue-50/90 border border-blue-200 rounded-2xl p-6 text-left shadow-sm animate-in fade-in duration-300">
+                <div className="flex items-start gap-4">
+                  <div className="bg-blue-100 border border-blue-200 p-2.5 rounded-xl text-blue-700 shrink-0 mt-0.5">
+                    <CheckCircle className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xs font-bold uppercase tracking-wider bg-blue-200/80 text-blue-900 px-2 py-0.5 rounded-md">
+                        {t('auth.alreadyVerifiedBadge') || "Conta Ativa"}
+                      </span>
+                    </div>
+                    <h4 className="text-base font-bold text-gray-900 mb-1">
+                      {t('auth.alreadyRegisteredTitle') || "Este e-mail já está confirmado"}
+                    </h4>
+                    <p className="text-sm text-gray-700 leading-relaxed mb-4">
+                      {error}
+                    </p>
+
+                    <Link
+                      href={`/auth/login?email=${encodeURIComponent(formData.email)}`}
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 px-5 rounded-xl shadow-sm transition-all inline-flex items-center gap-2"
+                    >
+                      {t('auth.goToLogin') || "Iniciar Sessão"} &rarr;
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {error && <div className="mb-6"><Alert type='error' message={error} /></div>}
+                {success && <div className="mb-6"><Alert type='success' message={success} /></div>}
+              </>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-8">
 
           {/* Seção: Informações Pessoais */}
           <section className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
@@ -171,9 +408,27 @@ const RegisterPage = () => {
                 <label className={labelClass}>{t('common.lastName')}</label>
                 <Input name="lastName" value={formData.lastName} onChange={handleInputChange} className={inputClass} placeholder="Ex: Silva" required />
               </div>
-              <div className="md:col-span-2 space-y-1">
-                <label className={labelClass}>{t('common.email')}</label>
-                <Input type="email" name="email" value={formData.email} onChange={handleInputChange} className={inputClass} placeholder="seu@email.com" required />
+              <div className="space-y-1">
+                <label htmlFor="register-email" className={labelClass}>{t('common.email')}</label>
+                <Input id="register-email" type="email" name="email" autoComplete="email" value={formData.email} onChange={handleInputChange} className={inputClass} placeholder="seu@email.com" required />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="register-phone" className={labelClass}>{t('common.phone')}</label>
+                {/* O backend normaliza para +<indicativo><número>; 9 dígitos a começar por 9 = Angola (+244). */}
+                <Input
+                  id="register-phone"
+                  type="tel"
+                  name="phone"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className={inputClass}
+                  placeholder="+244 923 456 789"
+                  pattern="\+?[0-9\s\-\(\)]{9,20}"
+                  title={t('auth.phoneHint')}
+                  required
+                />
               </div>
             </div>
           </section>
@@ -276,6 +531,8 @@ const RegisterPage = () => {
             </p>
           </div>
         </form>
+          </>
+        )}
       </div>
 
       {/* Termos / Privacidade num modal: o formulário não se perde ao lê-los */}

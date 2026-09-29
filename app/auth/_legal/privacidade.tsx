@@ -79,14 +79,14 @@ export const privacidade: LegalDoc = {
         <>
           <UL>
             <li>
-              <strong>No registo:</strong> nome, apelido, email, nome e dimensão da empresa, cargo e a aceitação destes
-              documentos. O telefone é opcional.
+              <strong>No registo:</strong> nome, apelido, email, número de telefone, nome e dimensão da empresa, cargo
+              e a aceitação destes documentos.
             </li>
             <li>
               <strong>Password:</strong> guardada apenas como hash bcrypt — não a conseguimos ler nem recuperar.
             </li>
             <li>
-              <strong>Se os adicionar depois:</strong> telefone, fotografia de perfil, NIF e morada da empresa.{" "}
+              <strong>Se os adicionar depois:</strong> fotografia de perfil, NIF e morada da empresa.{" "}
               <em>A fotografia de perfil fica acessível a quem tiver o endereço (URL) da imagem.</em>
             </li>
             <li>
