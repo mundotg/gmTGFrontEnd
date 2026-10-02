@@ -42,6 +42,7 @@ const TAB_COMPONENTS: Record<SettingsTab, React.FC> = {
   projetos: ProjetosTab,
   equipe: EquipeTab,
   acessos: AcessosTab,
+  acessosconexoes: AcessosTab,
   integracoes: IntegracoesTab,
   sistema: SistemaTab,
 };
@@ -106,12 +107,12 @@ export default function SettingsPage() {
       description: t("settings.descTeam") || "Usuários e permissões",
     },
     {
-      id: "acessos",
-      label: t("settings.tabAccess") || "Acessos",
+      id: "acessosconexoes",
+      label: t("settings.tabAccess") || "Acesso a Conexões",
       icon: KeyRound,
       permission: ["settings:team", "db_connection:read_company"],
       description:
-        t("settings.descAccess") || "Quem acede a cada conexão de BD",
+        t("settings.descAccess") || "Gerir acessos por utilizador, empresa e regras de segurança",
     },
     {
       id: "integracoes",

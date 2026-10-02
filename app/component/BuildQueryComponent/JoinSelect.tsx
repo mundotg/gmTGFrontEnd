@@ -77,20 +77,20 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
 
-      let top = buttonRect.bottom + window.scrollY + 4; // 4px de margem
-      let left = buttonRect.left + window.scrollX;
+      let top = buttonRect.bottom + 4; // 4px de margem
+      let left = buttonRect.left;
       const width = autoWidth ? Math.max(buttonRect.width, 120) : buttonRect.width;
 
       // Verifica se há espaço suficiente embaixo
       const dropdownHeight = 320; // altura máxima estimada
       if (buttonRect.bottom + dropdownHeight > viewportHeight) {
         // Posiciona acima se não há espaço embaixo
-        top = buttonRect.top + window.scrollY - dropdownHeight - 4;
+        top = Math.max(buttonRect.top - dropdownHeight - 4, 10);
       }
 
       // Ajusta horizontalmente se sair da viewport
       if (left + width > viewportWidth) {
-        left = viewportWidth - width - 10;
+        left = Math.max(viewportWidth - width - 10, 10);
       }
 
       setDropdownPosition({ top, left, width });

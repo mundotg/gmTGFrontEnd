@@ -89,11 +89,10 @@ export const AcessosTab = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Acessos às conexões
+            Acesso a Conexões
           </h2>
           <p className="text-slate-500 text-sm">
-            Quem criou uma conexão decide quem mais lhe acede. Aqui vê e gere
-            essas partilhas.
+            Gerir utilizadores, empresas associadas e regras avançadas de segurança de cada conexão.
           </p>
         </div>
 

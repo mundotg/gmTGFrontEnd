@@ -11,7 +11,9 @@ export interface OtherProvidersProps {
 export const OtherProviders = React.memo<OtherProvidersProps>(({ login }) => {
     const onGoogle = useCallback(() => void login("google"), [login]);
     const onGithub = useCallback(() => void login("github"), [login]);
+    const onGitlab = useCallback(() => void login("gitlab"), [login]);
     const onMicrosoft = useCallback(() => void login("microsoft"), [login]);
+    const onAuth0 = useCallback(() => void login("auth0"), [login]);
 
     const socialBtnClass = "flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm";
 
@@ -30,9 +32,22 @@ export const OtherProviders = React.memo<OtherProvidersProps>(({ login }) => {
                 <Github className="w-4 h-4" />
             </button>
 
+            <button type="button" onClick={onGitlab} className={socialBtnClass} title="GitLab">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true" fill="#E24329">
+                    <path d="M22.65 14.39L20.6 8.08a.78.78 0 00-.28-.39.75.75 0 00-.47-.14.77.77 0 00-.46.16.83.83 0 00-.28.4L17.7 12.4H6.3L4.89 8.11a.8.8 0 00-.28-.4.77.77 0 00-.46-.16.75.75 0 00-.47.14.78.78 0 00-.28.39l-2.05 6.31a.8.8 0 00.29.89l10.02 7.28a.79.79 0 00.94 0l10.02-7.28a.8.8 0 00.29-.89z" />
+                </svg>
+            </button>
+
             {/* MICROSOFT */}
             <button type="button" onClick={onMicrosoft} className={socialBtnClass} title="Microsoft">
                 <AppWindow className="w-4 h-4 text-blue-500" />
+            </button>
+
+            {/* AUTH0 */}
+            <button type="button" onClick={onAuth0} className={socialBtnClass} title="Auth0">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true" fill="#EB5424">
+                    <path d="M21.98 12.01c0-.46-.06-.91-.18-1.34L12 12.01l9.8 1.34c.12-.43.18-.88.18-1.34zM12 2.01c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+                </svg>
             </button>
         </div>
     );

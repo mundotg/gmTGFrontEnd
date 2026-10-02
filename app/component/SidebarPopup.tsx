@@ -50,10 +50,13 @@ export default function SidebarPopup({ children }: { children: React.ReactNode }
     if (exact) return exact.id;
 
     const bestPrefix = [...allowedSidebarItems]
+      .filter((item) => item.href !== "/home")
       .sort((a, b) => b.href.length - a.href.length)
       .find((item) => pathname.startsWith(item.href));
 
-    return bestPrefix?.id || "overview";
+    if (bestPrefix) return bestPrefix.id;
+
+    return pathname === "/home" ? "overview" : "";
   }, [pathname, allowedSidebarItems]);
 
   const currentWidth = collapsed ? COLLAPSED_WIDTH : width;

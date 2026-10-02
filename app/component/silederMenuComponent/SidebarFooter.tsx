@@ -6,17 +6,23 @@
 import {
   User,
   LogOut,
+  LogIn,
   Database,
   AlertCircle,
   Settings,
-  Bell,
-  HelpCircle,
   ChevronUp,
+  Cloud,
+  Activity,
+  FlaskConical,
   LucideIcon,
 } from "lucide-react";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Usuario } from "@/types";
+import { useI18n } from "@/context/I18nContext";
+import { useSession } from "@/context/SessionContext";
+import { hasPermission } from "@/permissions_val";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -35,10 +41,11 @@ interface MenuOption {
   id: string;
   /** i18n key or plain label */
   label: string;
+  title?: string;
   icon: LucideIcon;
   href: string;
   /** If set, the item is only shown when the user has this permission */
-  permission?: string;
+  permission?: string | string[];
   /** If true, item is only shown when a DB connection is active */
   requiresConnection: boolean;
 }
@@ -50,37 +57,56 @@ interface UseTooltipReturn {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Menu Options Configuration
+// Menu Options Configuration (Submenu da Informação do Usuário)
 // ─────────────────────────────────────────────────────────────
 
 /**
  * Add, remove, or reorder items here.
- * Each entry is rendered in the pop-up menu above the footer.
+ * Each entry is rendered in the pop-up menu above/next to the footer user section.
  */
 const MENU_OPTIONS: MenuOption[] = [
   {
-    id: "settings",
-    label: "Configurações",
+    id: "configuracao",
+    label: "sidebar.settings",
+    title: "Configurações",
     icon: Settings,
     href: "/home/configuracao",
-    permission: "user:manage",
+    permission: [
+      "settings:user",
+      "settings:company",
+      "settings:projects",
+      "settings:team",
+      "settings:integrations",
+      "settings:system",
+      "user:manage",
+    ],
     requiresConnection: false,
   },
-  // {
-  //   id: "notifications",
-  //   label: "Notificações",
-  //   icon: Bell,
-  //   href: "/home/notificacoes",
-  //   requiresConnection: false,
-  // },
-  // {
-  //   id: "help",
-  //   label: "Ajuda & Suporte",
-  //   icon: HelpCircle,
-  //   href: "/home/ajuda",
-  //   requiresConnection: false,
-  // },
-
+  {
+    id: "clouds",
+    label: "sidebar.storage",
+    title: "Armazenamento",
+    icon: Cloud,
+    href: "/clouds",
+    requiresConnection: false,
+  },
+  {
+    id: "tester",
+    label: "sidebar.apiTester",
+    title: "API Tester",
+    icon: Activity,
+    href: "/home/tester",
+    requiresConnection: false,
+  },
+  {
+    id: "test",
+    label: "sidebar.devTest",
+    title: "Testes (dev)",
+    icon: FlaskConical,
+    href: "/home/test",
+    permission: ["settings:system", "admin:*"],
+    requiresConnection: false,
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -236,14 +262,18 @@ const FooterMenu = ({
   user,
   userPermissions = [],
   onLogout,
+  collapsed = false,
 }: {
   open: boolean;
   onClose: () => void;
   user: Usuario | null;
   userPermissions?: string[];
   onLogout: () => void;
+  collapsed?: boolean;
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const { t } = useI18n();
   const isConnected = Boolean(user?.info_extra?.name_db);
 
   // Close when clicking outside
@@ -263,7 +293,7 @@ const FooterMenu = ({
     () =>
       MENU_OPTIONS.filter((opt) => {
         if (opt.requiresConnection && !isConnected) return false;
-        if (opt.permission && !userPermissions.includes(opt.permission))
+        if (opt.permission && !hasPermission(userPermissions, opt.permission))
           return false;
         return true;
       }),
@@ -275,37 +305,84 @@ const FooterMenu = ({
   return (
     <div
       ref={menuRef}
-      className="absolute bottom-full left-0 right-0 mb-1 mx-2 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 duration-150"
+      className={`bg-white border border-gray-200/90 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in duration-150 ${
+        collapsed
+          ? "absolute bottom-0 left-full ml-3 w-72 zoom-in-95"
+          : "absolute bottom-full left-0 right-0 mb-2 mx-2 slide-in-from-bottom-2"
+      }`}
     >
-      {/* Options */}
-      <nav className="py-1">
+      {/* Cabeçalho com Informações do Usuário */}
+      <div className="p-3.5 bg-gradient-to-br from-gray-50 via-slate-50 to-blue-50/40 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <UserAvatar user={user} size="large" showStatus={false} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900 truncate">
+              {user?.nome || "Utilizador"}
+            </p>
+            <p className="text-xs text-gray-500 truncate" title={user?.email}>
+              {user?.email || "Sem email"}
+            </p>
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              {user?.cargo?.descricao && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-800 truncate">
+                  {user.cargo.descricao}
+                </span>
+              )}
+              {isConnected && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  {user?.info_extra?.name_db}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Opções de Navegação (Submenu) */}
+      <nav className="p-1.5 space-y-0.5">
         {visibleOptions.map((opt) => {
           const Icon = opt.icon;
+          const isActive = pathname === opt.href || (opt.href !== "/home" && pathname.startsWith(opt.href));
+          const labelText = t(opt.label) || opt.title || opt.label;
+
           return (
             <Link
               key={opt.id}
               href={opt.href}
               onClick={onClose}
-              className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-150 ${
+                isActive
+                  ? "bg-blue-50 text-blue-700 font-semibold shadow-xs"
+                  : "text-gray-700 hover:bg-gray-100/80 hover:text-gray-900"
+              }`}
             >
-              <Icon className="w-4 h-4 text-gray-500 flex-shrink-0" />
-              {opt.label}
+              <div
+                className={`p-1.5 rounded-lg transition-colors ${
+                  isActive ? "bg-blue-600 text-white shadow-xs" : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+              </div>
+              <span className="truncate">{labelText}</span>
             </Link>
           );
         })}
       </nav>
 
       {/* Divider + Logout */}
-      <div className="border-t border-gray-100">
+      <div className="p-1.5 border-t border-gray-100 bg-gray-50/50">
         <button
           onClick={() => {
             onClose();
             if (window.confirm("Tem certeza que deseja sair?")) onLogout();
           }}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-red-600 hover:bg-red-50 font-medium transition-colors"
         >
-          <LogOut className="w-4 h-4 flex-shrink-0" />
-          Sair da aplicação
+          <div className="p-1.5 rounded-lg bg-red-100 text-red-600">
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+          </div>
+          <span className="truncate">{t("nav.logout") || "Sair da aplicação"}</span>
         </button>
       </div>
     </div>
@@ -322,6 +399,8 @@ export function SidebarFooter({
   onLogout,
   userPermissions = [],
 }: SidebarFooterProps) {
+  const { t } = useI18n();
+  const { isLoading } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // ── Derived data ──────────────────────────────────────────
@@ -362,12 +441,45 @@ export function SidebarFooter({
 
   // ── Loading state ─────────────────────────────────────────
 
-  if (!user) {
+  if (isLoading && !user) {
     return (
-      <div className="relative border-t bg-white p-4">
-        <div className="flex items-center justify-center">
-          <p className="text-sm text-gray-500">Carregando...</p>
+      <div className="relative border-t border-gray-100 bg-white p-4">
+        <div className="flex items-center justify-center gap-2">
+          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          {!collapsed && <p className="text-xs text-gray-400">A carregar...</p>}
         </div>
+      </div>
+    );
+  }
+
+  // ── Sem utilizador logado: Botão para Login ───────────────
+
+  if (!user) {
+    if (collapsed) {
+      return (
+        <div className="relative border-t border-gray-100 bg-white p-3 flex justify-center">
+          <Tooltip content={t("auth.goToLogin") || "Iniciar Sessão"}>
+            <Link
+              href="/auth/login"
+              className="w-10 h-10 flex items-center justify-center bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white rounded-xl transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              aria-label={t("auth.goToLogin") || "Iniciar Sessão"}
+            >
+              <LogIn className="w-5 h-5 flex-shrink-0" />
+            </Link>
+          </Tooltip>
+        </div>
+      );
+    }
+
+    return (
+      <div className="relative border-t border-gray-100 bg-white p-3">
+        <Link
+          href="/auth/login"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-semibold text-sm transition-all shadow-xs hover:shadow focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          <LogIn className="w-4 h-4 flex-shrink-0" />
+          <span>{t("auth.goToLogin") || "Iniciar Sessão"}</span>
+        </Link>
       </div>
     );
   }
@@ -384,11 +496,28 @@ export function SidebarFooter({
     ].join("\n");
 
     return (
-      <div className="relative border-t bg-white p-4">
-        <div className="flex flex-col items-center space-y-3">
-          <Tooltip content={tooltipContent}>
-            <UserAvatar user={user} size="small" showStatus={false} />
-          </Tooltip>
+      <div className="relative border-t bg-white p-3">
+        {/* Pop-up menu (recolhido: abre lateralmente à direita) */}
+        <FooterMenu
+          open={menuOpen}
+          onClose={closeMenu}
+          user={user}
+          userPermissions={userPermissions}
+          onLogout={onLogout}
+          collapsed={true}
+        />
+
+        <div className="flex flex-col items-center space-y-2.5">
+          <button
+            onClick={toggleMenu}
+            className="rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-transform hover:scale-105 active:scale-95"
+            aria-expanded={menuOpen}
+            aria-label="Menu do utilizador"
+          >
+            <Tooltip content={tooltipContent}>
+              <UserAvatar user={user} size="small" showStatus={false} />
+            </Tooltip>
+          </button>
 
           <ConnectionStatus user={user} collapsed />
 
@@ -417,6 +546,7 @@ export function SidebarFooter({
         user={user}
         userPermissions={userPermissions}
         onLogout={onLogout}
+        collapsed={false}
       />
 
       {/* Footer row — click to open/close menu */}

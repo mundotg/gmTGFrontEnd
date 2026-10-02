@@ -90,6 +90,14 @@ const LoginPage = () => {
       );
       // Remove parâmetros da URL sem recarregar a página
       window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("error")) {
+      const oauthError = params.get("error");
+      showToast(
+        "error",
+        oauthError ? decodeURIComponent(oauthError) : "Falha na autenticação via provedor externo.",
+        6000
+      );
+      window.history.replaceState({}, "", window.location.pathname);
     }
   }, [showToast, t]);
 

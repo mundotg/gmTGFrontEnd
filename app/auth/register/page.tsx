@@ -12,6 +12,7 @@ import Script from 'next/script';
 import { LegalDocument } from '../_legal/LegalDocument';
 import { termos } from '../_legal/termos';
 import { privacidade } from '../_legal/privacidade';
+import { OtherProviders } from '../login/component/otherProviders';
 
 const LEGAL_DOCS = {
   termos: { doc: termos, href: '/auth/termos' },
@@ -21,7 +22,7 @@ const LEGAL_DOCS = {
 const RegisterPage = () => {
   const { t } = useI18n();
   const router = useRouter();
-  const { api } = useSession();
+  const { api, login } = useSession();
 
   // O rascunho do formulário é guardado no browser (IndexedDB) para não se
   // perder num reload — mas SEM as passwords, que ficam só em memória. Antes
@@ -70,6 +71,44 @@ const RegisterPage = () => {
   const [isResending, setIsResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
+
+  const [oauthToken, setOauthToken] = useState('');
+  const [oauthInfo, setOauthInfo] = useState<{
+    isOAuth: boolean;
+    provider: string;
+    email: string;
+    avatarUrl?: string;
+  } | null>(null);
+
+  // Captura se veio redirecionado de um provedor OAuth para terminar de preencher o formulário
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth') === '1') {
+      const provider = params.get('provider') || '';
+      const email = params.get('email') || '';
+      const firstName = params.get('firstName') || '';
+      const lastName = params.get('lastName') || '';
+      const avatarUrl = params.get('avatar_url') || '';
+      const token = params.get('oauth_token') || '';
+
+      if (token) setOauthToken(token);
+
+      setOauthInfo({
+        isOAuth: true,
+        provider,
+        email,
+        avatarUrl,
+      });
+
+      setFormData(prev => ({
+        ...prev,
+        firstName: firstName || prev.firstName,
+        lastName: lastName || prev.lastName,
+        email: email || prev.email,
+      }));
+    }
+  }, [setFormData]);
 
   // Redirecionamento automático com contagem regressiva após o envio do e-mail
   useEffect(() => {
@@ -158,22 +197,40 @@ const RegisterPage = () => {
       const submitData = {
         ...formData,
         ...passwords,
-        positionData: formData.positionData.position ? formData.positionData : undefined
+        positionData: formData.positionData.position ? formData.positionData : undefined,
+        oauthToken: oauthToken || undefined,
       };
 
-      const response = await api.post('/auth/register', submitData);
+      const requestHeaders: Record<string, string> = {};
+      if (oauthToken) {
+        requestHeaders['x-oauth-token'] = oauthToken;
+      }
+
+      const response = await api.post('/auth/register', submitData, {
+        headers: requestHeaders,
+      });
 
       if (response.status === 201 || response.status === 200) {
         const action = response.headers?.['x-verification-action'];
-        if (action === 'token_renewed') {
+        // Registo OAuth / Auth0 é verificado automaticamente — não precisa de tela de verificação
+        if (action === 'oauth_registered' || oauthInfo?.isOAuth) {
+          setSuccess(t('auth.oauthSuccess') || 'Registo concluído e conta associada com sucesso! A entrar na plataforma...');
+          clearSavedForm();
+          setTimeout(() => {
+            window.location.href = '/home';
+          }, 800);
+          return;
+        } else if (action === 'token_renewed') {
           setResponseStatusType('token_renewed');
           setSuccess(t('auth.tokenRenewedTitle') || 'Nova Ligação de Confirmação Enviada!');
+          setRegisteredEmail(formData.email);
+          clearSavedForm();
         } else {
           setResponseStatusType('new_user');
           setSuccess(t('auth.successRegister'));
+          setRegisteredEmail(formData.email);
+          clearSavedForm();
         }
-        setRegisteredEmail(formData.email);
-        clearSavedForm(); // o rascunho está no IndexedDB, não no localStorage
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
@@ -390,6 +447,57 @@ const RegisterPage = () => {
               </>
             )}
 
+            {/* Aviso OAuth quando o utilizador vem de provedor externo */}
+            {oauthInfo?.isOAuth && (
+              <div className="mb-6 bg-gradient-to-r from-blue-50 via-indigo-50/60 to-blue-50 border border-blue-200 rounded-2xl p-5 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex items-start gap-4">
+                  {oauthInfo.avatarUrl ? (
+                    <img
+                      src={oauthInfo.avatarUrl}
+                      alt={oauthInfo.provider}
+                      className="w-12 h-12 rounded-2xl border-2 border-white shadow-sm object-cover shrink-0 mt-0.5"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white font-bold flex items-center justify-center text-lg shadow-sm shrink-0 mt-0.5">
+                      {oauthInfo.provider.slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-md">
+                        {oauthInfo.provider.toUpperCase()}
+                      </span>
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                        {t('auth.oauthEmailVerified') || "E-mail validado"}
+                      </span>
+                    </div>
+                    <h4 className="text-base font-bold text-gray-900">
+                      {t('auth.oauthCompleteTitle') || "Conclua o seu registo"}
+                    </h4>
+                    <p className="text-xs text-gray-600 leading-relaxed mt-0.5">
+                      {t('auth.oauthCompleteDesc') || "A sua conta externa foi identificada com sucesso. Preencha os dados da sua empresa, telefone e defina a sua palavra-passe para concluir o registo."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Provedores OAuth / Social Login (reutilização de OtherProviders) */}
+            {!oauthInfo?.isOAuth && (
+              <div className="mb-8">
+                <OtherProviders login={login} t={t} />
+                <div className="relative py-4 my-2">
+                  <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div className="w-full border-t border-gray-200"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase tracking-widest">
+                    <span className="bg-white px-3 text-gray-400 font-bold">{t("auth.orContinueWith")}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-8">
 
           {/* Seção: Informações Pessoais */}
@@ -409,8 +517,26 @@ const RegisterPage = () => {
                 <Input name="lastName" value={formData.lastName} onChange={handleInputChange} className={inputClass} placeholder="Ex: Silva" required />
               </div>
               <div className="space-y-1">
-                <label htmlFor="register-email" className={labelClass}>{t('common.email')}</label>
-                <Input id="register-email" type="email" name="email" autoComplete="email" value={formData.email} onChange={handleInputChange} className={inputClass} placeholder="seu@email.com" required />
+                <div className="flex items-center justify-between">
+                  <label htmlFor="register-email" className={labelClass}>{t('common.email')}</label>
+                  {oauthInfo?.isOAuth && (
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Check className="w-3 h-3 text-blue-600" /> {oauthInfo.provider.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <Input
+                  id="register-email"
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  readOnly={!!oauthInfo?.isOAuth}
+                  className={`${inputClass} ${oauthInfo?.isOAuth ? "bg-gray-100 text-gray-700 cursor-not-allowed border-gray-300" : ""}`}
+                  placeholder="seu@email.com"
+                  required
+                />
               </div>
               <div className="space-y-1">
                 <label htmlFor="register-phone" className={labelClass}>{t('common.phone')}</label>
@@ -523,7 +649,15 @@ const RegisterPage = () => {
 
           <div className="pt-2">
             <Button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white py-4 px-6 rounded-xl font-bold hover:bg-blue-700 shadow-md focus:ring-4 focus:ring-blue-500/50 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-              {isLoading ? <><Loader2 className="w-5 h-5 animate-spin" /> {t('actions.creatingAccount')}</> : t('actions.createAccount')}
+              {isLoading ? (
+                <><Loader2 className="w-5 h-5 animate-spin" /> {oauthInfo?.isOAuth ? "A concluir registo..." : t('actions.creatingAccount')}</>
+              ) : (
+                oauthInfo?.isOAuth ? (
+                  <><Check className="w-4 h-4" /> {t('auth.oauthSubmitBtn') || "Concluir Registo e Entrar"}</>
+                ) : (
+                  t('actions.createAccount')
+                )
+              )}
             </Button>
             <p className="text-center mt-6 text-sm font-medium text-gray-500">
               {t('auth.alreadyHaveAccount')}{' '}

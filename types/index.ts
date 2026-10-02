@@ -729,7 +729,7 @@ export interface Usuario {
 }
 
 
-export type AuthProvider = "google" | "azure-ad" | "facebook" | "github" | "gitlab" | "linkedin" | "discord" | "kaggle" | "microsoft" | "credenciais";
+export type AuthProvider = "google" | "azure-ad" | "facebook" | "github" | "gitlab" | "linkedin" | "discord" | "kaggle" | "microsoft" | "auth0" | "credenciais";
 
 export interface LoginOptions {
   credenciais?: {
