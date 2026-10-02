@@ -11,6 +11,7 @@ export type SettingsTab =
   | "projetos"
   | "equipe"
   | "acessos"
+  | "acessosconexoes"
   | "integracoes"
   | "sistema";
 

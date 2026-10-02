@@ -11,12 +11,15 @@ export interface RbacPermission {
   name: string;
   description?: string | null;
   category?: string | null;
+  /** Pode ser concedida por um cargo da empresa (só acessos da empresa). */
+  company_scope?: boolean;
 }
 
 export interface RbacRole {
   id: number;
   name: string;
   description?: string | null;
+  empresa_id?: number | null;
   permissions: RbacPermission[];
   /** Função criada pelo seed: não pode ser renomeada nem removida. */
   is_system: boolean;
@@ -77,7 +80,7 @@ export const extractApiError = (err: unknown, fallback: string): string => {
 /* =====================
    HOOK
 ===================== */
-export function useRbac() {
+export function useRbac(empresaId?: number | null) {
   const [roles, setRoles] = useState<RbacRole[]>([]);
   const [permissions, setPermissions] = useState<RbacPermission[]>([]);
   const [members, setMembers] = useState<RbacMember[]>([]);
@@ -102,8 +105,9 @@ export function useRbac() {
         return;
       }
 
+      const rolesUrl = empresaId ? `/empresas/${empresaId}/roles` : "/users/roles";
       const [rolesRes, permsRes, membersRes] = await Promise.all([
-        api.get<RbacRole[]>("/users/roles"),
+        api.get<RbacRole[]>(rolesUrl),
         api.get<RbacPermission[]>("/users/permissions"),
         api.get<RbacMember[]>("/users/members"),
       ]);
@@ -116,7 +120,7 @@ export function useRbac() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empresaId]);
 
   useEffect(() => {
     load();
@@ -134,40 +138,49 @@ export function useRbac() {
 
   const createRole = useCallback(
     async (name: string, description?: string, permissionIds: number[] = []) => {
-      const { data } = await api.post<RbacRole>("/users/roles", {
+      const url = empresaId ? `/empresas/${empresaId}/roles` : "/users/roles";
+      const payload: Record<string, unknown> = {
         name,
         description: description || null,
         permission_ids: permissionIds,
-      });
+      };
+      if (empresaId) {
+        payload.empresa_id = empresaId;
+      }
+      const { data } = await api.post<RbacRole>(url, payload);
       upsertRole(data);
       return data;
     },
-    [upsertRole]
+    [empresaId, upsertRole]
   );
 
-  const deleteRole = useCallback(async (roleId: number, reassignTo?: number) => {
-    await api.delete(`/users/roles/${roleId}`, {
-      params: reassignTo ? { reassign_to: reassignTo } : undefined,
-    });
-    setRoles((prev) => prev.filter((r) => r.id !== roleId));
-    // Os membros transferidos mudaram de função no servidor.
-    if (reassignTo) {
-      const { data } = await api.get<RbacMember[]>("/users/members");
-      setMembers(data);
-    }
-  }, []);
+  const deleteRole = useCallback(
+    async (roleId: number, reassignTo?: number) => {
+      const url = empresaId ? `/empresas/${empresaId}/roles/${roleId}` : `/users/roles/${roleId}`;
+      await api.delete(url, {
+        params: reassignTo ? { reassign_to_id: reassignTo } : undefined,
+      });
+      setRoles((prev) => prev.filter((r) => r.id !== roleId));
+      // Os membros transferidos mudaram de função no servidor.
+      if (reassignTo) {
+        const { data } = await api.get<RbacMember[]>("/users/members");
+        setMembers(data);
+      }
+    },
+    [empresaId]
+  );
 
   /** Guarda de uma vez todas as permissões marcadas na matriz. */
   const setRolePermissions = useCallback(
     async (roleId: number, permissionIds: number[]) => {
-      const { data } = await api.put<RbacRole>(
-        `/users/roles/${roleId}/permissions`,
-        { permission_ids: permissionIds }
-      );
+      const url = empresaId
+        ? `/empresas/${empresaId}/roles/${roleId}/permissions`
+        : `/users/roles/${roleId}/permissions`;
+      const { data } = await api.put<RbacRole>(url, { permission_ids: permissionIds });
       upsertRole(data);
       return data;
     },
-    [upsertRole]
+    [empresaId, upsertRole]
   );
 
   /** Concede/retira uma permissão isolada (usado quando não há modo rascunho). */

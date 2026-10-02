@@ -5,8 +5,8 @@ import { useSession } from "@/context/SessionContext";
 import {
   Database, TableProperties, Search, History,
   TrendingUp, Menu, X, ChevronLeft, ChevronRight,
-  ScanLine, LucideProjector, Activity,
-  Settings, Terminal, Cloud, BookOpen, Sparkles, FlaskConical,
+  ScanLine, LucideProjector,
+  Terminal, Sparkles,
   LayoutDashboard, Bot,
 } from "lucide-react";
 import type { ElementType } from "react";
@@ -40,9 +40,9 @@ type SidebarItem = {
  * Menu do app.
  *
  * As rotas de GESTÃO DE BASE DE DADOS ficam no topo (sem `group`), sempre
- * visíveis. Todas as outras rotas ficam num submenu recolhível ("Mais") — é
- * onde entram as que antes nem apareciam (configuração, ML, armazenamento,
- * referência, etc.).
+ * visíveis. As ferramentas adicionais ficam no submenu ("Mais").
+ * Configurações, Armazenamento, API Tester e Testes (dev) residem agora
+ * no submenu de informação do usuário (SidebarFooter).
  */
 const GROUP_MORE = "sidebar.groupMore";
 
@@ -62,11 +62,6 @@ export const sidebarItems: SidebarItem[] = [
   { id: "ai", group: GROUP_MORE, label: "sidebar.ai", title: "Assistente IA", icon: Bot, href: "/home/ai" },
   { id: "mll", group: GROUP_MORE, label: "sidebar.mll", title: "ML / Insights", icon: Sparkles, href: "/home/mll" },
   { id: "ocr", group: GROUP_MORE, label: "scanner.texto", title: "OCR / Scanner", icon: ScanLine, badge: "registros_analizados", href: "/home/ocr" },
-  { id: "tester", group: GROUP_MORE, label: "sidebar.apiTester", title: "API Tester", icon: Activity, href: "/home/tester" },
-  { id: "clouds", group: GROUP_MORE, label: "sidebar.storage", title: "Armazenamento", icon: Cloud, href: "/clouds" },
-  // { id: "referencia", group: GROUP_MORE, label: "sidebar.reference", title: "Referência", icon: BookOpen, href: "/referencia" },
-  { id: "configuracao", group: GROUP_MORE, label: "sidebar.settings", title: "Configurações", icon: Settings, href: "/home/configuracao", permission: ["settings:user", "settings:company", "settings:projects", "settings:team", "settings:integrations", "settings:system"] },
-  { id: "test", group: GROUP_MORE, label: "sidebar.devTest", title: "Testes (dev)", icon: FlaskConical, href: "/home/test", permission: ["settings:system", "admin:*"] },
 ];
 
 export default function Sidebar({ children }: { children: React.ReactNode }) {
@@ -99,14 +94,17 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
       return exactMatch.id;
     }
 
-    // 2. Fallback: Find the best "startsWith" match
-    // To do this safely, we should sort the array so longer paths are checked first.
-    // This prevents '/home' from matching before '/home/consultas'
+    // 2. Fallback: Find the best "startsWith" match (ignoring /home root from matching other paths)
     const bestPrefixMatch = [...allowedSidebarItems]
+      .filter((item) => item.href !== "/home")
       .sort((a, b) => b.href.length - a.href.length) // Longest href first
       .find((item) => pathname.startsWith(item.href));
 
-    return bestPrefixMatch?.id || "overview";
+    if (bestPrefixMatch) {
+      return bestPrefixMatch.id;
+    }
+
+    return pathname === "/home" ? "overview" : "";
   }, [pathname, allowedSidebarItems]);
 
   const currentWidth = collapsed ? COLLAPSED_WIDTH : width;

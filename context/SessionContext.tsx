@@ -206,6 +206,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
             gitlab: "/gitlab/login",
             discord: "/discord/login",
             kaggle: "/kaggle/login", // ⚠️ cuidado (não tem OAuth oficial)
+            auth0: "/auth0/login",
             credenciais: "",
         };
 
