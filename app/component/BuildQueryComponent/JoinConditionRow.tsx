@@ -57,7 +57,7 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
 
 
   return (
-    <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl transition-all hover:bg-white hover:border-blue-200 hover:shadow-sm">
+    <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl transition-all hover:bg-white hover:border-blue-200 hover:shadow-sm">
 
       {/* Operador Lógico (Apenas para índice > 0) */}
       {condIndex > 0 && (
@@ -66,7 +66,7 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
           onChange={(e) => updateCondition(tableName, condition.id, {
             logicalOperator: e.target.value as LogicalOperators
           })}
-          className="px-2.5 py-1.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer"
+          className="w-full sm:w-auto shrink-0 px-2.5 py-1.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer"
         >
           {["AND", "OR"].map(op => (
             <option key={op} value={op}>{op === "AND" ? t("condition.and") || "AND" : t("condition.or") || "OR"}</option>
@@ -75,7 +75,7 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
       )}
 
       {/* Coluna esquerda */}
-      <div className="flex-1 min-w-[150px]">
+      <div className="w-full sm:w-auto sm:flex-1 min-w-0 sm:min-w-[140px]">
         <JoinSelect
           className="w-full text-sm"
           buttonClassName="w-full bg-white border border-gray-200 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500/50 text-gray-900 font-medium shadow-sm transition-colors"
@@ -83,11 +83,12 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
           onChange={(value) => updateCondition(tableName, condition.id, { leftColumn: value })}
           options={allColumnOptions.filter(opt => opt.value !== condition.rightColumn)}
           placeholder={t("joins.leftColumn") || "Coluna esquerda"}
+          autoWidth={false}
         />
       </div>
 
       {/* Operador de Comparação */}
-      <div className="shrink-0 min-w-[100px]">
+      <div className="w-full sm:w-auto shrink-0 sm:min-w-[90px]">
         <select
           value={condition.operator}
           onChange={(e) => updateCondition(tableName, condition.id, { operator: e.target.value })}
@@ -101,10 +102,10 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
 
       {/* Valor/Coluna direita */}
       {!["IS NULL", "IS NOT NULL"].includes(condition.operator) && (
-        <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white p-1 rounded-lg border border-gray-200 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/50 transition-colors">
+        <div className="w-full sm:w-auto sm:flex-1 min-w-0 sm:min-w-[180px] flex items-center gap-2 sm:gap-3 bg-white p-1 rounded-lg border border-gray-200 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/50 transition-colors">
 
           {/* Toggle Value vs Column */}
-          <label className="flex items-center gap-1.5 pl-2 cursor-pointer border-r border-gray-100 pr-3">
+          <label className="flex items-center gap-1.5 pl-2 cursor-pointer border-r border-gray-100 pr-2.5 sm:pr-3 shrink-0">
             <input
               type="checkbox"
               checked={condition.useValue}
@@ -117,7 +118,7 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
           </label>
 
           {/* Renderização condicional do campo da direita */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {condition.useValue ? (
               condition.operator === "IN" || condition.operator === "NOT IN" ? (
                 <OperationINAndNOTINInput
@@ -148,6 +149,7 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
                 onChange={(value) => updateCondition(tableName, condition.id, { rightColumn: value })}
                 options={allColumnOptions.filter(opt => opt.value !== condition.leftColumn)}
                 placeholder={t("joins.rightColumn") || "Coluna direita"}
+                autoWidth={false}
               />
             )}
           </div>
@@ -159,7 +161,7 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
         <button
           type="button"
           onClick={() => removeCondition(tableName, condition.id)}
-          className="p-2 shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
+          className="self-end sm:self-center p-2 shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
           title={t("actions.removeCondition") || "Remover condição"}
           aria-label={t("actions.removeCondition") || "Remover condição"}
         >

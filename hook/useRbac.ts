@@ -34,10 +34,42 @@ export interface RbacMember {
   nome: string;
   apelido?: string | null;
   email: string;
+  telefone?: string | null;
   is_active: boolean;
   role_id?: number | null;
   role_name?: string | null;
+  empresa_role_id?: number | null;
+  empresa_role_name?: string | null;
+  cargo_id?: number | null;
+  cargo_nome?: string | null;
+  empresa_id?: number | null;
+  empresa_nome?: string | null;
   is_superadmin: boolean;
+  created_at?: string | null;
+}
+
+export interface MemberUpdateFullPayload {
+  nome?: string;
+  apelido?: string | null;
+  email?: string;
+  telefone?: string | null;
+  role_id?: number | null;
+  empresa_id?: number | null;
+  cargo?: string | null;
+  is_active?: boolean;
+  senha?: string | null;
+}
+
+export interface MemberCreateGlobalPayload {
+  nome: string;
+  apelido?: string | null;
+  email: string;
+  telefone?: string | null;
+  role_id?: number | null;
+  empresa_id?: number | null;
+  cargo?: string | null;
+  is_active?: boolean;
+  senha?: string | null;
 }
 
 export interface RbacCapabilities {
@@ -223,6 +255,46 @@ export function useRbac(empresaId?: number | null) {
     []
   );
 
+  const updateMemberFull = useCallback(
+    async (userId: number, payload: MemberUpdateFullPayload) => {
+      const { data } = await api.put<RbacMember>(
+        `/users/members/${userId}`,
+        payload
+      );
+      setMembers((prev) => prev.map((m) => (m.id === userId ? data : m)));
+      const rolesRes = await api.get<RbacRole[]>("/users/roles");
+      setRoles(rolesRes.data);
+      return data;
+    },
+    []
+  );
+
+  const createMemberGlobal = useCallback(
+    async (payload: MemberCreateGlobalPayload) => {
+      const { data } = await api.post<RbacMember>(
+        "/users/members",
+        payload
+      );
+      setMembers((prev) =>
+        [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome))
+      );
+      const rolesRes = await api.get<RbacRole[]>("/users/roles");
+      setRoles(rolesRes.data);
+      return data;
+    },
+    []
+  );
+
+  const deleteMemberGlobal = useCallback(
+    async (userId: number) => {
+      await api.delete(`/users/members/${userId}`);
+      setMembers((prev) => prev.filter((m) => m.id !== userId));
+      const rolesRes = await api.get<RbacRole[]>("/users/roles");
+      setRoles(rolesRes.data);
+    },
+    []
+  );
+
   return {
     roles,
     permissions,
@@ -237,5 +309,8 @@ export function useRbac(empresaId?: number | null) {
     toggleRolePermission,
     setMemberRole,
     setMemberStatus,
+    updateMemberFull,
+    createMemberGlobal,
+    deleteMemberGlobal,
   };
 }

@@ -460,24 +460,27 @@ export function JoinOptions({
   return (
     <div className="space-y-4">
       {/* Seletor de Tabela Base */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-xl gap-3">
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="p-1.5 bg-blue-100 rounded-md border border-blue-200">
-            <Database className="h-4 w-4 text-blue-600" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 sm:p-4 bg-gray-50 border border-gray-200 rounded-xl gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto min-w-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="p-1.5 bg-blue-100 rounded-md border border-blue-200">
+              <Database className="h-4 w-4 text-blue-600" />
+            </div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">
+              {t("joins.baseTable") || "Tabela Base"}:
+            </span>
           </div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">
-            {t("joins.baseTable") || "Tabela Base"}:
-          </span>
           <JoinSelect
-            className="flex-1 sm:flex-none min-w-[200px]"
-            buttonClassName="px-3 py-1.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm font-bold text-gray-900 shadow-sm"
+            className="w-full sm:w-64 min-w-0"
+            buttonClassName="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm font-bold text-gray-900 shadow-sm"
             value={baseTable}
             onChange={(value) => changeBaseTable(value)}
             options={baseTableOptions}
             placeholder={t("joins.selectBaseTable") || "Selecione"}
+            autoWidth={false}
           />
         </div>
-        <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md self-start sm:self-auto">
           {joinOrder.length} JOIN{joinOrder.length !== 1 ? 's' : ''} {t("joins.configured") || "configurado(s)"}
         </span>
       </div>

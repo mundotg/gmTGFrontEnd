@@ -1349,7 +1349,7 @@ export const ShareConnectionModal = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Tabelas Permitidas (Whitelist) */}
-                  <div className="space-y-2 bg-slate-50/60 p-3 rounded-xl border border-slate-200">
+                  <div className="space-y-2 bg-slate-50/60 p-3 rounded-xl border border-slate-200 min-w-0">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-slate-700">Tabelas Permitidas (Whitelist)</span>
                       <span className="text-[10px] text-slate-400">Apenas estas</span>
@@ -1385,12 +1385,12 @@ export const ShareConnectionModal = ({
                             addAllowedTable(inputTableAllowed);
                           }
                         }}
-                        className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-indigo-500"
                       />
                       <button
                         type="button"
                         onClick={() => addAllowedTable(inputTableAllowed)}
-                        className="px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700"
+                        className="shrink-0 px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700"
                       >
                         Add
                       </button>
@@ -1435,7 +1435,7 @@ export const ShareConnectionModal = ({
                   </div>
 
                   {/* Tabelas Bloqueadas (Blacklist) */}
-                  <div className="space-y-2 bg-slate-50/60 p-3 rounded-xl border border-slate-200">
+                  <div className="space-y-2 bg-slate-50/60 p-3 rounded-xl border border-slate-200 min-w-0">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-slate-700">Tabelas Bloqueadas (Blacklist)</span>
                       <span className="text-[10px] text-slate-400">Nunca acessíveis</span>
@@ -1471,12 +1471,12 @@ export const ShareConnectionModal = ({
                             addBlockedTable(inputTableBlocked);
                           }
                         }}
-                        className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-red-500"
+                        className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-red-500"
                       />
                       <button
                         type="button"
                         onClick={() => addBlockedTable(inputTableBlocked)}
-                        className="px-2.5 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700"
+                        className="shrink-0 px-2.5 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700"
                       >
                         Add
                       </button>
@@ -1543,7 +1543,7 @@ export const ShareConnectionModal = ({
                 <div className="space-y-2.5 bg-slate-50/60 p-3 rounded-xl border border-slate-200">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {/* Seletor de Tabela */}
-                    <div>
+                    <div className="min-w-0">
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                         1. Tabela Alvo
                       </label>
@@ -1570,7 +1570,7 @@ export const ShareConnectionModal = ({
                     </div>
 
                     {/* Seletor de Colunas (obtidas de /consu/field/{conn_id}/{table_name}) */}
-                    <div>
+                    <div className="min-w-0">
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                         2. Coluna a Bloquear
                       </label>
@@ -1614,13 +1614,13 @@ export const ShareConnectionModal = ({
                                 addBlockedColumn();
                               }
                             }}
-                            className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-amber-500 disabled:bg-slate-100"
+                            className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-amber-500 disabled:bg-slate-100"
                           />
                           <button
                             type="button"
                             disabled={!selectedTableForColumn || !inputColumnBlocked.trim()}
                             onClick={addBlockedColumn}
-                            className="px-2.5 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 disabled:opacity-50"
+                            className="shrink-0 px-2.5 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 disabled:opacity-50"
                           >
                             Bloquear
                           </button>

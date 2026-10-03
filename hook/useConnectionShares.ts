@@ -86,6 +86,7 @@ export interface ConnectionEmpresa {
 export interface ShareableEmpresa {
   id: number;
   nome: string;
+  nif?: string | null;
 }
 
 export interface ConnectionAccess {

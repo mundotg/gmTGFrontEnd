@@ -7,6 +7,7 @@ import {
   Building,
   FolderKanban,
   Users,
+  Shield,
   Plug,
   Settings,
   KeyRound,
@@ -101,10 +102,10 @@ export default function SettingsPage() {
     },
     {
       id: "equipe",
-      label: t("settings.tabTeam") || "Equipe",
-      icon: Users,
+      label: "Controlo de Acesso & Perfis",
+      icon: Shield,
       permission: ["settings:team", "team:read", "role:read"],
-      description: t("settings.descTeam") || "Usuários e permissões",
+      description: "Utilizadores, funções e permissões globais",
     },
     {
       id: "acessosconexoes",
