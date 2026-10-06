@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import api from "@/context/axioCuston";
+import { useI18n } from "@/context/I18nContext";
 import { JoinSelect } from "@/app/component/BuildQueryComponent/JoinSelect";
 import {
   ACCESS_LEVEL_HELP,
@@ -39,14 +40,24 @@ import { extractApiError } from "@/hook/useRbac";
 
 const NIVEIS: ConnectionAccessLevel[] = ["read", "write", "manage"];
 
-const QUERY_TYPES = [
-  { id: "SELECT", label: "SELECT", desc: "Consultas e leitura de dados" },
-  { id: "INSERT", label: "INSERT", desc: "Inserir novos registos" },
-  { id: "UPDATE", label: "UPDATE", desc: "Atualizar registos existentes" },
-  { id: "DELETE", label: "DELETE", desc: "Eliminar registos" },
-  { id: "DDL", label: "DDL", desc: "Estrutura (CREATE, ALTER, DROP, TRUNCATE)" },
-  { id: "EXPORT", label: "EXPORT", desc: "Exportação de dados e relatórios" },
-];
+// Estilos padronizados para alta visibilidade, contraste e responsividade em qualquer tema e resolução
+const baseSelectClass =
+  "w-full rounded-xl border-2 border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-xs hover:border-indigo-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all cursor-pointer dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:hover:border-indigo-400";
+
+const rowSelectClass =
+  "min-w-[110px] rounded-lg border-2 border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-900 shadow-2xs hover:border-indigo-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all cursor-pointer dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:hover:border-indigo-400";
+
+const rowRoleSelectClass =
+  "min-w-[120px] max-w-[160px] rounded-lg border-2 border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-900 shadow-2xs hover:border-indigo-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all cursor-pointer dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:hover:border-indigo-400";
+
+const joinSelectButtonClass =
+  "w-full text-xs py-2 px-3 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-400 focus:border-indigo-600 rounded-xl text-slate-900 dark:text-slate-100 text-left font-semibold shadow-xs transition-colors";
+
+const joinSelectCompactClass =
+  "w-full text-xs py-1.5 px-2.5 bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-400 focus:border-indigo-600 rounded-lg text-slate-900 dark:text-slate-100 text-left font-semibold shadow-xs transition-colors";
+
+const optionClass =
+  "bg-white text-slate-900 font-medium py-1 dark:bg-slate-800 dark:text-slate-100";
 
 interface Props {
   connectionId: number;
@@ -59,11 +70,17 @@ interface TableStructure {
   table_name: string;
 }
 
+interface DBFieldItem {
+  name: string;
+  type?: string;
+}
+
 export const ShareConnectionModal = ({
   connectionId,
   connectionName,
   onClose,
 }: Props) => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<"shares" | "empresas" | "roles">("shares");
 
   const {
@@ -86,6 +103,33 @@ export const ShareConnectionModal = ({
     updateConnectionRole,
     deleteConnectionRole,
   } = useConnectionShares(connectionId, activeTab);
+
+  /* --- Helpers de Tradução dos Níveis --- */
+  const getAccessLevelLabel = useCallback(
+    (lvl: ConnectionAccessLevel) =>
+      t(`shareConnection.accessLevel.${lvl}`) || ACCESS_LEVEL_LABELS[lvl] || lvl,
+    [t]
+  );
+
+  const getAccessLevelHelp = useCallback(
+    (lvl: ConnectionAccessLevel) => {
+      const cap = lvl.charAt(0).toUpperCase() + lvl.slice(1);
+      return t(`shareConnection.accessLevel.help${cap}`) || ACCESS_LEVEL_HELP[lvl] || "";
+    },
+    [t]
+  );
+
+  const queryTypesList = useMemo(
+    () => [
+      { id: "SELECT", label: "SELECT", desc: t("shareConnection.queryTypes.SELECT") },
+      { id: "INSERT", label: "INSERT", desc: t("shareConnection.queryTypes.INSERT") },
+      { id: "UPDATE", label: "UPDATE", desc: t("shareConnection.queryTypes.UPDATE") },
+      { id: "DELETE", label: "DELETE", desc: t("shareConnection.queryTypes.DELETE") },
+      { id: "DDL", label: "DDL", desc: t("shareConnection.queryTypes.DDL") },
+      { id: "EXPORT", label: "EXPORT", desc: t("shareConnection.queryTypes.EXPORT") },
+    ],
+    [t]
+  );
 
   /* --- Notificações --- */
   const [erroAcao, setErroAcao] = useState<string | null>(null);
@@ -177,11 +221,6 @@ export const ShareConnectionModal = ({
   }, [connectionId, availableTables.length, loadingTables]);
 
   /* --- Introspeção de Colunas da Tabela Selecionada (/consu/field/{conn_id}/{table_name}) --- */
-  interface DBFieldItem {
-    name: string;
-    type?: string;
-  }
-
   const [columnsCache, setColumnsCache] = useState<Record<string, string[]>>({});
   const [loadingColumns, setLoadingColumns] = useState(false);
 
@@ -214,10 +253,10 @@ export const ShareConnectionModal = ({
   );
 
   const selecionarTabelaParaColuna = (tbl: string) => {
-    const t = tbl.trim().toLowerCase();
-    setSelectedTableForColumn(t);
-    if (t) {
-      carregarColunasDaTabela(t);
+    const tNome = tbl.trim().toLowerCase();
+    setSelectedTableForColumn(tNome);
+    if (tNome) {
+      carregarColunasDaTabela(tNome);
     }
   };
 
@@ -235,9 +274,9 @@ export const ShareConnectionModal = ({
       setSelectedUser("");
       setSelectedLevel("read");
       setSelectedRoleId("");
-      notificar("Acesso concedido com sucesso!");
+      notificar(t("shareConnection.notifications.grantedSuccess"));
     } catch (err) {
-      notificar(extractApiError(err, "Não foi possível conceder o acesso."), "err");
+      notificar(extractApiError(err, t("shareConnection.notifications.grantError")), "err");
     } finally {
       setAGuardar(false);
     }
@@ -252,16 +291,17 @@ export const ShareConnectionModal = ({
     setErroAcao(null);
     try {
       await updateShare(userId, nivel, roleId);
-      notificar("Acesso atualizado!");
+      notificar(t("shareConnection.notifications.updatedSuccess"));
     } catch (err) {
-      notificar(extractApiError(err, "Não foi possível alterar a partilha."), "err");
+      notificar(extractApiError(err, t("shareConnection.notifications.updateError")), "err");
     } finally {
       setEmCurso(null);
     }
   };
 
   const handleRevoke = async (userId: number, nome?: string | null) => {
-    if (!window.confirm(`Retirar o acesso de ${nome || "este utilizador"}?`)) {
+    const nomeExibicao = nome || t("shareConnection.members.userFallback", { id: userId });
+    if (!window.confirm(t("shareConnection.members.confirmRevoke", { name: nomeExibicao }))) {
       return;
     }
 
@@ -269,9 +309,9 @@ export const ShareConnectionModal = ({
     setErroAcao(null);
     try {
       await revoke(userId);
-      notificar("Acesso revogado com sucesso.");
+      notificar(t("shareConnection.notifications.revokedSuccess"));
     } catch (err) {
-      notificar(extractApiError(err, "Não foi possível retirar o acesso."), "err");
+      notificar(extractApiError(err, t("shareConnection.notifications.revokeError")), "err");
     } finally {
       setEmCurso(null);
     }
@@ -291,9 +331,9 @@ export const ShareConnectionModal = ({
       setSelectedEmpresaId("");
       setEmpresaLevel("read");
       setEmpresaRoleId("");
-      notificar("Empresa associada à conexão com sucesso!");
+      notificar(t("shareConnection.notifications.companyAddedSuccess"));
     } catch (err) {
-      notificar(extractApiError(err, "Não foi possível associar a empresa."), "err");
+      notificar(extractApiError(err, t("shareConnection.notifications.companyAddError")), "err");
     } finally {
       setGuardandoEmpresa(false);
     }
@@ -308,16 +348,17 @@ export const ShareConnectionModal = ({
     setErroAcao(null);
     try {
       await updateEmpresa(empresaId, nivel, roleId);
-      notificar("Acesso da empresa atualizado!");
+      notificar(t("shareConnection.notifications.companyUpdatedSuccess"));
     } catch (err) {
-      notificar(extractApiError(err, "Não foi possível atualizar o acesso da empresa."), "err");
+      notificar(extractApiError(err, t("shareConnection.notifications.companyUpdateError")), "err");
     } finally {
       setEmpresaEmCurso(null);
     }
   };
 
   const handleRemoveEmpresa = async (empresaId: number, nome?: string | null) => {
-    if (!window.confirm(`Revogar o acesso da empresa "${nome || "esta empresa"}" a esta conexão?`)) {
+    const nomeExibicao = nome || t("shareConnection.companies.companyFallback", { id: empresaId });
+    if (!window.confirm(t("shareConnection.companies.confirmRevoke", { name: nomeExibicao }))) {
       return;
     }
 
@@ -325,9 +366,9 @@ export const ShareConnectionModal = ({
     setErroAcao(null);
     try {
       await removeEmpresa(empresaId);
-      notificar("Acesso da empresa removido com sucesso.");
+      notificar(t("shareConnection.notifications.companyRemovedSuccess"));
     } catch (err) {
-      notificar(extractApiError(err, "Não foi possível remover a empresa."), "err");
+      notificar(extractApiError(err, t("shareConnection.notifications.companyRemoveError")), "err");
     } finally {
       setEmpresaEmCurso(null);
     }
@@ -380,8 +421,12 @@ export const ShareConnectionModal = ({
     setTipoConfigAlvo("share_custom");
     setAlvoRole(null);
     setAlvoShare(s);
-    setFormNome(`Regras específicas para ${s.user_nome || "Membro"}`);
-    setFormDescricao("Sobrepõem as regras da função para este utilizador.");
+    setFormNome(
+      t("shareConnection.rulesModal.customRulesTitle", {
+        name: s.user_nome || t("shareConnection.members.userFallback", { id: s.user_id }),
+      })
+    );
+    setFormDescricao(t("shareConnection.rulesModal.customRulesDesc"));
     setFormPermissoes([]);
     setFormQueryTypes(s.allowed_query_types || []);
     setFormAllowedTables(s.allowed_tables || []);
@@ -414,12 +459,12 @@ export const ShareConnectionModal = ({
     try {
       if (tipoConfigAlvo === "role_nova") {
         if (!formNome.trim()) {
-          notificar("Por favor, preencha o nome da função.", "err");
+          notificar(t("shareConnection.notifications.fillRoleName"), "err");
           setSalvandoRegras(false);
           return;
         }
         await createConnectionRole(formNome.trim(), formDescricao.trim() || undefined, formPermissoes, rulesPayload);
-        notificar(`Função "${formNome}" criada com sucesso!`);
+        notificar(t("shareConnection.notifications.roleCreatedSuccess", { name: formNome }));
       } else if (tipoConfigAlvo === "role_edicao" && alvoRole) {
         await updateConnectionRole(
           alvoRole.id,
@@ -428,29 +473,29 @@ export const ShareConnectionModal = ({
           formPermissoes,
           rulesPayload
         );
-        notificar(`Função "${formNome}" atualizada com sucesso!`);
+        notificar(t("shareConnection.notifications.roleUpdatedSuccess", { name: formNome }));
       } else if (tipoConfigAlvo === "share_custom" && alvoShare) {
         await updateShare(alvoShare.user_id, alvoShare.access_level, alvoShare.role_id, rulesPayload);
-        notificar("Regras personalizadas do utilizador atualizadas com sucesso!");
+        notificar(t("shareConnection.notifications.customRulesUpdatedSuccess"));
       }
 
       setModalRegrasAberto(false);
     } catch (err) {
-      notificar(extractApiError(err, "Erro ao gravar as regras."), "err");
+      notificar(extractApiError(err, t("shareConnection.notifications.saveRulesError")), "err");
     } finally {
       setSalvandoRegras(false);
     }
   };
 
   const handleExcluirRole = async (role: ConnectionRole) => {
-    if (!window.confirm(`Tem a certeza que deseja remover a função "${role.name}"?`)) {
+    if (!window.confirm(t("shareConnection.roles.confirmDelete", { name: role.name }))) {
       return;
     }
     try {
       await deleteConnectionRole(role.id);
-      notificar(`Função "${role.name}" removida com sucesso.`);
+      notificar(t("shareConnection.notifications.roleDeletedSuccess", { name: role.name }));
     } catch (err) {
-      notificar(extractApiError(err, "Erro ao remover função."), "err");
+      notificar(extractApiError(err, t("shareConnection.notifications.deleteRoleError")), "err");
     }
   };
 
@@ -464,13 +509,12 @@ export const ShareConnectionModal = ({
   };
 
   const addAllowedTable = (tbl: string) => {
-    const t = tbl.trim().toLowerCase();
-    if (!t) return;
-    if (!formAllowedTables.includes(t)) {
-      setFormAllowedTables((prev) => [...prev, t]);
+    const tNome = tbl.trim().toLowerCase();
+    if (!tNome) return;
+    if (!formAllowedTables.includes(tNome)) {
+      setFormAllowedTables((prev) => [...prev, tNome]);
     }
-    // Remove do blocked se tiver
-    setFormBlockedTables((prev) => prev.filter((x) => x !== t));
+    setFormBlockedTables((prev) => prev.filter((x) => x !== tNome));
     setInputTableAllowed("");
   };
 
@@ -479,13 +523,12 @@ export const ShareConnectionModal = ({
   };
 
   const addBlockedTable = (tbl: string) => {
-    const t = tbl.trim().toLowerCase();
-    if (!t) return;
-    if (!formBlockedTables.includes(t)) {
-      setFormBlockedTables((prev) => [...prev, t]);
+    const tNome = tbl.trim().toLowerCase();
+    if (!tNome) return;
+    if (!formBlockedTables.includes(tNome)) {
+      setFormBlockedTables((prev) => [...prev, tNome]);
     }
-    // Remove do allowed se tiver
-    setFormAllowedTables((prev) => prev.filter((x) => x !== t));
+    setFormAllowedTables((prev) => prev.filter((x) => x !== tNome));
     setInputTableBlocked("");
   };
 
@@ -528,20 +571,20 @@ export const ShareConnectionModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100">
+      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
         {/* HEADER */}
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5 bg-slate-50/50">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5 bg-slate-50/50 dark:bg-slate-800/40 dark:border-slate-800">
           <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-              <ShieldCheck size={22} className="text-indigo-600" />
-              Acesso a Conexões & Regras de Segurança
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+              <ShieldCheck size={22} className="text-indigo-600 dark:text-indigo-400" />
+              {t("shareConnection.title")}
             </h2>
-            <p className="mt-0.5 truncate text-xs text-slate-500">
-              Conexão: <span className="font-semibold text-slate-700">{connectionName}</span>
+            <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+              {t("shareConnection.connection")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{connectionName}</span>
               {access?.owner_nome && (
                 <>
                   {" · "}
-                  <span className="text-slate-400">Dono: {access.owner_nome}</span>
+                  <span className="text-slate-400">{t("shareConnection.owner")}: {access.owner_nome}</span>
                 </>
               )}
             </p>
@@ -549,30 +592,30 @@ export const ShareConnectionModal = ({
 
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-200/60 hover:text-slate-900"
-            aria-label="Fechar"
+            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-200/60 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+            aria-label={t("shareConnection.close")}
           >
             <X size={20} />
           </button>
         </div>
 
         {/* NAVEGAÇÃO DE ABAS */}
-        <div className="flex items-center gap-2 border-b border-slate-100 bg-white px-5 pt-3 overflow-x-auto">
+        <div className="flex items-center gap-2 border-b border-slate-100 bg-white px-5 pt-3 overflow-x-auto dark:bg-slate-900 dark:border-slate-800">
           <button
             onClick={() => setActiveTab("shares")}
             className={`flex items-center gap-2 pb-3 px-3 text-xs font-bold border-b-2 transition-all shrink-0 ${
               activeTab === "shares"
-                ? "border-indigo-600 text-indigo-600"
-                : "border-transparent text-slate-500 hover:text-slate-800"
+                ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
+                : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
             }`}
           >
             {loadingTab && activeTab === "shares" ? (
-              <Loader2 size={15} className="animate-spin text-indigo-600" />
+              <Loader2 size={15} className="animate-spin text-indigo-600 dark:text-indigo-400" />
             ) : (
               <Users size={15} />
             )}
-            <span>Membros (Utilizadores)</span>
-            <span className="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-600">
+            <span>{t("shareConnection.tabs.shares")}</span>
+            <span className="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300">
               {access?.shares?.length || 0}
             </span>
           </button>
@@ -581,17 +624,17 @@ export const ShareConnectionModal = ({
             onClick={() => setActiveTab("empresas")}
             className={`flex items-center gap-2 pb-3 px-3 text-xs font-bold border-b-2 transition-all shrink-0 ${
               activeTab === "empresas"
-                ? "border-indigo-600 text-indigo-600"
-                : "border-transparent text-slate-500 hover:text-slate-800"
+                ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
+                : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
             }`}
           >
             {loadingTab && activeTab === "empresas" ? (
-              <Loader2 size={15} className="animate-spin text-indigo-600" />
+              <Loader2 size={15} className="animate-spin text-indigo-600 dark:text-indigo-400" />
             ) : (
               <Building2 size={15} />
             )}
-            <span>Acesso por Empresa</span>
-            <span className="ml-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600">
+            <span>{t("shareConnection.tabs.companies")}</span>
+            <span className="ml-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-950/60 dark:text-blue-300">
               {empresas.length}
             </span>
           </button>
@@ -600,17 +643,17 @@ export const ShareConnectionModal = ({
             onClick={() => setActiveTab("roles")}
             className={`flex items-center gap-2 pb-3 px-3 text-xs font-bold border-b-2 transition-all shrink-0 ${
               activeTab === "roles"
-                ? "border-indigo-600 text-indigo-600"
-                : "border-transparent text-slate-500 hover:text-slate-800"
+                ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
+                : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
             }`}
           >
             {loadingTab && activeTab === "roles" ? (
-              <Loader2 size={15} className="animate-spin text-indigo-600" />
+              <Loader2 size={15} className="animate-spin text-indigo-600 dark:text-indigo-400" />
             ) : (
               <Sliders size={15} />
             )}
-            <span>Funções e Regras Avançadas</span>
-            <span className="ml-1 rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-600">
+            <span>{t("shareConnection.tabs.roles")}</span>
+            <span className="ml-1 rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-600 dark:bg-purple-950/60 dark:text-purple-300">
               {roles.length}
             </span>
           </button>
@@ -619,42 +662,42 @@ export const ShareConnectionModal = ({
         {/* CORPO DO MODAL */}
         <div className="flex-1 space-y-5 overflow-y-auto p-5">
           {loading && (
-            <div className="flex items-center justify-center gap-2 py-12 text-slate-500">
-              <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
-              <span className="text-sm">A carregar detalhes de acesso e segurança…</span>
+            <div className="flex items-center justify-center gap-2 py-12 text-slate-500 dark:text-slate-400">
+              <Loader2 className="h-5 w-5 animate-spin text-indigo-600 dark:text-indigo-400" />
+              <span className="text-sm">{t("shareConnection.loading")}</span>
             </div>
           )}
 
           {error && (
-            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/30 dark:border-red-900/50 dark:text-red-300">
               <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
               <p>{error}</p>
             </div>
           )}
 
           {sucessoAcao && (
-            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-800">
-              <Check size={15} className="text-emerald-600" />
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-900/50 dark:text-emerald-300">
+              <Check size={15} className="text-emerald-600 dark:text-emerald-400" />
               <span>{sucessoAcao}</span>
             </div>
           )}
 
           {erroAcao && (
-            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 dark:bg-red-950/30 dark:border-red-900/50 dark:text-red-300">
               <AlertTriangle size={15} className="mt-0.5 flex-shrink-0" />
               <p>{erroAcao}</p>
             </div>
           )}
 
           {!loading && !error && access && !podeGerir && (
-            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:border-amber-900/50 dark:text-amber-300">
               <ShieldCheck size={16} className="mt-0.5 flex-shrink-0" />
               <p>
-                Tem nível de acesso{" "}
-                <strong>
-                  {access.access_level ? ACCESS_LEVEL_LABELS[access.access_level] : "leitura"}
-                </strong>{" "}
-                nesta conexão. Apenas o proprietário ou gestores autorizados podem configurar regras e conceder acessos.
+                {t("shareConnection.noAccessNotice", {
+                  level: access.access_level
+                    ? getAccessLevelLabel(access.access_level)
+                    : getAccessLevelLabel("read"),
+                })}
               </p>
             </div>
           )}
@@ -665,86 +708,86 @@ export const ShareConnectionModal = ({
           {!loading && activeTab === "shares" && (
             <div className="space-y-5">
               {podeGerir && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
-                  <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700">
-                    <UserPlus size={15} className="text-indigo-600" />
-                    Conceder Acesso a Membro
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3 dark:bg-slate-800/40 dark:border-slate-700">
+                  <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    <UserPlus size={15} className="text-indigo-600 dark:text-indigo-400" />
+                    {t("shareConnection.members.grantTitle")}
                   </h3>
 
                   {candidatosOrdenados.length === 0 ? (
-                    <p className="text-xs text-slate-500">
-                      Todos os colegas disponíveis da organização já possuem acesso a esta conexão.
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {t("shareConnection.members.allHaveAccess")}
                     </p>
                   ) : (
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                         <div className="sm:col-span-5">
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            Utilizador
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1 dark:text-slate-300">
+                            {t("shareConnection.members.userLabel")}
                           </label>
                           <JoinSelect
                             className="w-full"
-                            buttonClassName="w-full text-xs py-2 px-3 bg-white border border-slate-200 rounded-lg text-slate-800 text-left font-normal"
+                            buttonClassName={joinSelectButtonClass}
                             options={candidatosOrdenados.map((u) => ({
                               value: String(u.id),
                               label: `${u.nome} ${u.apelido ?? ""} · ${u.email}`,
                             }))}
                             value={selectedUser}
                             onChange={(val) => setSelectedUser(val)}
-                            placeholder="Buscar membro por nome ou email…"
+                            placeholder={t("shareConnection.members.userPlaceholder")}
                             searchable={true}
                             autoWidth={false}
                           />
                         </div>
 
                         <div className="sm:col-span-3">
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            Nível de Permissão
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1 dark:text-slate-300">
+                            {t("shareConnection.members.levelLabel")}
                           </label>
                           <select
-                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className={baseSelectClass}
                             value={selectedLevel}
                             onChange={(e) => setSelectedLevel(e.target.value as ConnectionAccessLevel)}
                           >
                             {NIVEIS.map((n) => (
-                              <option key={n} value={n}>
-                                {ACCESS_LEVEL_LABELS[n]}
+                              <option key={n} value={n} className={optionClass}>
+                                {getAccessLevelLabel(n)}
                               </option>
                             ))}
                           </select>
                         </div>
 
                         <div className="sm:col-span-4">
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            Função de Conexão (Opcional)
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1 dark:text-slate-300">
+                            {t("shareConnection.members.roleLabel")}
                           </label>
                           <JoinSelect
                             className="w-full"
-                            buttonClassName="w-full text-xs py-2 px-3 bg-white border border-slate-200 rounded-lg text-slate-800 text-left font-normal"
+                            buttonClassName={joinSelectButtonClass}
                             options={[
-                              { value: "", label: "Nenhuma (Herda permissões base)" },
+                              { value: "", label: t("shareConnection.members.noRole") },
                               ...roles.map((r) => ({ value: String(r.id), label: r.name })),
                             ]}
                             value={selectedRoleId}
                             onChange={(val) => setSelectedRoleId(val)}
-                            placeholder="Nenhuma (Herda permissões base)"
+                            placeholder={t("shareConnection.members.noRole")}
                             searchable={roles.length > 4}
                             autoWidth={false}
                           />
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="text-[11px] text-slate-400">
-                          {ACCESS_LEVEL_HELP[selectedLevel]}
+                      <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
+                        <span className="text-[11px] text-slate-500 font-medium dark:text-slate-400">
+                          {getAccessLevelHelp(selectedLevel)}
                         </span>
                         <button
                           onClick={handleShare}
                           disabled={!selectedUser || aGuardar}
-                          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+                          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-600 shadow-xs"
                         >
                           {aGuardar && <Loader2 size={13} className="animate-spin" />}
-                          Adicionar Acesso
+                          {t("shareConnection.members.btnAdd")}
                         </button>
                       </div>
                     </div>
@@ -754,13 +797,13 @@ export const ShareConnectionModal = ({
 
               {/* LISTA DE MEMBROS COM ACESSO */}
               <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Membros com Acesso Atribuído ({access?.shares?.length || 0})
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {t("shareConnection.members.listTitle", { count: access?.shares?.length || 0 })}
                 </h4>
 
                 {(!access?.shares || access.shares.length === 0) && (
-                  <p className="text-xs text-slate-400 py-3 italic">
-                    Nenhum membro tem partilha individual nesta conexão.
+                  <p className="text-xs text-slate-400 py-3 italic dark:text-slate-500">
+                    {t("shareConnection.members.emptyList")}
                   </p>
                 )}
 
@@ -777,33 +820,40 @@ export const ShareConnectionModal = ({
                     return (
                       <div
                         key={s.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-100 bg-white hover:border-slate-200 transition-colors shadow-2xs"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs dark:bg-slate-800/80 dark:border-slate-700 dark:hover:border-slate-600"
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-slate-800 text-xs">
-                              {s.user_nome || `Utilizador #${s.user_id}`}
+                            <span className="font-bold text-slate-900 text-xs dark:text-slate-100">
+                              {s.user_nome || t("shareConnection.members.userFallback", { id: s.user_id })}
                             </span>
-                            <span className="text-[11px] text-slate-400">{s.user_email}</span>
+                            <span className="text-[11px] text-slate-400 dark:text-slate-400">{s.user_email}</span>
                             {temRegrasCustom && (
-                              <span className="inline-flex items-center gap-1 rounded bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">
-                                <Filter size={10} /> Regras Avançadas
+                              <span className="inline-flex items-center gap-1 rounded bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 dark:bg-indigo-950/60 dark:border-indigo-800 dark:text-indigo-300">
+                                <Filter size={10} /> {t("shareConnection.members.advancedRulesBadge")}
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1">
-                            <span>Nível: <strong>{ACCESS_LEVEL_LABELS[s.access_level]}</strong></span>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                            <span>
+                              {t("shareConnection.members.levelPrefix")}{" "}
+                              <strong className="text-slate-800 dark:text-slate-200">
+                                {getAccessLevelLabel(s.access_level)}
+                              </strong>
+                            </span>
                             {s.role_name && (
                               <>
                                 <span>·</span>
-                                <span className="text-purple-600 font-medium">Função: {s.role_name}</span>
+                                <span className="text-purple-600 font-semibold dark:text-purple-400">
+                                  {t("shareConnection.members.rolePrefix")} {s.role_name}
+                                </span>
                               </>
                             )}
                           </div>
                         </div>
 
                         {podeGerir ? (
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
                             {/* Seletor de Nível */}
                             <select
                               value={s.access_level}
@@ -815,11 +865,11 @@ export const ShareConnectionModal = ({
                                   s.role_id
                                 )
                               }
-                              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                              className={rowSelectClass}
                             >
                               {NIVEIS.map((n) => (
-                                <option key={n} value={n}>
-                                  {ACCESS_LEVEL_LABELS[n]}
+                                <option key={n} value={n} className={optionClass}>
+                                  {getAccessLevelLabel(n)}
                                 </option>
                               ))}
                             </select>
@@ -835,11 +885,13 @@ export const ShareConnectionModal = ({
                                   e.target.value ? Number(e.target.value) : null
                                 )
                               }
-                              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none max-w-[130px]"
+                              className={rowRoleSelectClass}
                             >
-                              <option value="">Sem função</option>
+                              <option value="" className={optionClass}>
+                                {t("shareConnection.members.noRoleOption")}
+                              </option>
                               {roles.map((r) => (
-                                <option key={r.id} value={r.id}>
+                                <option key={r.id} value={r.id} className={optionClass}>
                                   {r.name}
                                 </option>
                               ))}
@@ -848,19 +900,19 @@ export const ShareConnectionModal = ({
                             {/* Botão de Regras Personalizadas */}
                             <button
                               onClick={() => abrirCustomizarShare(s)}
-                              title="Configurar regras de tabelas, campos e queries para este membro"
-                              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                              title={t("shareConnection.members.rulesTitle")}
+                              className="flex items-center gap-1 rounded-lg border-2 border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 transition-colors shadow-2xs dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
                             >
                               <Sliders size={13} />
-                              <span className="hidden sm:inline">Regras</span>
+                              <span className="hidden sm:inline">{t("shareConnection.members.rulesBtn")}</span>
                             </button>
 
                             {/* Botão de Revogar */}
                             <button
                               onClick={() => handleRevoke(s.user_id, s.user_nome)}
                               disabled={ocupado}
-                              title="Revogar acesso"
-                              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                              title={t("shareConnection.members.revokeTitle")}
+                              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                             >
                               {ocupado ? (
                                 <Loader2 size={15} className="animate-spin" />
@@ -870,8 +922,8 @@ export const ShareConnectionModal = ({
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
-                            {ACCESS_LEVEL_LABELS[s.access_level]}
+                          <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg dark:bg-slate-800 dark:text-slate-200">
+                            {getAccessLevelLabel(s.access_level)}
                           </span>
                         )}
                       </div>
@@ -887,81 +939,80 @@ export const ShareConnectionModal = ({
           ======================================================== */}
           {!loading && activeTab === "empresas" && (
             <div className="space-y-5">
-              <div className="flex items-start gap-3 bg-blue-50/70 border border-blue-100 p-4 rounded-xl text-blue-900 text-xs">
-                <Building2 size={18} className="mt-0.5 text-blue-600 shrink-0" />
+              <div className="flex items-start gap-3 bg-blue-50/70 border border-blue-200 p-4 rounded-xl text-blue-900 text-xs dark:bg-blue-950/30 dark:border-blue-900/50 dark:text-blue-200">
+                <Building2 size={18} className="mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
                 <div>
-                  <p className="font-bold">Acesso Corporativo / Multi-Empresa</p>
-                  <p className="text-blue-700 mt-0.5">
-                    Permite conceder acesso à conexão para todos os membros que pertençam a uma empresa específica.
-                    Se um membro tiver um acesso individual direto (aba Membros), esse acesso terá prioridade sobre o da empresa.
+                  <p className="font-bold">{t("shareConnection.companies.bannerTitle")}</p>
+                  <p className="text-blue-700 dark:text-blue-300 mt-0.5">
+                    {t("shareConnection.companies.bannerDesc")}
                   </p>
                 </div>
               </div>
 
               {podeGerir && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
-                  <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700">
-                    <Building size={15} className="text-blue-600" />
-                    Associar Nova Empresa
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3 dark:bg-slate-800/40 dark:border-slate-700">
+                  <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    <Building size={15} className="text-blue-600 dark:text-blue-400" />
+                    {t("shareConnection.companies.grantTitle")}
                   </h3>
 
                   {empresasDisponiveis.length === 0 ? (
-                    <p className="text-xs text-slate-500">
-                      Todas as empresas registadas já possuem associação com esta conexão.
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {t("shareConnection.companies.allHaveAccess")}
                     </p>
                   ) : (
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                         <div className="sm:col-span-5">
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            Empresa
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1 dark:text-slate-300">
+                            {t("shareConnection.companies.companyLabel")}
                           </label>
                           <JoinSelect
                             className="w-full"
-                            buttonClassName="w-full text-xs py-2 px-3 bg-white border border-slate-200 rounded-lg text-slate-800 text-left font-normal"
+                            buttonClassName={joinSelectButtonClass}
                             options={empresasDisponiveis.map((emp) => ({
                               value: String(emp.id),
                               label: `${emp.nome}${emp.nif ? ` · NIF: ${emp.nif}` : ""}`,
                             }))}
                             value={selectedEmpresaId}
                             onChange={(val) => setSelectedEmpresaId(val)}
-                            placeholder="Buscar empresa por nome ou NIF…"
+                            placeholder={t("shareConnection.companies.companyPlaceholder")}
                             searchable={true}
                             autoWidth={false}
                           />
                         </div>
 
                         <div className="sm:col-span-3">
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            Nível Padrão
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1 dark:text-slate-300">
+                            {t("shareConnection.companies.defaultLevelLabel")}
                           </label>
                           <select
-                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                            className={baseSelectClass}
                             value={empresaLevel}
                             onChange={(e) => setEmpresaLevel(e.target.value as ConnectionAccessLevel)}
                           >
                             {NIVEIS.map((n) => (
-                              <option key={n} value={n}>
-                                {ACCESS_LEVEL_LABELS[n]}
+                              <option key={n} value={n} className={optionClass}>
+                                {getAccessLevelLabel(n)}
                               </option>
                             ))}
                           </select>
                         </div>
 
                         <div className="sm:col-span-4">
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            Função Padrão (Opcional)
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1 dark:text-slate-300">
+                            {t("shareConnection.companies.defaultRoleLabel")}
                           </label>
                           <JoinSelect
                             className="w-full"
-                            buttonClassName="w-full text-xs py-2 px-3 bg-white border border-slate-200 rounded-lg text-slate-800 text-left font-normal"
+                            buttonClassName={joinSelectButtonClass}
                             options={[
-                              { value: "", label: "Nenhuma (Herda permissões base)" },
+                              { value: "", label: t("shareConnection.members.noRole") },
                               ...roles.map((r) => ({ value: String(r.id), label: r.name })),
                             ]}
                             value={empresaRoleId}
                             onChange={(val) => setEmpresaRoleId(val)}
-                            placeholder="Nenhuma (Herda permissões base)"
+                            placeholder={t("shareConnection.members.noRole")}
                             searchable={roles.length > 4}
                             autoWidth={false}
                           />
@@ -972,10 +1023,10 @@ export const ShareConnectionModal = ({
                         <button
                           onClick={handleAddEmpresa}
                           disabled={!selectedEmpresaId || guardandoEmpresa}
-                          className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                          className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600 shadow-xs"
                         >
                           {guardandoEmpresa && <Loader2 size={13} className="animate-spin" />}
-                          Associar Empresa
+                          {t("shareConnection.companies.btnAdd")}
                         </button>
                       </div>
                     </div>
@@ -985,13 +1036,13 @@ export const ShareConnectionModal = ({
 
               {/* LISTA DE EMPRESAS COM ACESSO */}
               <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Empresas com Acesso Concedido ({empresas.length})
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {t("shareConnection.companies.listTitle", { count: empresas.length })}
                 </h4>
 
                 {empresas.length === 0 && (
-                  <p className="text-xs text-slate-400 py-3 italic">
-                    Nenhuma empresa associada diretamente a esta conexão.
+                  <p className="text-xs text-slate-400 py-3 italic dark:text-slate-500">
+                    {t("shareConnection.companies.emptyList")}
                   </p>
                 )}
 
@@ -1002,28 +1053,35 @@ export const ShareConnectionModal = ({
                     return (
                       <div
                         key={emp.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-100 bg-white hover:border-slate-200 transition-colors shadow-2xs"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors shadow-2xs dark:bg-slate-800/80 dark:border-slate-700 dark:hover:border-slate-600"
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <Building2 size={16} className="text-blue-600" />
-                            <span className="font-bold text-slate-800 text-xs">
-                              {emp.empresa_nome || `Empresa #${emp.empresa_id}`}
+                            <Building2 size={16} className="text-blue-600 dark:text-blue-400" />
+                            <span className="font-bold text-slate-900 text-xs dark:text-slate-100">
+                              {emp.empresa_nome || t("shareConnection.companies.companyFallback", { id: emp.empresa_id })}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1">
-                            <span>Nível: <strong>{ACCESS_LEVEL_LABELS[emp.access_level]}</strong></span>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                            <span>
+                              {t("shareConnection.members.levelPrefix")}{" "}
+                              <strong className="text-slate-800 dark:text-slate-200">
+                                {getAccessLevelLabel(emp.access_level)}
+                              </strong>
+                            </span>
                             {emp.role_name && (
                               <>
                                 <span>·</span>
-                                <span className="text-purple-600 font-medium">Função: {emp.role_name}</span>
+                                <span className="text-purple-600 font-semibold dark:text-purple-400">
+                                  {t("shareConnection.members.rolePrefix")} {emp.role_name}
+                                </span>
                               </>
                             )}
                           </div>
                         </div>
 
                         {podeGerir ? (
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
                             <select
                               value={emp.access_level}
                               disabled={ocupado}
@@ -1034,11 +1092,11 @@ export const ShareConnectionModal = ({
                                   emp.role_id
                                 )
                               }
-                              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                              className={rowSelectClass}
                             >
                               {NIVEIS.map((n) => (
-                                <option key={n} value={n}>
-                                  {ACCESS_LEVEL_LABELS[n]}
+                                <option key={n} value={n} className={optionClass}>
+                                  {getAccessLevelLabel(n)}
                                 </option>
                               ))}
                             </select>
@@ -1053,11 +1111,13 @@ export const ShareConnectionModal = ({
                                   e.target.value ? Number(e.target.value) : null
                                 )
                               }
-                              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none max-w-[140px]"
+                              className={rowRoleSelectClass}
                             >
-                              <option value="">Sem função</option>
+                              <option value="" className={optionClass}>
+                                {t("shareConnection.members.noRoleOption")}
+                              </option>
                               {roles.map((r) => (
-                                <option key={r.id} value={r.id}>
+                                <option key={r.id} value={r.id} className={optionClass}>
                                   {r.name}
                                 </option>
                               ))}
@@ -1066,8 +1126,8 @@ export const ShareConnectionModal = ({
                             <button
                               onClick={() => handleRemoveEmpresa(emp.empresa_id, emp.empresa_nome)}
                               disabled={ocupado}
-                              title="Remover acesso da empresa"
-                              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                              title={t("shareConnection.companies.revokeTitle")}
+                              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                             >
                               {ocupado ? (
                                 <Loader2 size={15} className="animate-spin" />
@@ -1077,8 +1137,8 @@ export const ShareConnectionModal = ({
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
-                            {ACCESS_LEVEL_LABELS[emp.access_level]}
+                          <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg dark:bg-slate-800 dark:text-slate-200">
+                            {getAccessLevelLabel(emp.access_level)}
                           </span>
                         )}
                       </div>
@@ -1094,23 +1154,23 @@ export const ShareConnectionModal = ({
           ======================================================== */}
           {!loading && activeTab === "roles" && (
             <div className="space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-purple-50/50 border border-purple-100 p-4 rounded-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-purple-50/50 border border-purple-200 p-4 rounded-xl dark:bg-purple-950/30 dark:border-purple-900/50">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Sliders size={16} className="text-purple-600" />
-                    Funções e Regras de Segurança da Conexão
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Sliders size={16} className="text-purple-600 dark:text-purple-400" />
+                    {t("shareConnection.roles.headerTitle")}
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Configure restrições precisas por tabela, coluna, tipos de consulta autorizados (SELECT, INSERT, etc.) e limites de registros.
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    {t("shareConnection.roles.headerDesc")}
                   </p>
                 </div>
 
                 {podeGerir && (
                   <button
                     onClick={abrirNovaRole}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs shrink-0"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs shrink-0 dark:bg-purple-500 dark:hover:bg-purple-600"
                   >
-                    <Plus size={14} /> Nova Função & Regras
+                    <Plus size={14} /> {t("shareConnection.roles.btnNew")}
                   </button>
                 )}
               </div>
@@ -1126,32 +1186,32 @@ export const ShareConnectionModal = ({
                   return (
                     <div
                       key={role.id}
-                      className="p-4 rounded-xl border border-slate-100 bg-white shadow-2xs hover:border-purple-200 transition-colors space-y-3"
+                      className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs hover:border-purple-300 transition-colors space-y-3 dark:bg-slate-800/80 dark:border-slate-700 dark:hover:border-purple-500"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-slate-900 text-sm">{role.name}</span>
+                            <span className="font-bold text-slate-900 text-sm dark:text-slate-100">{role.name}</span>
                             {role.is_default ? (
-                              <span className="rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                                Padrão
+                              <span className="rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950/60 dark:border-blue-800 dark:text-blue-300">
+                                {t("shareConnection.roles.defaultBadge")}
                               </span>
                             ) : (
-                              <span className="rounded-md bg-purple-50 border border-purple-200 px-2 py-0.5 text-[10px] font-bold text-purple-700">
-                                Personalizada
+                              <span className="rounded-md bg-purple-50 border border-purple-200 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:bg-purple-950/60 dark:border-purple-800 dark:text-purple-300">
+                                {t("shareConnection.roles.customBadge")}
                               </span>
                             )}
-                            <span className="text-[11px] text-slate-400">
-                              {role.permissions.length} permissões base
+                            <span className="text-[11px] text-slate-400 dark:text-slate-400">
+                              {t("shareConnection.roles.permissionsCount", { count: role.permissions.length })}
                             </span>
                             {role.max_rows && (
-                              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                                Max {role.max_rows} linhas
+                              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-200">
+                                {t("shareConnection.roles.maxRowsBadge", { count: role.max_rows })}
                               </span>
                             )}
                           </div>
                           {role.description && (
-                            <p className="text-xs text-slate-500 mt-1">{role.description}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{role.description}</p>
                           )}
                         </div>
 
@@ -1159,16 +1219,16 @@ export const ShareConnectionModal = ({
                           <div className="flex items-center gap-2 shrink-0">
                             <button
                               onClick={() => abrirEditarRole(role)}
-                              className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 text-slate-700 transition-colors"
+                              className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 text-slate-700 transition-colors dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
                             >
-                              <Edit3 size={13} className="text-purple-600" /> Editar Regras
+                              <Edit3 size={13} className="text-purple-600 dark:text-purple-400" /> {t("shareConnection.roles.editRules")}
                             </button>
 
                             {!role.is_default && (
                               <button
                                 onClick={() => handleExcluirRole(role)}
-                                title="Remover função"
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title={t("shareConnection.roles.deleteRoleTitle")}
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors dark:hover:bg-red-950/40 dark:hover:text-red-400"
                               >
                                 <Trash2 size={15} />
                               </button>
@@ -1178,36 +1238,36 @@ export const ShareConnectionModal = ({
                       </div>
 
                       {/* BADGES DE REGRAS AVANÇADAS CONFIGURADAS */}
-                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-50 text-[10px]">
+                      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-[10px] dark:border-slate-700/60">
                         {hasQueryTypes ? (
-                          <div className="flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md font-semibold">
-                            <span>Queries:</span>
+                          <div className="flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md font-semibold dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-300">
+                            <span>{t("shareConnection.roles.queriesBadge")}</span>
                             <span>{role.allowed_query_types?.join(", ")}</span>
                           </div>
                         ) : (
-                          <div className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">
-                            Todas as operações permitidas
+                          <div className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md dark:bg-slate-700 dark:text-slate-300">
+                            {t("shareConnection.roles.allOpsAllowed")}
                           </div>
                         )}
 
                         {hasAllowedTables && (
-                          <div className="flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md font-semibold">
+                          <div className="flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md font-semibold dark:bg-blue-950/60 dark:border-blue-800 dark:text-blue-300">
                             <Table size={11} />
-                            <span>Tabelas autorizadas: {role.allowed_tables?.join(", ")}</span>
+                            <span>{t("shareConnection.roles.allowedTablesBadge", { tables: role.allowed_tables?.join(", ") || "" })}</span>
                           </div>
                         )}
 
                         {hasBlockedTables && (
-                          <div className="flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-md font-semibold">
+                          <div className="flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-md font-semibold dark:bg-red-950/60 dark:border-red-800 dark:text-red-300">
                             <Ban size={11} />
-                            <span>Tabelas bloqueadas: {role.blocked_tables?.join(", ")}</span>
+                            <span>{t("shareConnection.roles.blockedTablesBadge", { tables: role.blocked_tables?.join(", ") || "" })}</span>
                           </div>
                         )}
 
                         {hasBlockedCols && (
-                          <div className="flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-md font-semibold">
+                          <div className="flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-md font-semibold dark:bg-amber-950/60 dark:border-amber-800 dark:text-amber-300">
                             <Columns size={11} />
-                            <span>Campos restritos: {Object.keys(role.blocked_columns || {}).length} tabela(s)</span>
+                            <span>{t("shareConnection.roles.blockedColsBadge", { count: Object.keys(role.blocked_columns || {}).length })}</span>
                           </div>
                         )}
                       </div>
@@ -1220,19 +1280,19 @@ export const ShareConnectionModal = ({
         </div>
 
         {/* FOOTER */}
-        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-5 py-3">
-          <span className="text-xs text-slate-400">
+        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-5 py-3 dark:bg-slate-800/40 dark:border-slate-800">
+          <span className="text-xs text-slate-500 dark:text-slate-400">
             {activeTab === "shares"
-              ? "Acessos individuais por membro"
+              ? t("shareConnection.footer.shares")
               : activeTab === "empresas"
-              ? "Acessos corporativos associados"
-              : "Regras de granularidade e RBAC"}
+              ? t("shareConnection.footer.companies")
+              : t("shareConnection.footer.roles")}
           </span>
           <button
             onClick={onClose}
-            className="rounded-lg bg-slate-900 px-5 py-2 text-xs font-bold text-white transition-colors hover:bg-slate-800"
+            className="rounded-lg bg-slate-900 px-5 py-2 text-xs font-bold text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white shadow-xs"
           >
-            Concluir
+            {t("shareConnection.done")}
           </button>
         </div>
       </div>
@@ -1242,22 +1302,26 @@ export const ShareConnectionModal = ({
       ======================================================== */}
       {modalRegrasAberto && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs animate-in fade-in duration-100">
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 p-4 bg-slate-50/70">
+            <div className="flex items-center justify-between border-b border-slate-100 p-4 bg-slate-50/70 dark:bg-slate-800/40 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <Sliders size={18} className="text-purple-600" />
-                <h4 className="font-bold text-slate-900 text-sm">
+                <Sliders size={18} className="text-purple-600 dark:text-purple-400" />
+                <h4 className="font-bold text-slate-900 text-sm dark:text-slate-100">
                   {tipoConfigAlvo === "role_nova"
-                    ? "Nova Função & Regras Avançadas"
+                    ? t("shareConnection.rulesModal.newTitle")
                     : tipoConfigAlvo === "role_edicao"
-                    ? `Editar Regras: ${alvoRole?.name}`
-                    : `Regras de Acesso: ${alvoShare?.user_nome || "Membro"}`}
+                    ? t("shareConnection.rulesModal.editTitle", { name: alvoRole?.name || "" })
+                    : t("shareConnection.rulesModal.shareTitle", {
+                        name:
+                          alvoShare?.user_nome ||
+                          t("shareConnection.members.userFallback", { id: alvoShare?.user_id ?? 0 }),
+                      })}
                 </h4>
               </div>
               <button
                 onClick={() => setModalRegrasAberto(false)}
-                className="text-slate-400 hover:text-slate-700"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
                 <X size={18} />
               </button>
@@ -1267,29 +1331,29 @@ export const ShareConnectionModal = ({
             <div className="flex-1 space-y-4 overflow-y-auto p-5 text-xs">
               {/* Identificação da Role (se for role) */}
               {tipoConfigAlvo !== "share_custom" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3 border-b border-slate-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div>
-                    <label className="block text-slate-700 font-semibold mb-1">
-                      Nome da Função *
+                    <label className="block text-slate-700 font-semibold mb-1 dark:text-slate-300">
+                      {t("shareConnection.rulesModal.nameLabel")}
                     </label>
                     <input
                       type="text"
-                      placeholder="Ex: Auditor Financeiro, Operador BI"
+                      placeholder={t("shareConnection.rulesModal.namePlaceholder")}
                       value={formNome}
                       onChange={(e) => setFormNome(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2 outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-500/20 text-slate-900 font-medium dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-700 font-semibold mb-1">
-                      Descrição
+                    <label className="block text-slate-700 font-semibold mb-1 dark:text-slate-300">
+                      {t("shareConnection.rulesModal.descLabel")}
                     </label>
                     <input
                       type="text"
-                      placeholder="Ex: Apenas consultas e relatórios contábeis"
+                      placeholder={t("shareConnection.rulesModal.descPlaceholder")}
                       value={formDescricao}
                       onChange={(e) => setFormDescricao(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2 outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-500/20 text-slate-900 font-medium dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
                     />
                   </div>
                 </div>
@@ -1297,18 +1361,18 @@ export const ShareConnectionModal = ({
 
               {/* 1. TIPOS DE CONSULTA PERMITIDOS */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                    <CheckCircle2 size={14} className="text-emerald-600" />
-                    Tipos de Consulta Autorizados
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400" />
+                    {t("shareConnection.rulesModal.queryTypesTitle")}
                   </span>
                   <span className="text-[11px] text-slate-400">
-                    Se nenhum for selecionado, segue o nível padrão (leitura/escrita).
+                    {t("shareConnection.rulesModal.queryTypesNote")}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {QUERY_TYPES.map((qt) => {
+                  {queryTypesList.map((qt) => {
                     const ativo = formQueryTypes.includes(qt.id);
                     return (
                       <button
@@ -1317,13 +1381,13 @@ export const ShareConnectionModal = ({
                         onClick={() => toggleQueryType(qt.id)}
                         className={`p-2.5 rounded-xl border text-left transition-all ${
                           ativo
-                            ? "bg-purple-50/70 border-purple-300 text-purple-900 shadow-2xs"
-                            : "bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-100/60"
+                            ? "bg-purple-50/70 border-purple-300 text-purple-900 shadow-2xs dark:bg-purple-950/40 dark:border-purple-700 dark:text-purple-200"
+                            : "bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-100/60 dark:bg-slate-800/40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                         }`}
                       >
                         <div className="flex items-center justify-between">
                           <span className="font-bold">{qt.label}</span>
-                          {ativo && <Check size={13} className="text-purple-600 font-bold" />}
+                          {ativo && <Check size={13} className="text-purple-600 font-bold dark:text-purple-400" />}
                         </div>
                         <p className="text-[10px] text-slate-400 mt-0.5 truncate">{qt.desc}</p>
                       </button>
@@ -1333,41 +1397,47 @@ export const ShareConnectionModal = ({
               </div>
 
               {/* 2. REGRAS DE TABELAS */}
-              <div className="space-y-3 pt-3 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                    <Table size={14} className="text-indigo-600" />
-                    Controlo de Tabelas da Conexão
+              <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Table size={14} className="text-indigo-600 dark:text-indigo-400" />
+                    {t("shareConnection.rulesModal.tablesControlTitle")}
                   </span>
                   {loadingTables && (
                     <span className="text-[11px] font-normal text-slate-400 flex items-center gap-1">
-                      <Loader2 size={12} className="animate-spin text-indigo-600" />
-                      A buscar tabelas da conexão...
+                      <Loader2 size={12} className="animate-spin text-indigo-600 dark:text-indigo-400" />
+                      {t("shareConnection.rulesModal.loadingTables")}
                     </span>
                   )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Tabelas Permitidas (Whitelist) */}
-                  <div className="space-y-2 bg-slate-50/60 p-3 rounded-xl border border-slate-200 min-w-0">
+                  <div className="space-y-2 bg-slate-50/60 p-3 rounded-xl border border-slate-200 min-w-0 dark:bg-slate-800/40 dark:border-slate-700">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-700">Tabelas Permitidas (Whitelist)</span>
-                      <span className="text-[10px] text-slate-400">Apenas estas</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">
+                        {t("shareConnection.rulesModal.allowedTablesTitle")}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {t("shareConnection.rulesModal.onlyThese")}
+                      </span>
                     </div>
 
-                    {/* Seleção rápida com JoinSelect das tabelas carregadas de /consu/all/structures/{id} */}
+                    {/* Seleção rápida com JoinSelect das tabelas */}
                     {availableTables.length > 0 && (
                       <JoinSelect
                         className="w-full"
-                        buttonClassName="w-full text-xs py-1.5 px-2.5 bg-white border border-slate-200 rounded-lg text-slate-700 text-left font-normal"
+                        buttonClassName={joinSelectCompactClass}
                         options={availableTables
-                          .filter((t) => !formAllowedTables.includes(t.toLowerCase()))
-                          .map((t) => ({ value: t, label: t }))}
+                          .filter((tblNome) => !formAllowedTables.includes(tblNome.toLowerCase()))
+                          .map((tblNome) => ({ value: tblNome, label: tblNome }))}
                         value=""
                         onChange={(val) => {
                           if (val) addAllowedTable(val);
                         }}
-                        placeholder={`+ Buscar e selecionar tabela (${availableTables.length} disponíveis)...`}
+                        placeholder={t("shareConnection.rulesModal.selectAllowedTable", {
+                          count: availableTables.length,
+                        })}
                         searchable={true}
                         autoWidth={false}
                       />
@@ -1376,7 +1446,7 @@ export const ShareConnectionModal = ({
                     <div className="flex gap-1.5">
                       <input
                         type="text"
-                        placeholder="Ou digite o nome da tabela…"
+                        placeholder={t("shareConnection.rulesModal.inputTableAllowedPlaceholder")}
                         value={inputTableAllowed}
                         onChange={(e) => setInputTableAllowed(e.target.value)}
                         onKeyDown={(e) => {
@@ -1385,47 +1455,47 @@ export const ShareConnectionModal = ({
                             addAllowedTable(inputTableAllowed);
                           }
                         }}
-                        className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="flex-1 min-w-0 rounded-lg border-2 border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-indigo-600 text-slate-900 font-medium dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
                       />
                       <button
                         type="button"
                         onClick={() => addAllowedTable(inputTableAllowed)}
-                        className="shrink-0 px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700"
+                        className="shrink-0 px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 shadow-2xs"
                       >
-                        Add
+                        {t("shareConnection.rulesModal.btnAdd")}
                       </button>
                     </div>
 
                     {availableTables.length > 0 && (
                       <div className="flex items-center gap-1 flex-wrap text-[10px]">
-                        <span className="text-slate-400">Sugeridas:</span>
+                        <span className="text-slate-400">{t("shareConnection.rulesModal.suggested")}</span>
                         {availableTables
-                          .filter((t) => !formAllowedTables.includes(t.toLowerCase()))
+                          .filter((tblNome) => !formAllowedTables.includes(tblNome.toLowerCase()))
                           .slice(0, 6)
-                          .map((tbl) => (
+                          .map((tblNome) => (
                             <button
-                              key={tbl}
+                              key={tblNome}
                               type="button"
-                              onClick={() => addAllowedTable(tbl)}
-                              className="bg-white border border-slate-200 px-1.5 py-0.5 rounded hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                              onClick={() => addAllowedTable(tblNome)}
+                              className="bg-white border border-slate-300 px-1.5 py-0.5 rounded hover:bg-indigo-50 hover:text-indigo-600 transition-colors text-slate-700 font-medium dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200"
                             >
-                              +{tbl}
+                              +{tblNome}
                             </button>
                           ))}
                       </div>
                     )}
 
                     <div className="flex flex-wrap gap-1 pt-1 min-h-[32px]">
-                      {formAllowedTables.map((tbl) => (
+                      {formAllowedTables.map((tblNome) => (
                         <span
-                          key={tbl}
-                          className="inline-flex items-center gap-1 rounded bg-indigo-100/70 border border-indigo-200 px-2 py-0.5 text-[11px] font-semibold text-indigo-800"
+                          key={tblNome}
+                          className="inline-flex items-center gap-1 rounded bg-indigo-100/70 border border-indigo-200 px-2 py-0.5 text-[11px] font-semibold text-indigo-800 dark:bg-indigo-950/60 dark:border-indigo-800 dark:text-indigo-300"
                         >
-                          {tbl}
+                          {tblNome}
                           <button
                             type="button"
-                            onClick={() => removeAllowedTable(tbl)}
-                            className="text-indigo-400 hover:text-indigo-800"
+                            onClick={() => removeAllowedTable(tblNome)}
+                            className="text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200"
                           >
                             ×
                           </button>
@@ -1435,25 +1505,31 @@ export const ShareConnectionModal = ({
                   </div>
 
                   {/* Tabelas Bloqueadas (Blacklist) */}
-                  <div className="space-y-2 bg-slate-50/60 p-3 rounded-xl border border-slate-200 min-w-0">
+                  <div className="space-y-2 bg-slate-50/60 p-3 rounded-xl border border-slate-200 min-w-0 dark:bg-slate-800/40 dark:border-slate-700">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-700">Tabelas Bloqueadas (Blacklist)</span>
-                      <span className="text-[10px] text-slate-400">Nunca acessíveis</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">
+                        {t("shareConnection.rulesModal.blockedTablesTitle")}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {t("shareConnection.rulesModal.neverAccessible")}
+                      </span>
                     </div>
 
-                    {/* Seleção rápida com JoinSelect das tabelas carregadas de /consu/all/structures/{id} */}
+                    {/* Seleção rápida com JoinSelect das tabelas */}
                     {availableTables.length > 0 && (
                       <JoinSelect
                         className="w-full"
-                        buttonClassName="w-full text-xs py-1.5 px-2.5 bg-white border border-slate-200 rounded-lg text-slate-700 text-left font-normal"
+                        buttonClassName={joinSelectCompactClass}
                         options={availableTables
-                          .filter((t) => !formBlockedTables.includes(t.toLowerCase()))
-                          .map((t) => ({ value: t, label: t }))}
+                          .filter((tblNome) => !formBlockedTables.includes(tblNome.toLowerCase()))
+                          .map((tblNome) => ({ value: tblNome, label: tblNome }))}
                         value=""
                         onChange={(val) => {
                           if (val) addBlockedTable(val);
                         }}
-                        placeholder={`+ Buscar e selecionar tabela (${availableTables.length} disponíveis)...`}
+                        placeholder={t("shareConnection.rulesModal.selectBlockedTable", {
+                          count: availableTables.length,
+                        })}
                         searchable={true}
                         autoWidth={false}
                       />
@@ -1462,7 +1538,7 @@ export const ShareConnectionModal = ({
                     <div className="flex gap-1.5">
                       <input
                         type="text"
-                        placeholder="Ou digite o nome da tabela…"
+                        placeholder={t("shareConnection.rulesModal.inputTableBlockedPlaceholder")}
                         value={inputTableBlocked}
                         onChange={(e) => setInputTableBlocked(e.target.value)}
                         onKeyDown={(e) => {
@@ -1471,47 +1547,47 @@ export const ShareConnectionModal = ({
                             addBlockedTable(inputTableBlocked);
                           }
                         }}
-                        className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-red-500"
+                        className="flex-1 min-w-0 rounded-lg border-2 border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-red-600 text-slate-900 font-medium dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
                       />
                       <button
                         type="button"
                         onClick={() => addBlockedTable(inputTableBlocked)}
-                        className="shrink-0 px-2.5 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700"
+                        className="shrink-0 px-2.5 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 shadow-2xs"
                       >
-                        Add
+                        {t("shareConnection.rulesModal.btnAdd")}
                       </button>
                     </div>
 
                     {availableTables.length > 0 && (
                       <div className="flex items-center gap-1 flex-wrap text-[10px]">
-                        <span className="text-slate-400">Sugeridas:</span>
+                        <span className="text-slate-400">{t("shareConnection.rulesModal.suggested")}</span>
                         {availableTables
-                          .filter((t) => !formBlockedTables.includes(t.toLowerCase()))
+                          .filter((tblNome) => !formBlockedTables.includes(tblNome.toLowerCase()))
                           .slice(0, 6)
-                          .map((tbl) => (
+                          .map((tblNome) => (
                             <button
-                              key={tbl}
+                              key={tblNome}
                               type="button"
-                              onClick={() => addBlockedTable(tbl)}
-                              className="bg-white border border-slate-200 px-1.5 py-0.5 rounded hover:bg-red-50 hover:text-red-600 transition-colors"
+                              onClick={() => addBlockedTable(tblNome)}
+                              className="bg-white border border-slate-300 px-1.5 py-0.5 rounded hover:bg-red-50 hover:text-red-600 transition-colors text-slate-700 font-medium dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200"
                             >
-                              +{tbl}
+                              +{tblNome}
                             </button>
                           ))}
                       </div>
                     )}
 
                     <div className="flex flex-wrap gap-1 pt-1 min-h-[32px]">
-                      {formBlockedTables.map((tbl) => (
+                      {formBlockedTables.map((tblNome) => (
                         <span
-                          key={tbl}
-                          className="inline-flex items-center gap-1 rounded bg-red-100/70 border border-red-200 px-2 py-0.5 text-[11px] font-semibold text-red-800"
+                          key={tblNome}
+                          className="inline-flex items-center gap-1 rounded bg-red-100/70 border border-red-200 px-2 py-0.5 text-[11px] font-semibold text-red-800 dark:bg-red-950/60 dark:border-red-800 dark:text-red-300"
                         >
-                          {tbl}
+                          {tblNome}
                           <button
                             type="button"
-                            onClick={() => removeBlockedTable(tbl)}
-                            className="text-red-400 hover:text-red-800"
+                            onClick={() => removeBlockedTable(tblNome)}
+                            className="text-red-400 hover:text-red-800 dark:hover:text-red-200"
                           >
                             ×
                           </button>
@@ -1522,62 +1598,62 @@ export const ShareConnectionModal = ({
                 </div>
               </div>
 
-              {/* 3. REGRAS DE COLUNAS / CAMPOS BLOQUEADOS (utiliza /consu/field/{conn_id}/{table_name}) */}
-              <div className="space-y-2 pt-3 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                    <Columns size={14} className="text-amber-600" />
-                    Campos e Colunas Restritos (por tabela)
+              {/* 3. REGRAS DE COLUNAS / CAMPOS BLOQUEADOS */}
+              <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Columns size={14} className="text-amber-600 dark:text-amber-400" />
+                    {t("shareConnection.rulesModal.columnsTitle")}
                   </span>
                   {loadingColumns && (
-                    <span className="text-[11px] text-amber-600 flex items-center gap-1 font-medium">
+                    <span className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium">
                       <Loader2 size={12} className="animate-spin" />
-                      A buscar colunas da tabela...
+                      {t("shareConnection.rulesModal.loadingColumns")}
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  Bloqueie campos sensíveis (ex: senhas, hashes, dados salariais, CPF) para que nunca sejam exibidos em consultas.
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {t("shareConnection.rulesModal.columnsDesc")}
                 </p>
 
-                <div className="space-y-2.5 bg-slate-50/60 p-3 rounded-xl border border-slate-200">
+                <div className="space-y-2.5 bg-slate-50/60 p-3 rounded-xl border border-slate-200 dark:bg-slate-800/40 dark:border-slate-700">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {/* Seletor de Tabela */}
                     <div className="min-w-0">
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        1. Tabela Alvo
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1 dark:text-slate-300">
+                        {t("shareConnection.rulesModal.targetTableLabel")}
                       </label>
                       {availableTables.length > 0 ? (
                         <JoinSelect
                           className="w-full"
-                          buttonClassName="w-full text-xs py-1.5 px-2.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-left font-medium"
-                          options={availableTables.map((t) => ({ value: t, label: t }))}
+                          buttonClassName={joinSelectCompactClass}
+                          options={availableTables.map((tblNome) => ({ value: tblNome, label: tblNome }))}
                           value={selectedTableForColumn}
                           onChange={(val) => selecionarTabelaParaColuna(val)}
-                          placeholder="-- Buscar e selecionar tabela --"
+                          placeholder={t("shareConnection.rulesModal.selectTargetTable")}
                           searchable={true}
                           autoWidth={false}
                         />
                       ) : (
                         <input
                           type="text"
-                          placeholder="Nome da tabela (ex: usuarios)"
+                          placeholder={t("shareConnection.rulesModal.inputTargetTablePlaceholder")}
                           value={selectedTableForColumn}
                           onChange={(e) => selecionarTabelaParaColuna(e.target.value)}
-                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-amber-500"
+                          className="w-full rounded-lg border-2 border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-amber-600 text-slate-900 font-medium dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
                         />
                       )}
                     </div>
 
-                    {/* Seletor de Colunas (obtidas de /consu/field/{conn_id}/{table_name}) */}
+                    {/* Seletor de Colunas */}
                     <div className="min-w-0">
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        2. Coluna a Bloquear
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1 dark:text-slate-300">
+                        {t("shareConnection.rulesModal.blockedColLabel")}
                       </label>
                       {selectedTableForColumn && columnsCache[selectedTableForColumn.toLowerCase()]?.length ? (
                         <JoinSelect
                           className="w-full"
-                          buttonClassName="w-full text-xs py-1.5 px-2.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-left font-normal"
+                          buttonClassName={joinSelectCompactClass}
                           options={columnsCache[selectedTableForColumn.toLowerCase()]
                             .filter(
                               (c) =>
@@ -1590,7 +1666,9 @@ export const ShareConnectionModal = ({
                           onChange={(val) => {
                             if (val) addBlockedColumnDirect(selectedTableForColumn, val);
                           }}
-                          placeholder={`+ Buscar coluna (${columnsCache[selectedTableForColumn.toLowerCase()].length} encontradas)...`}
+                          placeholder={t("shareConnection.rulesModal.selectBlockedCol", {
+                            count: columnsCache[selectedTableForColumn.toLowerCase()].length,
+                          })}
                           searchable={true}
                           autoWidth={false}
                         />
@@ -1601,9 +1679,9 @@ export const ShareConnectionModal = ({
                             placeholder={
                               selectedTableForColumn
                                 ? loadingColumns
-                                  ? "A carregar colunas da base..."
-                                  : "Campo (ex: senha)"
-                                : "Primeiro selecione a tabela"
+                                  ? t("shareConnection.rulesModal.colLoadingPlaceholder")
+                                  : t("shareConnection.rulesModal.colFieldPlaceholder")
+                                : t("shareConnection.rulesModal.selectFirstPlaceholder")
                             }
                             disabled={!selectedTableForColumn || loadingColumns}
                             value={inputColumnBlocked}
@@ -1614,27 +1692,27 @@ export const ShareConnectionModal = ({
                                 addBlockedColumn();
                               }
                             }}
-                            className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-amber-500 disabled:bg-slate-100"
+                            className="flex-1 min-w-0 rounded-lg border-2 border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-amber-600 text-slate-900 font-medium disabled:bg-slate-100 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100 dark:disabled:bg-slate-800/40"
                           />
                           <button
                             type="button"
                             disabled={!selectedTableForColumn || !inputColumnBlocked.trim()}
                             onClick={addBlockedColumn}
-                            className="shrink-0 px-2.5 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 disabled:opacity-50"
+                            className="shrink-0 px-2.5 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 disabled:opacity-50 dark:bg-amber-500 dark:hover:bg-amber-600 shadow-2xs"
                           >
-                            Bloquear
+                            {t("shareConnection.rulesModal.btnBlock")}
                           </button>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Sugestões rápidas de colunas carregadas de /consu/field/... */}
+                  {/* Sugestões rápidas de colunas */}
                   {selectedTableForColumn && columnsCache[selectedTableForColumn.toLowerCase()]?.length ? (
-                    <div className="pt-1 border-t border-slate-200/60">
+                    <div className="pt-1 border-t border-slate-200/60 dark:border-slate-700">
                       <div className="flex items-center gap-1 flex-wrap text-[10px]">
                         <span className="text-slate-400 font-medium">
-                          Colunas de <span className="font-semibold text-slate-700">{selectedTableForColumn}</span>:
+                          {t("shareConnection.rulesModal.colsOf", { table: selectedTableForColumn })}
                         </span>
                         {columnsCache[selectedTableForColumn.toLowerCase()]
                           .filter(
@@ -1649,18 +1727,18 @@ export const ShareConnectionModal = ({
                               key={col}
                               type="button"
                               onClick={() => addBlockedColumnDirect(selectedTableForColumn, col)}
-                              className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-700 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300 font-mono transition-colors"
+                              className="bg-white border border-slate-300 px-1.5 py-0.5 rounded text-slate-700 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-400 font-mono transition-colors font-medium dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200"
                             >
                               +{col}
                             </button>
                           ))}
                       </div>
 
-                      {/* Fallback de inserção manual */}
+                      {/* Inserção manual */}
                       <div className="flex gap-1.5 pt-2">
                         <input
                           type="text"
-                          placeholder="Ou digite o nome de outro campo…"
+                          placeholder={t("shareConnection.rulesModal.inputOtherColPlaceholder")}
                           value={inputColumnBlocked}
                           onChange={(e) => setInputColumnBlocked(e.target.value)}
                           onKeyDown={(e) => {
@@ -1669,15 +1747,15 @@ export const ShareConnectionModal = ({
                               addBlockedColumn();
                             }
                           }}
-                          className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] outline-none focus:ring-1 focus:ring-amber-500"
+                          className="flex-1 rounded-lg border-2 border-slate-300 bg-white px-2.5 py-1 text-[11px] outline-none focus:border-amber-600 text-slate-900 font-medium dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
                         />
                         <button
                           type="button"
                           disabled={!inputColumnBlocked.trim()}
                           onClick={addBlockedColumn}
-                          className="px-2.5 py-1 bg-amber-600 text-white rounded-lg text-[11px] font-semibold hover:bg-amber-700 disabled:opacity-50"
+                          className="px-2.5 py-1 bg-amber-600 text-white rounded-lg text-[11px] font-semibold hover:bg-amber-700 disabled:opacity-50 dark:bg-amber-500 dark:hover:bg-amber-600 shadow-2xs"
                         >
-                          Bloquear
+                          {t("shareConnection.rulesModal.btnBlock")}
                         </button>
                       </div>
                     </div>
@@ -1686,23 +1764,23 @@ export const ShareConnectionModal = ({
 
                 {/* Exibição dos campos bloqueados por tabela */}
                 <div className="space-y-1.5 pt-1">
-                  {Object.entries(formBlockedColumns).map(([tbl, cols]) => (
+                  {Object.entries(formBlockedColumns).map(([tblNome, cols]) => (
                     <div
-                      key={tbl}
-                      className="flex items-center gap-2 p-2 bg-amber-50/40 border border-amber-200/60 rounded-lg text-xs"
+                      key={tblNome}
+                      className="flex items-center gap-2 p-2 bg-amber-50/40 border border-amber-200/60 rounded-lg text-xs dark:bg-amber-950/30 dark:border-amber-900/50"
                     >
-                      <span className="font-bold text-amber-900">{tbl}:</span>
+                      <span className="font-bold text-amber-900 dark:text-amber-300">{tblNome}:</span>
                       <div className="flex flex-wrap gap-1">
                         {cols.map((col) => (
                           <span
                             key={col}
-                            className="inline-flex items-center gap-1 rounded bg-amber-100 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900"
+                            className="inline-flex items-center gap-1 rounded bg-amber-100 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900 dark:bg-amber-950/70 dark:border-amber-800 dark:text-amber-200"
                           >
                             {col}
                             <button
                               type="button"
-                              onClick={() => removeBlockedColumn(tbl, col)}
-                              className="text-amber-500 hover:text-amber-900 font-bold"
+                              onClick={() => removeBlockedColumn(tblNome, col)}
+                              className="text-amber-500 hover:text-amber-900 font-bold dark:hover:text-amber-100"
                             >
                               ×
                             </button>
@@ -1715,42 +1793,42 @@ export const ShareConnectionModal = ({
               </div>
 
               {/* 4. LIMITE MÁXIMO DE LINHAS */}
-              <div className="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                 <div>
-                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                    <FileSpreadsheet size={14} className="text-indigo-600" />
-                    Limite Máximo de Linhas por Consulta
+                  <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <FileSpreadsheet size={14} className="text-indigo-600 dark:text-indigo-400" />
+                    {t("shareConnection.rulesModal.maxRowsTitle")}
                   </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Impede extrações massivas ao limitar o número de linhas que as queries deste perfil podem retornar.
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {t("shareConnection.rulesModal.maxRowsDesc")}
                   </p>
                 </div>
                 <div>
                   <input
                     type="number"
                     min="1"
-                    placeholder="Ex: 500 ou 1000 (vazio = sem limite extra)"
+                    placeholder={t("shareConnection.rulesModal.maxRowsPlaceholder")}
                     value={formMaxRows}
                     onChange={(e) => setFormMaxRows(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-purple-600 text-slate-900 font-medium dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100"
                   />
                 </div>
               </div>
 
               {/* 5. PERMISSÕES DE SISTEMA (se for role) */}
               {tipoConfigAlvo !== "share_custom" && availablePermissions.length > 0 && (
-                <div className="space-y-2 pt-3 border-t border-slate-100">
-                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                    <Key size={14} className="text-purple-600" />
-                    Permissões de Sistema Associadas
+                <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Key size={14} className="text-purple-600 dark:text-purple-400" />
+                    {t("shareConnection.rulesModal.systemPermsTitle")}
                   </span>
-                  <div className="max-h-36 overflow-y-auto space-y-1 border border-slate-200 rounded-xl p-2.5 bg-slate-50/50">
+                  <div className="max-h-36 overflow-y-auto space-y-1 border border-slate-200 rounded-xl p-2.5 bg-slate-50/50 dark:bg-slate-800/40 dark:border-slate-700">
                     {availablePermissions.map((p) => {
                       const marcado = formPermissoes.includes(p.id);
                       return (
                         <label
                           key={p.id}
-                          className="flex items-center gap-2 text-slate-700 hover:bg-slate-100 p-1 rounded cursor-pointer"
+                          className="flex items-center gap-2 text-slate-700 hover:bg-slate-100 p-1 rounded cursor-pointer dark:text-slate-300 dark:hover:bg-slate-800"
                         >
                           <input
                             type="checkbox"
@@ -1764,7 +1842,7 @@ export const ShareConnectionModal = ({
                             }}
                             className="rounded text-purple-600 focus:ring-purple-500"
                           />
-                          <span className="font-mono text-[11px] font-semibold text-slate-900">
+                          <span className="font-mono text-[11px] font-semibold text-slate-900 dark:text-slate-100">
                             {p.name}
                           </span>
                           {p.description && (
@@ -1781,22 +1859,22 @@ export const ShareConnectionModal = ({
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100 bg-slate-50/60">
+            <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100 bg-slate-50/60 dark:bg-slate-800/40 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setModalRegrasAberto(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors dark:text-slate-300 dark:hover:bg-slate-800"
               >
-                Cancelar
+                {t("shareConnection.cancel")}
               </button>
               <button
                 type="button"
                 onClick={handleSalvarRegras}
                 disabled={salvandoRegras}
-                className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50 dark:bg-purple-500 dark:hover:bg-purple-600 shadow-xs"
               >
                 {salvandoRegras && <Loader2 size={13} className="animate-spin" />}
-                Gravar Regras de Segurança
+                {t("shareConnection.rulesModal.btnSave")}
               </button>
             </div>
           </div>

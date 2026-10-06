@@ -1,6 +1,6 @@
 
 import { AuthProvider, LoginOptions } from '@/types';
-import { Github, Facebook, AppWindow } from 'lucide-react';
+import { Github } from 'lucide-react';
 import React, { useCallback } from 'react';
 
 export interface OtherProvidersProps {
@@ -13,7 +13,8 @@ export const OtherProviders = React.memo<OtherProvidersProps>(({ login }) => {
     const onGithub = useCallback(() => void login("github"), [login]);
     const onGitlab = useCallback(() => void login("gitlab"), [login]);
     const onMicrosoft = useCallback(() => void login("microsoft"), [login]);
-    const onAuth0 = useCallback(() => void login("auth0"), [login]);
+    const onLinkedin = useCallback(() => void login("linkedin"), [login]);
+    // const onAuth0 = useCallback(() => void login("auth0"), [login]);
 
     const socialBtnClass = "flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm";
 
@@ -28,27 +29,44 @@ export const OtherProviders = React.memo<OtherProvidersProps>(({ login }) => {
                 </svg>
             </button>
 
+            {/* MICROSOFT */}
+            <button type="button" onClick={onMicrosoft} className={socialBtnClass} title="Microsoft">
+                {/* <AppWindow className="w-4 h-4 text-blue-500" /> */}
+                <svg width="12" height="12" viewBox="0 0 21 21" aria-hidden="true" focusable="false">
+                    <rect x="0" y="0" width="9" height="9" fill="#f25022" />
+                    <rect x="12" y="0" width="9" height="9" fill="#7fba00" />
+                    <rect x="0" y="12" width="9" height="9" fill="#00a4ef" />
+                    <rect x="12" y="12" width="9" height="9" fill="#ffb900" />
+                </svg>
+            </button>
+
+             {/* LINKEDIN */}
+            <button type="button" onClick={onLinkedin} className={socialBtnClass} title="LinkedIn">
+                <svg className="w-6 h-6" viewBox="0 0 24 24" aria-hidden="true" fill="#0A66C2">
+                    <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.45a1.64 1.64 0 1 0 0 3.28 1.64 1.64 0 0 0 0-3.28z" />
+                </svg>
+            </button>
+
             <button type="button" onClick={onGithub} className={socialBtnClass} title="GitHub">
-                <Github className="w-4 h-4" />
+                <Github className="w-6 h-6" />
             </button>
 
             <button type="button" onClick={onGitlab} className={socialBtnClass} title="GitLab">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true" fill="#E24329">
+                <svg className="w-6 h-6" viewBox="0 0 24 24" aria-hidden="true" fill="#E24329">
                     <path d="M22.65 14.39L20.6 8.08a.78.78 0 00-.28-.39.75.75 0 00-.47-.14.77.77 0 00-.46.16.83.83 0 00-.28.4L17.7 12.4H6.3L4.89 8.11a.8.8 0 00-.28-.4.77.77 0 00-.46-.16.75.75 0 00-.47.14.78.78 0 00-.28.39l-2.05 6.31a.8.8 0 00.29.89l10.02 7.28a.79.79 0 00.94 0l10.02-7.28a.8.8 0 00.29-.89z" />
                 </svg>
             </button>
 
-            {/* MICROSOFT */}
-            <button type="button" onClick={onMicrosoft} className={socialBtnClass} title="Microsoft">
-                <AppWindow className="w-4 h-4 text-blue-500" />
-            </button>
+            
 
-            {/* AUTH0 */}
+           
+
+            {/* AUTH0
             <button type="button" onClick={onAuth0} className={socialBtnClass} title="Auth0">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true" fill="#EB5424">
                     <path d="M21.98 12.01c0-.46-.06-.91-.18-1.34L12 12.01l9.8 1.34c.12-.43.18-.88.18-1.34zM12 2.01c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
                 </svg>
-            </button>
+            </button> */}
         </div>
     );
 });

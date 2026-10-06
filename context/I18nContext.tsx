@@ -12,6 +12,7 @@ import fr from "@/public/I18/fr.json";
 import cn from "@/public/I18/cn.json";
 import km from "@/public/I18/km-AO.json";
 import umb from "@/public/I18/umb-AO.json";
+import usePersistedState from "@/hook/localStoreUse";
 
 export type LanguageCode = "en" | "pt" | "fr" | "cn" | "km-AO" | "umb-AO";
 
@@ -42,7 +43,7 @@ const I18nContext = createContext<I18nContextType>({
 });
 
 export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
-  const [locale, setLocaleState] = useState<LanguageCode>("pt");
+  const [locale, setLocaleState] = usePersistedState<LanguageCode>("lacale_id","pt");
   const [mounted, setMounted] = useState(false); // Para resolver o erro de hidratação do Next.js
 
   useEffect(() => {
