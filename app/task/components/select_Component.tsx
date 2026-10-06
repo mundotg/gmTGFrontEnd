@@ -8,6 +8,7 @@ import React, {
   useCallback,
   useDeferredValue,
 } from "react";
+import { createPortal } from "react-dom";
 import { Dropdown, OptionItem, SelectButton } from "./componentDoSelect";
 
 export interface Option {
@@ -38,6 +39,8 @@ interface JoinSelectProps {
   optionRenderer?: (option: Option, isSelected: boolean) => React.ReactNode;
   autoWidth?: boolean;
   debounceMs?: number;
+  initialOption?: Option;
+  selectedLabel?: string;
 }
 
 const JoinSelectComponent: React.FC<JoinSelectProps> = ({
@@ -53,8 +56,11 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
   optionRenderer,
   autoWidth = true,
   debounceMs = 300,
+  initialOption,
+  selectedLabel,
 }) => {
   // States
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [options, setOptions] = useState<Option[]>([]);
@@ -63,6 +69,10 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [dropdownPosition, setDropdownPosition] = useState({
     top: 0,
@@ -83,11 +93,17 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
 
   // Selected option
   const selectedOption = useMemo(
-    () => options.find((opt) => opt.value === value),
-    [options, value]
+    () =>
+      options.find((opt) => opt.value === value) ||
+      (initialOption && initialOption.value === value ? initialOption : undefined),
+    [options, value, initialOption]
   );
 
-  const displayText = selectedOption?.label || value || placeholder;
+  const displayText =
+    selectedOption?.label ||
+    selectedLabel ||
+    (initialOption && initialOption.value === value ? initialOption.label : "") ||
+    (value && value !== "" ? value : placeholder);
 
   // Debounce search
   useEffect(() => {
@@ -119,7 +135,12 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
     try {
       const result = await fetchOptions(1, searchTerm);
 
-      setOptions(result.options);
+      let opts = result.options;
+      if (initialOption && initialOption.value !== "" && !opts.some((o) => o.value === initialOption.value) && !searchTerm) {
+        opts = [initialOption, ...opts];
+      }
+
+      setOptions(opts);
       setHasMore(result.hasMore);
       setTotal(result.total ?? 0);
       setCurrentPage(1);
@@ -179,35 +200,41 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
     return () => observerRef.current?.disconnect();
   }, [isOpen, hasMore, loadingMore, loadMore]);
 
+  const isFullWidth = useMemo(() => {
+    return !autoWidth || className.includes("w-full") || buttonClassName.includes("w-full");
+  }, [autoWidth, className, buttonClassName]);
+
   // Dropdown position
   const calculateDropdownPosition = useCallback(() => {
-    if (!buttonRef.current) return;
+    if (!buttonRef.current || typeof window === "undefined") return;
 
     const rect = buttonRef.current.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
 
-    // O Dropdown é `position: fixed`: as coordenadas são as do viewport, tal
-    // como as do getBoundingClientRect. Somar window.scrollY/X desalinhava a
-    // lista do botão sempre que a página estava com scroll.
     let top = rect.bottom + 4;
-    const width = autoWidth ? Math.max(rect.width, 200) : rect.width;
+    const width = isFullWidth
+      ? Math.min(rect.width, viewportWidth - 20)
+      : Math.min(Math.max(rect.width, 160), viewportWidth - 20);
 
-    // Altura real da lista (varia com o nº de opções e o "a carregar"); antes
-    // de montar, o máximo (`max-h-80` = 320px). Com uma altura fixa assumida,
-    // a lista aberta para cima ficava a flutuar longe do botão.
+    let left = rect.left;
+    if (left + width > viewportWidth - 10) {
+      left = Math.max(10, viewportWidth - width - 10);
+    }
+    if (left < 10) left = 10;
+
     const height = dropdownRef.current?.offsetHeight || 320;
     const spaceBelow = viewportHeight - rect.bottom;
-    // Só abre para cima se não couber em baixo E houver mais espaço em cima.
     if (spaceBelow < height + 8 && rect.top > spaceBelow) {
       top = Math.max(8, rect.top - height - 4);
     }
 
     setDropdownPosition({
       top,
-      left: rect.left,
+      left,
       width,
     });
-  }, [autoWidth]);
+  }, [isFullWidth]);
 
   // Listeners
   useEffect(() => {
@@ -284,24 +311,24 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
 
   return (
     <>
-      <div className={`${className} relative inline-block`}>
+      <div className={`relative min-w-0 ${isFullWidth ? "w-full block" : "inline-block"} ${className}`}>
         <SelectButton
           ref={buttonRef}
           isOpen={isOpen}
           disabled={disabled}
           displayText={displayText}
           placeholder={placeholder}
-          autoWidth={autoWidth}
+          autoWidth={!isFullWidth}
           buttonClassName={buttonClassName}
           onToggle={() => !disabled && setIsOpen((p) => !p)}
         />
       </div>
 
-      {isOpen && (
+      {isOpen && mounted && createPortal(
         <Dropdown
           ref={dropdownRef}
           position={dropdownPosition}
-          autoWidth={autoWidth}
+          autoWidth={!isFullWidth}
           dropdownClassName={dropdownClassName}
           searchable={searchable}
           searchTerm={searchTerm}
@@ -322,7 +349,8 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
           hasMore={hasMore}
           loadingMore={loadingMore}
           loadMoreRef={loadMoreRef}
-        />
+        />,
+        document.body
       )}
     </>
   );

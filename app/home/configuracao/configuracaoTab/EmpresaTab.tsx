@@ -38,6 +38,10 @@ import {
   type RbacRole,
   type RbacPermission,
 } from "@/hook/useRbac";
+import {
+  fetchEmpresasPaginadas,
+  clearEmpresaFrontendCache,
+} from "@/app/services/empresaService";
 
 /* =======================
    TIPOS
@@ -132,11 +136,21 @@ export const EmpresaTab = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
+  const [buscaInput, setBuscaInput] = useState("");
   const [busca, setBusca] = useState("");
   const [statusFiltro, setStatusFiltro] = useState<"todas" | "ativas" | "inativas">("todas");
   const [isAdmin, setIsAdmin] = useState(false);
   const [loadingLista, setLoadingLista] = useState(true);
   const [erroLista, setErroLista] = useState<string | null>(null);
+
+  // Debounce na busca para evitar requisições a cada tecla
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBusca(buscaInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [buscaInput]);
 
   /* ---- Empresa Selecionada & Formulário ---- */
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -246,19 +260,18 @@ export const EmpresaTab = () => {
   };
 
   /* =======================
-     CARREGAR LISTA DE EMPRESAS
+     CARREGAR LISTA DE EMPRESAS (PAGINADA + CACHE)
   ======================= */
-  const carregarEmpresas = useCallback(async () => {
+  const carregarEmpresas = useCallback(async (forceRefresh = false) => {
     setLoadingLista(true);
     setErroLista(null);
     try {
-      const { data } = await api.get<EmpresaPaginadaResposta>("/empresas", {
-        params: {
-          busca: busca.trim() || undefined,
-          status: statusFiltro,
-          page,
-          page_size: pageSize,
-        },
+      const data = await fetchEmpresasPaginadas({
+        busca: busca.trim() || undefined,
+        status: statusFiltro,
+        page,
+        pageSize,
+        forceRefresh,
       });
 
       setEmpresas(data.items || []);
@@ -400,6 +413,7 @@ export const EmpresaTab = () => {
         prev.map((e) => (e.id === selectedId ? { ...e, ...data } : e))
       );
 
+      clearEmpresaFrontendCache();
       notificar("Dados da organização atualizados com sucesso.");
     } catch (err) {
       notificar(extractApiError(err, "Não foi possível guardar a empresa."), "error");
@@ -563,22 +577,20 @@ export const EmpresaTab = () => {
       {/* BARRA DE FILTROS E PESQUISA DE EMPRESAS */}
       <div className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-          {/* Caixa de pesquisa */}
+          {/* Caixa de pesquisa com debounce */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              value={busca}
-              onChange={(e) => {
-                setBusca(e.target.value);
-                setPage(1);
-              }}
+              value={buscaInput}
+              onChange={(e) => setBuscaInput(e.target.value)}
               placeholder="Pesquisar organização por nome, NIF ou morada..."
               className="w-full pl-10 pr-10 py-2.5 bg-gray-50/70 border border-gray-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-gray-400"
             />
-            {busca && (
+            {buscaInput && (
               <button
                 onClick={() => {
+                  setBuscaInput("");
                   setBusca("");
                   setPage(1);
                 }}
@@ -609,10 +621,13 @@ export const EmpresaTab = () => {
             ))}
           </div>
 
-          {/* Botão atualizar */}
+          {/* Botão atualizar (limpa cache local e recarrega) */}
           <button
-            onClick={carregarEmpresas}
-            title="Atualizar lista de empresas"
+            onClick={() => {
+              clearEmpresaFrontendCache();
+              carregarEmpresas(true);
+            }}
+            title="Atualizar lista de empresas (limpar cache)"
             className="p-2.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors border border-gray-200/80 flex items-center justify-center flex-shrink-0"
           >
             <RefreshCw size={16} className={loadingLista ? "animate-spin text-blue-600" : ""} />
@@ -656,7 +671,7 @@ export const EmpresaTab = () => {
           <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-2" />
           <p className="text-sm text-red-600 font-medium mb-3">{erroLista}</p>
           <button
-            onClick={carregarEmpresas}
+            onClick={() => carregarEmpresas(true)}
             className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl px-4 py-2 hover:bg-gray-50"
           >
             <RefreshCw size={14} /> Tentar novamente
@@ -672,6 +687,7 @@ export const EmpresaTab = () => {
           {busca && (
             <button
               onClick={() => {
+                setBuscaInput("");
                 setBusca("");
                 setStatusFiltro("todas");
                 setPage(1);
@@ -1527,9 +1543,10 @@ export const EmpresaTab = () => {
           onClose={() => setCriandoEmpresa(false)}
           onCreate={async (novaData) => {
             const { data } = await api.post<EmpresaResposta>("/empresas", novaData);
+            clearEmpresaFrontendCache();
             setCriandoEmpresa(false);
             notificar(`Empresa "${getNome(data)}" criada com sucesso.`);
-            await carregarEmpresas();
+            await carregarEmpresas(true);
             setSelectedId(data.id);
           }}
           onError={(msg) => notificar(msg, "error")}

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/context/SessionContext";
-import { useCachePolicy } from "@/hook/useCachePolicy";
+import { CacheGestaoPanel } from "./CacheGestaoPanel";
 import {
   DefinicaoSistema,
   Recurso,
@@ -306,8 +306,8 @@ export const SistemaTab = () => {
             )}
           </div>
 
-          {/* Cache & Dados Locais */}
-          {can("settings:system") && <CacheDadosLocaisPanel />}
+          {/* Painel Unificado de Gestão de Cache & Dados Locais */}
+          {can("settings:system") && <CacheGestaoPanel />}
 
           {/* Log real do processo */}
           {can("logs:view") && (
@@ -537,152 +537,4 @@ const ControloSistema = ({
   </div>
 );
 
-/* =======================
-   CACHE & DADOS LOCAIS
-======================= */
 
-/**
- * Há metadados que a aplicação consulta uma vez e reutiliza: nomes de tabelas,
- * colunas, enums, contagens. É rápido, mas fica desatualizado assim que alguém
- * mexe no schema por fora — e quem está a trabalhar na estrutura quer ver o
- * estado real, não uma fotografia.
- *
- * Por isso a definição é por utilizador: um programador desliga-a sem penalizar
- * o desempenho de toda a gente.
- */
-const CacheDadosLocaisPanel = () => {
-  const {
-    utilizadores,
-    loading,
-    erro,
-    emCurso,
-    carregar,
-    alterarDadosLocais,
-    limparCache,
-  } = useCachePolicy(true);
-
-  const [limpou, setLimpou] = useState<number | null>(null);
-
-  const aoLimpar = async (userId: number) => {
-    if (await limparCache(userId)) {
-      setLimpou(userId);
-      // Confirmação discreta: some sozinha em vez de exigir um clique.
-      setTimeout(() => setLimpou((atual) => (atual === userId ? null : atual)), 2500);
-    }
-  };
-
-  const semDadosLocais = utilizadores.filter((u) => !u.usar_dados_locais).length;
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="p-4 border-b bg-gray-50 flex justify-between items-center gap-3">
-        <div>
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-            <Database size={18} /> Cache &amp; Dados Locais
-          </h3>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Nomes de tabelas, colunas e enums são consultados uma vez e reutilizados.
-            Desligar faz esse utilizador ler sempre da origem.
-          </p>
-        </div>
-        <button
-          onClick={carregar}
-          disabled={loading}
-          title="Recarregar"
-          className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 shrink-0"
-        >
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-        </button>
-      </div>
-
-      {erro && (
-        <div className="px-4 py-3 bg-red-50 border-b border-red-100 text-sm text-red-700 flex items-start gap-2">
-          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-          <span>{erro}</span>
-        </div>
-      )}
-
-      {semDadosLocais > 0 && (
-        <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 text-xs text-amber-800">
-          {semDadosLocais}{" "}
-          {semDadosLocais === 1
-            ? "utilizador está a ler sempre da origem"
-            : "utilizadores estão a ler sempre da origem"}
-          . Os pedidos deles são mais lentos, por opção.
-        </div>
-      )}
-
-      {loading && utilizadores.length === 0 ? (
-        <div className="p-8 flex items-center justify-center text-gray-400 text-sm gap-2">
-          <Loader2 size={16} className="animate-spin" /> A carregar utilizadores…
-        </div>
-      ) : utilizadores.length === 0 ? (
-        <div className="p-8 text-center text-sm text-gray-400">
-          Nenhum utilizador encontrado.
-        </div>
-      ) : (
-        <div className="divide-y divide-gray-100">
-          {utilizadores.map((u) => {
-            const ocupado = emCurso === u.user_id;
-
-            return (
-              <div
-                key={u.user_id}
-                className="p-4 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-gray-900 truncate">{u.nome}</p>
-                    {!u.usar_dados_locais && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 uppercase shrink-0">
-                        Sempre da origem
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500 truncate">{u.email}</p>
-                  {limpou === u.user_id && (
-                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                      <CheckCircle2 size={12} /> Cache limpo — os próximos pedidos vão à
-                      origem.
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-4 shrink-0">
-                  {/* A opção entra no fluxo da linha, ao lado do utilizador a
-                      que diz respeito, e não num formulário à parte. */}
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <span className="text-sm text-gray-600 hidden sm:inline">
-                      Não consultar dados locais
-                    </span>
-                    <Switch
-                      checked={!u.usar_dados_locais}
-                      disabled={ocupado}
-                      // O switch mostra "não consultar", logo é o inverso da
-                      // definição guardada — alternar é gravar o inverso do
-                      // valor atual.
-                      onChange={() => alterarDadosLocais(u.user_id, !u.usar_dados_locais)}
-                    />
-                  </label>
-
-                  <button
-                    onClick={() => aoLimpar(u.user_id)}
-                    disabled={ocupado}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition-all disabled:opacity-50"
-                  >
-                    {ocupado ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <Trash2 size={14} />
-                    )}
-                    Limpar cache
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
