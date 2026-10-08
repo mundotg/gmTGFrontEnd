@@ -14,10 +14,21 @@ import { convertProject } from "./utils";
 import { Toast } from "./components/ToastComponent";
 import { DEFAULT_TASK_DURATION } from "./costant";
 import { useSession } from "@/context/SessionContext";
+import Link from "next/link";
 
 
 const App: React.FC = () => {
-  const { api, user, logout } = useSession();
+  const { api, user, logout: sessionLogout } = useSession();
+
+  const logout = useCallback(async () => {
+    try {
+      await sessionLogout();
+    } catch (err) {
+      console.warn("Erro ao fazer logout:", err);
+    } finally {
+      window.location.href = "/auth/login";
+    }
+  }, [sessionLogout]);
 
   const [projects, setProjects] = usePersistedState<PaginatedResponse<Project>>(
     "paginacaoprojectos",
@@ -345,6 +356,14 @@ const App: React.FC = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center gap-3">
+              <Link
+                href="/home"
+                className="flex items-center justify-center p-2 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-colors -ml-1"
+                title="Voltar ao Início"
+                aria-label="Voltar ao Início"
+              >
+                <ArrowLeft size={18} />
+              </Link>
               <Briefcase className="text-indigo-600 w-6 h-6 sm:w-7 sm:h-7" />
               <h1 className="text-lg sm:text-xl font-bold text-gray-900">
                 Gerenciador de Projetos

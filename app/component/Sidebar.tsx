@@ -50,7 +50,7 @@ export const sidebarItems: SidebarItem[] = [
   // ─────────── Gestão de Base de Dados (topo, sempre visível) ───────────
   { id: "overview", label: "sidebar.overview", title: "Visão geral", icon: LayoutDashboard, href: "/home" },
   { id: "connections", label: "sidebar.connections", title: "Conexões", icon: Database, badge: "active", href: "/home/conexao", permission: ["db_connection:read_own", "db_connection:read_company", "db_connection:read_all"] },
-  { id: "tables", label: "sidebar.tables", title: "Tabelas", icon: TableProperties, badge: "num_table", href: "/home/tabelas", permission: "query:execute", requiresConnection: true },
+  { id: "tables", label: "sidebar.tables", title: "Tabelas", icon: TableProperties, badge: "num_table", href: "/home/tabelas", permission: ["table:read", "table:stats", "table:*"], requiresConnection: true },
   { id: "query", label: "sidebar.query", title: "Consultas", icon: Search, badge: "num_consultas", href: "/home/consultas", permission: "query:execute", requiresConnection: true },
   { id: "editorsql", label: "sidebar.sqlEditor", title: "Editor SQL", icon: Terminal, href: "/home/editorsql", permission: "query:execute", requiresConnection: true },
   { id: "history", label: "sidebar.history", title: "Histórico", icon: History, badge: "registros_analizados", href: "/home/historico", permission: "query:execute", requiresConnection: true },

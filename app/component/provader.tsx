@@ -8,6 +8,8 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+import GlobalForbiddenNotifier from "./GlobalForbiddenNotifier";
+
 export default function AuthProvider({ children }: AuthProviderProps) {
   // Ninguém aplicava o tema ao carregar a página: a classe `dark` só era posta
   // no momento em que se gravava o formulário de aparência, e desaparecia na
@@ -30,7 +32,10 @@ export default function AuthProvider({ children }: AuthProviderProps) {
 
   return (
     <I18nProvider>
-      <SessionProvider>{children}</SessionProvider>
+      <SessionProvider>
+        <GlobalForbiddenNotifier />
+        {children}
+      </SessionProvider>
     </I18nProvider>
   );
 }

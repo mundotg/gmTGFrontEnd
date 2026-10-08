@@ -1,6 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Database, AlertCircle } from "lucide-react";
+import { Database, AlertCircle, ShieldAlert } from "lucide-react";
+import Link from "next/link";
 
 import { DatabaseMetadata, MetadataTableResponse, TableInfoCreate } from "@/types";
 import { parseErrorMessage, separatedSelectedTablesNameAndSchema } from "@/util/func";
@@ -100,6 +101,13 @@ const DatabaseTablesPage: React.FC = () => {
   useEffect(() => {
     loadInitialData();
   }, [loadInitialData]);
+
+  // Sincroniza erro de metadados iniciais se ocorrer
+  useEffect(() => {
+    if (errorFetch) {
+      setError(errorFetch);
+    }
+  }, [errorFetch]);
 
   // 🔄 Ao mudar de conexão, limpa o estado dependente dela. Sem isto, as
   // colunas expandidas (persistidas no localStorage por NOME de tabela) de
@@ -484,7 +492,67 @@ const DatabaseTablesPage: React.FC = () => {
     );
   }
 
+  const isForbiddenError = Boolean(
+    error &&
+      (error.toLowerCase().includes("permissão") ||
+        error.toLowerCase().includes("não autorizado") ||
+        error.toLowerCase().includes("proibido") ||
+        error.toLowerCase().includes("forbidden") ||
+        error.toLowerCase().includes("403"))
+  );
+
   if (error && (!metadata || metadata.table_names.length === 0)) {
+    if (isForbiddenError) {
+      return (
+        <div className={`min-h-screen ${themeClasses} flex items-center justify-center p-4`}>
+          <div className="max-w-md w-full">
+            <div className={`${cardClasses} border rounded-2xl p-8 text-center shadow-lg border-amber-300 dark:border-amber-800`}>
+              <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-amber-600 dark:text-amber-400">
+                <ShieldAlert className="w-9 h-9" />
+              </div>
+              <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                Acesso Restrito
+              </span>
+              <h2 className="text-xl font-bold mt-2 mb-2 text-gray-900 dark:text-white">
+                Permissão Insuficiente
+              </h2>
+              <p className="mb-5 text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">
+                {error}
+              </p>
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl p-3.5 text-xs text-amber-800 dark:text-amber-200 mb-6 text-left space-y-1">
+                <p className="font-semibold">Requisitos de acesso:</p>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Para visualizar as tabelas e estatísticas desta conexão, a sua conta precisa de pelo menos uma das permissões:
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <span className="bg-amber-200/80 dark:bg-amber-900/60 font-mono px-2 py-0.5 rounded text-[11px] font-bold">
+                    table:read
+                  </span>
+                  <span className="bg-amber-200/80 dark:bg-amber-900/60 font-mono px-2 py-0.5 rounded text-[11px] font-bold">
+                    table:stats
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  href="/home/conexao"
+                  className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors font-medium text-sm text-center shadow-sm"
+                >
+                  Trocar Conexão
+                </Link>
+                <Link
+                  href="/home"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-xl transition-colors font-medium text-sm text-center"
+                >
+                  Visão Geral
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={`min-h-screen ${themeClasses} flex items-center justify-center p-4`}>
         <div className="max-w-md w-full">
@@ -537,6 +605,27 @@ const DatabaseTablesPage: React.FC = () => {
         setIsDeadlocksOpen={setIsDeadlocksOpen}
         filteredAndSortedTables={filteredAndSortedTables}
       />
+
+      {error && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-xl p-4 flex items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-sm animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <ShieldAlert className="w-5 h-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="text-sm">
+                <span className="font-bold">Aviso de Permissão: </span>
+                <span>{error}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="p-1 hover:bg-amber-100 dark:hover:bg-amber-900 rounded-md transition-colors text-amber-700 dark:text-amber-300"
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className={`mt-4 ${viewMode === "grid" ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : "space-y-4"}`}>
