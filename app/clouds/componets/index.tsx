@@ -76,6 +76,9 @@ export type StatCardType = {
         value: number;
         positive: boolean;
     };
+    href?: string;
+    description?: string;
+    badge?: string;
 };
 
 

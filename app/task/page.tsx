@@ -356,14 +356,6 @@ const App: React.FC = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center gap-3">
-              <Link
-                href="/home"
-                className="flex items-center justify-center p-2 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-colors -ml-1"
-                title="Voltar ao Início"
-                aria-label="Voltar ao Início"
-              >
-                <ArrowLeft size={18} />
-              </Link>
               <Briefcase className="text-indigo-600 w-6 h-6 sm:w-7 sm:h-7" />
               <h1 className="text-lg sm:text-xl font-bold text-gray-900">
                 Gerenciador de Projetos
@@ -418,7 +410,8 @@ const App: React.FC = () => {
                     setFormError(null);
                     setProjectModalOpen(true);
                   }
-                }}
+                }
+              }
                 onDeleteProject={handleDeleteProject}
               />
             ) : (
@@ -428,7 +421,6 @@ const App: React.FC = () => {
                 sprint={selectedSprint}
                 onBack={() => { setSelectedProjectId(null); setSelectedProject(null); setSelectedSprint(null); setSelectedSprintId(null) }}
                 onOpenAddTask={(project_id, sprint_id) => {
-                  // console.log(project_id," on", sprint_id)
                   setSelectedProjectId(project_id)
                   setSelectedSprintId(sprint_id)
                   clearEditTask()
@@ -467,7 +459,6 @@ const App: React.FC = () => {
           setFormError(null);
         }}
         onSubmit={editingProject ? handleEditProject : handleAddProject}
-      // isLoading={actionLoading}
       />}
 
       {isTaskModalOpen && <TaskModal
@@ -484,7 +475,6 @@ const App: React.FC = () => {
           setFormError(null);
         }}
         onSubmit={editingTask ? handleEditTask : handleAddTask}
-      // isLoading={actionLoading}
       />}
     </div>
   );
