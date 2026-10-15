@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LogOut, Settings, ChevronDown } from 'lucide-react';
+import { LogOut, Settings, ChevronDown, LayoutDashboard } from 'lucide-react';
+import Link from 'next/link';
 import { Usuario } from '@/types';
 
 
@@ -123,6 +124,16 @@ export const SessionMenu: React.FC<SessionMenuProps> = ({
           </div>
 
           <div className="py-1">
+            <Link
+              href="/home"
+              onClick={() => setIsOpen(false)}
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 flex items-center gap-3 transition-colors duration-150 group"
+              role="menuitem"
+            >
+              <LayoutDashboard className="w-4 h-4 text-gray-500 group-hover:text-blue-600 transition-colors" />
+              Voltar ao Início
+            </Link>
+
             {onSettings && (
               <button
                 onClick={() => {

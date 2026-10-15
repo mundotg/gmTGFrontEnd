@@ -4,6 +4,8 @@ import { DatabaseMetadata } from "@/types";
 import { fetchSyncMetadata, fetchTables } from "@/app/services/metadata_DB";
 import { useSession } from "@/context/SessionContext";
 
+import { parseErrorMessage } from "@/util/func";
+
 interface UseDatabaseMetadataResult {
   metadata: DatabaseMetadata | null;
   setMetadata: Dispatch<SetStateAction<DatabaseMetadata | null>>;
@@ -41,13 +43,15 @@ export function useDatabaseMetadata(op?: string): UseDatabaseMetadataResult {
       // Só é erro "duro" se AMBOS falharem (nada para mostrar).
       if (!base && tablesResult.status === "rejected") {
         const reason =
-          (baseResult.status === "rejected" && baseResult.reason) ||
-          (tablesResult.status === "rejected" && tablesResult.reason);
-        setError(reason?.message || "Erro ao buscar metadados");
+          (tablesResult.status === "rejected" && tablesResult.reason) ||
+          (baseResult.status === "rejected" && baseResult.reason);
+        setError(parseErrorMessage(reason));
         return;
       }
 
-      if (baseResult.status === "rejected") {
+      if (tablesResult.status === "rejected") {
+        setError(parseErrorMessage(tablesResult.reason));
+      } else if (baseResult.status === "rejected") {
         console.warn("⚠️ /consu/sync falhou (estatísticas ignoradas):", baseResult.reason?.message);
       }
 
@@ -56,7 +60,7 @@ export function useDatabaseMetadata(op?: string): UseDatabaseMetadataResult {
         table_names: tables.map((t) => ({ name: t, rowcount: -1 })),
       } as DatabaseMetadata);
     } catch (err: any) {
-      setError(err?.message || "Erro inesperado ao buscar metadados");
+      setError(parseErrorMessage(err));
     } finally {
       setInitmetadata(true);
       setLoading(false);

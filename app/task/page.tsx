@@ -14,10 +14,21 @@ import { convertProject } from "./utils";
 import { Toast } from "./components/ToastComponent";
 import { DEFAULT_TASK_DURATION } from "./costant";
 import { useSession } from "@/context/SessionContext";
+import Link from "next/link";
 
 
 const App: React.FC = () => {
-  const { api, user, logout } = useSession();
+  const { api, user, logout: sessionLogout } = useSession();
+
+  const logout = useCallback(async () => {
+    try {
+      await sessionLogout();
+    } catch (err) {
+      console.warn("Erro ao fazer logout:", err);
+    } finally {
+      window.location.href = "/auth/login";
+    }
+  }, [sessionLogout]);
 
   const [projects, setProjects] = usePersistedState<PaginatedResponse<Project>>(
     "paginacaoprojectos",
@@ -399,7 +410,8 @@ const App: React.FC = () => {
                     setFormError(null);
                     setProjectModalOpen(true);
                   }
-                }}
+                }
+              }
                 onDeleteProject={handleDeleteProject}
               />
             ) : (
@@ -409,7 +421,6 @@ const App: React.FC = () => {
                 sprint={selectedSprint}
                 onBack={() => { setSelectedProjectId(null); setSelectedProject(null); setSelectedSprint(null); setSelectedSprintId(null) }}
                 onOpenAddTask={(project_id, sprint_id) => {
-                  // console.log(project_id," on", sprint_id)
                   setSelectedProjectId(project_id)
                   setSelectedSprintId(sprint_id)
                   clearEditTask()
@@ -448,7 +459,6 @@ const App: React.FC = () => {
           setFormError(null);
         }}
         onSubmit={editingProject ? handleEditProject : handleAddProject}
-      // isLoading={actionLoading}
       />}
 
       {isTaskModalOpen && <TaskModal
@@ -465,7 +475,6 @@ const App: React.FC = () => {
           setFormError(null);
         }}
         onSubmit={editingTask ? handleEditTask : handleAddTask}
-      // isLoading={actionLoading}
       />}
     </div>
   );

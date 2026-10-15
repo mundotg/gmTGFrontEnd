@@ -90,6 +90,7 @@ const RegisterPage = () => {
       const firstName = params.get('firstName') || '';
       const lastName = params.get('lastName') || '';
       const avatarUrl = params.get('avatar_url') || '';
+      const company = params.get('company') || '';
       const token = params.get('oauth_token') || '';
 
       if (token) setOauthToken(token);
@@ -101,14 +102,36 @@ const RegisterPage = () => {
         avatarUrl,
       });
 
+      // Limpa rascunho anterior para evitar contaminação por rascunho em cache
+      clearSavedForm();
+
       setFormData(prev => ({
         ...prev,
         firstName: firstName || prev.firstName,
         lastName: lastName || prev.lastName,
         email: email || prev.email,
+        companyData: {
+          ...prev.companyData,
+          company: company || prev.companyData.company,
+        },
       }));
     }
-  }, [setFormData]);
+  }, [setFormData, clearSavedForm]);
+
+  // Garante que o e-mail do OAuth nunca seja sobrescrito pelo carregamento assíncrono do IndexedDB
+  useEffect(() => {
+    if (oauthInfo?.isOAuth && oauthInfo.email) {
+      setFormData(prev => {
+        if (prev.email !== oauthInfo.email) {
+          return {
+            ...prev,
+            email: oauthInfo.email,
+          };
+        }
+        return prev;
+      });
+    }
+  }, [oauthInfo?.isOAuth, oauthInfo?.email, setFormData]);
 
   // Redirecionamento automático com contagem regressiva após o envio do e-mail
   useEffect(() => {
@@ -194,9 +217,12 @@ const RegisterPage = () => {
     setIsLoading(true);
 
     try {
+      const finalEmail = (oauthInfo?.isOAuth && oauthInfo.email ? oauthInfo.email : formData.email).trim().toLowerCase();
+
       const submitData = {
         ...formData,
         ...passwords,
+        email: finalEmail,
         positionData: formData.positionData.position ? formData.positionData : undefined,
         oauthToken: oauthToken || undefined,
       };
@@ -530,8 +556,8 @@ const RegisterPage = () => {
                   type="email"
                   name="email"
                   autoComplete="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
+                  value={oauthInfo?.isOAuth && oauthInfo.email ? oauthInfo.email : formData.email}
+                  onChange={oauthInfo?.isOAuth ? undefined : handleInputChange}
                   readOnly={!!oauthInfo?.isOAuth}
                   className={`${inputClass} ${oauthInfo?.isOAuth ? "bg-gray-100 text-gray-700 cursor-not-allowed border-gray-300" : ""}`}
                   placeholder="seu@email.com"
