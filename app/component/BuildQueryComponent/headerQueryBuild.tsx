@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Filter, Plus, Trash2, Database, Eraser } from "lucide-react";
+import { Filter, Plus, Trash2, Database, Eraser, Columns3 } from "lucide-react";
 import { useI18n } from "@/context/I18nContext";
 
 interface HeaderProps {
@@ -34,7 +34,7 @@ const HeaderBuild: React.FC<HeaderProps> = ({
   const validConditionsCount = conditions.filter((c) => c.value.trim()).length;
 
   return (
-    <div className="bg-gray-50 border-b border-gray-200 p-4 sm:p-5">
+    <div className="bg-gray-50 border-b border-gray-200 p-4 sm:p-5" aria-label="hearder build">
       <div className="space-y-4">
         {/* Título e info */}
         <div className="flex items-center gap-3">
@@ -59,17 +59,22 @@ const HeaderBuild: React.FC<HeaderProps> = ({
           
           {/* Ações Principais (Esquerda) */}
           <div className="flex flex-1 gap-2">
-            {/* Selecionar Tabelas */}
+            {/* Selecionar Colunas (SELECT) */}
             <button
               onClick={() => setShowTableModal(true)}
               className="flex-1 sm:flex-none px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all text-sm font-bold shadow-sm flex items-center justify-center gap-2 focus:ring-2 focus:ring-blue-500/50 focus:outline-none"
+              title="Escolha quais colunas serão retornadas na consulta SQL (SELECT)"
             >
-              <Database className="w-4 h-4" />
-              <span className="hidden xs:inline">{t("builder.tables") || "Tabelas"}</span>
-              <span className="xs:hidden">{t("builder.select") || "Select"}</span>
-              {select.length > 0 && (
+              <Columns3 className="w-4 h-4 text-blue-600" />
+              <span className="hidden xs:inline">{t("builder.columnsSelect") || "Colunas (SELECT)"}</span>
+              <span className="xs:hidden">Colunas</span>
+              {select.length > 0 ? (
                 <span className="bg-blue-100 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md text-xs font-bold ml-1">
                   {select.length}
+                </span>
+              ) : (
+                <span className="bg-gray-100 text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded-md text-[10px] font-mono ml-1" title="Todas as colunas retornadas (SELECT *)">
+                  *
                 </span>
               )}
             </button>

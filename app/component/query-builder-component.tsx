@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Plus, Play, ChevronDown, Shield } from "lucide-react";
+import { Search, Plus, Play, ChevronDown, Columns3 } from "lucide-react";
 import FiltroCondicaoItem from "./FiltroCondicaoItem";
 import {
   AdvancedJoinOption,
@@ -11,7 +11,6 @@ import {
   QueryBuilderProps,
   QueryPayload,
 } from "@/types";
-import QueryHistoryPanel from "./BuildQueryComponent/QueryHistoryPanel";
 import { JoinOptions } from "./JoinOptions";
 import { OrderByOptions } from "./OrderByOptions";
 import { GenericSelectModal } from "./BuildQueryComponent/TableSelectModal";
@@ -112,64 +111,11 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
     setAdvancedConditions,
   });
 
-  // ---------------- HISTÓRICO & REUTILIZAÇÃO ----------------
-  // Sinal que muda a cada execução para o painel re-buscar (tempo real).
-  const [historySignal, setHistorySignal] = useState(0);
-  const bumpHistory = useCallback(() => {
-    // O histórico é gravado no fim do stream SSE; espera um pouco antes de re-buscar.
-    setTimeout(() => setHistorySignal((s) => s + 1), 1500);
-  }, []);
-
-  // Botão "Executar": corre a partir do estado atual e atualiza o histórico.
+  // ---------------- EXECUÇÃO ----------------
+  // Botão "Executar": corre a partir do estado atual
   const handleRun = useCallback(async () => {
     await executeQuery();
-    bumpHistory();
-  }, [executeQuery, bumpHistory]);
-
-  // "Correr novamente": reproduz EXACTAMENTE a consulta guardada (inclui joins).
-  const handleRerunPayload = useCallback(
-    (payload: QueryPayload) => {
-      Promise.resolve(onExecuteQuery(payload)).catch((e) =>
-        console.error("Erro ao reexecutar consulta:", e)
-      );
-      bumpHistory();
-    },
-    [onExecuteQuery, bumpHistory]
-  );
-
-  // "Carregar no construtor": repõe os campos editáveis a partir do payload.
-  // Os joins não são reeditáveis a partir do payload convertido — para
-  // reproduzir uma consulta com joins tal e qual, usa antes "Correr novamente".
-  const handleLoadPayload = useCallback(
-    (payload: QueryPayload) => {
-      setTable_list(
-        payload.table_list?.length
-          ? payload.table_list
-          : payload.baseTable
-            ? [payload.baseTable]
-            : []
-      );
-      setSelect(payload.select ?? []);
-      setConditions((payload.where as CondicaoFiltro[]) ?? []);
-      setOrderBy((payload.orderBy as MultiOrderByOption) ?? []);
-      setDistinctList(payload.distinct ?? { useDistinct: false, distinct_columns: [] });
-      setAliasTables?.(payload.aliaisTables ?? {});
-      addNotification(
-        "success",
-        t("builder.queryLoaded") || "Consulta carregada",
-        t("builder.queryLoadedDesc") || "Ajusta e executa, ou usa 'Correr novamente' para reproduzir tal e qual."
-      );
-    },
-    [setTable_list, setSelect, setConditions, setOrderBy, setDistinctList, setAliasTables, addNotification, t]
-  );
-
-  // Clicar numa sugestão de tabela adiciona-a à lista.
-  const handlePickTable = useCallback(
-    (table: string) => {
-      setTable_list(table_list.includes(table) ? table_list : [...table_list, table]);
-    },
-    [setTable_list, table_list]
-  );
+  }, [executeQuery]);
 
   // ---------------- EFFECTS ----------------
   useEffect(() => {
@@ -482,50 +428,30 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
         LimparCacheLocalStorage={clearCache}
       />
 
-      {/* NOTIFICAÇÕES */}
-      {notifications.length > 0 && (
-        <div className="border-b border-gray-100 bg-gray-50/50">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-bold text-gray-700">
-                {t("builder.notifications") || "Notificações"} ({notifications.length})
-              </h4>
-              {notifications.length > 1 && (
-                <button onClick={clearAllNotifications} className="text-xs font-semibold text-gray-500 hover:text-red-600 transition-colors">
-                  {t("actions.clearAll") || "Limpar todas"}
-                </button>
-              )}
-            </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-              <NotificationSystem
-                notifications={notifications}
-                onRemove={removeNotification}
-                onClearAll={clearAllNotifications}
-                position="inline"
-                showHeader={false}
-                maxHeight="max-h-48"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* NOTIFICAÇÕES (Toasts flutuantes e responsivos que não empurram o layout) */}
+      <NotificationSystem
+        notifications={notifications}
+        onRemove={removeNotification}
+        onClearAll={clearAllNotifications}
+        position="bottom-right"
+      />
 
-      {/* MODAL DE TABELAS */}
+      {/* MODAL DE SELEÇÃO DE COLUNAS (SELECT) */}
       {showTableModal && (
         <GenericSelectModal
-          title="Atribuir Permissões"
+          title="Colunas da Consulta (SELECT)"
           useDistinct={distinctList.useDistinct}
-          itemLabelSingular="permissão"
+          itemLabelSingular="coluna"
           db_type_on={user?.info_extra?.type}
-          itemLabelPlural="permissões"
-          icon={<Shield className="w-5 h-5 text-blue-600" />}
+          itemLabelPlural="colunas"
+          icon={<Columns3 className="w-5 h-5 text-blue-600" />}
           tableSelected={table_list}
           items={[...new Set(columns.flatMap((s: MetadataTableResponse) => s.colunas.map((c) => `${s.table_name}.${c.nome}`)))]}
           selectedItems={select}
           initialAliases={aliasTables}
           onClose={() => setShowTableModal(false)}
-          enableAliases={true} // Não precisamos de aliases para permissões
-          enableDistinct={true} // Não precisamos de distinct para permissões
+          enableAliases={true}
+          enableDistinct={true}
           onSave={(items, useDistinct, cols, aliases) => {
             setSelect(items || []);
             setDistinctList({ useDistinct: !!useDistinct, distinct_columns: cols || [] });
@@ -637,51 +563,45 @@ const QueryBuilder: React.FC<QueryBuilderProps> = ({
       </div>
 
       {/* FOOTER - EXECUTE */}
-      <div className="border-t border-gray-200 bg-gray-50 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex flex-col sm:flex-row items-center gap-4 flex-1">
-          {lengthCondition > 0 && (
-            <div className="text-sm font-medium text-gray-600 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
-              <span className="font-bold text-gray-900">{validConditionsCount}</span> {t("common.of") || "de"} {lengthCondition} {t("builder.validConditions") || "condição(ões) válida(s)"}
-            </div>
-          )}
-          {table_list.length > 0 && (
-            <div className="text-sm font-medium text-gray-600 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
-              {t("builder.baseTable") || "Tabela base"}: <strong className="text-blue-600 ml-1">{table_list[0]}</strong>
-            </div>
-          )}
+      <div className="border-t border-gray-200 bg-gray-50 p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3 flex-1">
+            {lengthCondition > 0 && (
+              <div className="text-sm font-medium text-gray-600 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-xs">
+                <span className="font-bold text-gray-900">{validConditionsCount}</span> {t("common.of") || "de"} {lengthCondition} {t("builder.validConditions") || "condição(ões) válida(s)"}
+              </div>
+            )}
+            {table_list.length > 0 && (
+              <div className="text-sm font-medium text-gray-600 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-xs">
+                {t("builder.baseTable") || "Tabela base"}: <strong className="text-blue-600 ml-1">{table_list[0]}</strong>
+              </div>
+            )}
+          </div>
+
+          {/* Botão Executar Consulta */}
+          <button
+            onClick={handleRun}
+            disabled={isExecuting}
+            className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-bold text-sm transition-colors shadow-xs focus:ring-2 focus:ring-blue-500/50"
+          >
+            {isExecuting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                {t("builder.executing") || "Executando..."}
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4" />
+                {t("builder.executeQuery") || "Executar Consulta"}
+                {validConditionsCount > 0 && (
+                  <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-md ml-1 font-mono">
+                    {validConditionsCount}
+                  </span>
+                )}
+              </>
+            )}
+          </button>
         </div>
-
-        {/* Botão padronizado (Blue em vez de Green) */}
-        <button
-          onClick={handleRun}
-          disabled={isExecuting}
-          className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-bold text-sm transition-colors shadow-sm focus:ring-2 focus:ring-blue-500/50"
-        >
-          {isExecuting ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              {t("builder.executing") || "Executando..."}
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4" />
-              {t("builder.executeQuery") || "Executar Consulta"}
-              {validConditionsCount > 0 && (
-                <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded-md ml-1 font-mono">
-                  {validConditionsCount}
-                </span>
-              )}
-            </>
-          )}
-        </button>
-
-        {/* Histórico de consultas + sugestões (usar novamente / carregar) */}
-        <QueryHistoryPanel
-          reloadSignal={historySignal}
-          onRerun={handleRerunPayload}
-          onLoad={handleLoadPayload}
-          onPickTable={handlePickTable}
-        />
       </div>
     </div>
   );

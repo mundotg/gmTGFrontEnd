@@ -34,6 +34,9 @@ interface LabeledSelectProps {
   disabled?: boolean;
   maxSelections?: number;
   searchable?: boolean;
+  showSystemFilterRadio?: boolean;
+  hideSystemTables?: boolean;
+  onHideSystemTablesChange?: (hide: boolean) => void;
 }
 
 const ITEM_HEIGHT = 72;
@@ -51,12 +54,26 @@ const LabeledSelectComponent: React.FC<
   disabled = false,
   maxSelections,
   searchable = true,
+  showSystemFilterRadio = true,
+  hideSystemTables,
+  onHideSystemTablesChange,
 }) => {
     const { user } = useSession();
 
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [scrollTop, setScrollTop] = useState(0);
+    const [internalHideSystem, setInternalHideSystem] = useState(false);
+
+    const isHideSystem = hideSystemTables !== undefined ? hideSystemTables : internalHideSystem;
+    const setIsHideSystem = useCallback((val: boolean) => {
+      setInternalHideSystem(val);
+      onHideSystemTablesChange?.(val);
+    }, [onHideSystemTablesChange]);
+
+    const systemOptionsCount = useMemo(() => {
+      return options.filter((opt) => isSystemTable(opt.value, opt.schema, user?.info_extra?.type).isSystem).length;
+    }, [options, user?.info_extra?.type]);
 
     const dropdownRef =
       useRef<HTMLDivElement>(null);
@@ -163,7 +180,7 @@ const LabeledSelectComponent: React.FC<
     // PROCESS OPTIONS (MEMO)
     // =========================================
     const processedOptions = useMemo(() => {
-      return filteredOptions.map((option) => ({
+      let list = filteredOptions.map((option) => ({
         ...option,
         systemInfo: isSystemTable(
           option.value,
@@ -171,7 +188,13 @@ const LabeledSelectComponent: React.FC<
           user?.info_extra?.type
         ),
       }));
-    }, [filteredOptions]);
+
+      if (isHideSystem) {
+        list = list.filter((opt) => !opt.systemInfo.isSystem);
+      }
+
+      return list;
+    }, [filteredOptions, isHideSystem, user?.info_extra?.type]);
 
     // =========================================
     // VIRTUALIZATION
@@ -249,16 +272,41 @@ const LabeledSelectComponent: React.FC<
 
     return (
       <div className="w-full">
-        {/* LABEL */}
-        <label className="block text-sm font-semibold text-gray-800 mb-2">
-          {label}
+        {/* LABEL + CHECKBOX PARA OCULTAR TABELAS DO SISTEMA (NUNCA DESAPARECE) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <label className="block text-sm font-semibold text-gray-800">
+            {label}
 
-          {maxSelections && (
-            <span className="text-xs font-normal text-gray-500 ml-1">
-              (máx. {maxSelections})
-            </span>
+            {maxSelections && (
+              <span className="text-xs font-normal text-gray-500 ml-1">
+                (máx. {maxSelections})
+              </span>
+            )}
+          </label>
+
+          {showSystemFilterRadio && (
+            <label
+              className="inline-flex items-center gap-2 text-xs text-gray-700 hover:text-gray-900 cursor-pointer select-none bg-gray-50 hover:bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200 transition-colors"
+              title="Marque para ocultar tabelas internas do sistema"
+            >
+              <input
+                type="checkbox"
+                checked={isHideSystem}
+                onChange={(e) => setIsHideSystem(e.target.checked)}
+                className="accent-blue-600 h-4 w-4 rounded cursor-pointer"
+              />
+              <span className="flex items-center gap-1.5 text-gray-700 font-medium">
+                <ShieldAlert size={13} className={isHideSystem ? "text-amber-500" : "text-gray-400"} />
+                Ocultar tabelas do sistema
+                {systemOptionsCount > 0 && (
+                  <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full font-mono font-semibold">
+                    ({systemOptionsCount})
+                  </span>
+                )}
+              </span>
+            </label>
           )}
-        </label>
+        </div>
 
         {/* SELECT */}
         <div

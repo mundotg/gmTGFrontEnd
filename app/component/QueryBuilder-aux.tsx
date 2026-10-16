@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Plus, Play, ChevronDown } from "lucide-react";
+import { Search, Plus, Play, ChevronDown, Columns3 } from "lucide-react";
 import FiltroCondicaoItem from "./FiltroCondicaoItem";
 import { GenericSelectModal } from "./BuildQueryComponent/TableSelectModal";
 import {
@@ -419,30 +419,13 @@ const QueryBuilderAux: React.FC<Props> = ({
         LimparCacheLocalStorage={clearCache}
       />
 
-      {notifications.length > 0 && (
-        <div className="border-b">
-          <div className="p-3 sm:p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-gray-700">Notificações ({notifications.length})</h4>
-              {notifications.length > 1 && (
-                <button onClick={clearAllNotifications} className="text-xs text-gray-500 hover:text-gray-700 underline">
-                  Limpar todas
-                </button>
-              )}
-            </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              <NotificationSystem
-                notifications={notifications}
-                onRemove={removeNotification}
-                onClearAll={clearAllNotifications}
-                position="inline"
-                showHeader={false}
-                maxHeight="max-h-48"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* NOTIFICAÇÕES (Toasts flutuantes e responsivos que não empurram o layout) */}
+      <NotificationSystem
+        notifications={notifications}
+        onRemove={removeNotification}
+        onClearAll={clearAllNotifications}
+        position="bottom-right"
+      />
 
       {showTableModal && (
         <GenericSelectModal
@@ -454,10 +437,10 @@ const QueryBuilderAux: React.FC<Props> = ({
           db_type_on=""
           enableAliases
           enableDistinct
-          itemLabelPlural=""
-          itemLabelSingular=""
-          icon={<Search className="w-4 h-4" />}
-          title=""
+          itemLabelPlural="colunas"
+          itemLabelSingular="coluna"
+          icon={<Columns3 className="w-5 h-5 text-blue-600" />}
+          title="Colunas da Consulta (SELECT)"
           tableSelected={table_list}
           useDistinct={distinctList?.useDistinct}
 

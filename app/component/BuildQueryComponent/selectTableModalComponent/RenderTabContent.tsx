@@ -69,27 +69,29 @@ EmptyStateAll.displayName = "EmptyStateAll";
 
 const EmptyStateSelected = memo(({
   setActiveTab,
-  itemLabelSingular = "item",
-  itemLabelPlural = "itens",
+  itemLabelSingular = "coluna",
+  itemLabelPlural = "colunas",
 }: { setActiveTab: (tab: Tab) => void } & Pick<LabelProps, "itemLabelSingular" | "itemLabelPlural">) => {
   const { t } = useI18n();
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 animate-in fade-in duration-300">
-      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm mb-3">
-        <Check className="w-6 h-6 text-gray-400" />
+    <div className="flex flex-col items-center justify-center py-10 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/60 animate-in fade-in duration-300">
+      <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center border border-blue-100 shadow-xs mb-3">
+        <Check className="w-6 h-6" />
       </div>
       <p className="text-gray-900 font-bold mb-1 text-center">
-        {t("modal.emptySelectedTitle") || `Nenhum(a) ${itemLabelSingular.toLowerCase()} selecionado(a)`}
+        {`Nenhuma ${itemLabelSingular.toLowerCase()} selecionada`}
       </p>
-      <p className="text-sm text-gray-500 mb-4 text-center max-w-sm">
-        {t("modal.emptySelectedDesc") ||
-          `Você ainda não selecionou nenhum(a) ${itemLabelSingular.toLowerCase()} para a operação atual.`}
+      <p className="text-sm text-gray-500 mb-2 text-center max-w-md">
+        Quando nenhuma coluna está marcada, a consulta SQL retornará <strong>todos os campos (<code className="text-blue-700 bg-blue-50 px-1 py-0.5 rounded font-mono text-xs">SELECT *</code>)</strong>.
+      </p>
+      <p className="text-xs text-gray-400 mb-4 text-center max-w-sm">
+        Para retornar apenas campos específicos ou aplicar apelidos (aliases), clique no botão abaixo para escolher as colunas.
       </p>
       <button
         onClick={() => setActiveTab("all")}
-        className="text-sm font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors border border-blue-200 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        className="text-sm font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors border border-blue-200 focus:ring-2 focus:ring-blue-500 focus:outline-none flex items-center gap-1.5"
       >
-        {t("modal.goToAll") || `Ver todos(as) os(as) ${itemLabelPlural.toLowerCase()}`}
+        {`Ver todas as ${itemLabelPlural.toLowerCase()}`}
       </button>
     </div>
   );

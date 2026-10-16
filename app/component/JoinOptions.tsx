@@ -446,6 +446,12 @@ export function JoinOptions({
     [columns, baseTable, joinOrder]
   );
 
+  // Quantidade real de JOINs configurados (excluindo a tabela base)
+  const configuredJoinsCount = useMemo(
+    () => joinOrder.filter(tableName => tableName !== baseTable && !!advancedConditions[tableName]).length,
+    [joinOrder, baseTable, advancedConditions]
+  );
+
   // Opções para mudar a tabela base
   const baseTableOptions = useMemo(
     () => columns.map(table => ({
@@ -458,10 +464,10 @@ export function JoinOptions({
   if (columns.length < 2) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5 sm:space-y-4" aria-label="listar_join_das_tabelas">
       {/* Seletor de Tabela Base */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 sm:p-4 bg-gray-50 border border-gray-200 rounded-xl gap-3">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gray-50 border border-gray-200 rounded-xl gap-2.5 sm:gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0">
           <div className="flex items-center gap-2 shrink-0">
             <div className="p-1.5 bg-blue-100 rounded-md border border-blue-200">
               <Database className="h-4 w-4 text-blue-600" />
@@ -480,13 +486,13 @@ export function JoinOptions({
             autoWidth={false}
           />
         </div>
-        <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md self-start sm:self-auto">
-          {joinOrder.length} JOIN{joinOrder.length !== 1 ? 's' : ''} {t("joins.configured") || "configurado(s)"}
+        <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md self-start sm:self-auto shrink-0">
+          {configuredJoinsCount} JOIN{configuredJoinsCount !== 1 ? 's' : ''} {t("joins.configured") || "configurado(s)"}
         </span>
       </div>
 
       <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-        <label className="block text-sm font-bold text-gray-900">
+        <label className="block text-xs sm:text-sm font-bold text-gray-900">
           {t("joins.joinConfigs") || "Configurações de JOIN"}
         </label>
 
@@ -498,27 +504,34 @@ export function JoinOptions({
             title={`${t("actions.add")} ${availableTablesCount} ${t("joins.availableTables")}`}
           >
             <Plus className="h-4 w-4" />
-            {t("joins.addJoin") || "Adicionar JOIN"} ({availableTablesCount})
+            <span>{t("joins.addJoin") || "Adicionar JOIN"}</span>
+            <span className="text-gray-400 font-normal">({availableTablesCount})</span>
           </button>
         )}
       </div>
 
-      {joinOrder.length === 0 ? (
-        <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+      {configuredJoinsCount === 0 ? (
+        <div className="text-center py-7 sm:py-8 bg-gray-50/80 rounded-xl border-2 border-dashed border-gray-200">
           <div className="space-y-2">
-            <p className="text-gray-500 font-medium text-sm">
+            <p className="text-gray-600 font-semibold text-sm">
               {t("joins.noTablesConfigured") || "Nenhuma tabela configurada para JOIN"}
             </p>
-            {availableTablesCount > 0 && (
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                {availableTablesCount} {availableTablesCount !== 1 ? (t("joins.tables") || "tabelas") : (t("joins.table") || "tabela")} {t("joins.availableToAdd") || "disponível(eis) para adicionar"}
+            {availableTablesCount > 0 ? (
+              <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                Clique em <strong>&quot;Adicionar JOIN&quot;</strong> acima para relacionar a tabela base com outras tabelas disponíveis ({availableTablesCount}).
+              </p>
+            ) : (
+              <p className="text-xs text-gray-400">
+                Todas as tabelas selecionadas já estão na consulta.
               </p>
             )}
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
+        /* Container com altura estática/delimitada e scroll responsivo para não quebrar a página */
+        <div className="space-y-3 max-h-[460px] sm:max-h-[500px] overflow-y-auto pr-1 sm:pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
           {joinOrder.map((tableName, index) => {
+            if (tableName === baseTable) return null;
             const table = columns.find(t => t.table_name === tableName);
             if (!table) return null;
 

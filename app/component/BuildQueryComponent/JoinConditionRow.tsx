@@ -56,61 +56,79 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
 
 
 
+  const isUnaryOperator = ["IS NULL", "IS NOT NULL"].includes(condition.operator);
+
   return (
-    <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl transition-all hover:bg-white hover:border-blue-200 hover:shadow-sm">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 p-2 sm:p-2.5 bg-white border border-gray-200 rounded-lg transition-all hover:border-blue-300 hover:shadow-xs shadow-2xs"
+    aria-label= "Linha de condição">
 
-      {/* Operador Lógico (Apenas para índice > 0) */}
-      {condIndex > 0 && (
-        <select
-          value={condition.logicalOperator || "AND"}
-          onChange={(e) => updateCondition(tableName, condition.id, {
-            logicalOperator: e.target.value as LogicalOperators
-          })}
-          className="w-full sm:w-auto shrink-0 px-2.5 py-1.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer"
-        >
-          {["AND", "OR"].map(op => (
-            <option key={op} value={op}>{op === "AND" ? t("condition.and") || "AND" : t("condition.or") || "OR"}</option>
-          ))}
-        </select>
-      )}
+      {/* BLOCO 1: Operador lógico, Coluna esquerda, Operador de comparação e Botão Remover no mobile */}
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+        {/* Operador Lógico (Apenas para índice > 0) */}
+        {condIndex > 0 && (
+          <select
+            value={condition.logicalOperator || "AND"}
+            onChange={(e) => updateCondition(tableName, condition.id, {
+              logicalOperator: e.target.value as LogicalOperators
+            })}
+            className="shrink-0 px-2 py-1.5 text-xs font-bold text-blue-700 bg-blue-50/80 border border-blue-200 rounded-md shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer"
+          >
+            {["AND", "OR"].map(op => (
+              <option key={op} value={op}>{op === "AND" ? t("condition.and") || "AND" : t("condition.or") || "OR"}</option>
+            ))}
+          </select>
+        )}
 
-      {/* Coluna esquerda */}
-      <div className="w-full sm:w-auto sm:flex-1 min-w-0 sm:min-w-[140px]">
-        <JoinSelect
-          className="w-full text-sm"
-          buttonClassName="w-full bg-white border border-gray-200 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500/50 text-gray-900 font-medium shadow-sm transition-colors"
-          value={condition.leftColumn}
-          onChange={(value) => updateCondition(tableName, condition.id, { leftColumn: value })}
-          options={allColumnOptions.filter(opt => opt.value !== condition.rightColumn)}
-          placeholder={t("joins.leftColumn") || "Coluna esquerda"}
-          autoWidth={false}
-        />
+        {/* Coluna esquerda */}
+        <div className="flex-1 min-w-0">
+          <JoinSelect
+            className="w-full text-xs"
+            buttonClassName="w-full bg-gray-50/70 hover:bg-white border border-gray-200 px-2.5 py-1.5 rounded-md focus:ring-2 focus:ring-blue-500/50 text-gray-900 font-medium shadow-2xs transition-colors text-xs truncate"
+            value={condition.leftColumn}
+            onChange={(value) => updateCondition(tableName, condition.id, { leftColumn: value })}
+            options={allColumnOptions.filter(opt => opt.value !== condition.rightColumn)}
+            placeholder={t("joins.leftColumn") || "Coluna esquerda"}
+            autoWidth={false}
+          />
+        </div>
+
+        {/* Operador de Comparação */}
+        <div className="w-20 sm:w-24 shrink-0">
+          <select
+            value={condition.operator}
+            onChange={(e) => updateCondition(tableName, condition.id, { operator: e.target.value })}
+            className="w-full px-2 py-1.5 text-xs font-bold text-gray-700 bg-gray-50/70 border border-gray-200 rounded-md shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer hover:bg-white transition-colors"
+          >
+            {operators.map(op => (
+              <option key={op} value={op}>{op}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Botão de remover (no mobile posicionado na linha superior à direita) */}
+        {conditions.length > 1 && (
+          <button
+            type="button"
+            onClick={() => removeCondition(tableName, condition.id)}
+            className="sm:hidden p-1.5 shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
+            title={t("actions.removeCondition") || "Remover condição"}
+            aria-label={t("actions.removeCondition") || "Remover condição"}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
-      {/* Operador de Comparação */}
-      <div className="w-full sm:w-auto shrink-0 sm:min-w-[90px]">
-        <select
-          value={condition.operator}
-          onChange={(e) => updateCondition(tableName, condition.id, { operator: e.target.value })}
-          className="w-full px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer"
-        >
-          {operators.map(op => (
-            <option key={op} value={op}>{op}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Valor/Coluna direita */}
-      {!["IS NULL", "IS NOT NULL"].includes(condition.operator) && (
-        <div className="w-full sm:w-auto sm:flex-1 min-w-0 sm:min-w-[180px] flex items-center gap-2 sm:gap-3 bg-white p-1 rounded-lg border border-gray-200 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/50 transition-colors">
-
-          {/* Toggle Value vs Column */}
-          <label className="flex items-center gap-1.5 pl-2 cursor-pointer border-r border-gray-100 pr-2.5 sm:pr-3 shrink-0">
+      {/* BLOCO 2: Valor / Coluna Direita (oculto para IS NULL / IS NOT NULL) */}
+      {!isUnaryOperator && (
+        <div className="flex-1 min-w-0 flex items-center gap-1.5 sm:gap-2 bg-gray-50/70 border border-gray-200 rounded-md p-0.5 shadow-2xs focus-within:ring-2 focus-within:ring-blue-500/50 focus-within:bg-white transition-all">
+          {/* Toggle Valor vs Coluna */}
+          <label className="flex items-center gap-1 pl-2 pr-2 border-r border-gray-200 cursor-pointer shrink-0 py-1 hover:text-blue-600 transition-colors">
             <input
               type="checkbox"
               checked={condition.useValue}
               onChange={(e) => updateCondition(tableName, condition.id, { useValue: e.target.checked })}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500/50 transition-colors cursor-pointer"
+              className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500/50 transition-colors cursor-pointer"
             />
             <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 select-none">
               {t("condition.value") || "Valor"}
@@ -128,9 +146,14 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
                   placeholder={t("condition.typeValue") || "Digite um valor"}
                 />
               ) : ["Contém", "Não Contém", "LIKE", "NOT LIKE"].includes(condition.operator) ? (
-                <LikeInputGroup value={condition.rightValue || ""} condition={condition} typeInput={condition.valueColumnType || "text"}
+                <LikeInputGroup
+                  value={condition.rightValue || ""}
+                  condition={condition}
+                  typeInput={condition.valueColumnType || "text"}
                   placeholder={t("joins.literalValue") || "Valor literal"}
-                  onChange={(value) => updateCondition(tableName, condition.id, handleContainOperatorsChange(value))} t={t} />
+                  onChange={(value) => updateCondition(tableName, condition.id, handleContainOperatorsChange(value))}
+                  t={t}
+                />
               ) : (
                 <DynamicInputByType
                   type={condition.valueColumnType || "text"}
@@ -143,8 +166,8 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
               )
             ) : (
               <JoinSelect
-                className="w-full text-sm"
-                buttonClassName="w-full px-2 py-1.5 text-gray-900 font-medium focus:outline-none border-none bg-transparent"
+                className="w-full text-xs"
+                buttonClassName="w-full px-2 py-1 text-gray-900 font-medium focus:outline-none border-none bg-transparent text-xs truncate"
                 value={condition.rightColumn}
                 onChange={(value) => updateCondition(tableName, condition.id, { rightColumn: value })}
                 options={allColumnOptions.filter(opt => opt.value !== condition.leftColumn)}
@@ -156,12 +179,12 @@ const JoinConditionRow: React.FC<JoinConditionRowProps> = ({
         </div>
       )}
 
-      {/* Remover condição */}
+      {/* Botão de remover (no desktop posicionado no final da linha) */}
       {conditions.length > 1 && (
         <button
           type="button"
           onClick={() => removeCondition(tableName, condition.id)}
-          className="self-end sm:self-center p-2 shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
+          className="hidden sm:flex p-1.5 shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
           title={t("actions.removeCondition") || "Remover condição"}
           aria-label={t("actions.removeCondition") || "Remover condição"}
         >

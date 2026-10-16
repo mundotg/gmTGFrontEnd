@@ -77,8 +77,7 @@ export function useTableSelect({
 
 
     const isValidSelection = useMemo(() => {
-        if (localSelection.length === 0) return false;
-
+        // Se usar distinct e houver itens selecionados, precisa de pelo menos uma coluna para distinct
         if (useDistinct && localSelection.length > 0 && distinctColumns.length === 0) {
             return false;
         }
@@ -96,7 +95,7 @@ export function useTableSelect({
         }
 
         return true;
-    }, [localSelection.length, useDistinct, distinctColumns.length, tableAliases]);
+    }, [useDistinct, localSelection.length, distinctColumns.length, tableAliases]);
 
 
 
