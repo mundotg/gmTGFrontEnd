@@ -842,6 +842,7 @@
   },
   "builder": {
     "title": "Construtor de Consultas",
+    "columnsSelect": "Colunas (SELECT)",
     "conditionsUpdated": "Condições Atualizadas",
     "invalidConditionsRemoved": "{{count}} condição(ões) inválida(s) foram removidas devido a mudanças nas tabelas.",
     "invalidOrderRemoved": "{{count}} ordenação(ões) inválida(s) foram removidas.",
@@ -988,6 +989,9 @@
   "orderBy": {
     "title": "Ordenar por",
     "addColumn": "Adicionar coluna",
+    "columnSingular": "coluna",
+    "columnPlural": "colunas",
+    "direction": "Direção da ordenação",
     "noColumns": "Nenhuma coluna de ordenação definida",
     "clickToAdd": "Clique aqui para adicionar uma coluna",
     "selectColumnPlaceholder": "Selecione uma coluna",

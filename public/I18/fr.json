@@ -635,6 +635,7 @@
   },
   "builder": {
     "title": "Générateur de Requêtes",
+    "columnsSelect": "Colonnes (SELECT)",
     "conditionsUpdated": "Conditions Mises à Jour",
     "invalidConditionsRemoved": "{{count}} condition(s) non valide(s) ont été supprimée(s) en raison de modifications dans les tables.",
     "invalidOrderRemoved": "{{count}} tri(s) non valide(s) a/ont été supprimé(s).",
@@ -781,6 +782,9 @@
   "orderBy": {
     "title": "Trier par",
     "addColumn": "Ajouter une colonne",
+    "columnSingular": "colonne",
+    "columnPlural": "colonnes",
+    "direction": "Sens du tri",
     "noColumns": "Aucune colonne de tri définie",
     "clickToAdd": "Cliquez ici pour ajouter une colonne",
     "selectColumnPlaceholder": "Sélectionnez une colonne",

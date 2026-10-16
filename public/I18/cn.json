@@ -635,6 +635,7 @@
   },
   "builder": {
     "title": "查询构建器 (Query Builder)",
+    "columnsSelect": "列 (SELECT)",
     "conditionsUpdated": "条件已更新",
     "invalidConditionsRemoved": "由于数据表发生变化，已移除 {{count}} 个无效条件。",
     "invalidOrderRemoved": "已移除 {{count}} 个无效排序。",
@@ -781,6 +782,9 @@
   "orderBy": {
     "title": "排序依据 (Order By)",
     "addColumn": "添加列",
+    "columnSingular": "列",
+    "columnPlural": "列",
+    "direction": "排序方向",
     "noColumns": "未定义排序列",
     "clickToAdd": "点击此处添加列",
     "selectColumnPlaceholder": "选择一列",

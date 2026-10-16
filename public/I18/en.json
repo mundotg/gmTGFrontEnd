@@ -839,6 +839,7 @@
   },
   "builder": {
     "title": "Query Builder",
+    "columnsSelect": "Columns (SELECT)",
     "conditionsUpdated": "Conditions Updated",
     "invalidConditionsRemoved": "{{count}} invalid condition(s) removed due to table changes.",
     "invalidOrderRemoved": "{{count}} invalid sort(s) removed.",
@@ -985,6 +986,9 @@
   "orderBy": {
     "title": "Sort by",
     "addColumn": "Add column",
+    "columnSingular": "column",
+    "columnPlural": "columns",
+    "direction": "Sort direction",
     "noColumns": "No sort columns defined",
     "clickToAdd": "Click here to add a column",
     "selectColumnPlaceholder": "Select a column",

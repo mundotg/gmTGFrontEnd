@@ -606,6 +606,7 @@
   },
   "builder": {
     "title": "Construtor dya Kusota",
+    "columnsSelect": "Colunas (SELECT)",
     "conditionsUpdated": "Condições a Lunuka",
     "invalidConditionsRemoved": "{{count}} condição(ões) dya kilwezu a zima mukonda dya ikalakalu mu tabelas.",
     "invalidOrderRemoved": "{{count}} ordenação(ões) dya kilwezu a zima.",
@@ -752,6 +753,9 @@
   "orderBy": {
     "title": "Ordenar mu",
     "addColumn": "Bandekesa coluna",
+    "columnSingular": "coluna",
+    "columnPlural": "colunas",
+    "direction": "Direção dya ordenação",
     "noColumns": "Kana coluna dya ordenação a soneka",
     "clickToAdd": "Bata bhaha phala kubandekesa imoxi coluna",
     "selectColumnPlaceholder": "Sola imoxi coluna",

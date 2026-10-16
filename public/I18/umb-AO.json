@@ -606,6 +606,7 @@
   },
   "builder": {
     "title": "Construtor lioku pula",
+    "columnsSelect": "Colunas (SELECT)",
     "conditionsUpdated": "Condições via Lingiwa yokaliye",
     "invalidConditionsRemoved": "{{count}} condição(ões) yo cĩvi via imiwa momo o tabelas via pongoluiwa.",
     "invalidOrderRemoved": "{{count}} ordenação(ões) yo cĩvi via imiwa.",
@@ -752,6 +753,9 @@
   "orderBy": {
     "title": "Ordenar ko",
     "addColumn": "Vokiya coluna",
+    "columnSingular": "coluna",
+    "columnPlural": "colunas",
+    "direction": "Direção yo ordenação",
     "noColumns": "Ka kuli coluna yo ordenação ya sonekiwa",
     "clickToAdd": "Veta kulo oco o vokiye imue coluna",
     "selectColumnPlaceholder": "Nõla imue coluna",
