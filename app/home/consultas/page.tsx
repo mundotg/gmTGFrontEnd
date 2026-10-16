@@ -27,7 +27,7 @@ import {
 import api from "@/context/axioCuston";
 import { LabeledSelect2 } from "@/app/component/improved-labeled-select";
 import QueryBuilder from "@/app/component/query-builder-component";
-import ResultTable from "@/app/component/InteractiveResultTable";
+import ResultTable from "@/app/component/ResultadosQueryComponent";
 import RowDetailsModal from "@/app/component/MetadataModal";
 import { isSystemTable } from "../tabelas/componentTabela/util";
 
@@ -109,15 +109,6 @@ const ConsultaPage = () => {
   const [historySignal, setHistorySignal] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [hideSystemTables, setHideSystemTables] = useState(false);
-
-  // Contagem de tabelas do sistema detectadas
-  const systemTablesCount = useMemo(() => {
-    return (
-      metadata?.table_names.filter(
-        (t) => isSystemTable(t.name, undefined, user?.info_extra?.type).isSystem
-      ).length || 0
-    );
-  }, [metadata, user?.info_extra?.type]);
 
   // Detecta ecrãs menores para fechar estatísticas por defeito e poupar espaço
   useEffect(() => {
