@@ -223,14 +223,18 @@ function ResultTable({
   );
 
   // Lê o valor de uma coluna (de ordem) numa linha, tolerando chaves
-  // qualificadas (schema.tabela.coluna) ou só o nome da coluna.
+  // qualificadas (schema.tabela.coluna), só o nome da coluna ou case-insensitive (Oracle / NoSQL).
   const valueOfRow = useCallback((row: Record<string, unknown> | undefined, col: string) => {
     if (!row || !col) return undefined;
     if (col in row) return row[col];
     const leaf = String(col).split(".").pop() as string;
     if (leaf in row) return row[leaf];
     const k = Object.keys(row).find((k) => String(k).split(".").pop() === leaf);
-    return k ? row[k] : undefined;
+    if (k) return row[k];
+    // Fallback case-insensitive (Oracle frequentemente retorna identificadores em MAIÚSCULAS)
+    const lowerLeaf = leaf.toLowerCase();
+    const kCi = Object.keys(row).find((k) => String(k).split(".").pop()?.toLowerCase() === lowerLeaf);
+    return kCi ? row[kCi] : undefined;
   }, []);
 
   const carregarMaisLinhas = useCallback(async () => {
@@ -240,23 +244,30 @@ function ResultTable({
     if (!base || loadingMoreRef.current || hasMoreRef.current === false) return;
     loadingMoreRef.current = true;
 
-    return logger.measure("Carregar mais linhas (cursor)", async () => {
+    return logger.measure("Carregar mais linhas (cursor/offset)", async () => {
       try {
         const preview = queryResults.preview;
-        // Coluna de ordem (para o cursor keyset). O backend usa a que enviamos.
+        // Coluna de ordem (para o cursor keyset).
         const orderByArr = Array.isArray(base.orderBy)
           ? base.orderBy
           : base.orderBy
             ? [base.orderBy]
             : [];
         const firstOrder = orderByArr[0];
-        const orderCol = firstOrder?.column || base.select?.[0] || columns[0];
+
+        // 🍃 Detecção inteligente para NoSQL (MongoDB) e SQL/Oracle:
+        // No MongoDB, prioriza '_id' se existir; em SQL/Oracle, prioriza PK ou orderBy
+        const mongoIdCol = columns.find((c) => c === "_id" || c.endsWith("._id") || c.toLowerCase() === "_id");
+        const orderCol = firstOrder?.column || mongoIdCol || base.select?.[0] || columns[0];
         const direction = firstOrder?.direction || "ASC";
 
         // Cursor = valor da coluna de ordem na ÚLTIMA linha já carregada.
         const lastRow = preview[preview.length - 1] as Record<string, unknown> | undefined;
         const cursorVal = valueOfRow(lastRow, orderCol);
         const cursor = cursorVal != null ? String(cursorVal) : null;
+
+        // Offset atual como fallback essencial para Oracle ou NoSQL sem cursor único
+        const currentOffset = preview.length;
 
         const { data } = await api.post(
           "/exe/query-more",
@@ -265,17 +276,34 @@ function ResultTable({
             order_column: orderCol,
             direction,
             cursor,
+            offset: currentOffset,
             limit: base.limit || 50,
           },
           { withCredentials: true }
         );
 
         if (data?.success && Array.isArray(data.preview) && data.preview.length > 0) {
-          setQueryResults({
-            ...queryResults,
-            preview: [...queryResults.preview, ...data.preview],
-          });
-          hasMoreRef.current = !!data.has_more;
+          // Previne duplicados comparando chaves de identificação se existirem
+          const idKey = mongoIdCol || columns.find((c) => c.toLowerCase() === "id" || c.toLowerCase().endsWith(".id"));
+          
+          let novosRegistros = data.preview;
+          if (idKey) {
+            const existingIds = new Set(preview.map((r) => String(valueOfRow(r, idKey))));
+            novosRegistros = data.preview.filter((r: Record<string, unknown>) => {
+              const rowId = valueOfRow(r, idKey);
+              return rowId != null ? !existingIds.has(String(rowId)) : true;
+            });
+          }
+
+          if (novosRegistros.length > 0) {
+            setQueryResults({
+              ...queryResults,
+              preview: [...queryResults.preview, ...novosRegistros],
+            });
+            hasMoreRef.current = !!data.has_more && data.preview.length >= (base.limit || 50);
+          } else {
+            hasMoreRef.current = false;
+          }
         } else {
           hasMoreRef.current = false; // sem mais linhas
         }

@@ -53,13 +53,12 @@ graph TD
     : undefined
   ```
 
-### B. Paginação Eficiente por Cursor Keyset (`carregarMaisLinhas`)
-- Em vez de paginação baseada em `OFFSET` (que degrada performance com dezenas de milhares de registros), adota **paginação por cursor keyset**:
-  1. Identifica a coluna de ordenação ativa (`QueryPayload.orderBy` ou a primeira coluna selecionada).
-  2. Extrai o valor correspondente na **última linha atualmente exibida** (`lastRow`).
-  3. Envia o cursor para a rota `/exe/query-more`.
-  4. Utiliza flags de referência (`loadingMoreRef` e `hasMoreRef`) para evitar requisições concorrentes ou duplicadas durante scrolls rápidos.
-  5. Acumula os novos registros sem perder os anteriores (`[...prev, ...data.preview]`).
+### B. Paginação Híbrida: Cursor Keyset com Fallback de Offset (`carregarMaisLinhas`)
+- Em vez de depender apenas de `OFFSET` tradicional ou ficar restrito a SQL simples, adota **paginação híbrida inteligente**:
+  1. **NoSQL (MongoDB)**: Prioriza automaticamente a chave `_id` como cursor indexado ultra-rápido (`$gt: ObjectId(...)`); se não houver cursor, utiliza `skip(offset)` e `limit(limit)` graciosamente.
+  2. **Oracle Database**: Suporte a sintaxes de paginação Oracle (`ROWNUM <= offset + max_rows WHERE rnum > offset`) com resolução de colunas insensível a maiúsculas/minúsculas (*case-insensitive*) em `valueOfRow`.
+  3. **Demais SQLs (Postgres, MySQL, SQLite, MSSQL)**: Paginação por keyset `WHERE ordem > cursor` O(1) com fallback automático por `OFFSET` caso a query não tenha coluna ordenável única.
+  4. **Proteção contra concorrência e duplicados**: Flags `loadingMoreRef` e `hasMoreRef` impedem requisições redundantes, e a mescla de dados desduplica itens por chave identificadora antes de atualizar a tabela.
 
 ### C. Gestão de Seleção e Ações de Linha
 - **Modo Inspeção (`isSelectionMode = false`)**: O clique em qualquer linha aciona `handleRowClick`, que identifica a tabela associada e notifica o componente pai via `setSelectedRow` para abrir drawers ou modais de edição.
