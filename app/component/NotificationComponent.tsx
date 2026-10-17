@@ -1,6 +1,6 @@
 "use client";
-import { AlertCircle, CheckCircle, Info, X } from "lucide-react";
-import React, { useCallback, useState, useRef, useEffect } from "react";
+import { AlertCircle, CheckCircle, Info, AlertTriangle, X } from "lucide-react";
+import React, { useCallback, useState, useRef, useEffect, memo } from "react";
 import { useI18n } from "@/context/I18nContext";
 
 // ========================= TIPOS =========================
@@ -34,7 +34,7 @@ export function useNotifications() {
       title: string,
       message: string,
       autoClose: boolean = true,
-      duration: number = 5000
+      duration: number = 4000
     ) => {
       const id = `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const notification: Notification = {
@@ -116,61 +116,65 @@ interface NotificationItemProps {
   onRemove: (id: string) => void;
 }
 
-const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onRemove }) => {
+const NotificationItem: React.FC<NotificationItemProps> = memo(({ notification, onRemove }) => {
   const { t } = useI18n();
 
-  const getIcon = () => {
-    switch (notification.type) {
-      case "error":
-        return <AlertCircle className="w-4 h-4 text-red-600" />;
-      case "success":
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case "warning":
-        return <AlertCircle className="w-4 h-4 text-amber-600" />;
-      case "info":
-        return <Info className="w-4 h-4 text-blue-600" />;
-    }
-  };
-
-  const getStyles = () => {
-    switch (notification.type) {
-      case "error":
-        return "bg-red-50 border-red-200 text-red-800";
-      case "success":
-        return "bg-green-50 border-green-200 text-green-800";
-      case "warning":
-        return "bg-amber-50 border-amber-200 text-amber-800";
-      case "info":
-        return "bg-blue-50 border-blue-200 text-blue-800";
-    }
+  const config = {
+    error: {
+      icon: <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />,
+      style: "bg-red-50/95 border-red-200/90 text-red-900 shadow-xs",
+    },
+    success: {
+      icon: <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />,
+      style: "bg-emerald-50/95 border-emerald-200/90 text-emerald-900 shadow-xs",
+    },
+    warning: {
+      icon: <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />,
+      style: "bg-amber-50/95 border-amber-200/90 text-amber-900 shadow-xs",
+    },
+    info: {
+      icon: <Info className="w-4 h-4 text-blue-600 flex-shrink-0" />,
+      style: "bg-blue-50/95 border-blue-200/90 text-blue-900 shadow-xs",
+    },
+  }[notification.type] || {
+    icon: <Info className="w-4 h-4 text-blue-600 flex-shrink-0" />,
+    style: "bg-blue-50/95 border-blue-200/90 text-blue-900 shadow-xs",
   };
 
   return (
     <div
-      className={`border rounded-lg p-3 shadow-sm ${getStyles()} transition-all duration-300 animate-in slide-in-from-right-5 fade-in zoom-in-95`}
+      className={`border rounded-xl p-2.5 sm:p-3 shadow-md backdrop-blur-xs ${config.style} transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 sm:slide-in-from-right-3 pointer-events-auto`}
+      role="alert"
+      aria-label={"notificação-component: " + notification.title}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 mt-0.5 bg-white p-1 rounded-full shadow-sm">
-          {getIcon()}
+      <div className="flex items-start gap-2.5">
+        <div className="p-1 rounded-lg bg-white/90 shadow-2xs mt-0.5 flex-shrink-0">
+          {config.icon}
         </div>
-        <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-bold tracking-tight">{notification.title}</h4>
-          <p className="text-xs mt-1 font-medium opacity-90 leading-relaxed">
-            {notification.message}
-          </p>
+        <div className="flex-1 min-w-0 pr-1">
+          <h4 className="text-xs sm:text-sm font-bold tracking-tight text-gray-900 truncate">
+            {notification.title}
+          </h4>
+          {notification.message && (
+            <p className="text-[11px] sm:text-xs mt-0.5 text-gray-700 font-medium leading-relaxed break-words line-clamp-3">
+              {notification.message}
+            </p>
+          )}
         </div>
         <button
           onClick={() => onRemove(notification.id)}
-          className="flex-shrink-0 p-1.5 hover:bg-black/5 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-black/10"
+          className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-700 hover:bg-black/5 rounded-md transition-colors"
           title={t("actions.close") || "Fechar"}
           aria-label={t("actions.close") || "Fechar"}
         >
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
   );
-};
+});
+
+NotificationItem.displayName = "NotificationItem";
 
 interface NotificationContainerProps {
   notifications: Notification[];
@@ -186,35 +190,43 @@ const NotificationContainer: React.FC<NotificationContainerProps> = ({
   onRemove,
   onClearAll,
   className = "",
-  maxHeight = "max-h-48",
-  showHeader = true,
+  maxHeight = "max-h-72",
+  showHeader = false,
 }) => {
   const { t } = useI18n();
-  
+
   if (notifications.length === 0) return null;
 
   return (
-    <div className={`space-y-3 ${className}`}>
-      {showHeader && (
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-bold text-gray-900">
+    <div className={`flex flex-col gap-2 w-full ${className}`} arial-label={"Notificações"}>
+      {showHeader && notifications.length > 1 && (
+        <div className="flex items-center justify-between px-1 pointer-events-auto">
+          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
             {t("notifications.title") || "Notificações"} ({notifications.length})
-          </h4>
-          {notifications.length > 1 && (
-            <button
-              onClick={onClearAll}
-              className="text-xs font-semibold text-gray-500 hover:text-red-600 transition-colors"
-            >
-              {t("actions.clearAll") || "Limpar todas"}
-            </button>
-          )}
+          </span>
+          <button
+            onClick={onClearAll}
+            className="text-[11px] font-semibold text-gray-500 hover:text-red-600 transition-colors bg-white/80 px-2 py-0.5 rounded-full border border-gray-200 shadow-2xs"
+          >
+            {t("actions.clearAll") || "Limpar todas"}
+          </button>
         </div>
       )}
-      <div className={`space-y-2 ${maxHeight} overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200`}>
+      <div className={`flex flex-col gap-2 ${maxHeight} overflow-y-auto pr-0.5 scrollbar-thin scrollbar-thumb-gray-200`}>
         {notifications.map((notification) => (
           <NotificationItem key={notification.id} notification={notification} onRemove={onRemove} />
         ))}
       </div>
+      {!showHeader && notifications.length > 1 && (
+        <div className="flex justify-end pointer-events-auto">
+          <button
+            onClick={onClearAll}
+            className="text-[11px] font-semibold text-gray-600 hover:text-red-600 transition-colors bg-white/90 hover:bg-white px-2.5 py-1 rounded-full border border-gray-200/90 shadow-xs"
+          >
+            {t("actions.clearAll") || "Limpar todas"} ({notifications.length})
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -227,7 +239,7 @@ interface NotificationSystemProps {
   className?: string;
   maxHeight?: string;
   showHeader?: boolean;
-  position?: "top" | "bottom" | "inline";
+  position?: "top" | "bottom" | "top-right" | "bottom-right" | "inline";
 }
 
 const NotificationSystem: React.FC<NotificationSystemProps> = ({
@@ -235,28 +247,36 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({
   onRemove,
   onClearAll,
   className = "",
-  maxHeight = "max-h-48",
-  showHeader = true,
-  position = "inline",
+  maxHeight = "max-h-72",
+  showHeader = false,
+  position = "bottom-right",
 }) => {
   if (notifications.length === 0) return null;
 
-  const containerClasses = `
-    ${position === "top" ? "fixed top-4 right-4 z-[9999] w-80 sm:w-96" : ""}
-    ${position === "bottom" ? "fixed bottom-4 right-4 z-[9999] w-80 sm:w-96" : ""}
-    ${position === "inline" ? "" : ""}
-    ${className}
-  `;
+  const getPositionClasses = () => {
+    switch (position) {
+      case "bottom-right":
+      case "bottom":
+        return "fixed bottom-3 inset-x-3 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-96 z-[9999] pointer-events-none";
+      case "top-right":
+      case "top":
+        return "fixed top-3 inset-x-3 sm:inset-x-auto sm:right-4 sm:top-4 sm:w-96 z-[9999] pointer-events-none";
+      case "inline":
+      default:
+        return "w-full";
+    }
+  };
 
   return (
-    <NotificationContainer
-      notifications={notifications}
-      onRemove={onRemove}
-      onClearAll={onClearAll}
-      className={containerClasses}
-      maxHeight={maxHeight}
-      showHeader={showHeader}
-    />
+    <div className={`${getPositionClasses()} ${className}`}>
+      <NotificationContainer
+        notifications={notifications}
+        onRemove={onRemove}
+        onClearAll={onClearAll}
+        maxHeight={maxHeight}
+        showHeader={showHeader}
+      />
+    </div>
   );
 };
 

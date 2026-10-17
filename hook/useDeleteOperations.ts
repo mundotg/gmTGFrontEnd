@@ -18,12 +18,12 @@ interface DeleteOperations {
   eliminarRegistrosSelecionados: (
     lista: PayloadDeleteRow[],
     queryResults: QueryResultType,
-    setQueryResults: (value: QueryResultType | null) => void
+    setQueryResults: (value: any) => void
   ) => Promise<void>;
 
   eliminarTodosRegistros: (
     queryResults: QueryResultType,
-    setQueryResults: (value: QueryResultType | null) => void
+    setQueryResults: (value: any) => void
   ) => Promise<void>;
 
   state: DeleteOperationState;
@@ -52,7 +52,7 @@ export const useDeleteOperations = (): DeleteOperations => {
     async (
       lista: PayloadDeleteRow[],
       queryResults: QueryResultType,
-      setQueryResults: (value: QueryResultType | null) => void
+      setQueryResults: any
     ): Promise<void> => {
       if (deleteInProgressRef.current) {
         logger.warn("Operação de exclusão já em andamento");
@@ -137,6 +137,9 @@ export const useDeleteOperations = (): DeleteOperations => {
             const indicesParaRemover = new Set<number>();
 
             for (const item of payloadsValidos) {
+              if (typeof item.index === "number" && item.index >= 0) {
+                indicesParaRemover.add(item.index);
+              }
               for (const rowDelete of Object.values(item.rowDeletes || {})) {
                 if (typeof rowDelete.index === "number" && rowDelete.index >= 0) {
                   indicesParaRemover.add(rowDelete.index);
@@ -158,10 +161,14 @@ export const useDeleteOperations = (): DeleteOperations => {
               (queryResults.totalResults || 0) - totalRemovido
             );
 
-            setQueryResults({
-              ...queryResults,
-              preview: newPreview,
-              totalResults: novoTotal,
+            setQueryResults((prev: any) => {
+              if (!prev) return prev;
+              const curPreview = Array.isArray(prev.preview) ? prev.preview : [];
+              return {
+                ...prev,
+                preview: curPreview.filter((_: any, idx: number) => !indicesParaRemover.has(idx)),
+                totalResults: Math.max(0, (prev.totalResults || 0) - totalRemovido),
+              };
             });
 
             setDeleteProgress(100);
@@ -196,7 +203,7 @@ export const useDeleteOperations = (): DeleteOperations => {
   const eliminarTodosRegistros = useCallback(
     async (
       queryResults: QueryResultType,
-      setQueryResults: (value: QueryResultType | null) => void
+      setQueryResults: any
     ): Promise<void> => {
       if (deleteInProgressRef.current) {
         logger.warn("Operação de exclusão já em andamento");
@@ -231,10 +238,13 @@ export const useDeleteOperations = (): DeleteOperations => {
 
             setDeleteProgress(70);
 
-            setQueryResults({
-              ...queryResults,
-              preview: [],
-              totalResults: 0,
+            setQueryResults((prev: any) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                preview: [],
+                totalResults: 0,
+              };
             });
 
             setDeleteProgress(100);

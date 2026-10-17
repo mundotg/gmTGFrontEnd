@@ -38,7 +38,11 @@ async function openDB(dbName: string, storeName: string): Promise<IDBDatabase> {
 // ===============================
 // ✅ Salvar em IndexedDB (tratando Set, Map, Date, null e undefined)
 // ===============================
-async function saveBinary<T>(
+export async function saveAppState<T>(key: string, data: T): Promise<void> {
+  return saveBinary("AppDB", "AppStore", key, data);
+}
+
+export async function saveBinary<T>(
   dbName: string,
   storeName: string,
   key: string,

@@ -157,14 +157,17 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     // Recupera sessão ao carregar o app
     useEffect(() => {
 
-        api.get("/auth/me", { withCredentials: true })
+        api.get("/auth/me", { withCredentials: true, timeout: 25000 })
             .then(response => {
                 // console.log("dados do user: ", response.data)
                 storeLoginData(response.data)
             })
             .catch((err) => {
-                console.error("Erro em /auth/me:", err);
-                if (user) {
+                if (err?.response?.status !== 401) {
+                    console.error("Erro em /auth/me:", err);
+                }
+                // Apenas realiza logout se o backend responder expressamente com 401 (token expirado/não autorizado)
+                if (err?.response?.status === 401 && user) {
                     logout()
                 }
             })
@@ -183,7 +186,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
      */
     const refreshUser = useCallback(async () => {
         try {
-            const response = await api.get("/auth/me", { withCredentials: true });
+            const response = await api.get("/auth/me", { withCredentials: true, timeout: 25000 });
             storeLoginData(response.data);
         } catch (err) {
             // Falhar aqui não deve deslogar: é uma revalidação, não o arranque.
@@ -211,7 +214,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         };
 
         if (provider !== "credenciais") {
-            window.location.href = `${process.env.NEXT_PUBLIC_BACKEND_AUTH_URL}${providerUrls[provider]}`;
+            const nextParam = options?.redirect ? `?next=${encodeURIComponent(options.redirect)}` : "";
+            window.location.href = `${process.env.NEXT_PUBLIC_BACKEND_AUTH_URL}${providerUrls[provider]}${nextParam}`;
             setIsLoading(false);
             return true;
         }

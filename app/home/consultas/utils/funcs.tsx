@@ -284,7 +284,7 @@ export const useHandleRowClick = ({
     // ========================================================================
     // 3. AÇÃO: ELIMINAR A LINHA (DELETE)
     // ========================================================================
-    const handleDelete = useCallback(async (payload: PayloadDeleteRow) => {
+    const handleDelete = useCallback(async (payload: PayloadDeleteRow, rowIndex?: number) => {
         try {
             // 1. Clona o payload da query original para não mutar o estado do React
             const filteredPayloadSelectedRow = queryResults?.QueryPayload
@@ -334,10 +334,19 @@ export const useHandleRowClick = ({
                 withCredentials: true,
             });
 
-            // 5. Atualiza a UI
+            // 5. Determina o índice exato da linha a remover
+            const targetIndex = typeof rowIndex === "number" && rowIndex >= 0
+                ? rowIndex
+                : (typeof payload.index === "number" && payload.index >= 0
+                    ? payload.index
+                    : Object.values(payload.rowDeletes || {})[0]?.index);
+
+            // 6. Atualiza a UI
             setQueryResults(prev => {
                 if (!prev) return prev;
-                const newPreview = prev.preview.filter((_, i) => i !== payload.index);
+                const newPreview = targetIndex !== undefined && targetIndex >= 0
+                    ? prev.preview.filter((_, i) => i !== targetIndex)
+                    : prev.preview;
                 return {
                     ...prev,
                     preview: newPreview,
@@ -360,7 +369,136 @@ export const useHandleRowClick = ({
     }, [queryResults?.QueryPayload, setQueryResults, t]);
     // 👆 Dica de performance: Dependemos apenas do QueryPayload em vez do objeto inteiro
 
-    // Retorna as 3 funções prontas para uso no componente
+    // ========================================================================
+    // 4. AÇÃO: ATUALIZAR TODOS OS REGISTROS DA CONSULTA (BULK UPDATE)
+    // ========================================================================
+    const handleBulkUpdate = useCallback(async (updatedRow: EditedFieldForQuery) => {
+        if (!queryResults?.QueryPayload || !updatedRow || Object.keys(updatedRow).length === 0) {
+            console.warn("⚠️ Dados inválidos para atualização em massa");
+            return;
+        }
+
+        setIsEditingRow(true);
+        setError(null);
+
+        try {
+            const response = await api.post(
+                "/exe/update_all",
+                { updatedRow, query: queryResults.QueryPayload },
+                { withCredentials: true }
+            );
+
+            // Mapeia colunas atualizadas em formato plano para sincronizar a UI
+            const flatUpdates: Record<string, string> = {};
+            Object.entries(updatedRow).forEach(([tableName, cols]) => {
+                Object.entries(cols).forEach(([colName, field]) => {
+                    flatUpdates[colName] = field.value;
+                    flatUpdates[`${tableName}.${colName}`] = field.value;
+                });
+            });
+
+            // Atualiza todas as linhas no estado local da tabela
+            setQueryResults(prev => {
+                if (!prev) return prev;
+                const newPreview = prev.preview.map(row => {
+                    const updated = { ...row };
+                    Object.entries(flatUpdates).forEach(([k, v]) => {
+                        if (k in updated) {
+                            updated[k] = v;
+                        } else {
+                            const leaf = k.split(".").pop();
+                            if (leaf && leaf in updated) {
+                                updated[leaf] = v;
+                            }
+                        }
+                    });
+                    return updated;
+                });
+                return {
+                    ...prev,
+                    preview: newPreview,
+                };
+            });
+
+            return response.data;
+        } catch (error) {
+            const errorMsg = parseErrorMessage(error);
+            setError(errorMsg);
+            console.error("❌ Erro ao atualizar registros em massa:", errorMsg);
+            throw error;
+        } finally {
+            setIsEditingRow(false);
+        }
+    }, [queryResults?.QueryPayload, setQueryResults, setError, setIsEditingRow]);
+
+    const handleUpdateSelected = useCallback(async (
+        updatedRow: EditedFieldForQuery,
+        selectedRowsPayload: { rows_primary_keys: Record<string, { primaryKey: string; valor: any }>[], indices: number[] }
+    ) => {
+        if (!updatedRow || Object.keys(updatedRow).length === 0 || !selectedRowsPayload.rows_primary_keys.length) {
+            console.warn("⚠️ Dados inválidos para atualização dos selecionados");
+            return;
+        }
+
+        setIsEditingRow(true);
+        setError(null);
+
+        try {
+            const response = await api.post(
+                "/exe/update_selected",
+                {
+                    updatedRow,
+                    rows_primary_keys: selectedRowsPayload.rows_primary_keys,
+                },
+                { withCredentials: true }
+            );
+
+            // Mapeia colunas atualizadas em formato plano para sincronizar a UI
+            const flatUpdates: Record<string, string> = {};
+            Object.entries(updatedRow).forEach(([tableName, cols]) => {
+                Object.entries(cols).forEach(([colName, field]) => {
+                    flatUpdates[colName] = field.value;
+                    flatUpdates[`${tableName}.${colName}`] = field.value;
+                });
+            });
+
+            // Atualiza apenas as linhas selecionadas na tabela local
+            const targetIndices = new Set(selectedRowsPayload.indices);
+            setQueryResults(prev => {
+                if (!prev) return prev;
+                const newPreview = prev.preview.map((row, idx) => {
+                    if (!targetIndices.has(idx)) return row;
+                    const updated = { ...row };
+                    Object.entries(flatUpdates).forEach(([k, v]) => {
+                        if (k in updated) {
+                            updated[k] = v;
+                        } else {
+                            const leaf = k.split(".").pop();
+                            if (leaf && leaf in updated) {
+                                updated[leaf] = v;
+                            }
+                        }
+                    });
+                    return updated;
+                });
+                return {
+                    ...prev,
+                    preview: newPreview,
+                };
+            });
+
+            return response.data;
+        } catch (error) {
+            const errorMsg = parseErrorMessage(error);
+            setError(errorMsg);
+            console.error("❌ Erro ao atualizar registros selecionados:", errorMsg);
+            throw error;
+        } finally {
+            setIsEditingRow(false);
+        }
+    }, [setQueryResults, setError, setIsEditingRow]);
+
+    // Retorna as funções prontas para uso no componente
     return {
         modalFetchOpen,
         responseModal, setResponseModal,
@@ -372,7 +510,9 @@ export const useHandleRowClick = ({
         setPendingRowToFetch,
         handleRowClick,
         handleRowUpdate,
-        handleDelete
+        handleDelete,
+        handleBulkUpdate,
+        handleUpdateSelected,
     };
 };
 

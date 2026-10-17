@@ -312,12 +312,7 @@ const RegisterPage = () => {
             <p className="text-gray-500 text-sm font-medium">{t('auth.createAccountSubtitle')}</p>
           </div>
         )}
-        <Script
-          id="adsense-script"
-          strategy="lazyOnload"
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
-          crossOrigin="anonymous"
-        />
+      
 
         {registeredEmail ? (
           /* Tela de Sucesso: Confirmação de E-mail enviado por SMTP */

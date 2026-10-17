@@ -13,6 +13,47 @@ const nextConfig: NextConfig = {
     // layouts") como a razão de existir o `global-not-found`.
     globalNotFound: true,
   },
+  async rewrites() {
+    const rawNexusUrl = process.env.NEXT_PUBLIC_NEXUS_URL || "";
+    let nexusHost = process.env.NEXT_PUBLIC_NEXUS_HOST || "";
+    if (!nexusHost && rawNexusUrl) {
+      try {
+        const u = new URL(rawNexusUrl);
+        // Se for um domínio dedicado na raiz (sem /nexus-cognitiva no path)
+        if (u.pathname === "" || u.pathname === "/") {
+          nexusHost = u.hostname;
+        }
+      } catch {}
+    }
+
+    if (nexusHost) {
+      return {
+        beforeFiles: [
+          {
+            source: "/",
+            has: [{ type: "host", value: nexusHost }],
+            destination: "/nexus-cognitiva",
+          },
+          {
+            source: "/artigo/:path*",
+            has: [{ type: "host", value: nexusHost }],
+            destination: "/nexus-cognitiva/artigo/:path*",
+          },
+          {
+            source: "/publicar",
+            has: [{ type: "host", value: nexusHost }],
+            destination: "/nexus-cognitiva/publicar",
+          },
+          {
+            source: "/plano",
+            has: [{ type: "host", value: nexusHost }],
+            destination: "/nexus-cognitiva/plano",
+          },
+        ],
+      };
+    }
+    return [];
+  },
 };
 
 export default nextConfig;

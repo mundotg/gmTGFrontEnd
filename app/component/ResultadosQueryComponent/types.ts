@@ -30,15 +30,19 @@ export type BatchDeleteRequest = {
 
 export interface RowDetailsModalProps {
   isOpen: boolean;
-  setModalFetchOpen:(t:boolean)=>void;
-  optionModalTable?:string,
-  setOptionModalTable:(s:string)=>void;
+  setModalFetchOpen: (t: boolean) => void;
+  optionModalTable?: string;
+  setOptionModalTable: (s: string) => void;
   modalFetchOpen: boolean;
-  responseModal?:string[];
-  setResponseModal: (r?:string[])=>void
+  responseModal?: string[];
+  setResponseModal: (r?: string[]) => void;
   onClose: () => void;
   row: SelectedRow | null;
   informacaosOftables?: Record<string, CampoDetalhado[]>;
   onSave?: (updatedRow: EditedFieldForQuery, tables_primary_keys_values: Record<string, Record<string, any>>, index: number) => void;
-  onDelete: (payload: PayloadDeleteRow, index: number) => Promise<void>
+  onDelete?: (payload: PayloadDeleteRow, index: number) => Promise<void>;
+  isBulkEdit?: boolean;
+  isSelectionBulk?: boolean;
+  totalRows?: number;
+  onSaveBulk?: (updatedRow: EditedFieldForQuery) => Promise<void>;
 }

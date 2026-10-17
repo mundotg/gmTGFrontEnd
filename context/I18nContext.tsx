@@ -60,9 +60,12 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Função auxiliar para buscar a chave num idioma específico
-  const getTranslationValue = (lang: LanguageCode, key: string) => {
+  const getTranslationValue = (lang: string, key: string) => {
+    const dict = (translations as Record<string, any>)[lang] || translations.pt;
+    if (!dict) return undefined;
+
     const parts = key.split(".");
-    let value: any = translations[lang];
+    let value: any = dict;
 
     for (const part of parts) {
       value = value?.[part];
@@ -74,22 +77,28 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
   const t = useCallback(
     (key: string, vars?: Record<string, string | number>) => {
       // 1. Tenta buscar no idioma atual
-      let value = getTranslationValue(locale, key);
+      const currentLang = locale || "pt";
+      let value = getTranslationValue(currentLang, key);
 
       // 2. Fallback: Se não encontrou no idioma atual e não for Português, busca em Português
-      if (value === undefined && locale !== "pt") {
+      if (value === undefined && currentLang !== "pt") {
         value = getTranslationValue("pt", key);
       }
 
-      // 3. Se não encontrou nem no idioma principal nem no fallback, retorna a chave e avisa no console
+      // 3. Fallback secundário: busca em Inglês se ainda não encontrou
+      if (value === undefined && currentLang !== "en") {
+        value = getTranslationValue("en", key);
+      }
+
+      // 4. Se não encontrou nem no idioma principal nem nos fallbacks, avisa no console
       if (value === undefined) {
         console.warn(`🔍 Tradução não encontrada para a chave: "${key}"`);
         return key; // Retorna a própria chave para não quebrar o layout
       }
 
-      // 4. Substituição de variáveis (ex: {{count}})
+      // 5. Substituição de variáveis (ex: {{count}} ou {count})
       if (typeof value === "string" && vars) {
-        return value.replace(/\{\{(\w+)\}\}/g, (_, v) => String(vars[v] ?? ""));
+        return value.replace(/\{{1,2}(\w+)\}{1,2}/g, (_, v) => String(vars[v] ?? ""));
       }
 
       return typeof value === "string" ? value : key;
