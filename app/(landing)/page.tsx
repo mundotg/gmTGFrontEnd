@@ -7,7 +7,8 @@ import Link from "next/link";
 import {
   Database, Zap, ShieldCheck, Filter, Copy, ListTree,
   Terminal, Network, History, LifeBuoy, Rocket, Layers,
-  LayoutDashboard, Users, Radio, ScanText, LogOut, ChevronRight
+  LayoutDashboard, Users, Radio, ScanText, LogOut, ChevronRight,
+  Brain
 } from "lucide-react";
 import Script from "next/script";
 
@@ -75,14 +76,12 @@ export default function HomePage() {
               {t("nav.brandName") || "MustaInf"}
             </span>
           </div>
-          <Script
-            id="adsense-script-2"
-            strategy="lazyOnload"
-            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
-            crossOrigin="anonymous"
-          />
+        
           <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-6">
+              <Link href="/nexus-cognitiva" className="text-sm font-bold text-purple-600 hover:text-purple-700 transition-colors flex items-center gap-1.5">
+                <Brain size={16} /> Nexus Cognitiva
+              </Link>
               <Link href="/task" className="text-sm font-bold text-gray-500 hover:text-blue-600 transition-colors">
                 {t("nav.tasks")}
               </Link>

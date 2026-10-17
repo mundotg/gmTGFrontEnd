@@ -10,7 +10,8 @@ import {
   File,
   FileSpreadsheet,
   CheckSquare,
-  Square
+  Square,
+  Pencil
 } from "lucide-react";
 import { QueryResultType } from "@/types";
 import { ConfirmDeleteModalType } from "./types";
@@ -42,6 +43,8 @@ interface ResultsHeaderProps {
   handleDeleteSelection: () => void;
   setConfirmDelete: (value: ConfirmDeleteModalType) => void;
   setShowMobileMenu: (value: boolean) => void;
+  onOpenBulkEdit?: () => void;
+  onOpenSelectedEdit?: () => void;
 }
 
 interface PreviewInfo {
@@ -110,6 +113,8 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
   handleDeleteSelection,
   setConfirmDelete,
   setShowMobileMenu,
+  onOpenBulkEdit,
+  onOpenSelectedEdit,
 }) => {
   const { t } = useI18n();
 
@@ -248,7 +253,6 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
 
     return (
       <>
-        <SelectionCounter />
 
         <button
           onClick={selectAll}
@@ -269,6 +273,19 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
             >
               {t("actions.clear") || "Limpar"}
             </button>
+
+            {onOpenSelectedEdit && (
+              <button
+                onClick={onOpenSelectedEdit}
+                disabled={isDeleting}
+                className={`${NEW_BUTTON_STYLES.base} ${NEW_BUTTON_STYLES.secondary}`}
+                aria-label={`${t("actions.editSelected") || "Editar"} ${selectedCount} ${selectedCount !== 1 ? (t("common.items") || "itens") : (t("common.item") || "item")}`}
+                title={t("actions.editSelectedTitle") || "Editar colunas para todos os registros selecionados"}
+              >
+                <Pencil className="w-4 h-4 text-blue-600" aria-hidden="true" />
+                {t("actions.editSelected") || "Editar"} ({selectedCount})
+              </button>
+            )}
 
             <button
               onClick={handleDeleteSelection}
@@ -293,6 +310,19 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
 
       {!isSelectionMode && (
         <>
+          {onOpenBulkEdit && (
+            <button
+              onClick={onOpenBulkEdit}
+              disabled={isDeleting || !hasResults}
+              className={`${NEW_BUTTON_STYLES.base} ${NEW_BUTTON_STYLES.secondary}`}
+              aria-label={t("actions.editAll") || "Editar todos os registros da consulta"}
+              title={t("actions.editAllDescription") || "Editar colunas para todos os registros da consulta"}
+            >
+              <Pencil className="w-4 h-4 text-blue-600" aria-hidden="true" />
+              {t("actions.editAll") || "Editar Todos"}
+            </button>
+          )}
+
           <button
             onClick={handleDeleteAll}
             disabled={isDeleting || !hasResults}
@@ -434,6 +464,21 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
                       {t("actions.clearSelection") || "Limpar Seleção"}
                     </button>
 
+                    {onOpenSelectedEdit && (
+                      <button
+                        onClick={() => {
+                          onOpenSelectedEdit();
+                          setShowMobileMenu(false);
+                        }}
+                        disabled={isDeleting}
+                        className={`${NEW_MOBILE_MENU_STYLES.button} ${NEW_MOBILE_MENU_STYLES.disabled}`}
+                        role="menuitem"
+                      >
+                        <Pencil className="w-4 h-4 text-blue-600" aria-hidden="true" />
+                        {t("actions.editSelected") || "Editar Selecionados"} ({selectedCount})
+                      </button>
+                    )}
+
                     <button
                       onClick={() => {
                         handleDeleteSelection();
@@ -457,6 +502,20 @@ const ResultsHeader: React.FC<ResultsHeaderProps> = ({
                 <div className="px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-t border-b border-gray-100 bg-gray-50">
                   {t("actions.generalActions") || "Ações Gerais"}
                 </div>
+                {onOpenBulkEdit && (
+                  <button
+                    onClick={() => {
+                      onOpenBulkEdit();
+                      setShowMobileMenu(false);
+                    }}
+                    disabled={isDeleting || !hasResults}
+                    className={`${NEW_MOBILE_MENU_STYLES.button} ${NEW_MOBILE_MENU_STYLES.disabled}`}
+                    role="menuitem"
+                  >
+                    <Pencil className="w-4 h-4 text-blue-600" aria-hidden="true" />
+                    {t("actions.editAll") || "Editar Todos"}
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     handleDeleteAll();

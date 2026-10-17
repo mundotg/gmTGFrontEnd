@@ -433,10 +433,18 @@ const ConsultaPage = () => {
     [setSelectedRow, setModalOpenEdit]
   );
 
+  const [isBulkEditMode, setIsBulkEditMode] = useState(false);
+  const [selectedRowsForEdit, setSelectedRowsForEdit] = useState<{
+    rows_primary_keys: Record<string, { primaryKey: string; valor: any }>[];
+    indices: number[];
+  } | null>(null);
+
   const {
     handleDelete,
     handleRowClick,
     handleRowUpdate,
+    handleBulkUpdate,
+    handleUpdateSelected,
     incompleteTablesToSelect,
     modalFetchOpen,
     setModalFetchOpen,
@@ -458,6 +466,114 @@ const ConsultaPage = () => {
     setIsEditingRow,
     t,
   });
+
+  const handleOpenBulkEdit = useCallback(() => {
+    if (!queryResults || !queryResults.preview?.length) {
+      showToast("Nenhum registro encontrado para editar.");
+      return;
+    }
+
+    // Identificar tabelas associadas à consulta
+    const tabelasSet = new Set<string>();
+    if (queryResults.QueryPayload?.baseTable) {
+      tabelasSet.add(queryResults.QueryPayload.baseTable);
+    }
+    if (Array.isArray(queryResults.QueryPayload?.table_list)) {
+      queryResults.QueryPayload.table_list.forEach((t) => t && tabelasSet.add(t));
+    }
+    if (queryResults.QueryPayload?.joins) {
+      Object.keys(queryResults.QueryPayload.joins).forEach((t) => t && tabelasSet.add(t));
+    }
+    if (tabelasSet.size === 0 && queryResults.columns) {
+      queryResults.columns.forEach((c) => {
+        const parts = String(c).split(".");
+        if (parts.length >= 2) {
+          tabelasSet.add(parts.slice(0, -1).join("."));
+        }
+      });
+    }
+
+    const tabelas = Array.from(tabelasSet);
+    const cols = queryResults.columns?.length
+      ? queryResults.columns
+      : Object.keys(queryResults.preview[0] || {});
+
+    // No modo "Editar Todos", a modal abre sem dados pré-preenchidos.
+    // O usuário escolhe a coluna que deseja editar e preenche o novo valor.
+    const emptyRow: Record<string, unknown> = {};
+    cols.forEach((col) => {
+      emptyRow[col] = "";
+    });
+
+    setSelectedRow({
+      row: emptyRow,
+      nameColumns: cols,
+      index: -1,
+      orderBy: queryResults.QueryPayload?.orderBy,
+      tableName: tabelas,
+    });
+
+    setSelectedRowsForEdit(null);
+    setIsBulkEditMode(true);
+    setModalOpenEdit(true);
+  }, [queryResults, setSelectedRow, setModalOpenEdit, showToast]);
+
+  const handleOpenSelectedEdit = useCallback(
+    (payload: {
+      rows_primary_keys: Record<string, { primaryKey: string; valor: any }>[];
+      indices: number[];
+    }) => {
+      if (!queryResults || !payload.rows_primary_keys.length) {
+        showToast("Nenhum registro selecionado para editar.");
+        return;
+      }
+
+      // Identificar tabelas associadas à consulta
+      const tabelasSet = new Set<string>();
+      if (queryResults.QueryPayload?.baseTable) {
+        tabelasSet.add(queryResults.QueryPayload.baseTable);
+      }
+      if (Array.isArray(queryResults.QueryPayload?.table_list)) {
+        queryResults.QueryPayload.table_list.forEach((t) => t && tabelasSet.add(t));
+      }
+      if (queryResults.QueryPayload?.joins) {
+        Object.keys(queryResults.QueryPayload.joins).forEach((t) => t && tabelasSet.add(t));
+      }
+      if (tabelasSet.size === 0 && queryResults.columns) {
+        queryResults.columns.forEach((c) => {
+          const parts = String(c).split(".");
+          if (parts.length >= 2) {
+            tabelasSet.add(parts.slice(0, -1).join("."));
+          }
+        });
+      }
+
+      const tabelas = Array.from(tabelasSet);
+      const cols = queryResults.columns?.length
+        ? queryResults.columns
+        : Object.keys(queryResults.preview[0] || {});
+
+      // No modo de edição de selecionados, a modal abre sem dados pré-preenchidos.
+      // O usuário escolhe a coluna que deseja editar e preenche o novo valor.
+      const emptyRow: Record<string, unknown> = {};
+      cols.forEach((col) => {
+        emptyRow[col] = "";
+      });
+
+      setSelectedRow({
+        row: emptyRow,
+        nameColumns: cols,
+        index: -1,
+        orderBy: queryResults.QueryPayload?.orderBy,
+        tableName: tabelas,
+      });
+
+      setSelectedRowsForEdit(payload);
+      setIsBulkEditMode(true);
+      setModalOpenEdit(true);
+    },
+    [queryResults, setSelectedRow, setModalOpenEdit, showToast]
+  );
 
   // ----------------- Telas de Loading e Erro -----------------
   if (loadingMetadata || !mounted) {
@@ -929,6 +1045,8 @@ const ConsultaPage = () => {
               setResponseModal={setResponseModal}
               optionModalTable={optionModalTable}
               setOptionModalTable={setOptionModalTable}
+              onOpenBulkEdit={handleOpenBulkEdit}
+              onOpenSelectedEdit={handleOpenSelectedEdit}
             />
           </div>
         )}
@@ -937,10 +1055,35 @@ const ConsultaPage = () => {
         {modalOpenEdit && (
           <RowDetailsModal
             isOpen={modalOpenEdit}
-            onClose={() => setModalOpenEdit(false)}
+            onClose={() => {
+              setModalOpenEdit(false);
+              setIsBulkEditMode(false);
+              setSelectedRowsForEdit(null);
+            }}
             row={selectedRow}
             informacaosOftables={queryResults?.tabela_coluna}
             onSave={handleRowUpdate}
+            onSaveBulk={async (updatedRow) => {
+              if (selectedRowsForEdit && selectedRowsForEdit.rows_primary_keys.length > 0) {
+                await handleUpdateSelected(updatedRow, selectedRowsForEdit);
+                showToast(
+                  `${selectedRowsForEdit.indices.length} registros selecionados foram atualizados com sucesso!`
+                );
+              } else {
+                await handleBulkUpdate(updatedRow);
+                showToast("Todos os registros foram atualizados com sucesso!");
+              }
+              setModalOpenEdit(false);
+              setIsBulkEditMode(false);
+              setSelectedRowsForEdit(null);
+            }}
+            isBulkEdit={isBulkEditMode}
+            isSelectionBulk={!!selectedRowsForEdit}
+            totalRows={
+              selectedRowsForEdit
+                ? selectedRowsForEdit.indices.length
+                : (queryResults?.totalResults || queryResults?.preview?.length)
+            }
             onDelete={handleDelete}
             setModalFetchOpen={setModalFetchOpen}
             modalFetchOpen={modalFetchOpen}

@@ -31,6 +31,7 @@ export const usePrimaryKeyExtractor = (
 
       const payload: PayloadDeleteRow = {
         tableForDelete: tablesForDelete,
+        index: row.index,
         rowDeletes: {},
       };
 

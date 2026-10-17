@@ -35,6 +35,8 @@ export interface ResultTableProps {
   modalFetchOpen: boolean;
   responseModal?: string[];
   setResponseModal: (r?: string[]) => void;
+  onOpenBulkEdit?: () => void;
+  onOpenSelectedEdit?: (payload: { rows_primary_keys: Record<string, { primaryKey: string; valor: any }>[], indices: number[] }) => void;
 }
 
 function ResultTable({
@@ -46,6 +48,8 @@ function ResultTable({
   setQueryResults,
   columnsInfo = [],
   setSelectedRow,
+  onOpenBulkEdit,
+  onOpenSelectedEdit,
 }: ResultTableProps) {
   const { t } = useI18n();
 
@@ -411,6 +415,38 @@ function ResultTable({
     }
   }, [openModalConfirmeDelete, modalFetchOpen, handleDeleteSelection]);
 
+  const handleOpenSelectedEdit = useCallback(() => {
+    const tablesForUpdate = responseModal && responseModal.length ? responseModal : derivedTables;
+    if (!tablesForUpdate.length) {
+      logger.warn("Nenhuma tabela encontrada para edição dos selecionados.");
+      return;
+    }
+
+    const selectedLista: PayloadDeleteRow[] = getPrimaryKeysInfo(
+      selectionState.selectedRecords,
+      tablesForUpdate
+    );
+
+    const rows_primary_keys = selectedLista.map((item) => {
+      const rowPkDict: Record<string, { primaryKey: string; valor: any }> = {};
+      Object.entries(item.rowDeletes).forEach(([tbl, config]) => {
+        if (config.primaryKey && config.primaryKeyValue !== undefined) {
+          rowPkDict[tbl] = {
+            primaryKey: config.primaryKey,
+            valor: config.primaryKeyValue,
+          };
+        }
+      });
+      return rowPkDict;
+    });
+
+    const indices = Array.from(selectedItems);
+
+    if (onOpenSelectedEdit) {
+      onOpenSelectedEdit({ rows_primary_keys, indices });
+    }
+  }, [responseModal, derivedTables, getPrimaryKeysInfo, selectionState.selectedRecords, selectedItems, onOpenSelectedEdit]);
+
   const { selectedCount, isAllSelected, isSomeSelected } = selectionState;
 
   return (
@@ -434,16 +470,13 @@ function ResultTable({
         setShowMobileMenu={setShowMobileMenu}
         columns={columns}
         headers={headers}
+        onOpenBulkEdit={onOpenBulkEdit}
+        onOpenSelectedEdit={handleOpenSelectedEdit}
       />
 
       {isSelectionMode && selectedCount > 0 && (
         <div className="sm:hidden mt-2 mx-3 flex items-center justify-between bg-blue-50/50 px-4 py-2.5 rounded-lg border border-blue-100">
-          <span className="text-sm font-bold text-blue-700">
-            {selectedCount}{" "}
-            {selectedCount > 1
-              ? t("common.recordsSelected") || "registros selecionados"
-              : t("common.recordSelected") || "registro selecionado"}
-          </span>
+          
           <button
             onClick={selectAll}
             className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors focus:outline-none"

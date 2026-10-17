@@ -97,6 +97,7 @@ export default function QueryHistoryDrawer({
       const { data } = await api.get(`/history/recent-queries`, {
         params: { conn_id: connId, limit: 30 },
         withCredentials: true,
+        timeout: 25000,
       });
       const d = data?.data ?? {};
       const list = Array.isArray(d.recent) ? d.recent : [];

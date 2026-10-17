@@ -163,7 +163,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
                 storeLoginData(response.data)
             })
             .catch((err) => {
-                console.error("Erro em /auth/me:", err);
+                if (err?.response?.status !== 401) {
+                    console.error("Erro em /auth/me:", err);
+                }
                 // Apenas realiza logout se o backend responder expressamente com 401 (token expirado/não autorizado)
                 if (err?.response?.status === 401 && user) {
                     logout()
@@ -212,7 +214,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         };
 
         if (provider !== "credenciais") {
-            window.location.href = `${process.env.NEXT_PUBLIC_BACKEND_AUTH_URL}${providerUrls[provider]}`;
+            const nextParam = options?.redirect ? `?next=${encodeURIComponent(options.redirect)}` : "";
+            window.location.href = `${process.env.NEXT_PUBLIC_BACKEND_AUTH_URL}${providerUrls[provider]}${nextParam}`;
             setIsLoading(false);
             return true;
         }

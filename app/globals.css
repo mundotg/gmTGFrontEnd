@@ -201,3 +201,43 @@
 .vercel-link hr {
     border-color: var(--border-primary);
 }
+
+/* ==========================================================================
+   NEXUS COGNITIVA — TOKENS DE DESIGN & SISTEMA TIPOGRÁFICO
+   ========================================================================== */
+
+:root {
+  --color-brand-primary: #14283F;   /* Azul profundo */
+  --color-brand-accent: #087E8B;    /* Verde-azulado de ação */
+  --color-background: #F4F7FA;      /* Fundo geral */
+  --color-surface: #FFFFFF;         /* Superfície dos cartões */
+  --color-text-primary: #14283F;    /* Texto principal */
+  --color-text-secondary: #475569;  /* Texto secundário */
+  --color-border: #DCE3EA;          /* Bordas */
+
+  --font-interface: var(--font-interface, system-ui, -apple-system, sans-serif);
+  --font-editorial: var(--font-editorial, "Source Serif 4", Georgia, serif);
+  --font-technical: var(--font-technical, "JetBrains Mono", monospace);
+}
+
+.dark {
+  --color-brand-primary: #F8FAFC;
+  --color-brand-accent: #14B8A6;    /* Verde-azulado para fundo escuro */
+  --color-background: #0B132B;      /* Fundo azul-escuro */
+  --color-surface: #111D3D;         /* Superfície dos cartões */
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-border: #1E2D5A;
+}
+
+.font-interface {
+  font-family: var(--font-interface);
+}
+
+.font-editorial {
+  font-family: var(--font-editorial);
+}
+
+.font-technical {
+  font-family: var(--font-technical);
+}

@@ -7,7 +7,7 @@ import {
   TrendingUp, Menu, X, ChevronLeft, ChevronRight,
   ScanLine, LucideProjector,
   Terminal, Sparkles,
-  LayoutDashboard, Bot,
+  LayoutDashboard, Bot, Brain,
 } from "lucide-react";
 import type { ElementType } from "react";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
@@ -57,6 +57,7 @@ export const sidebarItems: SidebarItem[] = [
   { id: "analysis", label: "sidebar.analysis", title: "Análise de BD", icon: TrendingUp, href: "/home/analizar", permission: "project:view", requiresConnection: true },
 
   // ─────────── Submenu "Mais" (tudo o que não é gestão de BD) ───────────
+  { id: "nexus", group: GROUP_MORE, label: "sidebar.nexusCognitiva", title: "Nexus Cognitiva", icon: Brain, badge: "Novo", href: "/nexus-cognitiva" },
   { id: "task", group: GROUP_MORE, label: "sidebar.gestorProjetos", title: "Gestor de Projetos", icon: LucideProjector, badge: "num_tasks", href: "/task", permission: "project:view" },
   { id: "template", group: GROUP_MORE, label: "sidebar.templates", title: "Templates", icon: TableProperties, href: "/createtamplete", permission: "project:view" },
   { id: "ai", group: GROUP_MORE, label: "sidebar.ai", title: "Assistente IA", icon: Bot, href: "/home/ai" },
@@ -246,12 +247,6 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
           )}
         </div>
 
-        <Script
-          id="adsense-script"
-          strategy="lazyOnload"
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
-          crossOrigin="anonymous"
-        />
 
         {collapsed && (
           <div className="flex justify-center pt-3">

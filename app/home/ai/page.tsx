@@ -370,12 +370,7 @@ export default function Home() {
 
       {/* ─── Main ─────────────────────────────────────────────────────────── */}
       <main className="chatbot-section flex flex-col flex-1 overflow-hidden min-w-0">
-        <Script
-          id="adsense-script"
-          strategy="lazyOnload"
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
-          crossOrigin="anonymous"
-        />
+       
         {/* Topbar */}
         <header className="flex items-center gap-3 px-5 py-3 bg-white border-b border-[#e0ddd8] flex-shrink-0">
           <button

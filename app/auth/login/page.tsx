@@ -225,12 +225,7 @@ const LoginPage = () => {
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 w-full max-w-md animate-in fade-in zoom-in-95 duration-300">
 
         {/* 4. Uso do next/script para evitar erros de hidratação */}
-        <Script
-          id="adsense-script"
-          strategy="lazyOnload"
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6543986660141855"
-          crossOrigin="anonymous"
-        />
+       
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="text-center mb-8">

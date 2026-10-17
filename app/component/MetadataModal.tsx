@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   CampoDetalhado,
   EditedField,
@@ -7,7 +7,7 @@ import {
   MetadataTableResponse,
   Tables_primary_keys_values,
 } from "@/types";
-import { X, AlertCircle } from "lucide-react";
+import { X, AlertCircle, Pencil } from "lucide-react";
 import { validateField } from "@/util";
 import { usePopupReference } from "../services/popups";
 import { findIdentifierField } from "@/util/func";
@@ -32,6 +32,10 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   informacaosOftables,
   onSave,
   onDelete,
+  isBulkEdit = false,
+  isSelectionBulk = false,
+  totalRows,
+  onSaveBulk,
 }) => {
   const { t } = useI18n();
   const [editedFields, setEditedFields] = useState<Record<string, EditedField>>({});
@@ -110,6 +114,9 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     onClose,
   });
 
+  const setShowDeleteConfirmRef = useRef(setShowDeleteConfirm);
+  setShowDeleteConfirmRef.current = setShowDeleteConfirm;
+
   // Verificação de mudanças
   const hasChanges = useMemo(() => {
     return Object.values(editedFields).some((field) => field.hasChanged);
@@ -125,7 +132,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       setEditedFields({});
       setEnabledFields({});
       setErrors({});
-      setShowDeleteConfirm(false);
+      setShowDeleteConfirmRef.current?.(false);
       return;
     }
 
@@ -171,7 +178,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       // console.log("safeColumnName:", safeColumnName);
 
       initialEditedFields[safeColumnName] = {
-        value: value !== null && value !== undefined ? String(value) : "",
+        value: isBulkEdit ? "" : (value !== null && value !== undefined ? String(value) : ""),
         tableName,
         // columnName: pureColumnName, // <-- Agora o nome limpo da coluna vai junto no state!
         hasChanged: false,
@@ -182,13 +189,13 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     // console.log(initialEditedFields)
     setEditedFields(initialEditedFields);
     setEnabledFields(initialEnabledFields);
-  }, [row, isOpen, informacaosOftables, setShowDeleteConfirm]);
+  }, [row, isOpen, isBulkEdit]);
 
   // Handler para mudanças nos campos
   const handleFieldChange = useCallback(
     (key: string, value: string, tableName: string, columnType: string, isNullable?: boolean) => {
       let error = validateField(columnType, String(value));
-      if (!isNullable && (value === "" || value === null || value === undefined)) {
+      if (!isBulkEdit && !isNullable && (value === "" || value === null || value === undefined)) {
         error = t("common.requiredField") || "Este campo é obrigatório.";
       }
       setErrors((prev) => ({
@@ -197,8 +204,10 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
       }));
 
       setEditedFields((prev) => {
-        const originalValue = row?.row?.[key] ?? "";
-        const hasChanged = String(originalValue) !== value;
+        const originalValue = isBulkEdit ? "" : (row?.row?.[key] ?? "");
+        const hasChanged = isBulkEdit
+          ? (value !== null && value !== undefined && String(value).trim() !== "")
+          : (String(originalValue) !== value);
 
         return {
           ...prev,
@@ -211,18 +220,63 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
         };
       });
     },
-    [row?.row, t]
+    [row?.row, t, isBulkEdit]
   );
 
   // Handler para salvar
   const handleSave = useCallback(async () => {
-    if (!onSave || !hasChanges) return;
+    if (!hasChanges) return;
 
     const hasErrors = Object.values(errors).some((error) => error);
     if (hasErrors) {
       logger.warn("Não é possível salvar: existem erros de validação");
       return;
     }
+
+    // Fluxo especial: Edição em massa de todos os registros da consulta ou selecionados
+    if (isBulkEdit) {
+      const rowCountText = totalRows
+        ? (isSelectionBulk ? `os ${totalRows} selecionados` : `todos os ${totalRows}`)
+        : (isSelectionBulk ? "os selecionados" : "todos os");
+      const confirmMsg = isSelectionBulk
+        ? (t("actions.confirmSelectedEdit") ||
+           `Tem certeza que deseja atualizar ${rowCountText} registros com os novos valores?`)
+        : (t("actions.confirmBulkEdit") ||
+           `Tem certeza que deseja atualizar ${rowCountText} registros desta consulta com os novos valores?`);
+      if (!window.confirm(confirmMsg)) return;
+
+      setIsLoading(true);
+      try {
+        const updatedRow = Object.entries(editedFields)
+          .filter(([, field]) => field.hasChanged)
+          .reduce<EditedFieldForQuery>((acc, [key, field]) => {
+            const tableName = field.tableName;
+            const keyParts = key.split(".");
+            const column = keyParts[keyParts.length - 1];
+
+            if (!acc[tableName]) acc[tableName] = {};
+            acc[tableName][column] = {
+              value: String(field.value),
+              type_column: field.type_column,
+            };
+            return acc;
+          }, {});
+
+        logger.success("Campos alterados em massa:", updatedRow);
+        if (onSaveBulk) {
+          await onSaveBulk(updatedRow);
+        }
+        onClose();
+      } catch (error) {
+        logger.error("Erro ao salvar em massa:", error);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Fluxo padrão: Edição de uma única linha
+    if (!onSave) return;
     if (!window.confirm(t("actions.confirmEdit") || "Tens a certeza que queres editar?")) return;
 
     setIsLoading(true);
@@ -277,7 +331,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [onSave, hasChanges, errors, editedFields, onClose, row, selectedTables, t]);
+  }, [onSave, hasChanges, errors, editedFields, onClose, row, selectedTables, t, isBulkEdit, totalRows, onSaveBulk]);
 
   // Handler para alternar edição
   const toggleEdit = useCallback((field: string) => {
@@ -431,9 +485,23 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
         {/* Header */}
         <header className="flex justify-between items-center border-b border-gray-200 p-5 bg-gray-50 rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <h2 id="modal-title" className="text-xl font-bold text-gray-900">
-              {t("modals.rowDetails") || "Detalhes da Linha"}
+            <h2 id="modal-title" className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              {isBulkEdit ? (
+                <>
+                  <Pencil className="w-5 h-5 text-blue-600" />
+                  {isSelectionBulk
+                    ? (t("modals.editSelectedTitle") || "Editar Registros Selecionados")
+                    : (t("modals.bulkEditTitle") || "Editar Todos os Registros da Consulta")}
+                </>
+              ) : (
+                t("modals.rowDetails") || "Detalhes da Linha"
+              )}
             </h2>
+            {isBulkEdit && totalRows !== undefined && totalRows > 0 && (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                {totalRows} {isSelectionBulk ? (t("common.selectedPlural") || "selecionados") : (t("common.records") || "registros")}
+              </span>
+            )}
             {hasChanges && (
               <span className="flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200 text-xs font-bold px-2 py-1 rounded-md">
                 <AlertCircle className="w-3.5 h-3.5" />
@@ -442,7 +510,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
             )}
           </div>
 
-          {ocrFields.length > 0 && (
+          {!isBulkEdit && ocrFields.length > 0 && (
             <div className="mb-6 flex justify-end">
               <OCRButton formFields={ocrFields} valuesDefault={editedFields} onResult={handleOcrResult} />
             </div>
@@ -458,6 +526,29 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-6 bg-white">
+          {isBulkEdit && (
+            <div className="flex items-start gap-3 bg-blue-50/80 border border-blue-200 p-4 rounded-xl text-xs text-blue-900 mb-6 shadow-sm">
+              <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-blue-950 mb-0.5">
+                  {isSelectionBulk
+                    ? (t("actions.editSelectedTitle") || "Edição dos Registros Selecionados")
+                    : (t("actions.editAllDescription") || "Modo de Edição em Massa")}
+                </p>
+                <p>
+                  Clique no ícone de lápis da coluna que deseja alterar e digite o novo valor.{" "}
+                  O valor será aplicado em{" "}
+                  {isSelectionBulk ? (
+                    <strong>{totalRows} registros selecionados</strong>
+                  ) : (
+                    <strong>todos os registros</strong>
+                  )}{" "}
+                  da consulta atual. Colunas que não forem alteradas permanecerão com os seus dados originais.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-8">
             {selectedTables.map((metadata, tableIndex) => (
               <div key={`${metadata.table_name}_${tableIndex}`} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
@@ -517,13 +608,32 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
 
         {/* Footer */}
         <ModalFooter
-          onDelete={confirmeDelet_open_modal_for_selection_table} // Tira essa linha se for um modal de "Criar Novo"
+          onDelete={isBulkEdit ? undefined : confirmeDelet_open_modal_for_selection_table}
           onCancel={handleClose}
           onSave={handleSave}
           isLoading={isLoading}
           isDeleting={isDeleting}
           isSaving={isLoading}
-          disableSave={!hasChanges || isLoading || isDeleting || Object.values(errors).some(error => error)}
+          saveText={
+            isBulkEdit
+              ? (isSelectionBulk
+                  ? (t("actions.updateSelectedRecords") || `Atualizar (${totalRows}) Selecionados`)
+                  : (t("actions.updateAllRecords") || "Atualizar Todos os Registros"))
+              : undefined
+          }
+          savingText={
+            isBulkEdit
+              ? (isSelectionBulk
+                  ? (t("actions.updatingSelectedRecords") || "Atualizando Selecionados...")
+                  : (t("actions.updatingAllRecords") || "Atualizando..."))
+              : undefined
+          }
+          disableSave={
+            !hasChanges ||
+            isLoading ||
+            isDeleting ||
+            Object.entries(errors).some(([k, error]) => error && (!isBulkEdit || editedFields[k]?.hasChanged))
+          }
         />
 
         {/* Modal de Confirmação de Delete (Componente Padronizado) */}
