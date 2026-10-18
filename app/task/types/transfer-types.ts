@@ -24,3 +24,20 @@ export interface TransferConfig {
   bd_distino: string;
   tabelas: Record<string, TableMapping>;
 }
+
+export interface QueryImpact {
+  supported: boolean;
+  dialect?: string;
+  risk_level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  risk_score: number;
+  scan_type: "INDEX_SCAN" | "SEQUENTIAL_SCAN" | "COLLECTION_SCAN" | "FULL_TABLE_SCAN" | "UNKNOWN" | string;
+  table_name?: string | null;
+  estimated_rows?: number;
+  estimated_cost?: number;
+  estimated_duration_ms?: number;
+  summary: string;
+  warning?: string | null;
+  suggestions: string[];
+  requires_confirmation: boolean;
+  raw_plan?: unknown;
+}

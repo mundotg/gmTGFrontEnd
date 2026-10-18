@@ -319,6 +319,18 @@ Este repositório contém o **Frontend**, desenvolvido com **Next.js 14**, **Typ
 - Componente: `QueryHistory`
 - Filtra por data, tipo e usuário
 
+### 🛡️ Dry-Run & Impact Predictor
+- Componente: `ImpactPredictorCard`
+- Realiza análise de custo, linhas estimadas e tipo de varredura (Index Scan vs. Sequential/Collection Scan) antes de executar
+- Guarda de segurança: intercepta queries de alto risco (`Seq Scan` massivo, `DELETE` sem `WHERE`) com modal de confirmação
+- Sugestões automáticas de criação de índices com cópia de 1 clique
+
+### 🔄 Transações e Migrações por Query
+- Componente: `Step2QueryTables` (`/home/transacoes`)
+- Suporta transferências entre bancos heterogêneos (SQL e MongoDB) com queries customizadas
+- Modo Editor SQL livre e Construtor Visual (`QueryBuilderAux`)
+- Botão "Avaliar Impacto (Dry-Run)" e teste de prévia com amostragem em tempo real
+
 ---
 
 ## 🧪 4. Tecnologias e Pacotes Sugeridos
