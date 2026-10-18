@@ -57,8 +57,8 @@ export const sidebarItems: SidebarItem[] = [
   { id: "transacoes", label: "sidebar.transactions", title: "Transação de Dados", icon: ArrowLeftRight, href: "/home/transacoes", requiresConnection: true },
   { id: "lineage", label: "sidebar.lineage", title: "Linhagem de Dados", icon: Workflow, href: "/home/lineage" },
   { id: "deadlocks", label: "sidebar.deadlocks", title: "Estudo de Deadlocks", icon: Activity, href: "/home/deadlocks", requiresConnection: true },
-  { id: "history", label: "sidebar.history", title: "Histórico", icon: History, badge: "registros_analizados", href: "/home/historico", permission: "query:execute", requiresConnection: true },
-  { id: "analysis", label: "sidebar.analysis", title: "Análise de BD", icon: TrendingUp, href: "/home/analizar", permission: "project:view", requiresConnection: true },
+  { id: "history", label: "sidebar.history", title: "Histórico", icon: History, badge: "registros_analizados", href: "/home/historico", permission: ["query:read_history", "query:execute", "logs:view"], requiresConnection: true },
+  { id: "analysis", label: "sidebar.analysis", title: "Análise de BD", icon: TrendingUp, href: "/home/analizar", permission: ["analytics:db:view", "project:view"], requiresConnection: true },
 
   // ─────────── Submenu "Mais" (tudo o que não é gestão de BD) ───────────
   { id: "nexus", group: GROUP_MORE, label: "sidebar.nexusCognitiva", title: "Nexus Cognitiva", icon: Brain, badge: "Novo", href: "/nexus-cognitiva" },
