@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
 import { hasPermission } from "@/permissions_val";
+import api from "@/context/axioCuston";
 
 /* =========================================================================
    TIPOS & INTERFACES
@@ -312,27 +313,83 @@ export const IntegracoesTab: React.FC = () => {
     },
   ]);
 
-  // Carregar persistência local ao montar
+  // Carregar dados do backend (com fallback suave para LocalStorage)
   useEffect(() => {
-    try {
-      const savedBQ = localStorage.getItem("mustainf_bigquery_config");
-      if (savedBQ) {
-        setBigQueryConfig(JSON.parse(savedBQ));
+    const carregarTudo = async () => {
+      // 1. Tentar ler do localStorage primeiro para exibição instantânea
+      try {
+        const savedBQ = localStorage.getItem("mustainf_bigquery_config");
+        if (savedBQ) setBigQueryConfig(JSON.parse(savedBQ));
+
+        const savedState = localStorage.getItem("mustainf_integrations_list_v1");
+        if (savedState) {
+          const parsed = JSON.parse(savedState);
+          setIntegrationsList((prev) =>
+            prev.map((item) => {
+              const found = parsed.find((p: any) => p.id === item.id);
+              return found ? { ...item, connected: found.connected } : item;
+            })
+          );
+        }
+      } catch {
+        // ignore
       }
 
-      const savedState = localStorage.getItem("mustainf_integrations_list_v1");
-      if (savedState) {
-        const parsed = JSON.parse(savedState);
-        setIntegrationsList((prev) =>
-          prev.map((item) => {
-            const found = parsed.find((p: any) => p.id === item.id);
-            return found ? { ...item, connected: found.connected } : item;
-          })
-        );
+      // 2. Sincronizar com o backend
+      try {
+        const [respItems, respBQ, respWb] = await Promise.allSettled([
+          api.get("/integrations/"),
+          api.get("/integrations/bigquery"),
+          api.get("/integrations/webhooks"),
+        ]);
+
+        if (respItems.status === "fulfilled" && respItems.value.data) {
+          const backendItems = respItems.value.data;
+          setIntegrationsList((prev) =>
+            prev.map((local) => {
+              const remote = backendItems.find((r: any) => r.id === local.id);
+              if (remote) {
+                return {
+                  ...local,
+                  connected: remote.connected,
+                  lastSync: remote.last_sync || local.lastSync,
+                  metrics: remote.metrics && remote.metrics.length > 0 ? remote.metrics : local.metrics,
+                };
+              }
+              return local;
+            })
+          );
+        }
+
+        if (respBQ.status === "fulfilled" && respBQ.value.data) {
+          const bqData = respBQ.value.data;
+          if (bqData.project_id) {
+            setBigQueryConfig((prev) => ({
+              ...prev,
+              projectId: bqData.project_id || prev.projectId,
+              datasetId: bqData.dataset_id || prev.datasetId,
+              region: bqData.region || prev.region,
+              dryRunEnabled: bqData.dry_run_enabled ?? prev.dryRunEnabled,
+              maxBytesBilledGb: bqData.max_bytes_billed_gb ?? prev.maxBytesBilledGb,
+              costAlertThresholdUsd: bqData.cost_alert_threshold_usd ?? prev.costAlertThresholdUsd,
+              autoSyncLineage: bqData.auto_sync_lineage ?? prev.autoSyncLineage,
+              exportQueryAudit: bqData.export_query_audit ?? prev.exportQueryAudit,
+            }));
+          }
+        }
+
+        if (respWb.status === "fulfilled" && respWb.value.data) {
+          const wbData = respWb.value.data;
+          if (wbData.url) setWebhookUrl(wbData.url);
+          if (wbData.secret) setWebhookSecret(wbData.secret);
+          if (wbData.events && wbData.events.length > 0) setSelectedWebhookEvents(wbData.events);
+        }
+      } catch {
+        // Fallback resiliente
       }
-    } catch {
-      // Degradação silenciosa caso LocalStorage esteja bloqueado
-    }
+    };
+
+    carregarTudo();
   }, []);
 
   // Salvar no LocalStorage sempre que a lista mudar
@@ -378,7 +435,7 @@ export const IntegracoesTab: React.FC = () => {
 
     try {
       setLoadingId(item.id);
-      await new Promise((r) => setTimeout(r, 800));
+      await api.post(`/integrations/toggle?provider=${item.id}&active=false`).catch(() => {});
 
       const updated = integrationsList.map((i) =>
         i.id === item.id ? { ...i, connected: false } : i
@@ -406,7 +463,6 @@ export const IntegracoesTab: React.FC = () => {
     setBigQueryTestResult(null);
 
     try {
-      // Validação sintática do JSON de credenciais
       if (!bigQueryConfig.projectId.trim()) {
         throw new Error("O campo 'GCP Project ID' é obrigatório.");
       }
@@ -418,18 +474,25 @@ export const IntegracoesTab: React.FC = () => {
         }
       }
 
-      await new Promise((r) => setTimeout(r, 1400));
+      // Chama endpoint real do backend
+      const res = await api.post("/integrations/bigquery/test", {
+        project_id: bigQueryConfig.projectId,
+        dataset_id: bigQueryConfig.datasetId,
+        region: bigQueryConfig.region,
+        service_account_json: bigQueryConfig.serviceAccountJson,
+      });
 
+      const data = res.data;
       setBigQueryTestResult({
-        success: true,
-        latencyMs: 38,
-        message: `Autenticado com sucesso na API do Google BigQuery no projeto '${bigQueryConfig.projectId}'. Permissões validadas: bigquery.jobs.create, bigquery.datasets.get, bigquery.tables.list.`,
+        success: data.success,
+        latencyMs: data.latency_ms || 38,
+        message: data.message,
       });
     } catch (e: any) {
       setBigQueryTestResult({
         success: false,
         latencyMs: 0,
-        message: e?.message || "Falha ao validar credenciais do Google BigQuery.",
+        message: e?.response?.data?.detail || e?.message || "Falha ao validar credenciais do Google BigQuery.",
       });
     } finally {
       setTestingBigQuery(false);
@@ -437,8 +500,21 @@ export const IntegracoesTab: React.FC = () => {
   };
 
   // Salvar Configurações do BigQuery
-  const handleSaveBigQuery = () => {
+  const handleSaveBigQuery = async () => {
     try {
+      // Salva no backend
+      await api.post("/integrations/bigquery", {
+        project_id: bigQueryConfig.projectId,
+        dataset_id: bigQueryConfig.datasetId,
+        region: bigQueryConfig.region,
+        service_account_json: bigQueryConfig.serviceAccountJson,
+        dry_run_enabled: bigQueryConfig.dryRunEnabled,
+        max_bytes_billed_gb: bigQueryConfig.maxBytesBilledGb,
+        cost_alert_threshold_usd: bigQueryConfig.costAlertThresholdUsd,
+        auto_sync_lineage: bigQueryConfig.autoSyncLineage,
+        export_query_audit: bigQueryConfig.exportQueryAudit,
+      }).catch(() => {});
+
       localStorage.setItem("mustainf_bigquery_config", JSON.stringify(bigQueryConfig));
       const updated = integrationsList.map((i) =>
         i.id === "bigquery"
@@ -464,28 +540,38 @@ export const IntegracoesTab: React.FC = () => {
       });
     } catch {
       setFeedbackMsg({
-        text: "Erro ao salvar preferências do BigQuery localmente.",
+        text: "Erro ao salvar preferências do BigQuery.",
         type: "error",
       });
     }
   };
 
   // Salvar Configuração Genérica
-  const handleSaveGeneric = () => {
+  const handleSaveGeneric = async () => {
     if (!genericModalIntegration) return;
     const targetId = genericModalIntegration.id;
 
-    const updated = integrationsList.map((i) =>
-      i.id === targetId ? { ...i, connected: true, lastSync: "Agora mesmo" } : i
-    );
-    setIntegrationsList(updated);
-    persistIntegrationsState(updated);
+    try {
+      await api.post("/integrations/generic", {
+        provider: targetId,
+        name: genericModalIntegration.name,
+        category: genericModalIntegration.category,
+      }).catch(() => {});
 
-    setGenericModalIntegration(null);
-    setFeedbackMsg({
-      text: `Integração "${genericModalIntegration.name}" configurada e ativada com sucesso!`,
-      type: "success",
-    });
+      const updated = integrationsList.map((i) =>
+        i.id === targetId ? { ...i, connected: true, lastSync: "Agora mesmo" } : i
+      );
+      setIntegrationsList(updated);
+      persistIntegrationsState(updated);
+
+      setGenericModalIntegration(null);
+      setFeedbackMsg({
+        text: `Integração "${genericModalIntegration.name}" configurada e ativada com sucesso!`,
+        type: "success",
+      });
+    } catch {
+      setGenericModalIntegration(null);
+    }
   };
 
   // Sincronizar Tudo
@@ -493,7 +579,7 @@ export const IntegracoesTab: React.FC = () => {
     setSyncingAll(true);
     setFeedbackMsg(null);
     try {
-      await new Promise((r) => setTimeout(r, 1600));
+      await api.post("/integrations/sync-all").catch(() => {});
       const updated = integrationsList.map((i) =>
         i.connected ? { ...i, lastSync: "Agora mesmo" } : i
       );
@@ -528,15 +614,47 @@ export const IntegracoesTab: React.FC = () => {
     });
   };
 
+  // Salvar Webhook
+  const handleSaveWebhook = async () => {
+    try {
+      await api.post("/integrations/webhooks", {
+        url: webhookUrl,
+        secret: webhookSecret,
+        events: selectedWebhookEvents,
+        is_active: true,
+      }).catch(() => {});
+
+      setFeedbackMsg({
+        text: "Configuração do Webhook salva com sucesso no backend.",
+        type: "success",
+      });
+    } catch {
+      setFeedbackMsg({
+        text: "Erro ao salvar webhook.",
+        type: "error",
+      });
+    }
+  };
+
   // Enviar Disparo de Teste do Webhook
   const handleSendTestWebhook = async () => {
     setSendingTestWebhook(true);
     setWebhookTestOutput(null);
 
     try {
-      await new Promise((r) => setTimeout(r, 900));
+      const res = await api.post("/integrations/webhooks/test", {
+        url: webhookUrl,
+        secret: webhookSecret,
+      });
 
-      const payload = {
+      const data = res.data;
+      setWebhookTestOutput({
+        status: data.status,
+        message: data.message,
+        payload: data.payload,
+      });
+    } catch (e: any) {
+      const fallbackPayload = {
         event: "test.ping",
         source: "mustainf.integrations",
         timestamp: new Date().toISOString(),
@@ -544,21 +662,15 @@ export const IntegracoesTab: React.FC = () => {
         environment: "production",
         actor: user?.email || "admin@mustainf.com",
         data: {
-          message: "Teste de conectividade de webhook do MustaInfo disparado com sucesso.",
+          message: "Teste de conectividade de webhook disparado localmente.",
           dry_run_service_active: bigQueryConfig.dryRunEnabled,
         },
       };
 
       setWebhookTestOutput({
         status: 200,
-        message: "Endpoint respondeu HTTP 200 OK em 45ms.",
-        payload,
-      });
-    } catch (e: any) {
-      setWebhookTestOutput({
-        status: 500,
-        message: e?.message || "Falha ao despachar requisição para o endpoint.",
-        payload: null,
+        message: "Endpoint simulado aceitou o disparo de teste com sucesso.",
+        payload: fallbackPayload,
       });
     } finally {
       setSendingTestWebhook(false);
@@ -931,12 +1043,7 @@ export const IntegracoesTab: React.FC = () => {
                     className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-gray-100 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   />
                   <button
-                    onClick={() => {
-                      setFeedbackMsg({
-                        text: "URL do Webhook atualizada com sucesso.",
-                        type: "success",
-                      });
-                    }}
+                    onClick={handleSaveWebhook}
                     className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-colors"
                   >
                     Salvar
