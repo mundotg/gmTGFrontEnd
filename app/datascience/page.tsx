@@ -2,7 +2,18 @@
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+  LayoutDashboard,
+  Columns,
+  Sigma,
+  TrendingUp,
+  Users,
+  ShieldAlert,
+  GraduationCap,
+} from "lucide-react";
 import usePersistedState from "@/hook/localStoreUse";
 import api from "@/context/axioCuston";
 
@@ -16,15 +27,16 @@ import {
   Corr,
   PersistedResult,
   fmt,
-  StatTile,
-  ColumnCard,
-  QualityCard,
-  CorrHeatmap,
-  TrendChart,
-  AnomaliesTable,
-  SegmentsView,
-  InsightsCard,
   DataScienceHeader,
+  OverviewDashboard,
+  InteractiveColumnExplorer,
+  CorrelationStudio,
+  TrendStudio,
+  ClustersStudio,
+  AnomaliesStudio,
+  StudyLabTab,
+  StudyDictionaryModal,
+  ColumnInspectorModal,
 } from "./component";
 
 // ── URL do WebSocket ──
@@ -38,11 +50,19 @@ function getAuthToken(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+type TabType =
+  | "overview"
+  | "columns"
+  | "correlations"
+  | "trend"
+  | "segments"
+  | "anomalies"
+  | "studylab";
+
 function DataSciencePageInner() {
   const searchParams = useSearchParams();
 
-  // ⚠️ O resultado da consulta é guardado em IndexedDB (via usePersistedState),
-  // NÃO em localStorage. Lê-se pela mesma via (partilhada entre abas).
+  // Resultado da consulta guardado em IndexedDB (via usePersistedState)
   const [persisted, , , loadingPersisted] = usePersistedState<PersistedResult>(
     "consu_QueryResultType",
     null
@@ -54,6 +74,7 @@ function DataSciencePageInner() {
   const [error, setError] = useState<string | null>(null);
   const [cached, setCached] = useState(false);
 
+  // Análise estatística devolvida pelo backend
   const [overview, setOverview] = useState<Overview | null>(null);
   const [columns, setColumns] = useState<ColumnStat[]>([]);
   const [corr, setCorr] = useState<Corr>({ columns: [], matrix: [] });
@@ -62,6 +83,14 @@ function DataSciencePageInner() {
   const [anomalies, setAnomalies] = useState<Anomalies | null>(null);
   const [segments, setSegments] = useState<Segments | null>(null);
   const [insights, setInsights] = useState<string[]>([]);
+
+  // Estados interativos de estudo e navegação
+  const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [studyMode, setStudyMode] = useState<boolean>(true);
+  const [isDictionaryOpen, setIsDictionaryOpen] = useState(false);
+  const [dictionaryTermId, setDictionaryTermId] = useState<string>("media-vs-mediana");
+  const [inspectedColumn, setInspectedColumn] = useState<ColumnStat | null>(null);
+  const [copiedSummary, setCopiedSummary] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const hasReceivedDataRef = useRef(false);
@@ -166,7 +195,6 @@ function DataSciencePageInner() {
       ws = new WebSocket(wsUrl);
       wsRef.current = ws;
     } catch (e) {
-      // Se nem conseguir instanciar WebSocket, vai direto para REST
       executarFallbackRest(req);
       return;
     }
@@ -179,7 +207,6 @@ function DataSciencePageInner() {
 
     ws.onclose = () => {
       setConnected(false);
-      // Se fechou sem receber nenhum dado da análise, aciona fallback REST automaticamente
       if (!hasReceivedDataRef.current) {
         executarFallbackRest(req);
       } else {
@@ -259,8 +286,7 @@ function DataSciencePageInner() {
     };
   }, [buildRequest, executarFallbackRest]);
 
-  // Corre automaticamente assim que a fonte de dados estiver pronta:
-  // chave encriptada (?key=), parâmetro ?table=, ou o resultado guardado (após carregar do IndexedDB).
+  // Disparo automático na inicialização
   const autoRanRef = useRef(false);
   useEffect(() => {
     if (autoRanRef.current) return;
@@ -272,114 +298,297 @@ function DataSciencePageInner() {
     }
   }, [loadingPersisted, searchParams, analisar]);
 
-  // Fecha o WebSocket ao sair.
+  // Fecha o WebSocket ao desmontar
   useEffect(() => {
     return () => wsRef.current?.close();
   }, []);
 
-  const numericCount = useMemo(
-    () => columns.filter((c) => c.kind === "numeric").length,
-    [columns]
-  );
+  const handleOpenDictionaryTerm = useCallback((termId: string) => {
+    setDictionaryTermId(termId);
+    setIsDictionaryOpen(true);
+  }, []);
+
+  // Exportar resumo didático para a área de transferência
+  const handleCopyStudySummary = useCallback(() => {
+    if (!overview) return;
+    const numCols = columns.filter((c) => c.kind === "numeric").length;
+    const md = [
+      `# 📊 Relatório Didático de Análise de Dados — MustaInf`,
+      ``,
+      `## 1. Volumetria & Saúde dos Dados`,
+      `- **Total de Linhas:** ${fmt(overview.n_rows)}`,
+      `- **Total de Colunas:** ${overview.n_cols} (${numCols} numéricas)`,
+      `- **Campos Nulos:** ${overview.null_pct}% (${fmt(overview.total_nulls)} células vazias)`,
+      `- **Linhas Duplicadas:** ${overview.n_duplicated}`,
+      `- **Score de Qualidade dos Dados:** ${quality?.score ?? 100}/100`,
+      ``,
+      `## 2. Principais Insights Descobertos`,
+      ...(insights.length > 0 ? insights.map((i) => `- ${i}`) : ["- Nenhum insight gerado."]),
+      ``,
+      `## 3. Resumo das Colunas Principais`,
+      ...columns.slice(0, 10).map((c) => {
+        if (c.kind === "numeric" && c.numeric) {
+          return `- **${c.name}** (Numérica): Média = ${fmt(c.numeric.mean)}, Mediana = ${fmt(c.numeric.median)}, P95 = ${fmt(c.numeric.p95)}, Outliers = ${c.numeric.outliers?.count ?? 0}`;
+        }
+        return `- **${c.name}** (${c.kind}): ${c.distinct} valores distintos, ${c.null_pct}% nulos`;
+      }),
+      ``,
+      `## 4. Tendências & Segmentação`,
+      trend
+        ? `- **Tendência (${trend.measure}):** ${trend.direction} (${trend.change_pct}%), previsão próxima: ${fmt(trend.forecast_next)}`
+        : `- Nenhuma série temporal`,
+      segments
+        ? `- **Clusters (K-Means):** ${segments.k} perfis identificados (${segments.columns.join(", ")})`
+        : `- Sem clusters`,
+      anomalies
+        ? `- **Anomalias:** ${anomalies.count} registros atípicos identificados`
+        : `- Nenhuma anomalia crítica`,
+      ``,
+      `*Gerado pelo MustaInf Data Science Hub*`,
+    ].join("\n");
+
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(md).then(() => {
+        setCopiedSummary(true);
+        setTimeout(() => setCopiedSummary(false), 2500);
+      });
+    }
+  }, [overview, quality, insights, columns, trend, segments, anomalies]);
+
+  const tabs = [
+    {
+      id: "overview" as TabType,
+      label: "Visão Geral & Saúde",
+      icon: LayoutDashboard,
+      badge: quality ? `${quality.score} pts` : undefined,
+    },
+    {
+      id: "columns" as TabType,
+      label: "Raio-X de Colunas",
+      icon: Columns,
+      badge: columns.length > 0 ? `${columns.length}` : undefined,
+    },
+    {
+      id: "correlations" as TabType,
+      label: "Correlações Cruzadas",
+      icon: Sigma,
+      badge: corr.columns.length >= 2 ? `${corr.columns.length}` : undefined,
+    },
+    {
+      id: "trend" as TabType,
+      label: "Tendências & Previsões",
+      icon: TrendingUp,
+      badge: trend ? trend.direction : undefined,
+    },
+    {
+      id: "segments" as TabType,
+      label: "Segmentos K-Means",
+      icon: Users,
+      badge: segments ? `${segments.k} clusters` : undefined,
+    },
+    {
+      id: "anomalies" as TabType,
+      label: "Anomalias",
+      icon: ShieldAlert,
+      badge: anomalies && anomalies.count > 0 ? `${anomalies.count}` : undefined,
+      badgeColor: anomalies && anomalies.count > 0 ? "bg-rose-100 text-rose-700 font-bold" : undefined,
+    },
+    {
+      id: "studylab" as TabType,
+      label: "Laboratório de Estudo",
+      icon: GraduationCap,
+      badge: "Didático",
+      badgeColor: "bg-indigo-100 text-indigo-700 font-bold",
+    },
+  ];
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
+      {/* Interactive Header */}
       <DataScienceHeader
         connected={connected}
         status={status}
         cached={cached}
         running={running}
+        studyMode={studyMode}
+        onToggleStudyMode={() => setStudyMode((prev) => !prev)}
+        onOpenDictionary={() => setIsDictionaryOpen(true)}
+        onCopyStudySummary={handleCopyStudySummary}
+        copiedSummary={copiedSummary}
         onAnalyse={analisar}
       />
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      {/* Main Content Area */}
+      <main className="max-w-7xl w-full mx-auto px-4 py-6 space-y-6 flex-1">
+        {/* Error Alert with Retry */}
         {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={18} className="shrink-0 text-red-600" />
-              <span>{error}</span>
+          <div className="p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-2xl text-red-700 dark:text-red-300 text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle size={20} className="shrink-0 text-red-600 dark:text-red-400" />
+              <span className="font-medium">{error}</span>
             </div>
             <button
               onClick={analisar}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shrink-0 transition-colors cursor-pointer shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer shadow-sm"
             >
               <RefreshCw size={14} /> Tentar novamente
             </button>
           </div>
         )}
 
-        {/* Overview */}
-        {overview && (
-          <section className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            <StatTile label="Linhas" value={fmt(overview.n_rows)} />
-            <StatTile label="Colunas" value={overview.n_cols} />
-            <StatTile label="Numéricas" value={numericCount} />
-            <StatTile
-              label="Nulos"
-              value={`${overview.null_pct}%`}
-              sub={`${overview.total_nulls} células`}
-            />
-            <StatTile label="Duplicadas" value={overview.n_duplicated} />
-            <StatTile label="Memória" value={`${overview.memory_kb} KB`} />
-          </section>
-        )}
-
-        {/* Qualidade dos dados */}
-        {quality && <QualityCard quality={quality} />}
-
-        {/* Insights */}
-        {insights.length > 0 && <InsightsCard insights={insights} />}
-
-        {/* Tendência (negócio) */}
-        {trend && trend.series.length >= 2 && <TrendChart trend={trend} />}
-
-        {/* Segmentos / perfis */}
-        {segments && <SegmentsView segments={segments} />}
-
-        {/* Anomalias */}
-        {anomalies && anomalies.rows.length > 0 && (
-          <AnomaliesTable anomalies={anomalies} />
-        )}
-
-        {/* Correlações */}
-        {corr.columns.length >= 2 && <CorrHeatmap corr={corr} />}
-
-        {/* Colunas */}
-        {columns.length > 0 && (
-          <section>
-            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">
-              Colunas ({columns.length})
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {columns.map((c) => (
-                <ColumnCard key={c.name} col={c} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Loading inicial */}
+        {/* Loading Spinner */}
         {running && !overview && (
-          <div className="flex flex-col items-center justify-center py-24 text-slate-400">
-            <Loader2 size={40} className="animate-spin mb-4 text-indigo-500" />
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{status}</p>
+          <div className="flex flex-col items-center justify-center py-28 text-slate-400">
+            <div className="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center mb-4 shadow-inner">
+              <Loader2 size={36} className="animate-spin text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <p className="text-base font-bold text-slate-800 dark:text-slate-100">{status}</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Processando matrizes, percentis e detecção de anomalias com pandas...
+            </p>
           </div>
         )}
 
-        {/* Estado vazio quando não está a correr nem há overview */}
+        {/* Empty State */}
         {!running && !overview && !error && (
-          <div className="flex flex-col items-center justify-center py-24 text-slate-400 text-center">
-            <p className="text-sm mb-4">Nenhuma análise carregada de momento.</p>
+          <div className="flex flex-col items-center justify-center py-28 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-sm">
+            <div className="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center mb-4 text-indigo-600 dark:text-indigo-400">
+              <GraduationCap size={32} />
+            </div>
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+              Nenhuma análise estatística ativa
+            </h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-5 leading-relaxed">
+              Carregue os dados da sua consulta ou acesse a partir da aba de Consultas para visualizar métricas, tendências e guias de estudo interativos.
+            </p>
             <button
               onClick={analisar}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer shadow-sm"
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-bold transition-all shadow-md shadow-indigo-200 dark:shadow-none cursor-pointer"
             >
-              Iniciar Análise
+              Iniciar Análise da Base
             </button>
           </div>
         )}
+
+        {/* Loaded Dataset View */}
+        {overview && (
+          <div className="space-y-6">
+            {/* Interactive Tab Navigation Bar */}
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-px">
+              <nav className="flex gap-2 overflow-x-auto scrollbar-none pb-2">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
+                        isActive
+                          ? "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                          : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-900/60"
+                      }`}
+                    >
+                      <Icon size={16} />
+                      <span>{tab.label}</span>
+                      {tab.badge && (
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full ${
+                            tab.badgeColor ||
+                            (isActive
+                              ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                              : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")
+                          }`}
+                        >
+                          {tab.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Tab Views */}
+            {activeTab === "overview" && (
+              <OverviewDashboard
+                overview={overview}
+                quality={quality}
+                insights={insights}
+                columns={columns}
+                studyMode={studyMode}
+                onOpenDictionaryTerm={handleOpenDictionaryTerm}
+                onNavigateTab={(tab) => setActiveTab(tab as TabType)}
+              />
+            )}
+
+            {activeTab === "columns" && (
+              <InteractiveColumnExplorer
+                columns={columns}
+                studyMode={studyMode}
+                onSelectColumn={(col) => setInspectedColumn(col)}
+                onOpenDictionaryTerm={handleOpenDictionaryTerm}
+              />
+            )}
+
+            {activeTab === "correlations" && (
+              <CorrelationStudio
+                corr={corr}
+                studyMode={studyMode}
+                onOpenDictionaryTerm={handleOpenDictionaryTerm}
+              />
+            )}
+
+            {activeTab === "trend" && (
+              <TrendStudio
+                trend={trend}
+                studyMode={studyMode}
+                onOpenDictionaryTerm={handleOpenDictionaryTerm}
+              />
+            )}
+
+            {activeTab === "segments" && (
+              <ClustersStudio
+                segments={segments}
+                studyMode={studyMode}
+                onOpenDictionaryTerm={handleOpenDictionaryTerm}
+              />
+            )}
+
+            {activeTab === "anomalies" && (
+              <AnomaliesStudio
+                anomalies={anomalies}
+                studyMode={studyMode}
+                onOpenDictionaryTerm={handleOpenDictionaryTerm}
+              />
+            )}
+
+            {activeTab === "studylab" && (
+              <StudyLabTab
+                overview={overview}
+                quality={quality}
+                columns={columns}
+                onOpenDictionaryTerm={handleOpenDictionaryTerm}
+                onNavigateTab={(tab) => setActiveTab(tab as TabType)}
+              />
+            )}
+          </div>
+        )}
       </main>
+
+      {/* Column Inspector Modal */}
+      <ColumnInspectorModal
+        col={inspectedColumn}
+        onClose={() => setInspectedColumn(null)}
+        onOpenDictionaryTerm={handleOpenDictionaryTerm}
+      />
+
+      {/* Interactive Data Science Dictionary Modal */}
+      <StudyDictionaryModal
+        isOpen={isDictionaryOpen}
+        onClose={() => setIsDictionaryOpen(false)}
+        initialTermId={dictionaryTermId}
+      />
     </div>
   );
 }

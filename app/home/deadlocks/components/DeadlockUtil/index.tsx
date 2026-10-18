@@ -123,32 +123,44 @@ export const DeadlockTable = ({ viewData, isDarkMode, killProcess }: any) => (
   </div>
 );
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const ModalDeadlock = ({ type, data, loading, onClose }: any) => (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-      <div className="flex justify-between items-center p-4 sm:p-6 border-b dark:border-gray-700">
-        <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white capitalize">
-          {type}
+export const ModalDeadlock = ({ type, data, loading, onClose, standalone = false }: any) => {
+  const panel = (
+    <div className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 w-full overflow-hidden flex flex-col ${
+      standalone ? "mt-4 shadow-sm" : "shadow-2xl max-w-4xl max-h-[90vh]"
+    }`}>
+      <div className="flex justify-between items-center p-4 sm:p-5 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-850">
+        <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white capitalize flex items-center gap-2">
+          <span>🔍 Painel de Diagnóstico:</span>
+          <span className="text-blue-600 dark:text-blue-400">{type}</span>
         </h3>
         <button
           onClick={onClose}
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-xs font-medium flex items-center gap-1 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
         >
-          <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+          <X className="w-4 h-4" />
+          <span>Fechar Painel</span>
         </button>
       </div>
-      <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+      <div className="p-4 sm:p-5 overflow-y-auto max-h-[500px]">
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent" />
+          <div className="flex justify-center py-10">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent" />
           </div>
         ) : (
-          <pre className="text-xs sm:text-sm bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto text-gray-800 dark:text-gray-200">
+          <pre className="text-xs sm:text-sm bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-x-auto text-gray-800 dark:text-gray-200 font-mono">
             {JSON.stringify(data, null, 2)}
           </pre>
         )}
       </div>
     </div>
-  </div>
-);
+  );
+
+  if (standalone) return panel;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      {panel}
+    </div>
+  );
+};
 

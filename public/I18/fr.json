@@ -78,7 +78,10 @@
     "devTest": "Tests (dev)",
     "reference": "Référence",
     "ai": "IA",
-    "nexusCognitiva": "Nexus Cognitiva"
+    "nexusCognitiva": "Nexus Cognitiva",
+    "templates": "Modèles",
+    "deadlocks": "Étude des Interblocages",
+    "transactions": "Transactions de Données"
   },
   "status": {
     "online": "En ligne",

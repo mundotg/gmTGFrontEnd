@@ -11,6 +11,7 @@ import {
 import { useTableColumns } from "@/hook/useTable";
 import { ColumnSkeleton, ErrorDisplay, applyTheme } from "@/util";
 import CriarRegistroNovo from "./criar-registro";
+import CriarDocumentoMongoModal from "./CriarDocumentoMongoModal";
 import ModalAutoCreate from "./ModalIntermediario";
 import usePersistedState from "@/hook/localStoreUse";
 import { FilterableGrid } from "./columns-displayComponent/FilterableGrid";
@@ -83,6 +84,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
 
   const [openIntermediario, setOpenIntermediario] = useState(false);
   const [modalCreateOpen, setModalCreateOpen] = usePersistedState<boolean>(names_caches_value._modal_Create_Open, false);
+  const [mongoModalOpen, setMongoModalOpen] = useState(false);
 
   // ✅ coluna atualmente selecionada/ativa
   const [selectedColumn, setSelectedColumn] = useState<(CampoDetalhado & { tableName: string }) | null>(null);
@@ -165,18 +167,15 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     [columns]
   );
 
-  // ✅ clicar numa coluna abre EDIT na modal
+  // ✅ clicar numa coluna/campo abre EDIT na modal
   const handleColumnClick = useCallback(
     (col: CampoDetalhado & { tableName: string }) => {
       setSelectedColumn(col);
-      // Mongo é schemaless → não abre a modal de esquema (DDL não se aplica).
-      if (!isMongo) {
-        setFieldModalMode("edit");
-        setFieldModalOpen(true);
-      }
+      setFieldModalMode("edit");
+      setFieldModalOpen(true);
       onColumnClick?.(col);
     },
-    [onColumnClick, isMongo]
+    [onColumnClick]
   );
 
   const handleColumnSelect = useCallback(
@@ -211,52 +210,69 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
   const resolveTableInfo = useCallback(
     (tableName: string) => {
       const tn = (tableName || "").trim();
-      if (!tn) return null;
+      const fallbackConnId = Number(user?.info_extra?.id_connection) || 0;
+      const fallbackTableName = tn || tableNames || "";
+      const lastPart = fallbackTableName.includes(".") ? fallbackTableName.split(".").pop()! : fallbackTableName;
 
-      const lastPart = tn.includes(".") ? tn.split(".").pop()! : tn;
+      if (!fallbackTableName) return null;
 
       const found =
         columns?.find((t) => t.table_name === tn) ||
         columns?.find((t) => `${t.schema_name}.${t.table_name}` === tn) ||
         columns?.find((t) => t.table_name === lastPart);
 
-      return found || null;
+      if (found) {
+        return {
+          ...found,
+          connection_id: found.connection_id || fallbackConnId,
+        };
+      }
+
+      return {
+        connection_id: fallbackConnId,
+        table_name: lastPart,
+        schema_name: null,
+        total_colunas: 0,
+        colunas: [],
+      } as unknown as MetadataTableResponse;
     },
-    [columns]
+    [columns, tableNames, user?.info_extra?.id_connection]
   );
 
   const buildDDLRequestFromField = useCallback(
     (f: CampoDetalhado & { tableName: string }, opts?: { original_name?: string }): FieldDDLRequestPayload => {
       const tableInf = resolveTableInfo(f.tableName);
-      if (!tableInf?.table_name) throw new Error(`Tabela não encontrada no metadata: '${f.tableName}'`);
-      if (!tableInf?.connection_id) throw new Error("connection_id não encontrado para esta tabela.");
+      const connId = tableInf?.connection_id || Number(user?.info_extra?.id_connection);
+      const targetTable = tableInf?.table_name || f.tableName || tableNames;
 
-      // 🔥 MELHORIA: Variável para validar se realmente é uma FK antes de enviar
-      const isFk = !!(f.referenced_table && f.field_references);
+      if (!targetTable) throw new Error(`Tabela/Coleção não encontrada: '${f.tableName}'`);
+      if (!connId) throw new Error("connection_id não encontrado para esta tabela/coleção.");
+
+      // Valida se realmente é uma FK antes de enviar (Mongo não possui FK)
+      const isFk = !isMongo && !!(f.referenced_table && f.field_references);
 
       const payload: FieldDDLRequestPayload = {
-        connection_id: tableInf.connection_id,
-        schema_name: tableInf.schema_name || null,
-        table_name: tableInf.table_name,
-        name: f.nome,
-        type: String(f.tipo || "").toUpperCase(),
+        connection_id: connId,
+        schema_name: tableInf?.schema_name || null,
+        table_name: targetTable,
+        name: f.nome.trim(),
+        type: isMongo ? String(f.tipo || "string").toLowerCase() : String(f.tipo || "").toUpperCase(),
 
-        // 🔥 ADEUS 'any'! O TypeScript agora reconhece todos estes campos nativamente
-        length: f.length ?? null,
-        precision: f.precision ?? null,
-        scale: f.scale ?? null,
+        length: isMongo ? null : (f.length ?? null),
+        precision: isMongo ? null : (f.precision ?? null),
+        scale: isMongo ? null : (f.scale ?? null),
 
-        is_nullable: !!f.is_nullable,
+        is_nullable: isMongo ? true : !!f.is_nullable,
         is_unique: !!f.is_unique,
-        is_primary_key: !!f.is_primary_key,
-        is_auto_increment: !!f.is_auto_increment,
-        is_unsigned: !!f.is_unsigned,
+        is_primary_key: isMongo ? false : !!f.is_primary_key,
+        is_auto_increment: isMongo ? false : !!f.is_auto_increment,
+        is_unsigned: isMongo ? false : !!f.is_unsigned,
 
-        default_value: f.default ?? null,
+        default_value: f.default && String(f.default).trim() !== "" ? String(f.default).trim() : null,
         comment: f.comentario ?? null,
-        enum_values: f.enum_valores_encontrados || [],
+        enum_values: isMongo ? [] : (f.enum_valores_encontrados || []),
 
-        // Limpa os dados se não for uma FK válida
+        // Limpa os dados se não for uma FK válida (Mongo nunca tem FK)
         referenced_table: isFk ? f.referenced_table! : null,
         referenced_field: isFk ? f.field_references! : null,
         is_foreign_key: isFk,
@@ -267,7 +283,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
       if (opts?.original_name) payload.original_name = opts.original_name;
       return payload;
     },
-    [resolveTableInfo]
+    [resolveTableInfo, isMongo, user?.info_extra?.id_connection, tableNames]
   );
 
   // ============================================================
@@ -293,26 +309,25 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           const payload = buildDDLRequestFromField(field);
           await api.post(`/database/field/`, payload);
 
-          showAlert("success", `Coluna '${payload.name}' criada em ${payload.table_name}.`);
+          showAlert("success", `${isMongo ? "Campo" : "Coluna"} '${payload.name}' criad${isMongo ? "o" : "a"} em ${payload.table_name}.`);
           window.dispatchEvent(new CustomEvent("schema:changed", { detail: { table: field.tableName } }));
 
           setColumns?.((prevColumns) =>
             prevColumns.map((c) =>
-              c.table_name === field.tableName
+              c.table_name === field.tableName || c.table_name === payload.table_name
                 ? { ...c, colunas: [...c.colunas, field] }
                 : c
             )
           );
         });
       } catch (err: unknown) {
-        // 🔥 MELHORIA: Uso de 'unknown' em vez de 'any'
         const msg = extractApiErrorMessage(err);
         showAlert("error", msg);
         console.error("createColumn error:", err);
         throw err;
       }
     },
-    [api, buildDDLRequestFromField, showAlert, withLoading, setColumns]
+    [api, buildDDLRequestFromField, showAlert, withLoading, setColumns, isMongo]
   );
 
   const updateColumn = useCallback(
@@ -325,13 +340,13 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
         showAlert(
           "success",
           renamed
-            ? `Coluna '${originalName}' renomeada para '${payload.name}'.`
-            : `Coluna '${payload.name}' atualizada com sucesso.`
+            ? `${isMongo ? "Campo" : "Coluna"} '${originalName}' renomead${isMongo ? "o" : "a"} para '${payload.name}'.`
+            : `${isMongo ? "Campo" : "Coluna"} '${payload.name}' atualizad${isMongo ? "o" : "a"} com sucesso.`
         );
 
         window.dispatchEvent(new CustomEvent("schema:changed", { detail: { table: updated.tableName } }));
         setColumns?.(columns?.map((c) => {
-          if (c.table_name === updated.tableName) {
+          if (c.table_name === updated.tableName || c.table_name === payload.table_name) {
             return {
               ...c,
               colunas: c.colunas.map((col) => col.nome === originalName ? { ...col, ...updated } : col)
@@ -346,28 +361,30 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
         throw err;
       });
     },
-    [api, buildDDLRequestFromField, showAlert, withLoading]
+    [api, buildDDLRequestFromField, showAlert, withLoading, isMongo, columns, setColumns]
   );
 
   const deleteColumn = useCallback(
     async (tableName: string, columnName: string) => {
       await withLoading(async () => {
         const tableInf = resolveTableInfo(tableName);
-        if (!tableInf?.connection_id) throw new Error("connection_id não encontrado para esta tabela.");
-        if (!tableInf?.table_name) throw new Error("table_name não encontrado para esta tabela.");
+        const connId = tableInf?.connection_id || Number(user?.info_extra?.id_connection);
+        const tblName = tableInf?.table_name || tableName || tableNames;
+        if (!connId) throw new Error("connection_id não encontrado para esta tabela/coleção.");
+        if (!tblName) throw new Error("table_name não encontrado para esta tabela/coleção.");
 
         const qs = new URLSearchParams();
-        qs.set("connection_id", String(tableInf.connection_id));
-        if (tableInf.schema_name) qs.set("schema_name", tableInf.schema_name);
+        qs.set("connection_id", String(connId));
+        if (tableInf?.schema_name) qs.set("schema_name", tableInf.schema_name);
 
         await api.delete(
-          `/database/field/${encodeURIComponent(tableInf.table_name)}/${encodeURIComponent(columnName)}?${qs.toString()}`
+          `/database/field/${encodeURIComponent(tblName)}/${encodeURIComponent(columnName)}?${qs.toString()}`
         );
 
-        showAlert("success", `Coluna '${columnName}' removida de ${tableInf.table_name}.`);
+        showAlert("success", `${isMongo ? "Campo" : "Coluna"} '${columnName}' removid${isMongo ? "o" : "a"} de ${tblName}.`);
         window.dispatchEvent(new CustomEvent("schema:changed", { detail: { table: tableName } }));
         setColumns?.(columns?.map((c) => {
-          if (c.table_name === tableName) {
+          if (c.table_name === tableName || c.table_name === tblName) {
             return {
               ...c,
               colunas: c.colunas.filter((col) => col.nome !== columnName)
@@ -382,7 +399,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
         throw err;
       });
     },
-    [api, resolveTableInfo, showAlert, withLoading]
+    [api, resolveTableInfo, showAlert, withLoading, user?.info_extra?.id_connection, tableNames, isMongo, columns, setColumns]
   );
 
   // ============================================================
@@ -395,10 +412,10 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
         ? columns[0].schema_name
           ? `${columns[0].schema_name}.${columns[0].table_name}`
           : columns[0].table_name
-        : "";
+        : (tableNames || "");
 
     if (!firstTable) {
-      showAlert("error", "Não encontrei tabela para criar coluna (metadata vazio).");
+      showAlert("error", isMongo ? "Não encontrei coleção para criar campo." : "Não encontrei tabela para criar coluna (metadata vazio).");
       return;
     }
 
@@ -406,26 +423,27 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     setSelectedColumn(null);
     setFieldModalMode("create");
     setFieldModalOpen(true);
-  }, [columns, showAlert]);
+  }, [columns, showAlert, tableNames, isMongo]);
 
   const openEditSelectedColumnModal = useCallback(() => {
     if (!selectedColumn) {
-      showAlert("info", "Selecione uma coluna primeiro.");
+      showAlert("info", isMongo ? "Selecione um campo primeiro." : "Selecione uma coluna primeiro.");
       return;
     }
     setFieldModalMode("edit");
     setFieldModalOpen(true);
-  }, [selectedColumn, showAlert]);
+  }, [selectedColumn, showAlert, isMongo]);
 
   const handleDeleteSelectedColumn = useCallback(async () => {
     if (!selectedColumn) return;
 
-    const ok = window.confirm(`Eliminar a coluna '${selectedColumn.nome}'? Isso é destrutivo.`);
+    const term = isMongo ? "o campo" : "a coluna";
+    const ok = window.confirm(`Eliminar ${term} '${selectedColumn.nome}'? Isso é destrutivo.`);
     if (!ok) return;
 
     await deleteColumn(selectedColumn.tableName, selectedColumn.nome);
     setSelectedColumn(null);
-  }, [selectedColumn, deleteColumn]);
+  }, [selectedColumn, deleteColumn, isMongo]);
 
   // ============================================================
 
@@ -451,6 +469,41 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
     [columns, tableNames, totalCols, gerarRelatorio]
   );
 
+  function handleRowUpdate(updatedRow: EditedFieldForQuery): void {
+    console.log(updatedRow);
+  }
+
+  const handleConfirm = useCallback(() => {
+    if (isMongo) {
+      setMongoModalOpen(true);
+    } else {
+      setModalCreateOpen(true);
+    }
+  }, [isMongo, setModalCreateOpen]);
+
+  const handleMongoSaveSuccess = useCallback(
+    async (insertedDoc: Record<string, any>) => {
+      showAlert("success", `Documento inserido com sucesso na coleção '${tableNames}'!`);
+      try {
+        const targetTable = tableNames || columns?.[0]?.table_name;
+        if (targetTable) {
+          const rs = await api.get<MetadataTableResponse>(
+            `/consu/metadata_fieds/${encodeURIComponent(targetTable)}`,
+            { withCredentials: true, timeout: 65000 }
+          );
+          if (rs.data) {
+            setColumns?.((prev) =>
+              prev.map((c) => (c.table_name === targetTable ? rs.data : c))
+            );
+          }
+        }
+      } catch (err) {
+        console.warn("Falha ao recarregar colunas inferidas após inserção no Mongo:", err);
+      }
+    },
+    [showAlert, tableNames, columns, api, setColumns]
+  );
+
   if (!hydrated) {
     return (
       <div className={`bg-white dark:bg-[#1C1C1E] rounded-lg xs:rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-3 xs:p-4 sm:p-6 ${className}`}>
@@ -468,12 +521,6 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
       </div>
     );
   }
-
-  function handleRowUpdate(updatedRow: EditedFieldForQuery): void {
-    console.log(updatedRow);
-  }
-
-  const handleConfirm = () => setModalCreateOpen(true);
 
   return (
     <div
@@ -579,63 +626,65 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
             />
           )}
 
-          {columns && columns.length > 0 && (
+          {((columns && columns.length > 0) || (isMongo && tableNames)) && (
             <button
-              onClick={() => setOpenIntermediario(true)}
-              className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-blue-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              title={t("actions.newRecord") || "Criar novo registro"}
+              onClick={() => {
+                setOpenIntermediario(true);
+              }}
+              className={`flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 ${
+                isMongo
+                  ? "bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500/50"
+                  : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500/50"
+              }`}
+              title={isMongo ? "Inserir novo documento na coleção MongoDB" : (t("actions.newRecord") || "Criar novo registro")}
             >
               <Plus className="w-3.5 xs:w-4 h-3.5 xs:h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">{t("actions.newRecord") || "Novo Registro"}</span>
+              <span className="hidden sm:inline">
+                {isMongo ? "Novo Documento" : (t("actions.newRecord") || "Novo Registro")}
+              </span>
               <span className="sm:hidden">{t("actions.new") || "Novo"}</span>
             </button>
           )}
 
-          {/* ✅ Operações de esquema (coluna) — não se aplicam a MongoDB */}
-          {isMongo ? (
-            <span
-              className="flex-1 xs:flex-none px-3 py-1.5 text-[11px] xs:text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg xs:rounded-xl flex items-center justify-center gap-1.5"
-              title="No MongoDB os documentos são livres (schemaless) — não há colunas de esquema para criar/editar."
-            >
-              🍃 <span className="hidden sm:inline">MongoDB (schemaless)</span>
+          {/* ✅ Criar coluna / campo */}
+          <button
+            onClick={openCreateColumnModal}
+            className={`flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 ${
+              isMongo
+                ? "bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500/50"
+                : "bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500/50"
+            }`}
+            title={isMongo ? "Criar novo campo nesta coleção MongoDB" : (t("actions.addColumn") || "Criar nova coluna")}
+          >
+            <Plus className="w-3.5 xs:w-4 h-3.5 xs:h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">
+              {isMongo ? "Criar Campo" : (t("actions.addColumn") || "Coluna")}
             </span>
-          ) : (
-            <>
-              {/* ✅ Criar coluna */}
-              <button
-                onClick={openCreateColumnModal}
-                className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-emerald-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                title={t("actions.addColumn") || "Criar nova coluna"}
-              >
-                <Plus className="w-3.5 xs:w-4 h-3.5 xs:h-4 flex-shrink-0" />
-                <span className="hidden sm:inline">{t("actions.addColumn") || "Coluna"}</span>
-                <span className="sm:hidden">+Col</span>
-              </button>
+            <span className="sm:hidden">{isMongo ? "+Campo" : "+Col"}</span>
+          </button>
 
-              {/* ✅ Eliminar selecionada */}
-              {selectedColumn && (
-                <button
-                  onClick={handleDeleteSelectedColumn}
-                  className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-red-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                  title={t("actions.delete") || "Eliminar coluna selecionada"}
-                >
-                  <span className="hidden xs:inline">{t("actions.delete") || "Eliminar"}</span>
-                  <span className="xs:hidden">Del</span>
-                </button>
-              )}
+          {/* ✅ Eliminar selecionada */}
+          {selectedColumn && (
+            <button
+              onClick={handleDeleteSelectedColumn}
+              className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-red-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+              title={isMongo ? "Eliminar campo selecionado" : (t("actions.delete") || "Eliminar coluna selecionada")}
+            >
+              <span className="hidden xs:inline">{isMongo ? "Eliminar Campo" : (t("actions.delete") || "Eliminar")}</span>
+              <span className="xs:hidden">Del</span>
+            </button>
+          )}
 
-              {/* ✅ Editar selecionada */}
-              {selectedColumn && (
-                <button
-                  onClick={openEditSelectedColumnModal}
-                  className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-blue-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                  title={t("actions.edit") || "Editar coluna selecionada"}
-                >
-                  <span className="hidden xs:inline">{t("actions.edit") || "Editar"}</span>
-                  <span className="xs:hidden">✎</span>
-                </button>
-              )}
-            </>
+          {/* ✅ Editar selecionada */}
+          {selectedColumn && (
+            <button
+              onClick={openEditSelectedColumnModal}
+              className="flex-1 xs:flex-none px-3 xs:px-4 py-1.5 xs:py-2 bg-blue-600 text-white text-xs xs:text-sm font-bold rounded-lg xs:rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 xs:gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              title={isMongo ? "Editar / renomear campo selecionado" : (t("actions.edit") || "Editar coluna selecionada")}
+            >
+              <span className="hidden xs:inline">{isMongo ? "Editar Campo" : (t("actions.edit") || "Editar")}</span>
+              <span className="xs:hidden">✎</span>
+            </button>
           )}
 
           <button
@@ -656,10 +705,10 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
         </div>
       </div>
 
-      {/* Modal 3-em-1 (esquema de colunas) — não se aplica a MongoDB */}
+      {/* Modal 3-em-1 (esquema de colunas / campos) */}
       <FieldModal
         key={`${fieldModalMode}-${fieldModalMode === "create" ? selectedTableForCreate : selectedColumn?.tableName}-${selectedColumn?.nome || "new"}`}
-        isOpen={fieldModalOpen && !isMongo}
+        isOpen={fieldModalOpen}
         mode={fieldModalMode}
         field={selectedColumn}
         tableName={fieldModalMode === "create" ? selectedTableForCreate : selectedColumn?.tableName}
@@ -692,6 +741,17 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
         informacaosOftables={columns || []}
         onSave={handleRowUpdate}
       />
+
+      {isMongo && (
+        <CriarDocumentoMongoModal
+          isOpen={mongoModalOpen}
+          onClose={() => setMongoModalOpen(false)}
+          tableName={tableNames || columns?.[0]?.table_name || ""}
+          schemaName={columns?.[0]?.schema_name}
+          knownColumns={columns?.[0]?.colunas || []}
+          onSaveSuccess={handleMongoSaveSuccess}
+        />
+      )}
 
       {/* Alertas do Relatório */}
       {isLoadingRelatorio && (
@@ -781,18 +841,43 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
             </p>
           }
         />
-      ) : (<div className={`px-6 py-10 text-center ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-        <div className={`w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center ${isDarkMode ? "bg-gray-800" : "bg-gray-100"
+      ) : (
+        <div className={`px-6 py-10 text-center ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+          <div className={`w-14 h-14 mx-auto mb-4 rounded-full flex items-center justify-center ${
+            isDarkMode ? "bg-gray-800" : "bg-gray-100"
           }`}>
-          <AlertCircle size={24} className={isDarkMode ? "text-gray-500" : "text-gray-400"} />
+            <AlertCircle size={24} className={isDarkMode ? "text-gray-500" : "text-gray-400"} />
+          </div>
+          <p className={`font-semibold ${isDarkMode ? "text-gray-300" : "text-gray-900"}`}>
+            {isMongo
+              ? "Coleção MongoDB sem documentos ou campos inferidos"
+              : t("messages.noColumnsFound") || "Nenhuma coluna encontrada"}
+          </p>
+          <p className="text-sm mt-1 max-w-md mx-auto">
+            {isMongo
+              ? "Como o MongoDB é schemaless, os campos são gerados a partir dos documentos existentes. Insira o primeiro documento para começar a visualizar os campos!"
+              : t("messages.noVisibleColumns") || "Esta tabela não possui colunas visíveis"}
+          </p>
+          {isMongo && (
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMongoModalOpen(true)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-2"
+              >
+                <Plus size={16} /> Inserir Primeiro Documento
+              </button>
+              <button
+                type="button"
+                onClick={openCreateColumnModal}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-2"
+              >
+                <Plus size={16} /> Criar Campo
+              </button>
+            </div>
+          )}
         </div>
-        <p className={`font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
-          {t('messages.noColumnsFound') || "Nenhuma coluna encontrada"}
-        </p>
-        <p className="text-sm mt-1">
-          {t('messages.noVisibleColumns') || "Esta tabela não possui colunas visíveis"}
-        </p>
-      </div>)}
+      )}
     </div>
   );
 };

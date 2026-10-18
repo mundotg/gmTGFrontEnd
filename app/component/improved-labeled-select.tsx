@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useI18n } from '@/context/I18nContext';
 
 interface Option {
   value: string;
@@ -20,10 +21,12 @@ export const LabeledSelect2: React.FC<LabeledSelectProps2> = ({
   value,
   onChange,
   options,
-  placeholder = '-- Selecione uma opção --',
+  placeholder,
   allowCustomNumber = true,
   maxCustomNumber = 5000,
 }) => {
+  const { t } = useI18n();
+  const effectivePlaceholder = placeholder || t('common.selectOption') || '-- Selecione uma opção --';
   const [isCustomInput, setIsCustomInput] = useState(false);
   const [customValue, setCustomValue] = useState('');
 
@@ -83,7 +86,7 @@ export const LabeledSelect2: React.FC<LabeledSelectProps2> = ({
             onChange={handleCustomInputChange}
             onBlur={handleCustomInputBlur}
             onKeyDown={handleKeyDown}
-            placeholder={`Digite um número ≤ ${maxCustomNumber}`}
+            placeholder={(t('query.customLimitPlaceholder') || 'Digite um número ≤ {max}').replace('{max}', String(maxCustomNumber))}
             className="w-full p-3 border border-blue-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             autoFocus
           />
@@ -97,7 +100,7 @@ export const LabeledSelect2: React.FC<LabeledSelectProps2> = ({
           onChange={handleSelectChange}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
-          <option value="">{placeholder}</option>
+          <option value="">{effectivePlaceholder}</option>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -105,7 +108,7 @@ export const LabeledSelect2: React.FC<LabeledSelectProps2> = ({
           ))}
           {allowCustomNumber && (
             <option value="custom">
-              ✏️ Digitar número personalizado...
+              {t('query.customLimitPrompt') || '✏️ Digitar número personalizado...'}
             </option>
           )}
         </select>
@@ -114,7 +117,7 @@ export const LabeledSelect2: React.FC<LabeledSelectProps2> = ({
       {/* Mensagem de validação */}
       {customValue && parseInt(customValue, 10) > maxCustomNumber && (
         <p className="text-red-500 text-sm mt-1">
-          O número deve ser menor ou igual a {maxCustomNumber}
+          {(t('query.customLimitMaxError') || 'O número deve ser menor ou igual a {max}').replace('{max}', String(maxCustomNumber))}
         </p>
       )}
     </div>

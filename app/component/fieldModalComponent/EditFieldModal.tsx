@@ -48,6 +48,7 @@ const FieldModal: React.FC<FieldModalProps> = ({
   const [form, setForm] = useState<FORMDATA>(EMPTY_FORM);
 
   const dbType = (user?.info_extra?.type || "").toLowerCase();
+  const isMongo = useMemo(() => dbType.includes("mongo"), [dbType]);
   const supportsUnsigned = useMemo(() => ["mysql", "mariadb"].includes(dbType), [dbType]);
 
   // =========================
@@ -158,10 +159,14 @@ const FieldModal: React.FC<FieldModalProps> = ({
     }
 
     if (mode === "create") {
-      setForm(EMPTY_FORM);
-      syncInitialSnapshot(EMPTY_FORM);
+      const initialCreateForm: FORMDATA = {
+        ...EMPTY_FORM,
+        tipo: isMongo ? ("string" as any) : "",
+      };
+      setForm(initialCreateForm);
+      syncInitialSnapshot(initialCreateForm);
     }
-  }, [isOpen, mode, field, supportsUnsigned, syncInitialSnapshot]);
+  }, [isOpen, mode, field, supportsUnsigned, isMongo, syncInitialSnapshot]);
 
   // ESC fecha (com confirm)
   useEffect(() => {
@@ -211,12 +216,72 @@ const FieldModal: React.FC<FieldModalProps> = ({
   const useJoinForFieldReferences = !!getTableColumns && form.referencedTable.trim().length > 0;
 
   // =========================
-  // ✅ Validação
+  // ✅ Validações Preventivas Inteligentes
+  // =========================
+  const nameValidationError = useMemo(() => {
+    const raw = form.nome;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    if (isMongo) {
+      if (trimmed.includes(".")) {
+        return "No MongoDB, o nome do campo não pode conter ponto ('.'), pois é reservado para navegação em documentos aninhados.";
+      }
+      if (trimmed.startsWith("$")) {
+        return "No MongoDB, o nome do campo não pode iniciar com '$' (reservado para operadores).";
+      }
+      if (mode === "create" && trimmed.toLowerCase() === "_id") {
+        return "O campo '_id' é a chave primária reservada do MongoDB e já existe.";
+      }
+      if (trimmed.includes("\0")) {
+        return "O nome do campo não pode conter caracteres nulos.";
+      }
+    } else {
+      if (/\s/.test(trimmed)) {
+        return "O nome da coluna não pode conter espaços.";
+      }
+      if (/[;'"\\]/.test(trimmed)) {
+        return "O nome da coluna contém caracteres especiais não permitidos.";
+      }
+    }
+    return null;
+  }, [form.nome, isMongo, mode]);
+
+  const defaultValueValidationError = useMemo(() => {
+    if (!isMongo || !form.defaultValue || !form.defaultValue.trim()) return null;
+    const val = form.defaultValue.trim();
+    const tipo = (form.tipo || "").toLowerCase();
+
+    if (["int", "long"].includes(tipo)) {
+      if (val !== "NULL" && !/^-?\d+$/.test(val)) {
+        return "Para campos inteiros, o valor padrão deve ser um número inteiro (ex: 0, 100) ou vazio/NULL.";
+      }
+    } else if (["double", "decimal", "number"].includes(tipo)) {
+      if (val !== "NULL" && isNaN(Number(val))) {
+        return "Para campos decimais/numéricos, o valor padrão deve ser um número válido ou vazio/NULL.";
+      }
+    } else if (["object", "array"].includes(tipo)) {
+      if (val !== "NULL") {
+        try {
+          JSON.parse(val);
+        } catch {
+          return `Para tipo ${tipo}, o valor padrão deve ser um JSON válido (ex: ${tipo === "object" ? "{}" : "[]"}).`;
+        }
+      }
+    }
+    return null;
+  }, [isMongo, form.defaultValue, form.tipo]);
+
+  // =========================
+  // ✅ Validação Global
   // =========================
   const isValid = useMemo(() => {
     // 1. Regras Base Universais (Criar e Editar)
     if (!form.nome.trim() || !form.tipo) return false;
     if (!initialTableName) return false;
+
+    // Erros de nome ou valor padrão impedem submissão
+    if (nameValidationError || defaultValueValidationError) return false;
 
     // 2. Regras exclusivas do modo Editar
     if (mode === "edit" && !field) return false;
@@ -232,13 +297,10 @@ const FieldModal: React.FC<FieldModalProps> = ({
       if (form.length !== undefined && form.length <= 0) return false;
     }
 
-    // 4. 🔥 NOVA REGRA: ENUM
-    // Se o tipo do campo for ENUM, tem de ter pelo menos 1 valor na lista
+    // 4. Regra ENUM (apenas relacional)
     if (isEnumType && form.enumValues.length === 0) return false;
 
-    // 5. 🔥 NOVA REGRA: Chave Estrangeira (Foreign Key)
-    // Se preencher a Tabela, tem de preencher a Coluna (e vice-versa). 
-    // Ou preenche os dois, ou deixa os dois em branco.
+    // 5. Chave Estrangeira (apenas relacional)
     const hasRefTable = form.referencedTable.trim().length > 0;
     const hasRefField = form.fieldReferences.trim().length > 0;
     if ((hasRefTable && !hasRefField) || (!hasRefTable && hasRefField)) {
@@ -249,24 +311,62 @@ const FieldModal: React.FC<FieldModalProps> = ({
   }, [
     form,
     initialTableName,
+    nameValidationError,
+    defaultValueValidationError,
     shouldShowPrecisionScale,
     shouldShowLength,
     mode,
     field,
-    isEnumType // 👈 Não te esqueças de adicionar esta dependência
+    isEnumType,
   ]);
 
   const title = useMemo(() => {
-    if (mode === "create") return t("modals.createField") || "Criar Campo";
-    return t("modals.editField") || "Editar Campo";
-  }, [mode, t]);
+    if (mode === "create") return isMongo ? "Criar Campo (MongoDB)" : (t("modals.createField") || "Criar Campo");
+    return isMongo ? "Editar Campo (MongoDB)" : (t("modals.editField") || "Editar Campo");
+  }, [mode, t, isMongo]);
 
   const primaryButtonText = useMemo(() => {
     if (mode === "create") return t("actions.create") || "Criar";
     return t("actions.saveChanges") || "Salvar alterações";
   }, [mode, t]);
+
+  const extractFormError = (err: any): string => {
+    const rawMsg =
+      err?.response?.data?.detail ||
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message;
+
+    if (typeof rawMsg === "string" && rawMsg.trim()) {
+      const lower = rawMsg.toLowerCase();
+      if (lower.includes("cannot use mongoclient after close") || lower.includes("mongoclient")) {
+        return "A conexão com o MongoDB foi restabelecida no servidor. Por favor, tente clicar novamente em salvar.";
+      }
+      if (lower.includes("already exists") || lower.includes("duplicate") || lower.includes("já existe")) {
+        return `Já existe um campo ou coluna com o nome '${form.nome.trim()}'.`;
+      }
+      return rawMsg;
+    }
+
+    try {
+      return JSON.stringify(err?.response?.data || err);
+    } catch {
+      return "Erro inesperado ao comunicar com o servidor. Verifique os dados e tente novamente.";
+    }
+  };
+
   const handlePrimaryAction = useCallback(async () => {
     setErrorMsg(null);
+
+    if (nameValidationError) {
+      setErrorMsg(nameValidationError);
+      return;
+    }
+
+    if (defaultValueValidationError) {
+      setErrorMsg(defaultValueValidationError);
+      return;
+    }
 
     if (!isValid) {
       setErrorMsg("Preencha os campos obrigatórios corretamente.");
@@ -275,36 +375,32 @@ const FieldModal: React.FC<FieldModalProps> = ({
 
     const table = initialTableName;
     if (!table) {
-      setErrorMsg("tableName não informado.");
+      setErrorMsg("Nome da tabela/coleção não informado.");
       return;
     }
 
-    // 🔥 MELHORIA 1: Fim do uso de 'any', agora o TypeScript protege o baseField
     const baseField: Partial<CampoDetalhado> = mode === "edit" && field ? { ...field } : {};
-
-    // Verifica se os campos formam uma FK válida para limpar o payload
-    const isFk = !!form.referencedTable.trim() && !!form.fieldReferences.trim();
+    const isFk = !isMongo && !!form.referencedTable.trim() && !!form.fieldReferences.trim();
 
     const payloadField: CampoDetalhado & { tableName: string } = {
       ...baseField,
       nome: form.nome.trim(),
       tipo: form.tipo as tipo_db_Options,
 
-      length: form.length,
-      precision: form.precision,
-      scale: form.scale,
+      length: isMongo ? undefined : form.length,
+      precision: isMongo ? undefined : form.precision,
+      scale: isMongo ? undefined : form.scale,
 
-      is_nullable: form.isNullable,
+      is_nullable: isMongo ? true : form.isNullable,
       is_unique: form.isUnique,
-      is_primary_key: form.isPrimaryKey,
-      is_auto_increment: form.isAutoIncrement,
-      is_unsigned: form.isUnsigned,
+      is_primary_key: isMongo ? false : form.isPrimaryKey,
+      is_auto_increment: isMongo ? false : form.isAutoIncrement,
+      is_unsigned: isMongo ? false : form.isUnsigned,
       is_foreign_key: isFk,
-      default: form.defaultValue,
+      default: form.defaultValue && form.defaultValue.trim() !== "" ? form.defaultValue.trim() : undefined,
       comentario: form.comentario,
-      enum_valores_encontrados: form.enumValues,
+      enum_valores_encontrados: isMongo ? [] : form.enumValues,
 
-      // 🔥 MELHORIA 2: Envia 'null' em vez de string vazia se não for uma FK
       referenced_table: isFk ? form.referencedTable.trim() : null,
       field_references: isFk ? form.fieldReferences.trim() : null,
       on_delete_action: isFk ? form.onDeleteAction : undefined,
@@ -324,12 +420,25 @@ const FieldModal: React.FC<FieldModalProps> = ({
       syncInitialSnapshot(form);
       onClose();
     } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : "Falha ao executar operação.";
+      const errorMessage = extractFormError(e);
       setErrorMsg(errorMessage);
     } finally {
       setLocalBusy(false);
     }
-  }, [mode, isValid, initialTableName, field, form, onCreate, onUpdate, onClose, syncInitialSnapshot]);
+  }, [
+    mode,
+    isValid,
+    nameValidationError,
+    defaultValueValidationError,
+    initialTableName,
+    field,
+    form,
+    isMongo,
+    onCreate,
+    onUpdate,
+    onClose,
+    syncInitialSnapshot,
+  ]);
 
   const handleDelete = useCallback(async () => {
     if (!field) return;
@@ -342,7 +451,8 @@ const FieldModal: React.FC<FieldModalProps> = ({
       return;
     }
 
-    const ok = window.confirm(`Eliminar a coluna '${col}'? Isso é destrutivo.`);
+    const term = isMongo ? "o campo" : "a coluna";
+    const ok = window.confirm(`Eliminar ${term} '${col}'? Isso é destrutivo.`);
     if (!ok) return;
 
     setErrorMsg(null);
@@ -351,11 +461,11 @@ const FieldModal: React.FC<FieldModalProps> = ({
       await onDelete({ tableName: table, columnName: col });
       onClose();
     } catch (e: any) {
-      setErrorMsg(e?.message || "Falha ao eliminar coluna.");
+      setErrorMsg(extractFormError(e) || `Falha ao eliminar ${term}.`);
     } finally {
       setLocalBusy(false);
     }
-  }, [field, initialTableName, onDelete, onClose]);
+  }, [field, initialTableName, onDelete, onClose, isMongo]);
 
   if (!isOpen) return null;
 
@@ -387,12 +497,12 @@ const FieldModal: React.FC<FieldModalProps> = ({
               </h2>
               <p className="text-xs font-medium text-gray-500">
                 {mode === "create"
-                  ? "Crie uma nova coluna na tabela selecionada."
-                  : t("modals.editFieldDesc") || "Configure metadados e relacionamentos desta coluna."}
+                  ? (isMongo ? "Crie um novo campo nos documentos desta coleção." : "Crie uma nova coluna na tabela selecionada.")
+                  : (isMongo ? "Configure ou renomeie este campo na coleção." : (t("modals.editFieldDesc") || "Configure metadados e relacionamentos desta coluna."))}
               </p>
               {initialTableName && (
                 <p className="mt-1 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
-                  Tabela: <span className="text-gray-600">{initialTableName}</span>
+                  {isMongo ? "Coleção" : "Tabela"}: <span className="text-gray-600">{initialTableName}</span>
                 </p>
               )}
             </div>
@@ -427,6 +537,8 @@ const FieldModal: React.FC<FieldModalProps> = ({
             userDbType={user?.info_extra?.type}
             tiposPorBanco={tiposPorBanco}
             t={t}
+            nameError={nameValidationError}
+            mode={mode}
           />
 
           <AtributosRestricoes
@@ -439,16 +551,18 @@ const FieldModal: React.FC<FieldModalProps> = ({
             t={t}
           />
 
-          {/* Foreign Key */}
-          <ChaveEstrangeira
-            form={form}
-            updateFormField={updateFormField}
-            busy={busy}
-            isForeignKey={isForeignKey}
-            useJoinForFieldReferences={useJoinForFieldReferences}
-            tabelaExistenteNaDB={tabelaExistenteNaDB}
-            getTableColumns={getTableColumns} // 🔥 GARANTIDO!
-          />
+          {/* Foreign Key - não aplicável no MongoDB */}
+          {!isMongo && (
+            <ChaveEstrangeira
+              form={form}
+              updateFormField={updateFormField}
+              busy={busy}
+              isForeignKey={isForeignKey}
+              useJoinForFieldReferences={useJoinForFieldReferences}
+              tabelaExistenteNaDB={tabelaExistenteNaDB}
+              getTableColumns={getTableColumns} // 🔥 GARANTIDO!
+            />
+          )}
         </div>
 
         {/* Footer */}

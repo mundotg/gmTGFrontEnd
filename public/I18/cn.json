@@ -78,7 +78,10 @@
     "storage": "存储",
     "devTest": "测试（开发）",
     "reference": "参考",
-    "ai": "AI"
+    "ai": "AI",
+    "templates": "模板",
+    "deadlocks": "死锁分析",
+    "transactions": "数据事务"
   },
   "status": {
     "online": "在线",

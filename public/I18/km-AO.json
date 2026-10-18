@@ -78,7 +78,10 @@
     "storage": "Kubamba (Armazenamento)",
     "devTest": "Iteta (Testes dev)",
     "reference": "Referência",
-    "ai": "IA"
+    "ai": "IA",
+    "templates": "Ilongeso",
+    "deadlocks": "Kulongisa Deadlocks",
+    "transactions": "Ekongelo lio Dados"
   },
   "status": {
     "online": "Ku internet",

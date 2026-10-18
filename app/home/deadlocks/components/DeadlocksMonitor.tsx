@@ -13,13 +13,15 @@ import { useSession } from "@/context/SessionContext";
 import { ActionButton, DeadlockTable, EmptyState, ModalDeadlock } from "./DeadlockUtil";
 
 interface DeadlocksMonitorProps {
-  onClose: () => void;
+  onClose?: () => void;
   isDarkMode: boolean;
+  standalone?: boolean;
 }
 
 export const DeadlocksMonitor: React.FC<DeadlocksMonitorProps> = ({
   onClose,
   isDarkMode,
+  standalone = false,
 }) => {
 
   const {api} = useSession()
@@ -55,10 +57,10 @@ export const DeadlocksMonitor: React.FC<DeadlocksMonitorProps> = ({
 
   const toggleStream =useCallback( () => (isRunning ? stopStream() : startStream()),[isRunning]);
 
-  const onCloseModal =useCallback(()=>{
-    if(isRunning) stopStream() ;
-    onClose()
-  },[isRunning])
+  const onCloseModal = useCallback(() => {
+    if (isRunning) stopStream();
+    if (onClose) onClose();
+  }, [isRunning, stopStream, onClose]);
   const empty = !viewData.length || viewData[0]?.count === 0;
 
   const fetchModalData = async (route: string, modal: string) => {
@@ -92,11 +94,15 @@ export const DeadlocksMonitor: React.FC<DeadlocksMonitorProps> = ({
 
   return (
     <div className={`
-      space-y-4 p-4 sm:p-6 rounded-xl
-      ${isDarkMode
-        ? 'bg-gray-900 text-white'
-        : 'bg-white text-gray-900'}
-      shadow-xl
+      space-y-4 p-4 sm:p-6 rounded-2xl transition-all
+      ${standalone
+        ? isDarkMode
+          ? 'bg-[#1C1C1E] border border-gray-800 text-white shadow-sm'
+          : 'bg-white border border-gray-200 text-gray-900 shadow-sm'
+        : isDarkMode
+          ? 'bg-gray-900 text-white shadow-xl'
+          : 'bg-white text-gray-900 shadow-xl'
+      }
     `}>
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
@@ -131,19 +137,21 @@ export const DeadlocksMonitor: React.FC<DeadlocksMonitorProps> = ({
             <span>{isRunning ? "Pausar" : "Iniciar"}</span>
           </button>
 
-          <button
-            onClick={onCloseModal}
-            className={`
-              px-4 py-2 rounded-lg font-medium text-sm
-              transition-all shadow-sm hover:shadow-md
-              ${isDarkMode
-                ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                : 'bg-gray-500 hover:bg-gray-600 text-white'}
-              focus:outline-none focus:ring-2 focus:ring-offset-2
-            `}
-          >
-            Fechar
-          </button>
+          {onClose && (
+            <button
+              onClick={onCloseModal}
+              className={`
+                px-4 py-2 rounded-lg font-medium text-sm
+                transition-all shadow-sm hover:shadow-md
+                ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-500 hover:bg-gray-600 text-white'}
+                focus:outline-none focus:ring-2 focus:ring-offset-2
+              `}
+            >
+              Fechar
+            </button>
+          )}
         </div>
       </div>
 
@@ -183,13 +191,14 @@ export const DeadlocksMonitor: React.FC<DeadlocksMonitorProps> = ({
         />
       )}
 
-      {/* MODAL */}
+      {/* MODAL / PAINEL INTEGRADO */}
       {modalType && (
         <ModalDeadlock
           type={modalType}
           data={modalData}
           loading={loadingAction}
           onClose={closeModal}
+          standalone={standalone}
         />
       )}
     </div>

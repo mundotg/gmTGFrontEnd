@@ -78,7 +78,10 @@
     "storage": "Epako (Armazenamento)",
     "devTest": "Ovilikilo (Testes dev)",
     "reference": "Referência",
-    "ai": "IA"
+    "ai": "IA",
+    "templates": "Ovihemba",
+    "deadlocks": "Ekongelo lio Deadlocks",
+    "transactions": "Okututisa Kuolombilisi"
   },
   "status": {
     "online": "Kuli",
