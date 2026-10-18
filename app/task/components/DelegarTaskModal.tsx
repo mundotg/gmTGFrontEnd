@@ -173,7 +173,7 @@ const DelegateTaskModal: React.FC<DelegateTaskModalProps> = ({
             placeholder="Nome ou email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+            className="w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
             autoFocus
           />
           {isLoadingUsers && searchTerm && (

@@ -298,7 +298,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               onChange={handleChange("name")}
               placeholder="Ex: Sistema de Vendas"
               required
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
             />
           </div>
 
@@ -313,7 +313,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               onChange={handleChange("description")}
               placeholder="Descreva o objetivo e escopo do projeto..."
               rows={3}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
             />
           </div>
 
@@ -378,7 +378,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                   {formState.teamMembers.map((id) => (
                     <div
                       key={id}
-                      className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm"
+                      className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium"
                     >
                       <span className="truncate max-w-[140px]">{id}</span>
                       <button
@@ -405,7 +405,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                 type="text"
                 value={user?.nome ?? "Desconhecido"}
                 readOnly
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-gray-100"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-gray-100 text-sm font-normal text-gray-700"
               />
             </div>
 
@@ -417,9 +417,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                 type="datetime-local"
                 value={formState.createdAt || defaultCreatedAt}
                 onChange={handleChange("createdAt")}
-                className={`w-full border border-gray-300 rounded-lg px-4 py-3 ${editingProject
+                className={`w-full border border-gray-300 rounded-lg px-4 py-3 text-sm font-normal text-gray-900 ${editingProject
                   ? "focus:ring-2 focus:ring-indigo-500"
-                  : "bg-gray-100"
+                  : "bg-gray-100 text-gray-700"
                   }`}
                 readOnly={!editingProject}
               />
@@ -435,7 +435,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
               type="datetime-local"
               value={formState.dueDate}
               onChange={handleChange("dueDate")}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-normal text-gray-900"
             />
           </div>
 
@@ -451,13 +451,13 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
             <button
               type="button"
               onClick={() => { clearForm(); onClose() }}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm sm:text-base transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors"
+              className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm sm:text-base transition-colors"
             >
               {editingProject ? "Atualizar Projeto" : "Criar Projeto"}
             </button>

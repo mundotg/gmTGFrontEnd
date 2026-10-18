@@ -251,7 +251,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* HEADER */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">
+          <h2 className="text-xl font-bold tracking-tight text-gray-900">
             {editingTask ? "Editar Tarefa" : "Nova Tarefa"}
           </h2>
           <button
@@ -539,7 +539,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
               type="button"
               onClick={handleClose}
               disabled={isLoading}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 transition-colors"
             >
               Cancelar
             </button>
@@ -547,7 +547,7 @@ export const TaskModal: React.FC<TaskModalPropsExtended> = ({
               type="submit"
               onClick={handleSubmit}
               disabled={isLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 text-sm font-medium disabled:opacity-50 transition-colors"
             >
               {isLoading ? (
                 <>

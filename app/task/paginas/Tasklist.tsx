@@ -454,139 +454,252 @@ function TaskList({
             <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
           </button>
           {/* Informações do Projeto / Sprint */}
-          <div className="flex flex-col min-w-0"> <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate"> project_name: {project.name} </h2>
-          </div> {sprint && (<div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800 truncate"> sprint_name:{sprint.name} </h3>
-          </div>)}
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-gray-900 truncate">
+                <span className="font-medium text-gray-500 text-sm sm:text-base mr-1">Projeto:</span>
+                {project.name}
+              </h2>
+            </div>
+            {sprint && (
+              <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                <h3 className="text-sm sm:text-base lg:text-lg font-semibold tracking-tight text-gray-800 truncate">
+                  <span className="font-medium text-gray-500 text-xs sm:text-sm mr-1">Sprint:</span>
+                  {sprint.name}
+                </h3>
+              </div>
+            )}
           </div>
         </div>
         {/* Direita: Ações */}
         <div className="flex items-center gap-2">
           {/* Mobile Menu Toggle */}
-          <button onClick={() => setShowMobileMenu((prev) => !prev)}
-            className="sm:hidden p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all" title="Menu" aria-label="Abrir menu" >
-            <Menu size={18} /> </button>
+          <button
+            onClick={() => setShowMobileMenu((prev) => !prev)}
+            className="sm:hidden p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-medium text-sm"
+            title="Menu"
+            aria-label="Abrir menu"
+          >
+            <Menu size={18} />
+          </button>
           {/* Desktop Buttons */}
           <div className="hidden sm:flex items-center gap-2">
-            <button onClick={handleRefresh} disabled={loading || refreshing}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-all" >
+            <button
+              onClick={handleRefresh}
+              disabled={loading || refreshing}
+              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-all"
+            >
               <RefreshCw size={16} className={loading || refreshing ? "animate-spin" : ""} />
               <span>Atualizar</span>
             </button>
-            <button onClick={() => onOpenAddTask(project.id!, sprint?.id)}
-              className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm hover:shadow-md transition-all text-sm" >
-              <Plus size={16} /> <span>Nova Tarefa</span> </button>
+            <button
+              onClick={() => onOpenAddTask(project.id!, sprint?.id)}
+              className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm hover:shadow-md transition-all text-sm font-medium"
+            >
+              <Plus size={16} /> <span>Nova Tarefa</span>
+            </button>
             <ReportButton
               onGenerate={handleGerarRelatorio}
               formats={FORMATS}
               hasResults={true}
               isLoading={isLoadingRelatorio}
-            /></div>
+            />
+          </div>
         </div>
       </div>
       {/* Menu Mobile */}
       {showMobileMenu && (
-        <div className="sm:hidden mt-3 flex flex-col gap-2 px-4"> <button onClick={() => { onOpenAddTask(project.id!, sprint?.id); setShowMobileMenu(false); }}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm text-sm" >
-          <Plus size={16} /> Nova Tarefa </button> <button onClick={() => {
-            fetchTasks(); setShowMobileMenu(false);
-          }}
-            disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 text-sm" >
+        <div className="sm:hidden mt-3 flex flex-col gap-2 px-4">
+          <button
+            onClick={() => {
+              onOpenAddTask(project.id!, sprint?.id);
+              setShowMobileMenu(false);
+            }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm text-sm font-medium"
+          >
+            <Plus size={16} /> Nova Tarefa
+          </button>
+          <button
+            onClick={() => {
+              fetchTasks();
+              setShowMobileMenu(false);
+            }}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 text-sm font-medium"
+          >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Atualizar
-          </button> <ReportButton
+          </button>
+          <ReportButton
             onGenerate={handleGerarRelatorio}
             formats={FORMATS}
             hasResults={true}
-
             isLoading={isLoadingRelatorio}
-          /></div>)} {/* Estatísticas */} <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-3 mt-4"> {/* Cartões de Estatísticas */}
+          />
+        </div>
+      )}
+
+      {/* Estatísticas */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-3 mt-4">
         <StatCard label="Total de Tarefas" value={stats.total} icon={<Target size={16} className="sm:w-[18px] sm:h-[18px]" />} color="blue" description="Todas as tarefas do projeto" />
-        <StatCard label="Concluídas" value={stats.completed} icon={<CheckSquare size={16} className="sm:w-[18px] sm:h-[18px]" />}
-          color="green" description={`${stats.progress_percent}% do total`} />
-        <StatCard label="Em Andamento" value={stats.in_progress} icon={<Clock size={16} className="sm:w-[18px] sm:h-[18px]" />}
-          color="orange" description="Tarefas ativas" /> <StatCard label="Pendentes" value={stats.pending} icon={<AlertCircle size={16} className="sm:w-[18px] sm:h-[18px]" />} color="yellow" description="Aguardando início" />
+        <StatCard label="Concluídas" value={stats.completed} icon={<CheckSquare size={16} className="sm:w-[18px] sm:h-[18px]" />} color="green" description={`${stats.progress_percent}% do total`} />
+        <StatCard label="Em Andamento" value={stats.in_progress} icon={<Clock size={16} className="sm:w-[18px] sm:h-[18px]" />} color="orange" description="Tarefas ativas" />
+        <StatCard label="Pendentes" value={stats.pending} icon={<AlertCircle size={16} className="sm:w-[18px] sm:h-[18px]" />} color="yellow" description="Aguardando início" />
         <StatCard label="Em Revisão" value={stats.in_review} icon={<BarChart3 size={16} className="sm:w-[18px] sm:h-[18px]" />} color="purple" description="Aguardando aprovação" />
         <StatCard label="Horas Estimadas" value={stats.total_estimated_hours} icon={<TrendingUp size={16} className="sm:w-[18px] sm:h-[18px]" />} color="indigo" description="Total de horas planejadas" isHours={true} />
       </div>
+
       {/* Barra de Controles */}
-      <div className="bg-white rounded-lg sm:rounded-xl border shadow-sm p-3 sm:p-4 mb-3 sm:mb-4"> <div className="flex flex-col gap-3 sm:gap-4">
-        {/* Linha 1: Busca e Controles */}
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          {/* Busca */}
-          <div className="flex-1 relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input type="text" placeholder="Buscar por título..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 sm:py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm" />
-          </div>
-          {/* Agrupamento e Filtros */}
-          <div className="flex gap-2">
-            <div className="flex-1 sm:flex-none flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border min-w-0 sm:min-w-[160px]">
-              <LayoutGrid size={14} className="text-gray-600 flex-shrink-0" />
-              <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as GroupByOption)}
-                className="flex-1 bg-transparent border-none focus:ring-0 text-xs sm:text-sm font-medium text-gray-700 min-w-0" >
-                <option value="sprint">Por Sprint</option> <option value="status">Por Status</option> <option value="priority">Por Prioridade</option>
-                <option value="assignee">Por Responsável</option> <option value="none">Lista Simples</option>
-              </select> </div>
-            {/* Botão Filtros */}
-            <button onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${showFilters || hasActiveFilters ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`} >
-              <Filter size={14} /> <span className="hidden sm:inline">Filtros</span>
-              {hasActiveFilters && (<span className="bg-white text-indigo-600 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-xs font-bold"> ! </span>)}
-            </button> </div>
-        </div>
-        {/* Filtros Avançados */}
-        {showFilters && (<div className="pt-3 sm:pt-4 border-t space-y-3 sm:space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-xs sm:text-sm font-semibold text-gray-700">Filtros Avançados</span>
-            <div className="flex items-center gap-2">
-              {hasActiveFilters && (<button onClick={clearFilters}
-                className="text-xs text-red-600 hover:text-red-800 flex items-center gap-1 transition-colors" > <X size={12} />
-                <span className="hidden sm:inline">Limpar filtros</span> </button>)}
-              <span className="text-xs text-gray-500"> {tasks.length} de {paginate.total} </span>
+      <div className="bg-white rounded-lg sm:rounded-xl border shadow-sm p-3 sm:p-4 mb-3 sm:mb-4">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          {/* Linha 1: Busca e Controles */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            {/* Busca */}
+            <div className="flex-1 relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar por título..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 sm:py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
+              />
+            </div>
+            {/* Agrupamento e Filtros */}
+            <div className="flex gap-2">
+              <div className="flex-1 sm:flex-none flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg border min-w-0 sm:min-w-[160px]">
+                <LayoutGrid size={14} className="text-gray-600 flex-shrink-0" />
+                <select
+                  value={groupBy}
+                  onChange={(e) => setGroupBy(e.target.value as GroupByOption)}
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-xs sm:text-sm font-medium text-gray-700 min-w-0"
+                >
+                  <option value="sprint">Por Sprint</option>
+                  <option value="status">Por Status</option>
+                  <option value="priority">Por Prioridade</option>
+                  <option value="assignee">Por Responsável</option>
+                  <option value="none">Lista Simples</option>
+                </select>
+              </div>
+              {/* Botão Filtros */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
+                  showFilters || hasActiveFilters
+                    ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <Filter size={14} />
+                <span className="hidden sm:inline">Filtros</span>
+                {hasActiveFilters && (
+                  <span className="bg-white text-indigo-600 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-xs font-bold">
+                    !
+                  </span>
+                )}
+              </button>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div> <label className="text-xs font-medium text-gray-600 mb-1.5 block">📊 Status</label>
-              <select value={statusFilter}
-                //eslint-disable-next-line @typescript-eslint/no-explicit-any 
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm" >
-                <option value="">Todos os status</option> {STATUS_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}> {s.label} </option>))}
-              </select> </div> <div> <label className="text-xs font-medium text-gray-600 mb-1.5 block">⚡ Prioridade</label>
-              <select value={priorityFilter}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any 
-                onChange={(e) => setPriorityFilter(e.target.value as any)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm" >
-                {PRIORITY_OPTIONS.map((p) => (
-                  <option key={p.value} value={p.value}> {p.label} </option>))}
-              </select> </div> {!sprint && <div>
-                <label className="text-xs font-medium text-gray-600 mb-1.5 block">🏃 Sprint</label>
-                <select value={sprintFilter} onChange={(e) => setSprintFilter(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm" >
-                  <option value="">Todas as sprints</option>
-                  {sprintsList.map((sprint) => (<option key={sprint.id} value={sprint.id}> 🏃 {sprint.name} {sprint.is_active ? " (Ativa)" : ""} </option>))}
-                </select>
-              </div>}
+
+          {/* Filtros Avançados */}
+          {showFilters && (
+            <div className="pt-3 sm:pt-4 border-t space-y-3 sm:space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-xs sm:text-sm font-semibold text-gray-800 tracking-tight">Filtros Avançados</span>
+                <div className="flex items-center gap-2">
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className="text-xs font-medium text-red-600 hover:text-red-800 flex items-center gap-1 transition-colors"
+                    >
+                      <X size={12} />
+                      <span className="hidden sm:inline">Limpar filtros</span>
+                    </button>
+                  )}
+                  <span className="text-xs font-normal text-gray-500">
+                    {tasks.length} de {paginate.total}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1.5 block">📊 Status</label>
+                  <select
+                    value={statusFilter}
+                    //eslint-disable-next-line @typescript-eslint/no-explicit-any 
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm font-normal text-gray-800"
+                  >
+                    <option value="">Todos os status</option>
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1.5 block">⚡ Prioridade</label>
+                  <select
+                    value={priorityFilter}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any 
+                    onChange={(e) => setPriorityFilter(e.target.value as any)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm font-normal text-gray-800"
+                  >
+                    <option value="">Todas as prioridades</option>
+                    {PRIORITY_OPTIONS.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {!sprint && (
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 mb-1.5 block">🏃 Sprint</label>
+                    <select
+                      value={sprintFilter}
+                      onChange={(e) => setSprintFilter(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm font-normal text-gray-800"
+                    >
+                      <option value="">Todas as sprints</option>
+                      {sprintsList.map((sprint) => (
+                        <option key={sprint.id} value={sprint.id}>
+                          🏃 {sprint.name} {sprint.is_active ? " (Ativa)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Barra de progresso */}
+          <div className="bg-white rounded-lg border shadow-sm p-3 sm:p-4 mt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+              <div className="flex-1">
+                <div className="flex justify-between mb-1.5">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700">Progresso Geral</span>
+                  <span className="text-xs sm:text-sm font-bold tracking-tight text-indigo-600">
+                    {stats.progress_percent}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 sm:h-2.5 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${stats.progress_percent}%` }}
+                  />
+                </div>
+              </div>
+              <div className="text-xs font-normal text-gray-500 sm:text-right flex sm:flex-col justify-between sm:justify-end gap-1">
+                <div>Atualizado {safeDateTime2(lastUpdated)}</div>
+                <div>{stats.completed} de {stats.total} concluídas</div>
+              </div>
+            </div>
           </div>
-        </div>)}
-        {/* Barra de progresso */}
-        <div className="bg-white rounded-lg border shadow-sm p-3 sm:p-4 mt-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-            <div className="flex-1"> <div className="flex justify-between mb-1.5">
-              <span className="text-xs sm:text-sm font-medium text-gray-700">Progresso Geral</span>
-              <span className="text-xs sm:text-sm font-bold text-indigo-600"> {stats.progress_percent}% </span>
-            </div> <div className="w-full bg-gray-200 rounded-full h-2 sm:h-2.5 overflow-hidden">
-                <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${stats.progress_percent}%` }} />
-              </div> </div>
-            <div className="text-xs text-gray-500 sm:text-right flex sm:flex-col justify-between sm:justify-end gap-1">
-              <div>Atualizado {safeDateTime2(lastUpdated)}</div>
-              <div>{stats.completed} de {stats.total} concluídas</div>
-            </div> </div>
-        </div> </div>
+        </div>
       </div>
-    </header >
+    </header>
 
     {/* 🔹 Conteúdo */}
 

@@ -190,11 +190,11 @@ const ProjectList: React.FC<ProjectListProps> = ({
             {/* Cabeçalho */}
             <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
               <button className="flex-1 text-left min-w-0" onClick={() => onSelectProject(project)}>
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors truncate">
+                <h3 className="text-lg sm:text-xl font-semibold tracking-tight text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors truncate">
                   {project.name}
                 </h3>
                 {project.description && (
-                  <p className="text-gray-600 text-sm mb-2 line-clamp-2">{project.description}</p>
+                  <p className="text-gray-600 text-sm font-normal leading-relaxed mb-2 line-clamp-2">{project.description}</p>
                 )}
               </button>
               <div className="flex space-x-1 sm:ml-4 self-end sm:self-start">
@@ -224,7 +224,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
                   <Target size={16} className="text-indigo-600" />
                   <span className="text-xs font-medium text-indigo-900">Tarefas</span>
                 </div>
-                <p className="text-lg sm:text-xl font-bold text-indigo-700">
+                <p className="text-lg sm:text-xl font-bold tracking-tight text-indigo-700">
                   {completedTasks}/{totalTasks}
                 </p>
               </div>
@@ -233,7 +233,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
                   <CheckCircle2 size={16} className="text-green-600" />
                   <span className="text-xs font-medium text-green-900">Progresso</span>
                 </div>
-                <p className="text-lg sm:text-xl font-bold text-green-700">{progress.toFixed(0)}%</p>
+                <p className="text-lg sm:text-xl font-bold tracking-tight text-green-700">{progress.toFixed(0)}%</p>
               </div>
             </div>
 
@@ -258,7 +258,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
                   onClick={() =>
                     setOpenSprintModal({ project: { projectId: project.id!, name: project.name } })
                   }
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs sm:text-sm font-semibold hover:bg-indigo-100 transition"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs sm:text-sm font-medium hover:bg-indigo-100 transition"
                 >
                   <Plus size={14} />
                   <span className="hidden sm:inline">Nova Sprint</span>
@@ -280,7 +280,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
 
             {/* Rodapé */}
             <footer className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
-              <div className="text-xs text-gray-500 flex items-center gap-1">
+              <div className="text-xs font-normal text-gray-500 flex items-center gap-1">
                 <Clock size={12} />
                 <span>
                   Criado em{" "}
@@ -312,17 +312,17 @@ const ProjectList: React.FC<ProjectListProps> = ({
     <section aria-label="Lista de Projetos" className="space-y-4 sm:space-y-6 overflow-clip p-2">
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Meus Projetos</h2>
-          <p className="text-gray-600 text-xs sm:text-sm mt-1">
-            {projects.items.length} projeto{projects.items.length !== 1 ? "s" : ""} no total
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900">Meus Projectos</h2>
+          <p className="text-gray-600 text-xs sm:text-sm font-normal mt-1">
+            {projects.items.length} projecto{projects.items.length !== 1 ? "s" : ""} no total
           </p>
         </div>
         <button
           onClick={onOpenAddProject}
-          className="flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg px-4 sm:px-5 py-2 sm:py-2.5 hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 shadow-sm text-sm sm:text-base w-full sm:w-auto"
+          className="flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-lg px-4 sm:px-5 py-2 sm:py-2.5 hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 shadow-sm text-sm sm:text-base font-medium w-full sm:w-auto"
         >
           <Plus size={18} />
-          <span className="font-medium">Novo Projeto</span>
+          <span>Novo Projecto</span>
         </button>
       </header>
 

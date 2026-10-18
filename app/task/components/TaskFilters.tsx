@@ -36,14 +36,14 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
         <div className="flex-1 relative">
           <Search
             className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-            size={20}
+            size={18}
           />
           <input
             type="text"
             placeholder="Buscar tarefas..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
           />
         </div>
 
@@ -53,7 +53,7 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
           onChange={(e) =>
             onStatusFilterChange(e.target.value as TaskStatus | "")
           }
-          className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-normal text-gray-800"
         >
           <option value="">Todos os status</option>
           <option value="pendente">Pendente</option>
@@ -69,7 +69,7 @@ export const TaskFilters: React.FC<TaskFiltersProps> = ({
           onChange={(e) =>
             onPriorityFilterChange(e.target.value as TaskPriority | "")
           }
-          className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-normal text-gray-800"
         >
           <option value="">Todas as prioridades</option>
           <option value="critica">Crítica</option>

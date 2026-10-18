@@ -30,7 +30,7 @@ const SelectButton = React.forwardRef<
     disabled={disabled}
     className={`
     inline-flex items-center justify-between
-    rounded-md transition-all duration-200 text-sm px-3 py-2
+    rounded-md transition-all duration-200 text-sm font-medium px-3 py-2
     border focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
     ${disabled
         ? "bg-gray-100 border-gray-200 cursor-not-allowed text-gray-400"
@@ -120,7 +120,7 @@ const Dropdown = React.forwardRef<
             placeholder="Buscar..."
             value={searchTerm}
             onChange={onSearchChange}
-            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded text-sm 
+            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal
                      focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500
                      bg-white"
           />
@@ -129,7 +129,7 @@ const Dropdown = React.forwardRef<
     )}
 
     <div className="px-3 py-1 bg-gray-50 border-b border-gray-100">
-      <p className="text-xs text-gray-500 truncate">
+      <p className="text-xs font-normal text-gray-500 truncate">
         {statusText}
       </p>
     </div>

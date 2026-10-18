@@ -158,12 +158,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                                 type="text"
                                 value={nome}
                                 onChange={(e) => setNome(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
                                 placeholder="João Silva"
                                 required
                                 minLength={2}
                                 disabled={loading}
-                                autoFocus // 3. MELHORIA: Foco automático aqui ao ir para "Cadastro"
+                                autoFocus
                             />
                         </div>
 
@@ -176,7 +176,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                                 type="url"
                                 value={avatarUrl}
                                 onChange={(e) => setAvatarUrl(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
                                 placeholder="https://exemplo.com/avatar.jpg"
                                 disabled={loading}
                             />
@@ -190,7 +190,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                                 id="role"
                                 value={role}
                                 onChange={(e) => setRole(e.target.value as UserRoleEnum)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm font-normal text-gray-900"
                                 disabled={loading}
                             >
                                 {ROLES_OPTIONS.map((roleOption) => (
@@ -199,7 +199,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                                     </option>
                                 ))}
                             </select>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs font-normal text-gray-500 mt-1">
                                 {ROLE_DESCRIPTIONS[role] || "Usuário do sistema"}
                             </p>
                         </div>
@@ -215,11 +215,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
                         placeholder="seu@email.com"
                         required
                         disabled={loading}
-                        autoFocus={mode === "login"} // 3. MELHORIA: Foco automático aqui ao ir para "Login"
+                        autoFocus={mode === "login"}
                     />
                 </div>
 
@@ -233,7 +233,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             type={showPassword ? "text" : "password"}
                             value={senha}
                             onChange={(e) => setSenha(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition pr-10"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition pr-10 text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
                             placeholder="••••••••"
                             required
                             minLength={6}
@@ -259,7 +259,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         </button>
                     </div>
                     {mode === "register" && (
-                        <p className="text-xs text-gray-500 mt-1">Mínimo de 6 caracteres</p>
+                        <p className="text-xs font-normal text-gray-500 mt-1">Mínimo de 6 caracteres</p>
                     )}
                 </div>
 
@@ -273,7 +273,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             type={showPassword ? "text" : "password"}
                             value={confirmarSenha}
                             onChange={(e) => setConfirmarSenha(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
                             placeholder="••••••••"
                             required
                             minLength={6}

@@ -59,7 +59,7 @@ export const ValidationModal: React.FC<ValidationModalProps> = ({
         placeholder={
           isApproval ? "Ex: Tudo certo!" : "Ex: Precisa de ajustes..."
         }
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
         rows={3}
       />
 
@@ -67,13 +67,13 @@ export const ValidationModal: React.FC<ValidationModalProps> = ({
       <div className="flex gap-3 mt-6">
         <button
           onClick={onClose}
-          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
         >
           Cancelar
         </button>
         <button
           onClick={handleConfirm}
-          className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
             isApproval
               ? "bg-green-600 text-white hover:bg-green-700"
               : "bg-red-600 text-white hover:bg-red-700"

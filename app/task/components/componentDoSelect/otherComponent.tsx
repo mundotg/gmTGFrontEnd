@@ -8,16 +8,16 @@ export const InfoCard: React.FC<{
     highlight?: boolean;
     alert?: boolean;
 }> = ({ icon, label, value, subValue, highlight, alert }) => (
-    <div className={`p-3 rounded-lg border-2 ${highlight ? "bg-purple-50 border-purple-200" :
+    <div className={`p-3 rounded-lg border ${highlight ? "bg-purple-50 border-purple-200" :
         alert ? "bg-red-50 border-red-200" :
             "bg-gray-50 border-gray-200"
         }`}>
         <div className="flex items-center gap-2 mb-1">
             {icon}
-            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{label}</span>
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</span>
         </div>
-        <p className={`text-sm font-bold ${alert ? "text-red-900" : "text-gray-900"}`}>{value}</p>
-        {subValue && <p className={`text-xs mt-0.5 ${alert ? "text-red-700" : "text-gray-600"}`}>{subValue}</p>}
+        <p className={`text-sm font-semibold tracking-tight ${alert ? "text-red-900" : "text-gray-900"}`}>{value}</p>
+        {subValue && <p className={`text-xs font-normal mt-0.5 ${alert ? "text-red-700" : "text-gray-600"}`}>{subValue}</p>}
     </div>
 );
 
@@ -36,7 +36,7 @@ export const ActionButton: React.FC<{
     return (
         <button
             onClick={onClick}
-            className={`flex items-center justify-center gap-2 flex-1 min-w-[140px] px-4 py-3 rounded-lg font-semibold text-sm shadow-md transition-all duration-200 active:scale-95 hover:shadow-lg ${colorClasses[color]}`}
+            className={`flex items-center justify-center gap-2 flex-1 min-w-[140px] px-4 py-2.5 rounded-lg font-medium text-sm shadow-sm transition-all duration-200 active:scale-95 hover:shadow ${colorClasses[color]}`}
         >
             {icon}
             {label}
@@ -54,7 +54,7 @@ export const IconButton: React.FC<{
     <button
         onClick={onClick}
         title={title}
-        className={`p-2.5 ${color} rounded-lg transition-all duration-200 hover:${bgHover} active:scale-95`}
+        className={`p-2 ${color} rounded-lg transition-all duration-200 hover:${bgHover} active:scale-95`}
     >
         {icon}
     </button>
@@ -65,7 +65,7 @@ export const Badge: React.FC<{
     colorClass: string;
     icon?: React.ReactNode;
 }> = ({ text, colorClass, icon }) => (
-    <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 flex items-center gap-1.5 ${colorClass} whitespace-nowrap`}>
+    <span className={`px-2.5 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colorClass} whitespace-nowrap`}>
         {icon}
         {text}
     </span>

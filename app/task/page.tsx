@@ -357,8 +357,8 @@ const App: React.FC = () => {
           <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center gap-3">
               <Briefcase className="text-indigo-600 w-6 h-6 sm:w-7 sm:h-7" />
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900">
-                Gerenciador de Projetos
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-gray-900">
+                Gestor de Projectos & Tarefas
               </h1>
             </div>
 
@@ -373,10 +373,10 @@ const App: React.FC = () => {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2">
             <button
               onClick={() => { setSelectedProjectId(null); setSelectedProject(null); setSelectedSprint(null); setSelectedSprintId(null) }}
-              className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+              className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
             >
               <ArrowLeft size={16} />
-              <span className="font-medium">Voltar para Projetos</span>
+              <span>Voltar para Projectos</span>
             </button>
           </div>
         </div>
