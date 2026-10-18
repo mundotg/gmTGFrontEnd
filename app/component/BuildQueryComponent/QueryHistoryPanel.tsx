@@ -79,11 +79,11 @@ const QueryHistoryPanel: React.FC<Props> = ({
         if (diff < 60) return t("time.now") || "agora";
         if (diff < 3600) {
           const m = Math.floor(diff / 60);
-          return (t("time.minutesAgo") || "há {m} min").replace("{m}", String(m));
+          return (t("time.minutesAgo", { count: m, m }) || "há {m} min").replace("{m}", String(m)).replace("{count}", String(m));
         }
         if (diff < 86400) {
           const h = Math.floor(diff / 3600);
-          return (t("time.hoursAgo") || "há {h} h").replace("{h}", String(h));
+          return (t("time.hoursAgo", { count: h, h }) || "há {h} h").replace("{h}", String(h)).replace("{count}", String(h));
         }
         return d.toLocaleDateString();
       } catch {

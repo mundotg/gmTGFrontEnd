@@ -92,7 +92,8 @@
     "testing": "Testing...",
     "connecting": "Connecting...",
     "connected": "Connected",
-    "available": "Available"
+    "available": "Available",
+    "error": "Error"
   },
   "connection": {
     "up": "Connect",
@@ -236,7 +237,11 @@
   "time": {
     "justNow": "Just now",
     "weeksAgo": "{{count}} weeks ago",
-    "yesterdayAt": "Yesterday, {{time}}"
+    "yesterdayAt": "Yesterday, {{time}}",
+    "now": "just now",
+    "minutesAgo": "{count} min ago",
+    "hoursAgo": "{count} h ago",
+    "daysAgo": "{count} days ago"
   },
   "scanner": {
     "texto": "Intelligent Text Scanner"
@@ -323,7 +328,10 @@
     "nameRequired": "Full name is required!",
     "saveError": "Error saving changes",
     "invalidImage": "Please select a valid image",
-    "imageTooLarge": "Image must be a maximum of 5MB"
+    "imageTooLarge": "Image must be a maximum of 5MB",
+    "emptyAll": "No {type} found",
+    "emptySearch": "No {type} matches the search",
+    "invalidAlias": "Invalid (use letters, numbers, and _)"
   },
   "roles": {
     "admin": "Administrator",
@@ -534,7 +542,20 @@
     "select": "Select...",
     "and": "and",
     "refresh": "Refresh",
-    "noResults": "No results found."
+    "noResults": "No results found.",
+    "showing": "Showing",
+    "edit": "Edit",
+    "closeEsc": "Close (Esc)",
+    "success": "Success",
+    "failed": "Failed",
+    "toClose": "to close",
+    "database": "Database:",
+    "run": "Run",
+    "clear": "Clear",
+    "collapse": "Collapse",
+    "load": "Load",
+    "preparing": "Preparing...",
+    "hideSystemTables": "Hide system tables"
   },
   "messages": {
     "noColumnsFound": "No columns found",
@@ -563,7 +584,8 @@
     "hideAdvanced": "Hide Advanced",
     "advancedHint": "Engine/Charset/Collation (mainly MySQL/MariaDB)",
     "advancedTip": "Tip: Engine/Charset/Collation are most relevant in MySQL/MariaDB. In other databases, they may be ignored by the backend without impact.",
-    "confirmDelete": "Delete table '{full}'? This action is irreversible."
+    "confirmDelete": "Delete table '{full}'? This action is irreversible.",
+    "deleteFailed": "Failed to delete table."
   },
   "backup": {
     "backupTab": "Backup",
@@ -647,7 +669,54 @@
     "help": "Help",
     "lightMode": "Light Mode",
     "darkMode": "Dark Mode",
-    "logout": "Log Out"
+    "logout": "Log Out",
+    "panelTitle": "Query History & Audit",
+    "currentConnectionId": "Current connection ID: {id}",
+    "panelSubtitle": "Execution status, success, failures, and reuse on active connection ({db})",
+    "refreshHistory": "Refresh history",
+    "clearSearch": "Clear search",
+    "querySuccess": "Query executed successfully",
+    "queryFailed": "Query failed",
+    "favorites": "Favorites",
+    "withJoins": "With Joins",
+    "filteredByTablePrefix": "Filtered by table:",
+    "removeTableFilter": "Remove table filter",
+    "suggestions": "Suggestions:",
+    "pickTableTitle": "Add table '{table}' to form ({uses} uses)",
+    "filterByTableTitle": "Filter history by '{table}'",
+    "noSearchResults": "No queries found matching the selected filters.",
+    "noQueriesFound": "No query history found for this connection yet.",
+    "noQueriesSaved": "No saved queries",
+    "emptyHint": "Execute queries in the panel to record them in history.",
+    "clearFilters": "Clear filters",
+    "removeFromFavorites": "Remove from favorites",
+    "markFavorite": "Mark as favorite",
+    "rows": "rows",
+    "tables": "Tables:",
+    "selectTable": "Select table '{table}'",
+    "loadIntoBuilder": "Build form and edit in builder",
+    "noPayload": "No structured payload",
+    "retryTitle": "Try executing again",
+    "rerunAsIs": "Run this query as is",
+    "retry": "Retry",
+    "run": "Run",
+    "queries": "queries",
+    "previousPage": "Previous page",
+    "previous": "Previous",
+    "nextPage": "Next page",
+    "next": "Next",
+    "reload": "Reload history",
+    "loading": "Loading queries...",
+    "confirmClearOld": "Clear queries older than 30 days (favorite queries will not be deleted)?",
+    "clearOldTitle": "Clear queries older than 30 days",
+    "copySQL": "Copy SQL query",
+    "execTime": "Execution time",
+    "rowsReturned": "Rows returned",
+    "executedTimes": "executed",
+    "legacyNoPayload": "Legacy query without structured payload",
+    "noActiveConnection": "No active database connection currently.",
+    "reusableSubtitle": "Reuse or edit with 1 click",
+    "frequentTables": "Frequent tables:"
   },
   "analytics": {
     "dbTitle": "Observability",
@@ -821,7 +890,8 @@
     "noDataDetected": "No structured data detected yet.",
     "extractedText": "Extracted Text",
     "textPlaceholder": "Text will appear here after processing...",
-    "analyzing": "Analyzing..."
+    "analyzing": "Analyzing...",
+    "invalidFile": "Invalid file. Please select an image or PDF."
   },
   "query": {
     "title": "Data Query",
@@ -830,7 +900,52 @@
     "selectedTables": "Selected tables",
     "titleConsulta": "Query",
     "loadingMetadata": "Loading database metadata...",
-    "deleteError": "Unexpected error while attempting to delete record."
+    "deleteError": "Unexpected error while attempting to delete record.",
+    "toggleStatsTitle": "Hide or show database statistics",
+    "toggleStats": "Statistics",
+    "toggleHistoryTitle": "Open or hide query history (Ctrl + H)",
+    "toggleHistory": "History",
+    "toggleTableSelectorTitle": "Collapse or expand table selector to save space",
+    "hideSelector": "Hide Selector",
+    "showSelector": "Show Selector",
+    "toggleColumnsTitle": "Collapse or expand columns view",
+    "hideColumns": "Hide Columns",
+    "showColumns": "Show Columns",
+    "focusModeTitle": "Focus Mode: maximizes result table and hides filters",
+    "focusMode": "Focus Mode",
+    "exitFocusMode": "Exit Focus Mode",
+    "focusModeActiveNotice": "Focus Mode Active: upper filters hidden to maximize result table area.",
+    "restorePanels": "Restore panels",
+    "clearAllTitle": "Clear all selected tables and conditions",
+    "dataScienceTitle": "Save encrypted query and open statistical analysis in a new tab",
+    "dataScience": "Data Science",
+    "dataScienceError": "Error preparing data analysis.",
+    "preparingDataScience": "Saving query and preparing encrypted session...",
+    "keyNotReturned": "Key not returned by server.",
+    "noActiveQuery": "No active query found for analysis.",
+    "unlimited": "Unlimited (All records)",
+    "incompleteDataTitle": "Incomplete Data",
+    "incompleteDataMsg": "Which tables would you like to fetch complete data for?",
+    "fetchSelected": "Fetch Selected",
+    "ignoreAndOpen": "Ignore and Open",
+    "openHistoryTitle": "Open Query History (Ctrl + H)",
+    "customLimitPrompt": "✏️ Enter custom number...",
+    "customLimitPlaceholder": "Enter a number ≤ {max}",
+    "customLimitMaxError": "The number must be less than or equal to {max}",
+    "rerunningHistory": "Re-running history query...",
+    "executedSuccess": "Query executed successfully!",
+    "loadingHistoryForm": "Loading and building query form...",
+    "loadedHistorySuccess": "Query loaded and form built successfully!",
+    "tableAdded": "Table '{tableName}' added.",
+    "removeTable": "Remove {tbl}",
+    "noRecordsToEdit": "No records found to edit.",
+    "noRecordsSelected": "No records selected to edit.",
+    "editSelection": "Edit selection",
+    "tablesSelectedCount": "{count} selected",
+    "collapseSelectorTitle": "Collapse selector box to save space",
+    "activeTables": "Active tables:",
+    "selectedRecordsUpdated": "{count} selected record(s) updated",
+    "allRecordsUpdated": "All records updated successfully!"
   },
   "reports": {
     "generating": "Generating PDF report...",
@@ -870,7 +985,8 @@
     "createRecordTitle": "Create New Record",
     "createRecordDesc": "Fill in the fields below to insert into the database.",
     "pendingChanges": "Pending changes",
-    "errAutoIncrement": "Cannot modify because it is an auto-increment field"
+    "errAutoIncrement": "Cannot modify because it is an auto-increment field",
+    "invalidType": "Invalid value for field type"
   },
   "builder": {
     "title": "Query Builder",
@@ -1191,7 +1307,8 @@
     "scale": "Scale",
     "defaultValue": "Default Value",
     "comment": "Data Dictionary (Comment)",
-    "precision": "Precision"
+    "precision": "Precision",
+    "mainDefinition": "Main Definition"
   },
   "validation": {
     "required": "This field is required."
@@ -1253,7 +1370,8 @@
       "email": "Write an email",
       "data": "Analyze data",
       "plan": "Create a plan"
-    }
+    },
+    "clearConfirm": "Are you sure you want to clear the entire chat history?"
   },
   "notif": {
     "email": "Email",
@@ -1551,5 +1669,20 @@
     "copy": "Copy",
     "shareVia": "Share on social networks & communities:",
     "shareNativeMore": "More device applications..."
+  },
+  "select": {
+    "clearAllSelections": "Clear all selections",
+    "countOfMaxSelected": "{selected}/{max} selected",
+    "hideSystemTablesTitle": "Check to hide internal system tables",
+    "maxCount": "(max {max})",
+    "optionsSelected": "{count} selected",
+    "searchOptionsPlaceholder": "Search options...",
+    "selectOneOrMore": "Select one or more options",
+    "systemBlocked": "Blocked: {reason}",
+    "systemUnlockedAdmin": "System (Unlocked for Admin)"
+  },
+  "unnamedConnection": "Unnamed connection",
+  "errors": {
+    "value_required_for_wildcard": "Enter a value before applying the wildcard filter (%)"
   }
 }
