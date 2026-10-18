@@ -81,7 +81,9 @@
     "mll": "ML / Insights",
     "storage": "Storage",
     "devTest": "Tests (dev)",
-    "reference": "Reference"
+    "reference": "Reference",
+    "deadlocks": "Deadlock Analysis",
+    "transactions": "Data Transactions"
   },
   "status": {
     "online": "Online",

@@ -16,18 +16,16 @@ import { TableCard } from "./componentTabela/TabelaCard";
 import { Modal } from "@/app/component";
 import Pagination from "@/app/component/pagination-component";
 
-import { DataTransactionForm } from "./componentTabela/DataTransactionForm";
 import { BackupRestoreForm } from "./componentTabela/BackupRestoreForm";
-import { DeadlocksMonitor } from "./componentTabela/DeadlocksMonitor";
 
 import { DBStructure } from "@/types/db-structure";
 import TableModal from "./componentTabela/CreateTableForm";
 import { getDefaultSchemas, isSystemTable } from "./componentTabela/util";
 
-const ITEMS_PER_PAGE = 6;
+const DEFAULT_ITEMS_PER_PAGE = 12;
 
 const DatabaseTablesPage: React.FC = () => {
-  const { metadata, setMetadata, loading: loadingMetadata, error: errorFetch } = useDatabaseMetadata();
+  const { metadata, setMetadata, loading: loadingMetadata, error: errorFetch, refresh: refreshMetadata } = useDatabaseMetadata();
   const { api, user } = useSession();
 
   const [structures, setStructures] = useState<DBStructure[]>([]);
@@ -59,12 +57,10 @@ const DatabaseTablesPage: React.FC = () => {
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [tableModalMode, setTableModalMode] = useState<"create" | "edit">("create");
   const [editingTable, setEditingTable] = useState<string | null>(null);
-  const [menosTableSytem, setMenosTableSystem] = useState<number>(0);
 
-  const [isTransactionOpen, setIsTransactionOpen] = usePersistedState("openisTransactionOpen", false);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
-  const [isDeadlocksOpen, setIsDeadlocksOpen] = usePersistedState("isDeadlocksOpen", false);
 
+  const [itemsPerPage, setItemsPerPage] = useState<number>(DEFAULT_ITEMS_PER_PAGE);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => setCurrentPage(1), [searchTerm, filterSchema, sortBy]);
@@ -90,13 +86,13 @@ const DatabaseTablesPage: React.FC = () => {
     try {
       setIsLoading(true);
       await clearCache();
-      await loadInitialData();
+      await Promise.all([refreshMetadata(), loadInitialData()]);
     } catch (err) {
       setError(parseErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
-  }, [loadInitialData]);
+  }, [refreshMetadata, loadInitialData]);
 
   useEffect(() => {
     loadInitialData();
@@ -216,12 +212,12 @@ const DatabaseTablesPage: React.FC = () => {
     return list;
   }, [metadata, searchTerm, filterSchema, sortBy, getTableStructure, desableTablesSystem]);
 
-  const totalPages = Math.ceil(filteredAndSortedTables.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredAndSortedTables.length / itemsPerPage);
 
   const paginatedTables = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredAndSortedTables.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredAndSortedTables, currentPage]);
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedTables.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedTables, currentPage, itemsPerPage]);
 
   const toggleSelectTable = useCallback((tableName: string) => {
     setSelectedTables((prev) => {
@@ -243,19 +239,35 @@ const DatabaseTablesPage: React.FC = () => {
       try {
         setIsLoading(true);
         await api.delete(`/database/table/${encodeURIComponent(tableName)}`, { withCredentials: true });
-        await loadInitialData();
+
+        setMetadata((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            table_count: Math.max(0, (prev.table_count || 1) - 1),
+            table_names: prev.table_names.filter(
+              (t) => t.name.toLowerCase() !== tableName.toLowerCase()
+            ),
+          };
+        });
+        setStructures((prev) =>
+          prev.filter((s) => s.table_name.toLowerCase() !== tableName.toLowerCase())
+        );
         setSelectedTables((prev) => {
           const s = new Set(prev);
           s.delete(tableName);
           return s;
         });
+
+        await clearCache();
+        await Promise.all([refreshMetadata(), loadInitialData()]);
       } catch (err) {
         setError(parseErrorMessage(err));
       } finally {
         setIsLoading(false);
       }
     },
-    [api, loadInitialData]
+    [api, refreshMetadata, loadInitialData]
   );
 
   const handleDeleteSelectedTables = useCallback(async () => {
@@ -290,17 +302,28 @@ const DatabaseTablesPage: React.FC = () => {
 
       setMetadata((prev: DatabaseMetadata | null) => {
         if (!prev) return null;
-        const filteredTables = prev.table_names.filter(t => !(tables.includes(t.name)));
-        return { ...prev, tables: filteredTables };
+        const lowerList = tables.map((t) => t.toLowerCase());
+        const filteredTables = prev.table_names.filter((t) => !lowerList.includes(t.name.toLowerCase()));
+        return {
+          ...prev,
+          table_count: Math.max(0, (prev.table_count || tables.length) - tables.length),
+          table_names: filteredTables,
+        };
       });
-      await loadInitialData();
+      setStructures((prev) => {
+        const lowerList = tables.map((t) => t.toLowerCase());
+        return prev.filter((s) => !lowerList.includes(s.table_name.toLowerCase()));
+      });
       setSelectedTables(new Set());
+
+      await clearCache();
+      await Promise.all([refreshMetadata(), loadInitialData()]);
     } catch (err) {
       setError(parseErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
-  }, [selectedTables, api, loadInitialData]);
+  }, [selectedTables, api, refreshMetadata, loadInitialData, user?.info_extra?.id_connection, getTableStructure]);
 
   // ✅ modal open/close
   const openCreateModal = useCallback(() => {
@@ -340,8 +363,9 @@ const DatabaseTablesPage: React.FC = () => {
         setIsLoading(true);
 
         if (!user?.info_extra?.id_connection) {
-          setError("connection_id não encontrado. Selecione uma conexão antes de criar a tabela.");
-          return;
+          const msg = "connection_id não encontrado. Selecione uma conexão antes de criar a tabela.";
+          setError(msg);
+          throw new Error(msg);
         }
 
         console.log("Payload para criação de tabela:", payload);
@@ -363,15 +387,65 @@ const DatabaseTablesPage: React.FC = () => {
           { withCredentials: true }
         );
 
+        // 1. Atualização otimista imediata do metadata para refletir na UI sem delay
+        setMetadata((prev) => {
+          if (!prev) return prev;
+          const exists = prev.table_names.some(
+            (t) => t.name.toLowerCase() === payload.name.toLowerCase()
+          );
+          if (exists) return prev;
+          return {
+            ...prev,
+            table_count: (prev.table_count || 0) + 1,
+            table_names: [...prev.table_names, { name: payload.name, rowcount: 0 }],
+          };
+        });
+
+        // 2. Atualização otimista imediata das estruturas
+        setStructures((prev) => {
+          const exists = prev.some(
+            (s) => s.table_name.toLowerCase() === payload.name.toLowerCase()
+          );
+          if (exists) return prev;
+          const newStructure: DBStructure = {
+            id: Date.now(),
+            db_connection_id: Number(user?.info_extra?.id_connection),
+            table_name: payload.name,
+            schema_name: payload.schema || undefined,
+            description: payload.comment || undefined,
+            fields: [],
+          };
+          return [...prev, newStructure];
+        });
+
         closeTableModal();
-        await loadInitialData();
-      } catch (err) {
-        setError(parseErrorMessage(err));
+
+        // 3. Auto-expande a nova tabela e navega para a página onde ela se encontra
+        setExpandedTables((prev) => new Set(prev).add(payload.name));
+        handleSelectTables(payload.name);
+
+        const updatedNames = [...(metadata?.table_names || []).map((t) => t.name), payload.name];
+        updatedNames.sort((a, b) => a.localeCompare(b));
+        const newIndex = updatedNames.findIndex(
+          (n) => n.toLowerCase() === payload.name.toLowerCase()
+        );
+        if (newIndex >= 0) {
+          const targetPage = Math.floor(newIndex / itemsPerPage) + 1;
+          setCurrentPage(targetPage);
+        }
+
+        // 4. Limpa o cache do backend e recarrega os dados completos
+        await clearCache();
+        await Promise.all([refreshMetadata(), loadInitialData()]);
+      } catch (err: any) {
+        const msg = parseErrorMessage(err);
+        setError(msg);
+        throw new Error(msg);
       } finally {
         setIsLoading(false);
       }
     },
-    [api, loadInitialData, closeTableModal, user]
+    [api, refreshMetadata, loadInitialData, closeTableModal, user, metadata, itemsPerPage, handleSelectTables]
   );
 
   const handleUpdateTableFromModal = useCallback(
@@ -379,8 +453,9 @@ const DatabaseTablesPage: React.FC = () => {
       if (loadingFields) return;
       setLoadingFields(true);
       if (!user?.info_extra?.id_connection) {
-        setError("connection_id não encontrado. Selecione uma conexão antes de atualizar a tabela.");
-        return;
+        const msg = "connection_id não encontrado. Selecione uma conexão antes de atualizar a tabela.";
+        setError(msg);
+        throw new Error(msg);
       }
 
       try {
@@ -401,16 +476,45 @@ const DatabaseTablesPage: React.FC = () => {
           { withCredentials: true }
         );
 
+        // Atualização otimista
+        setMetadata((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            table_names: prev.table_names.map((t) =>
+              t.name.toLowerCase() === payload.oldName.toLowerCase()
+                ? { ...t, name: payload.name }
+                : t
+            ),
+          };
+        });
+
+        setStructures((prev) =>
+          prev.map((s) =>
+            s.table_name.toLowerCase() === payload.oldName.toLowerCase()
+              ? {
+                  ...s,
+                  table_name: payload.name,
+                  schema_name: payload.schema || s.schema_name,
+                  description: payload.comment || s.description,
+                }
+              : s
+          )
+        );
+
         closeTableModal();
-        await loadInitialData();
-      } catch (err) {
-        setError(parseErrorMessage(err));
+        await clearCache();
+        await Promise.all([refreshMetadata(), loadInitialData()]);
+      } catch (err: any) {
+        const msg = parseErrorMessage(err);
+        setError(msg);
+        throw new Error(msg);
       } finally {
         setIsLoading(false);
         setLoadingFields(false);
       }
     },
-    [api, loadInitialData, loadingFields, closeTableModal]
+    [api, refreshMetadata, loadInitialData, loadingFields, closeTableModal, user]
   );
 
   const handleDeleteTableFromModal = useCallback(
@@ -428,25 +532,37 @@ const DatabaseTablesPage: React.FC = () => {
         });
         setMetadata((prev: DatabaseMetadata | null) => {
           if (!prev) return null;
-          const filteredTables = prev.table_names.filter(t => t.name !== ctx.name);
-
-          return { ...prev, table_names: filteredTables };
+          const filteredTables = prev.table_names.filter(
+            (t) => t.name.toLowerCase() !== ctx.name.toLowerCase()
+          );
+          return {
+            ...prev,
+            table_count: Math.max(0, (prev.table_count || 1) - 1),
+            table_names: filteredTables,
+          };
         });
+        setStructures((prev) =>
+          prev.filter((s) => s.table_name.toLowerCase() !== ctx.name.toLowerCase())
+        );
         closeTableModal();
-        await loadInitialData();
 
         setSelectedTables((prev) => {
           const s = new Set(prev);
           s.delete(ctx.name);
           return s;
         });
-      } catch (err) {
-        setError(parseErrorMessage(err));
+
+        await clearCache();
+        await Promise.all([refreshMetadata(), loadInitialData()]);
+      } catch (err: any) {
+        const msg = parseErrorMessage(err);
+        setError(msg);
+        throw new Error(msg);
       } finally {
         setIsLoading(false);
       }
     },
-    [api, loadInitialData, closeTableModal]
+    [api, user?.info_extra?.id_connection, refreshMetadata, loadInitialData, closeTableModal]
   );
 
   const handleDeleteSelectedColumns = useCallback(
@@ -600,9 +716,7 @@ const DatabaseTablesPage: React.FC = () => {
         // ✅ aqui é o ideal: em vez de setIsCreateOpen, usa "onCreateTable"
         setIsCreateOpen={openCreateModal}
         handleDeleteSelectedTables={handleDeleteSelectedTables}
-        setIsTransactionOpen={setIsTransactionOpen}
         setIsBackupOpen={setIsBackupOpen}
-        setIsDeadlocksOpen={setIsDeadlocksOpen}
         filteredAndSortedTables={filteredAndSortedTables}
       />
 
@@ -659,7 +773,28 @@ const DatabaseTablesPage: React.FC = () => {
         </div>
 
         {filteredAndSortedTables.length > 0 && (
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 dark:border-gray-800 pt-6">
+            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <span>Exibir por página:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 font-semibold text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value={6}>6 por página</option>
+                <option value={12}>12 por página (padrão)</option>
+                <option value={24}>24 por página</option>
+                <option value={48}>48 por página</option>
+                <option value={1000}>Todas as tabelas ({filteredAndSortedTables.length})</option>
+              </select>
+              <span className="hidden sm:inline">
+                • Total: {filteredAndSortedTables.length} tabela(s)
+              </span>
+            </div>
+
             <Pagination
               page={currentPage}
               totalPages={totalPages}
@@ -694,22 +829,9 @@ const DatabaseTablesPage: React.FC = () => {
           onDelete={handleDeleteTableFromModal}
         />}
 
-        {isTransactionOpen && <DataTransactionForm onClose={() => setIsTransactionOpen(false)} />}
-
         <Modal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} title="Backup e Restore" size="lg">
           <BackupRestoreForm connectionId="" onCancel={() => setIsBackupOpen(false)} />
         </Modal>
-
-        {isDeadlocksOpen && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-9999 flex items-center justify-center p-4">
-            <div
-              className={`${isDarkMode ? "bg-[#1C1C1E] border-gray-800" : "bg-white border-gray-200"
-                } rounded-xl shadow-xl w-full max-w-6xl max-h-[90vh] overflow-auto border`}
-            >
-              <DeadlocksMonitor onClose={() => setIsDeadlocksOpen(false)} isDarkMode={isDarkMode} />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

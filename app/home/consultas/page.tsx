@@ -210,29 +210,34 @@ const ConsultaPage = () => {
   const handleRerunFromHistory = useCallback(
     async (payload: QueryPayload) => {
       try {
+        const parsedLimit = parseInt(queryLimit, 10);
+        const effectiveLimit = payload.limit !== undefined 
+          ? (payload.limit > 0 ? payload.limit : undefined)
+          : (parsedLimit > 0 ? parsedLimit : undefined);
+
         const query = {
           ...payload,
-          limit: payload.limit || parseInt(queryLimit, 10) || 50,
+          limit: effectiveLimit,
         };
 
-        showToast("A re-executar consulta do histórico...");
+        showToast(t("query.rerunningHistory") || "A re-executar consulta do histórico...");
         await executeQuery(query);
 
         // Notifica o sinal de histórico para atualizar contagens
         setTimeout(() => setHistorySignal((s) => s + 1), 1200);
-        showToast("Consulta executada com sucesso!");
+        showToast(t("query.executedSuccess") || "Consulta executada com sucesso!");
       } catch (err) {
         console.error("Erro ao re-executar consulta do histórico:", err);
       }
     },
-    [executeQuery, queryLimit, showToast]
+    [executeQuery, queryLimit, showToast, t]
   );
 
   // Carregar e construir todo o formulário da consulta salva
   const handleLoadFromHistory = useCallback(
     async (payload: QueryPayload) => {
       try {
-        showToast("A carregar e construir formulário da consulta...");
+        showToast(t("query.loadingHistoryForm") || "A carregar e construir formulário da consulta...");
         setLoadingFields(true);
 
         // 1. Extrair todas as tabelas envolvidas na consulta
@@ -310,8 +315,10 @@ const ConsultaPage = () => {
           setAliasTables({});
         }
 
-        if (payload.limit) {
+        if (payload.limit !== undefined && payload.limit !== null && payload.limit > 0) {
           setQueryLimit(String(payload.limit));
+        } else {
+          setQueryLimit("0");
         }
 
         // 4. Reconstruir Joins
@@ -351,7 +358,7 @@ const ConsultaPage = () => {
         setIsFocusMode(false);
         setIsHistoryOpen(false);
 
-        showToast("Consulta carregada e formulário construído com sucesso!");
+        showToast(t("query.loadedHistorySuccess") || "Consulta carregada e formulário construído com sucesso!");
       } catch (err) {
         const errorMsg = parseErrorMessage(err);
         setError(errorMsg);
@@ -370,6 +377,7 @@ const ConsultaPage = () => {
       setError,
       showToast,
       setLoadingFields,
+      t,
     ]
   );
 
@@ -378,52 +386,58 @@ const ConsultaPage = () => {
 
   const handleOpenDataScience = useCallback(async () => {
     const activePayload = queryResults?.QueryPayload;
+    const estrutura_das_tabelas_completa = queryResults?.tabela_coluna;
     if (!activePayload) {
-      showToast("Nenhuma consulta ativa encontrada para análise.");
+      showToast(t("query.noActiveQuery") || "Nenhuma consulta ativa encontrada para análise.");
       return;
     }
 
     setOpeningDataScience(true);
     try {
-      showToast("A guardar consulta e a preparar sessão encriptada...");
+      showToast(t("query.preparingDataScience") || "A guardar consulta e a preparar sessão encriptada...");
       const res = await api.post(
         "/datascience/store-query",
-        { query: activePayload },
+        {
+          query: activePayload,
+          estructura_das_tabelas_completa: estrutura_das_tabelas_completa,
+          estrutura_das_tabelas_completa,
+          tabela_coluna: estrutura_das_tabelas_completa,
+        },
         { withCredentials: true }
       );
       const key = res.data?.key;
       if (!key) {
-        throw new Error("Chave não retornada pelo servidor.");
+        throw new Error(t("query.keyNotReturned") || "Chave não retornada pelo servidor.");
       }
       window.open(`/datascience?key=${encodeURIComponent(key)}`, "_blank");
     } catch (err) {
       console.error("Erro ao preparar sessão de Data Science:", err);
-      showToast("Erro ao preparar análise de dados.");
+      showToast(t("query.dataScienceError") || "Erro ao preparar análise de dados.");
     } finally {
       setOpeningDataScience(false);
     }
-  }, [queryResults, showToast]);
+  }, [queryResults, showToast, t]);
 
   // Escolher tabela sugerida no histórico
   const handlePickTableFromHistory = useCallback(
     async (tableName: string) => {
       if (!selectedTables.includes(tableName)) {
         await handleSelectTables(tableName);
-        showToast(`Tabela '${tableName}' adicionada.`);
+        showToast(t("query.tableAdded", { tableName }) || `Tabela '${tableName}' adicionada.`);
       }
       setIsHistoryOpen(false);
     },
-    [handleSelectTables, selectedTables, showToast]
+    [handleSelectTables, selectedTables, showToast, t]
   );
 
   const table_names = useMemo(() => {
     return (
-      metadata?.table_names.map((t) => ({
-        value: t.name,
-        label: `${t.name} (${t.rowcount} registros)`,
+      metadata?.table_names.map((tItem) => ({
+        value: tItem.name,
+        label: `${tItem.name} (${tItem.rowcount} ${t("common.records") || "registros"})`,
       })) || []
     );
-  }, [metadata]);
+  }, [metadata, t]);
 
   const openRowModal = useCallback(
     (row: SelectedRow) => {
@@ -469,7 +483,7 @@ const ConsultaPage = () => {
 
   const handleOpenBulkEdit = useCallback(() => {
     if (!queryResults || !queryResults.preview?.length) {
-      showToast("Nenhum registro encontrado para editar.");
+      showToast(t("query.noRecordsToEdit") || "Nenhum registro encontrado para editar.");
       return;
     }
 
@@ -516,7 +530,7 @@ const ConsultaPage = () => {
     setSelectedRowsForEdit(null);
     setIsBulkEditMode(true);
     setModalOpenEdit(true);
-  }, [queryResults, setSelectedRow, setModalOpenEdit, showToast]);
+  }, [queryResults, setSelectedRow, setModalOpenEdit, showToast, t]);
 
   const handleOpenSelectedEdit = useCallback(
     (payload: {
@@ -524,7 +538,7 @@ const ConsultaPage = () => {
       indices: number[];
     }) => {
       if (!queryResults || !payload.rows_primary_keys.length) {
-        showToast("Nenhum registro selecionado para editar.");
+        showToast(t("query.noRecordsSelected") || "Nenhum registro selecionado para editar.");
         return;
       }
 
@@ -572,7 +586,7 @@ const ConsultaPage = () => {
       setIsBulkEditMode(true);
       setModalOpenEdit(true);
     },
-    [queryResults, setSelectedRow, setModalOpenEdit, showToast]
+    [queryResults, setSelectedRow, setModalOpenEdit, showToast, t]
   );
 
   // ----------------- Telas de Loading e Erro -----------------
@@ -625,7 +639,7 @@ const ConsultaPage = () => {
 
                 <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                   {user?.info_extra?.name_db && (
-                    <span>Banco: <strong className="text-gray-700">{user.info_extra.name_db}</strong></span>
+                    <span>{t("common.database") || "Banco:"} <strong className="text-gray-700">{user.info_extra.name_db}</strong></span>
                   )}
                   {user?.info_extra?.type && (
                     <>
@@ -645,10 +659,10 @@ const ConsultaPage = () => {
                   type="button"
                   onClick={() => setShowStats((prev) => !prev)}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 flex items-center gap-1.5 shadow-2xs transition-colors"
-                  title="Ocultar ou exibir as estatísticas do banco"
+                  title={t("query.toggleStatsTitle") || "Ocultar ou exibir as estatísticas do banco"}
                 >
                   <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
-                  <span className="hidden sm:inline">Estatísticas</span>
+                  <span className="hidden sm:inline">{t("query.toggleStats") || "Estatísticas"}</span>
                   {showStats ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </button>
 
@@ -661,10 +675,10 @@ const ConsultaPage = () => {
                       ? "bg-blue-600 text-white border-blue-600"
                       : "bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-700"
                   }`}
-                  title="Abrir ou ocultar histórico de consultas (Ctrl + H)"
+                  title={t("query.toggleHistoryTitle") || "Abrir ou ocultar histórico de consultas (Ctrl + H)"}
                 >
                   <History className="w-3.5 h-3.5" />
-                  <span>Histórico</span>
+                  <span>{t("query.toggleHistory") || "Histórico"}</span>
                   {historyCount > 0 && (
                     <span
                       className={`px-1.5 py-0.2 text-[10px] font-mono rounded-full ${
@@ -691,13 +705,13 @@ const ConsultaPage = () => {
             ) : (
               /* Resumo compacto de 1 linha quando recolhido */
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-                <span><strong>{metadata?.table_count ?? 0}</strong> Tabelas</span>
+                <span><strong>{metadata?.table_count ?? 0}</strong> {t("stats.tables") || "Tabelas"}</span>
                 <span>•</span>
-                <span><strong>{metadata?.view_count ?? 0}</strong> Views</span>
+                <span><strong>{metadata?.view_count ?? 0}</strong> {t("stats.views") || "Views"}</span>
                 <span>•</span>
-                <span><strong>{metadata?.procedure_count ?? 0}</strong> Procedures</span>
+                <span><strong>{metadata?.procedure_count ?? 0}</strong> {t("stats.procedures") || "Procedures"}</span>
                 <span>•</span>
-                <span><strong>{metadata?.index_count ?? 0}</strong> Índices</span>
+                <span><strong>{metadata?.index_count ?? 0}</strong> {t("stats.indexes") || "Índices"}</span>
               </div>
             )}
 
@@ -720,10 +734,10 @@ const ConsultaPage = () => {
                   ? "bg-gray-100 border-gray-200 text-gray-800"
                   : "bg-white border-dashed border-gray-300 text-gray-500 hover:text-gray-800"
               }`}
-              title="Recolher ou exibir o seletor de tabelas para ganhar espaço"
+              title={t("query.toggleTableSelectorTitle") || "Recolher ou exibir o seletor de tabelas para ganhar espaço"}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>{showTableSelector ? "Ocultar Seletor" : "Mostrar Seletor"}</span>
+              <span>{showTableSelector ? (t("query.hideSelector") || "Ocultar Seletor") : (t("query.showSelector") || "Mostrar Seletor")}</span>
             </button>
 
             {/* Toggle de Colunas */}
@@ -736,10 +750,10 @@ const ConsultaPage = () => {
                     ? "bg-gray-100 border-gray-200 text-gray-800"
                     : "bg-white border-dashed border-gray-300 text-gray-500 hover:text-gray-800"
                 }`}
-                title="Recolher ou exibir a visualização de colunas"
+                title={t("query.toggleColumnsTitle") || "Recolher ou exibir a visualização de colunas"}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>{showColumnsSection ? "Ocultar Colunas" : "Mostrar Colunas"}</span>
+                <span>{showColumnsSection ? (t("query.hideColumns") || "Ocultar Colunas") : (t("query.showColumns") || "Mostrar Colunas")}</span>
               </button>
             )}
 
@@ -753,10 +767,10 @@ const ConsultaPage = () => {
                     ? "bg-amber-500 text-white border-amber-600 shadow-2xs"
                     : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
                 }`}
-                title="Modo Foco: maximiza a tabela de resultados e esconde os filtros"
+                title={t("query.focusModeTitle") || "Modo Foco: maximiza a tabela de resultados e esconde os filtros"}
               >
                 {isFocusMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                <span>{isFocusMode ? "Sair do Modo Foco" : "Modo Foco"}</span>
+                <span>{isFocusMode ? (t("query.exitFocusMode") || "Sair do Modo Foco") : (t("query.focusMode") || "Modo Foco")}</span>
               </button>
             )}
           </div>
@@ -768,10 +782,10 @@ const ConsultaPage = () => {
                 type="button"
                 onClick={removerCacheLocalStorage}
                 className="text-xs font-semibold text-gray-500 hover:text-red-600 flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-red-50"
-                title="Limpar todas as tabelas e condições selecionadas"
+                title={t("query.clearAllTitle") || "Limpar todas as tabelas e condições selecionadas"}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Limpar</span>
+                <span className="hidden sm:inline">{t("common.clear") || "Limpar"}</span>
               </button>
             )}
 
@@ -782,15 +796,15 @@ const ConsultaPage = () => {
                 onClick={handleOpenDataScience}
                 disabled={openingDataScience}
                 className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-600 text-white text-xs font-bold rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-2xs cursor-pointer"
-                title="Guardar consulta encriptada e abrir análise estatística em nova aba"
+                title={t("query.dataScienceTitle") || "Guardar consulta encriptada e abrir análise estatística em nova aba"}
               >
                 {openingDataScience ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>A preparar...</span>
+                    <span>{t("common.preparing") || "A preparar..."}</span>
                   </>
                 ) : (
-                  <span>📊 Data Science</span>
+                  <span>📊 {t("query.dataScience") || "Data Science"}</span>
                 )}
               </button>
             )}
@@ -823,7 +837,7 @@ const ConsultaPage = () => {
                 </h2>
                 {selectedTables.length > 0 && (
                   <span className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 rounded-full">
-                    {selectedTables.length} selecionada(s)
+                    {t("query.tablesSelectedCount", { count: selectedTables.length }) || `${selectedTables.length} selecionada(s)`}
                   </span>
                 )}
               </div>
@@ -833,10 +847,10 @@ const ConsultaPage = () => {
                   type="button"
                   onClick={() => setShowTableSelector(false)}
                   className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1"
-                  title="Recolher caixa de seleção para poupar espaço"
+                  title={t("query.collapseSelectorTitle") || "Recolher caixa de seleção para poupar espaço"}
                 >
                   <ChevronUp className="w-4 h-4" />
-                  <span className="hidden sm:inline">Recolher</span>
+                  <span className="hidden sm:inline">{t("common.collapse") || "Recolher"}</span>
                 </button>
               )}
             </div>
@@ -859,17 +873,21 @@ const ConsultaPage = () => {
                 label={t("query.recordLimit") || "Limite de Registros"}
                 value={queryLimit}
                 onChange={setQueryLimit}
-                options={["1", "10", "50", "100", "500", "1000", "5000"].map((v) => ({
-                  value: v,
-                  label: `${v} ${t("common.records") || "registros"}`,
-                }))}
+                maxCustomNumber={50000}
+                options={[
+                  ...["1", "10", "50", "100", "500", "1000", "5000"].map((v) => ({
+                    value: v,
+                    label: `${v} ${t("common.records") || "registros"}`,
+                  })),
+                  { value: "0", label: `♾️ ${t("query.unlimited") || "Sem limite (Todos os registros)"}` },
+                ]}
               />
             </div>
 
             {/* Chips interativos das tabelas selecionadas com remoção rápida */}
             {selectedTables.length > 0 && (
               <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-bold text-gray-500 mr-1">Tabelas ativas:</span>
+                <span className="text-xs font-bold text-gray-500 mr-1">{t("query.activeTables") || "Tabelas ativas:"}</span>
                 {selectedTables.map((tbl) => (
                   <span
                     key={tbl}
@@ -880,7 +898,7 @@ const ConsultaPage = () => {
                       type="button"
                       onClick={() => handleSelectTables(tbl)}
                       className="p-0.5 hover:bg-blue-200/60 rounded text-blue-600 hover:text-red-600 transition-colors"
-                      title={`Remover ${tbl}`}
+                      title={t("query.removeTable", { tbl }) || `Remover ${tbl}`}
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -895,7 +913,7 @@ const ConsultaPage = () => {
         {!isFocusMode && !showTableSelector && selectedTables.length > 0 && (
           <div className="bg-white rounded-xl shadow-2xs border border-gray-200 px-4 py-2.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 overflow-x-auto py-1">
-              <span className="text-xs font-bold text-gray-500 whitespace-nowrap">Tabelas:</span>
+              <span className="text-xs font-bold text-gray-500 whitespace-nowrap">{t("common.tables") || "Tabelas"}:</span>
               {selectedTables.map((tbl) => (
                 <span
                   key={tbl}
@@ -910,7 +928,7 @@ const ConsultaPage = () => {
               onClick={() => setShowTableSelector(true)}
               className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 whitespace-nowrap"
             >
-              <span>Editar seleção</span>
+              <span>{t("query.editSelection") || "Editar seleção"}</span>
               <ChevronDown className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -959,7 +977,8 @@ const ConsultaPage = () => {
               table_list={selectedTables}
               setTable_list={setSelectedTables}
               onExecuteQuery={(query) => {
-                query.limit = parseInt(queryLimit, 10);
+                const parsedLimit = parseInt(queryLimit, 10);
+                query.limit = parsedLimit > 0 ? parsedLimit : undefined;
 
                 return executeQuery(query).then(() => {
                   const tabelaCountColuna: Record<string, CampoDetalhado[]> = {};
@@ -1021,14 +1040,14 @@ const ConsultaPage = () => {
               <div className="flex items-center justify-between bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl text-xs text-amber-900">
                 <span className="font-semibold flex items-center gap-1.5">
                   <Maximize2 className="w-4 h-4 text-amber-700" />
-                  Modo Foco Ativo: filtros superiores ocultados para maximizar a área da tabela de resultados.
+                  {t("query.focusModeActiveNotice") || "Modo Foco Ativo: filtros superiores ocultados para maximizar a área da tabela de resultados."}
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsFocusMode(false)}
                   className="font-bold underline hover:text-amber-950"
                 >
-                  Restaurar painéis
+                  {t("query.restorePanels") || "Restaurar painéis"}
                 </button>
               </div>
             )}
@@ -1067,11 +1086,12 @@ const ConsultaPage = () => {
               if (selectedRowsForEdit && selectedRowsForEdit.rows_primary_keys.length > 0) {
                 await handleUpdateSelected(updatedRow, selectedRowsForEdit);
                 showToast(
+                  t("query.selectedRecordsUpdated", { count: selectedRowsForEdit.indices.length }) ||
                   `${selectedRowsForEdit.indices.length} registros selecionados foram atualizados com sucesso!`
                 );
               } else {
                 await handleBulkUpdate(updatedRow);
-                showToast("Todos os registros foram atualizados com sucesso!");
+                showToast(t("query.allRecordsUpdated") || "Todos os registros foram atualizados com sucesso!");
               }
               setModalOpenEdit(false);
               setIsBulkEditMode(false);
@@ -1104,10 +1124,10 @@ const ConsultaPage = () => {
             handleConfirmFetchModal(confirm, optionModalTable);
           }}
           variant="primary"
-          title="Dados Incompletos"
-          message="Quais tabelas você deseja buscar os dados completos?"
-          confirmText="Buscar Selecionadas"
-          cancelText="Ignorar e Abrir"
+          title={t("query.incompleteDataTitle") || "Dados Incompletos"}
+          message={t("query.incompleteDataMsg") || "Quais tabelas você deseja buscar os dados completos?"}
+          confirmText={t("query.fetchSelected") || "Buscar Selecionadas"}
+          cancelText={t("query.ignoreAndOpen") || "Ignorar e Abrir"}
         />
 
       </main>
@@ -1129,7 +1149,7 @@ const ConsultaPage = () => {
           type="button"
           onClick={() => setIsHistoryOpen(true)}
           className="fixed bottom-6 right-6 z-30 p-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group focus:ring-4 focus:ring-blue-500/30"
-          title="Abrir Histórico de Consultas (Ctrl + H)"
+          title={t("query.openHistoryTitle") || "Abrir Histórico de Consultas (Ctrl + H)"}
         >
           <History className="w-5 h-5 group-hover:rotate-[-20deg] transition-transform" />
           {historyCount > 0 && (

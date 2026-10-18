@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { useSession } from "@/context/SessionContext";
+import { useI18n } from "@/context/I18nContext";
 import { isSystemTable } from "../home/tabelas/componentTabela/util";
 
 export interface Option {
@@ -50,7 +51,7 @@ const LabeledSelectComponent: React.FC<
   value,
   onChange,
   options,
-  placeholder = "Selecione uma ou mais opções",
+  placeholder,
   disabled = false,
   maxSelections,
   searchable = true,
@@ -59,6 +60,8 @@ const LabeledSelectComponent: React.FC<
   onHideSystemTablesChange,
 }) => {
     const { user } = useSession();
+    const { t } = useI18n();
+    const effectivePlaceholder = placeholder || t("select.selectOneOrMore") || "Selecione uma ou mais opções";
 
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -155,13 +158,13 @@ const LabeledSelectComponent: React.FC<
     // =========================================
     const displayText = useMemo(() => {
       if (selectedLabels.length === 0)
-        return placeholder;
+        return effectivePlaceholder;
 
       if (selectedLabels.length === 1)
         return selectedLabels[0];
 
-      return `${selectedLabels.length} opções selecionadas`;
-    }, [selectedLabels, placeholder]);
+      return (t("select.optionsSelected") || "{count} opções selecionadas").replace("{count}", String(selectedLabels.length));
+    }, [selectedLabels, effectivePlaceholder, t]);
 
     // =========================================
     // FILTER OPTIONS
@@ -279,7 +282,7 @@ const LabeledSelectComponent: React.FC<
 
             {maxSelections && (
               <span className="text-xs font-normal text-gray-500 ml-1">
-                (máx. {maxSelections})
+                {(t("select.maxCount") || "(máx. {max})").replace("{max}", String(maxSelections))}
               </span>
             )}
           </label>
@@ -287,7 +290,7 @@ const LabeledSelectComponent: React.FC<
           {showSystemFilterRadio && (
             <label
               className="inline-flex items-center gap-2 text-xs text-gray-700 hover:text-gray-900 cursor-pointer select-none bg-gray-50 hover:bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200 transition-colors"
-              title="Marque para ocultar tabelas internas do sistema"
+              title={t("select.hideSystemTablesTitle") || "Marque para ocultar tabelas internas do sistema"}
             >
               <input
                 type="checkbox"
@@ -297,7 +300,7 @@ const LabeledSelectComponent: React.FC<
               />
               <span className="flex items-center gap-1.5 text-gray-700 font-medium">
                 <ShieldAlert size={13} className={isHideSystem ? "text-amber-500" : "text-gray-400"} />
-                Ocultar tabelas do sistema
+                {t("common.hideSystemTables") || "Ocultar tabelas do sistema"}
                 {systemOptionsCount > 0 && (
                   <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full font-mono font-semibold">
                     ({systemOptionsCount})
@@ -354,7 +357,7 @@ const LabeledSelectComponent: React.FC<
                     <input
                       ref={searchInputRef}
                       type="text"
-                      placeholder="Buscar opções..."
+                      placeholder={t("select.searchOptionsPlaceholder") || "Buscar opções..."}
                       value={searchTerm}
                       onChange={(e) =>
                         setSearchTerm(
@@ -374,7 +377,7 @@ const LabeledSelectComponent: React.FC<
                     onClick={handleClearAll}
                     className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
                   >
-                    Limpar todas as seleções
+                    {t("select.clearAllSelections") || "Limpar todas as seleções"}
                   </button>
                 </div>
               )}
@@ -392,8 +395,8 @@ const LabeledSelectComponent: React.FC<
                   0 ? (
                   <div className="p-4 text-center text-gray-500 text-sm">
                     {searchTerm
-                      ? "Nenhuma opção encontrada"
-                      : "Nenhuma opção disponível"}
+                      ? (t("common.noOptionFound") || "Nenhuma opção encontrada")
+                      : (t("common.noOptionAvailable") || "Nenhuma opção disponível")}
                   </div>
                 ) : (
                   <div
@@ -488,8 +491,8 @@ const LabeledSelectComponent: React.FC<
                                       }`}
                                   >
                                     {isAdmin
-                                      ? "Sistema (Desbloqueado p/ Admin)"
-                                      : `Bloqueado: ${reason}`}
+                                      ? (t("select.systemUnlockedAdmin") || "Sistema (Desbloqueado p/ Admin)")
+                                      : (t("select.systemBlocked") || "Bloqueado: {reason}").replace("{reason}", reason)}
                                   </span>
                                 )}
                               </div>
@@ -558,8 +561,7 @@ const LabeledSelectComponent: React.FC<
         {/* COUNTER */}
         {maxSelections && (
           <div className="mt-2 text-xs text-gray-500">
-            {selectedValues.length} de{" "}
-            {maxSelections} selecionados
+            {(t("select.countOfMaxSelected") || "{selected} de {max} selecionados").replace("{selected}", String(selectedValues.length)).replace("{max}", String(maxSelections))}
           </div>
         )}
       </div>

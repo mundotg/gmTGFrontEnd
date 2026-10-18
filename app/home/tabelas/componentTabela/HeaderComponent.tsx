@@ -44,9 +44,9 @@ interface DatabaseHeaderProps {
   clearSelection: () => void;
   setIsCreateOpen: React.Dispatch<React.SetStateAction<boolean>>;
   handleDeleteSelectedTables: () => void;
-  setIsTransactionOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsTransactionOpen?: React.Dispatch<React.SetStateAction<boolean>>;
   setIsBackupOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setIsDeadlocksOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsDeadlocksOpen?: React.Dispatch<React.SetStateAction<boolean>>;
   filteredAndSortedTables: TableInfo[];
   searchTerm: string;
   setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
@@ -77,9 +77,7 @@ const DatabaseHeader: React.FC<DatabaseHeaderProps> = ({
   clearSelection,
   setIsCreateOpen,
   handleDeleteSelectedTables,
-  setIsTransactionOpen,
   setIsBackupOpen,
-  setIsDeadlocksOpen,
   filteredAndSortedTables,
   searchTerm,
   setSearchTerm,
@@ -218,9 +216,9 @@ const DatabaseHeader: React.FC<DatabaseHeaderProps> = ({
 
           <div className={`h-5 w-px mx-1 ${dm ? "bg-gray-700" : "bg-gray-200"}`} />
 
-          <ActionBtn onClick={() => setIsTransactionOpen(true)} icon={ArrowLeftRight} label={t("actions.transaction") || "Transação"} variant="secondary" dm={dm} />
+          <ActionBtn href="/home/transacoes" icon={ArrowLeftRight} label={t("actions.transaction") || "Transação"} variant="secondary" dm={dm} />
           <ActionBtn onClick={() => setIsBackupOpen(true)} icon={DatabaseBackup} label={t("actions.backup") || "Backup"} variant="secondary" dm={dm} />
-          <ActionBtn onClick={() => setIsDeadlocksOpen(true)} icon={Activity} label={t("actions.deadlocks") || "Deadlocks"} variant="secondary" dm={dm} />
+          <ActionBtn href="/home/deadlocks" icon={Activity} label={t("actions.deadlocks") || "Deadlocks"} variant="secondary" dm={dm} />
 
           <div className={`h-5 w-px mx-1 ${dm ? "bg-gray-700" : "bg-gray-200"}`} />
 
@@ -328,14 +326,15 @@ const InfoCard: React.FC<InfoCardProps> = ({ icon: Icon, label, value, iconBg, i
 
 // Action button
 interface ActionBtnProps {
-  onClick: () => void;
+  onClick?: () => void;
+  href?: string;
   icon: React.ElementType;
   label: string;
   variant: "primary" | "secondary" | "danger" | "outline";
   dm: boolean;
 }
 
-const ActionBtn: React.FC<ActionBtnProps> = ({ onClick, icon: Icon, label, variant, dm }) => {
+const ActionBtn: React.FC<ActionBtnProps> = ({ onClick, href, icon: Icon, label, variant, dm }) => {
   const base = "flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-medium border transition-colors";
 
   const styles: Record<string, string> = {
@@ -350,6 +349,15 @@ const ActionBtn: React.FC<ActionBtnProps> = ({ onClick, icon: Icon, label, varia
       ? "bg-[#2C2C2E] text-gray-300 border-gray-700 hover:bg-gray-700"
       : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50",
   };
+
+  if (href) {
+    return (
+      <Link href={href} className={`${base} ${styles[variant]}`}>
+        <Icon className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">{label}</span>
+      </Link>
+    );
+  }
 
   return (
     <button onClick={onClick} className={`${base} ${styles[variant]}`}>

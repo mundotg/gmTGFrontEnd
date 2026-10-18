@@ -21,6 +21,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
+import { useI18n } from "@/context/I18nContext";
 import { QueryPayload } from "@/types";
 
 type RecentItem = {
@@ -52,20 +53,6 @@ type Props = {
   defaultOpen?: boolean;
 };
 
-function shortWhen(iso?: string | null): string {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    const diff = (Date.now() - d.getTime()) / 1000;
-    if (diff < 60) return "agora";
-    if (diff < 3600) return `há ${Math.floor(diff / 60)} min`;
-    if (diff < 86400) return `há ${Math.floor(diff / 3600)} h`;
-    return d.toLocaleDateString();
-  } catch {
-    return "";
-  }
-}
-
 const PAGE_SIZE = 5;
 
 type FilterType = "all" | "success" | "failed" | "favorites" | "joins";
@@ -79,8 +66,32 @@ const QueryHistoryPanel: React.FC<Props> = ({
   defaultOpen = false,
 }) => {
   const { api, user } = useSession();
+  const { t } = useI18n();
   const connId = (user?.info_extra as { id_connection?: number } | undefined)?.id_connection;
   const dbName = (user?.info_extra as { name_db?: string } | undefined)?.name_db;
+
+  const formatShortWhen = useCallback(
+    (iso?: string | null): string => {
+      if (!iso) return "";
+      try {
+        const d = new Date(iso);
+        const diff = (Date.now() - d.getTime()) / 1000;
+        if (diff < 60) return t("time.now") || "agora";
+        if (diff < 3600) {
+          const m = Math.floor(diff / 60);
+          return (t("time.minutesAgo") || "há {m} min").replace("{m}", String(m));
+        }
+        if (diff < 86400) {
+          const h = Math.floor(diff / 3600);
+          return (t("time.hoursAgo") || "há {h} h").replace("{h}", String(h));
+        }
+        return d.toLocaleDateString();
+      } catch {
+        return "";
+      }
+    },
+    [t]
+  );
 
   const [recent, setRecent] = useState<RecentItem[]>([]);
   const [topTables, setTopTables] = useState<{ table: string; uses: number }[]>([]);
@@ -216,7 +227,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
     return (
       <div className={`border border-dashed border-gray-200 rounded-xl bg-gray-50/60 p-4 text-center ${className}`}>
         <p className="text-xs text-gray-500 font-medium">
-          Nenhuma conexão de base de dados ativa no momento.
+          {t("history.noActiveConnection") || "Nenhuma conexão de base de dados ativa no momento."}
         </p>
       </div>
     );
@@ -237,12 +248,12 @@ const QueryHistoryPanel: React.FC<Props> = ({
           <div className="text-left">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs sm:text-sm font-bold text-gray-900">
-                Histórico de Consultas &amp; Auditoria
+                {t("history.panelTitle") || "Histórico de Consultas & Auditoria"}
               </span>
               {dbName && (
                 <span
                   className="text-[10px] font-mono font-semibold bg-gray-100 text-gray-600 border border-gray-200 px-1.5 py-0.2 rounded"
-                  title={`Conexão atual ID: ${connId}`}
+                  title={(t("history.currentConnectionId") || "Conexão atual ID: {id}").replace("{id}", String(connId))}
                 >
                   {dbName}
                 </span>
@@ -250,13 +261,13 @@ const QueryHistoryPanel: React.FC<Props> = ({
               {recent.length > 0 && (
                 <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.2 rounded-full">
                   {filteredList.length !== recent.length
-                    ? `${filteredList.length} de ${recent.length}`
+                    ? `${filteredList.length} ${t("common.of") || "de"} ${recent.length}`
                     : recent.length}
                 </span>
               )}
             </div>
             <p className="text-[11px] text-gray-500 font-medium hidden sm:block">
-              Status de execução, sucesso, falhas e reutilização na conexão ativa ({dbName || `#${connId}`})
+              {(t("history.panelSubtitle") || "Status de execução, sucesso, falhas e reutilização na conexão ativa ({db})").replace("{db}", dbName || `#${connId}`)}
             </p>
           </div>
         </div>
@@ -270,7 +281,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
               fetchRecent();
             }}
             className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-500 transition-colors"
-            title="Atualizar histórico"
+            title={t("history.refreshHistory") || "Atualizar histórico"}
           >
             <RefreshCw size={14} className={loading ? "animate-spin text-blue-600" : ""} />
           </span>
@@ -292,7 +303,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por SQL, tabela, erro..."
+                placeholder={t("history.searchPlaceholder") || "Buscar por SQL, tabela, erro..."}
                 className="w-full pl-9 pr-8 py-1.5 text-xs bg-gray-50/80 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-800 placeholder-gray-400 transition-all"
               />
               {searchTerm && (
@@ -300,7 +311,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                   type="button"
                   onClick={() => setSearchTerm("")}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded"
-                  title="Limpar busca"
+                  title={t("history.clearSearch") || "Limpar busca"}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -322,7 +333,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                     : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                 }`}
               >
-                <span>Todas</span>
+                <span>{t("common.all") || "Todas"}</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                     activeFilter === "all" && !selectedTableFilter
@@ -348,7 +359,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                 }`}
               >
                 <CheckCircle2 className="w-3 h-3" />
-                <span>Sucesso</span>
+                <span>{t("history.querySuccess") || "Sucesso"}</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                     activeFilter === "success"
@@ -374,7 +385,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                 }`}
               >
                 <XCircle className="w-3 h-3" />
-                <span>Falhou</span>
+                <span>{t("history.queryFailed") || "Falhou"}</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                     activeFilter === "failed"
@@ -406,7 +417,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                       : "text-amber-500 fill-amber-500"
                   }`}
                 />
-                <span>Favoritas</span>
+                <span>{t("history.favorites") || "Favoritas"}</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                     activeFilter === "favorites"
@@ -432,7 +443,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                 }`}
               >
                 <Layers className="w-3 h-3" />
-                <span>JOINs</span>
+                <span>{t("history.withJoins") || "JOINs"}</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                     activeFilter === "joins"
@@ -450,15 +461,15 @@ const QueryHistoryPanel: React.FC<Props> = ({
           {selectedTableFilter && (
             <div className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
               <span>
-                Filtrado por tabela: <strong>{selectedTableFilter}</strong>
+                {t("history.filteredByTablePrefix") || "Filtrado por tabela:"} <strong>{selectedTableFilter}</strong>
               </span>
               <button
                 type="button"
                 onClick={() => setSelectedTableFilter(null)}
                 className="p-0.5 hover:bg-blue-200/60 rounded text-blue-600 transition-colors"
-                title="Remover filtro de tabela"
+                title={t("history.removeTableFilter") || "Remover filtro de tabela"}
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
@@ -467,7 +478,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
           {topTables.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5 p-2.5 bg-blue-50/50 border border-blue-100 rounded-xl">
               <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-blue-700 mr-1">
-                <Sparkles size={12} className="text-blue-600" /> Sugestões:
+                <Sparkles size={12} className="text-blue-600" /> {t("history.suggestions") || "Sugestões:"}
               </span>
               {topTables.map((s) => (
                 <div
@@ -478,7 +489,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                     type="button"
                     onClick={() => onPickTable?.(s.table)}
                     className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-gray-700 hover:text-blue-700 hover:bg-blue-50 transition-colors"
-                    title={`Adicionar tabela '${s.table}' ao formulário (${s.uses} utilizações)`}
+                    title={(t("history.pickTableTitle") || "Adicionar tabela '{table}' ao formulário ({uses} utilizações)").replace("{table}", s.table).replace("{uses}", String(s.uses))}
                   >
                     <Table size={12} className="text-gray-400" />
                     <span>{s.table}</span>
@@ -494,7 +505,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                         ? "bg-blue-100 text-blue-700 font-bold"
                         : "text-gray-400"
                     }`}
-                    title={`Filtrar histórico por '${s.table}'`}
+                    title={(t("history.filterByTableTitle") || "Filtrar histórico por '{table}'").replace("{table}", s.table)}
                   >
                     <Filter size={10} />
                   </button>
@@ -509,8 +520,8 @@ const QueryHistoryPanel: React.FC<Props> = ({
               <Clock className="w-8 h-8 text-gray-300 mx-auto mb-1.5" />
               <p className="text-xs font-medium text-gray-500">
                 {searchTerm || activeFilter !== "all" || selectedTableFilter
-                  ? "Nenhuma consulta encontrada com os filtros selecionados."
-                  : "Ainda não há consultas no histórico para esta conexão."}
+                  ? t("history.noSearchResults") || "Nenhuma consulta encontrada com os filtros selecionados."
+                  : t("history.noQueriesFound") || "Ainda não há consultas no histórico para esta conexão."}
               </p>
               {(searchTerm || activeFilter !== "all" || selectedTableFilter) && (
                 <button
@@ -522,7 +533,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                   }}
                   className="mt-2 text-xs font-bold text-blue-600 hover:underline"
                 >
-                  Limpar filtros
+                  {t("history.clearFilters") || "Limpar filtros"}
                 </button>
               )}
             </div>
@@ -549,18 +560,18 @@ const QueryHistoryPanel: React.FC<Props> = ({
                         {isFailed ? (
                           <span
                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shrink-0"
-                            title={it.error_message || "Consulta falhou"}
+                            title={it.error_message || t("history.queryFailed") || "Consulta falhou"}
                           >
                             <XCircle size={12} className="text-rose-600" />
-                            <span>Falhou</span>
+                            <span>{t("history.queryFailed") || "Falhou"}</span>
                           </span>
                         ) : (
                           <span
                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0"
-                            title="Consulta executada com sucesso"
+                            title={t("history.querySuccess") || "Consulta executada com sucesso"}
                           >
                             <CheckCircle2 size={12} className="text-emerald-600" />
-                            <span>Sucesso</span>
+                            <span>{t("history.querySuccess") || "Sucesso"}</span>
                           </span>
                         )}
 
@@ -569,7 +580,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                           type="button"
                           onClick={(e) => handleToggleFavorite(it.id, e)}
                           className="p-0.5 hover:scale-110 transition-transform shrink-0"
-                          title={it.is_favorite ? "Remover dos favoritos" : "Marcar como favorito"}
+                          title={it.is_favorite ? (t("history.removeFromFavorites") || "Remover dos favoritos") : (t("history.markFavorite") || "Marcar como favorito")}
                           disabled={togglingFavId === it.id}
                         >
                           <Star
@@ -606,7 +617,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                       <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px] text-gray-400">
                         <span className="flex items-center gap-1 text-gray-500">
                           <Clock size={11} className="text-gray-400" />
-                          <span>{shortWhen(it.executed_at)}</span>
+                          <span>{formatShortWhen(it.executed_at)}</span>
                         </span>
 
                         {typeof it.duration_ms === "number" && (
@@ -615,7 +626,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
 
                         {typeof it.row_count === "number" && !isFailed && (
                           <span className="font-semibold text-gray-600">
-                            · {it.row_count} linhas
+                            · {it.row_count} {t("history.rows") || "linhas"}
                           </span>
                         )}
 
@@ -623,7 +634,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
 
                         {(it.tables_involved?.length ?? 0) > 0 && (
                           <div className="flex items-center gap-1 flex-wrap">
-                            <span className="text-gray-400">· Tabelas:</span>
+                            <span className="text-gray-400">· {t("history.tables") || "Tabelas:"}</span>
                             {it.tables_involved!.map((tbl) => (
                               <button
                                 key={tbl}
@@ -633,7 +644,7 @@ const QueryHistoryPanel: React.FC<Props> = ({
                                   onPickTable?.(tbl);
                                 }}
                                 className="px-1.5 py-0.5 bg-gray-100 hover:bg-blue-100 hover:text-blue-800 text-gray-700 font-mono text-[10px] rounded border border-gray-200 hover:border-blue-300 transition-colors"
-                                title={`Selecionar tabela '${tbl}'`}
+                                title={(t("history.selectTable") || "Selecionar tabela '{table}'").replace("{table}", tbl)}
                               >
                                 {tbl}
                               </button>
@@ -652,12 +663,12 @@ const QueryHistoryPanel: React.FC<Props> = ({
                         className="px-2.5 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-30 disabled:cursor-not-allowed border border-blue-200 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
                         title={
                           it.payload
-                            ? "Construir formulário e editar no construtor"
-                            : "Sem payload estruturado"
+                            ? t("history.loadIntoBuilder") || "Construir formulário e editar no construtor"
+                            : t("history.noPayload") || "Sem payload estruturado"
                         }
                       >
                         <Pencil size={13} />
-                        <span>Editar</span>
+                        <span>{t("common.edit") || "Editar"}</span>
                       </button>
 
                       <button
@@ -672,14 +683,14 @@ const QueryHistoryPanel: React.FC<Props> = ({
                         title={
                           it.payload
                             ? isFailed
-                              ? "Tentar executar novamente"
-                              : "Executar novamente"
-                            : "Sem payload estruturado"
+                              ? t("history.retryTitle") || "Tentar executar novamente"
+                              : t("history.rerunAsIs") || "Executar novamente"
+                            : t("history.noPayload") || "Sem payload estruturado"
                         }
                       >
                         <Play size={13} />
                         <span className="hidden sm:inline">
-                          {isFailed ? "Re-tentar" : "Executar"}
+                          {isFailed ? (t("history.retry") || "Re-tentar") : (t("history.run") || "Executar")}
                         </span>
                       </button>
                     </div>
@@ -693,9 +704,12 @@ const QueryHistoryPanel: React.FC<Props> = ({
           {filteredList.length > PAGE_SIZE && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
               <div>
-                A mostrar <strong>{(page - 1) * PAGE_SIZE + 1}</strong>–
-                <strong>{Math.min(page * PAGE_SIZE, filteredList.length)}</strong> de{" "}
-                <strong>{filteredList.length}</strong> consultas
+                {t("common.showing") || "A mostrar"}{" "}
+                <strong>{(page - 1) * PAGE_SIZE + 1}</strong>–
+                <strong>{Math.min(page * PAGE_SIZE, filteredList.length)}</strong>{" "}
+                {t("common.of") || "de"}{" "}
+                <strong>{filteredList.length}</strong>{" "}
+                {t("history.queries") || "consultas"}
               </div>
 
               <div className="flex items-center gap-1.5">
@@ -704,10 +718,10 @@ const QueryHistoryPanel: React.FC<Props> = ({
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   className="px-2 py-1 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-35 disabled:cursor-not-allowed text-gray-600 flex items-center gap-1 font-medium transition-colors"
-                  title="Página anterior"
+                  title={t("history.previousPage") || "Página anterior"}
                 >
                   <ChevronLeft size={14} />
-                  <span className="hidden sm:inline">Anterior</span>
+                  <span className="hidden sm:inline">{t("history.previous") || "Anterior"}</span>
                 </button>
 
                 <div className="flex items-center gap-1 px-1">
@@ -738,9 +752,9 @@ const QueryHistoryPanel: React.FC<Props> = ({
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   className="px-2 py-1 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-35 disabled:cursor-not-allowed text-gray-600 flex items-center gap-1 font-medium transition-colors"
-                  title="Próxima página"
+                  title={t("history.nextPage") || "Próxima página"}
                 >
-                  <span className="hidden sm:inline">Próxima</span>
+                  <span className="hidden sm:inline">{t("history.next") || "Próxima"}</span>
                   <ChevronRight size={14} />
                 </button>
               </div>

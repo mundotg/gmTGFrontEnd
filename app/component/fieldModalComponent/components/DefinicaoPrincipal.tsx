@@ -28,6 +28,8 @@ interface DefinicaoPrincipalProps {
     tiposPorBanco: Record<string, string[]>;
 
     t: (key: string) => string;
+    nameError?: string | null;
+    mode?: "create" | "edit";
 }
 
 export default function DefinicaoPrincipal({
@@ -39,8 +41,11 @@ export default function DefinicaoPrincipal({
     isFloatType,
     userDbType,
     tiposPorBanco,
-    t
+    t,
+    nameError,
+    mode,
 }: DefinicaoPrincipalProps) {
+    const isMongo = useMemo(() => (userDbType || "").toLowerCase().includes("mongo"), [userDbType]);
 
     const availableTypes = useMemo(() => {
         if (!userDbType) return [];
@@ -90,11 +95,13 @@ export default function DefinicaoPrincipal({
 
                     <div>
                         <h3 className="text-sm font-bold text-gray-900">
-                            {t("fields.mainDefinition") || "Definição Principal"}
+                            {isMongo ? "Definição do Campo (MongoDB)" : (t("fields.mainDefinition") || "Definição Principal")}
                         </h3>
 
                         <p className="text-xs text-gray-500 mt-0.5">
-                            Estrutura principal da coluna no banco de dados
+                            {isMongo
+                                ? "Estrutura do campo nos documentos da coleção"
+                                : "Estrutura principal da coluna no banco de dados"}
                         </p>
                     </div>
                 </div>
@@ -116,7 +123,7 @@ export default function DefinicaoPrincipal({
                 {/* COLUMN NAME */}
                 <div className="xl:col-span-2">
                     <label className={labelClass}>
-                        {t("fields.columnName") || "Nome da Coluna"}
+                        {isMongo ? "Nome do Campo" : (t("fields.columnName") || "Nome da Coluna")}
 
                         <span className="text-red-500 ml-1">*</span>
                     </label>
@@ -126,21 +133,30 @@ export default function DefinicaoPrincipal({
                         onChange={(e) =>
                             updateFormField("nome", e.target.value)
                         }
-                        className={inputClass}
-                        placeholder="Ex: id, created_at, email, status..."
+                        className={`${inputClass} ${nameError ? "border-red-400 focus:border-red-500 focus:ring-red-200" : ""}`}
+                        placeholder={isMongo ? "Ex: created_at, status, tags, metadata..." : "Ex: id, created_at, email, status..."}
                         disabled={busy}
                         autoComplete="off"
                     />
 
-                    <p className="mt-1 text-xs text-gray-500">
-                        Evite espaços, caracteres especiais e palavras reservadas.
-                    </p>
+                    {nameError ? (
+                        <div className="mt-1.5 flex items-center gap-1.5 text-xs text-red-600 font-semibold animate-in fade-in">
+                            <AlertTriangle size={14} className="flex-shrink-0" />
+                            <span>{nameError}</span>
+                        </div>
+                    ) : (
+                        <p className="mt-1 text-xs text-gray-500">
+                            {isMongo
+                                ? "No MongoDB evite pontos ('.'), cifrão inicial ('$') e o campo reservado '_id'."
+                                : "Evite espaços, caracteres especiais e palavras reservadas."}
+                        </p>
+                    )}
                 </div>
 
                 {/* DATA TYPE */}
                 <div>
                     <label className={labelClass}>
-                        {t("fields.dataType") || "Tipo de Dado"}
+                        {isMongo ? "Tipo BSON / Dado" : (t("fields.dataType") || "Tipo de Dado")}
 
                         <span className="text-red-500 ml-1">*</span>
                     </label>

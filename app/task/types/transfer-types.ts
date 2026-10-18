@@ -14,6 +14,8 @@ export interface TableMapping {
   tabela_name_destino: string;
   id_tabela_origen: number;
   id_tabela_destino: number;
+  custom_query?: string;
+  where_clause?: string;
   colunas_relacionados_para_transacao: ColumnMapping[];
 }
 

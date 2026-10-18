@@ -117,10 +117,27 @@ export default function AtributosRestricoes({
                 timestamp: ["", "NULL", "CURRENT_TIMESTAMP"],
                 boolean: ["", "NULL", "0", "1"],
             },
+            mongodb: {
+                ...base,
+                string: ["", "NULL"],
+                int: ["", "0", "NULL"],
+                long: ["", "0", "NULL"],
+                double: ["", "0.0", "NULL"],
+                decimal: ["", "0.0", "NULL"],
+                number: ["", "0", "NULL"],
+                date: ["", "NULL", "NOW()", "CURRENT_DATE"],
+                datetime: ["", "NULL", "NOW()"],
+                timestamp: ["", "NULL", "NOW()"],
+                boolean: ["", "NULL", "true", "false"],
+                object: ["", "NULL", "{}"],
+                array: ["", "NULL", "[]"],
+            },
         };
 
         return map[dbType?.toLowerCase()] || base;
     }, [dbType]);
+
+    const isMongo = useMemo(() => (dbType || "").toLowerCase().includes("mongo"), [dbType]);
 
     const currentDefaults = useMemo(() => {
         if (form.enumValues.length > 0) {
@@ -211,50 +228,60 @@ export default function AtributosRestricoes({
             <div>
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-800 border-b border-gray-100 pb-2 flex items-center gap-2">
                     <ShieldCheck size={15} className="text-blue-600" />
-                    Atributos e Restrições
+                    {isMongo ? "Comportamento e Valor Inicial (MongoDB)" : "Atributos e Restrições"}
                 </h3>
             </div>
 
             {/* ================================================= */}
-            {/* TOGGLES */}
+            {/* TOGGLES OU BANNER MONGO */}
             {/* ================================================= */}
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
-                <ToggleCard
-                    label="NULL"
-                    checked={form.isNullable}
-                    onChange={handleNullable}
-                    disabled={busy}
-                />
+            {isMongo ? (
+                <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
+                    <span className="text-base leading-none">🍃</span>
+                    <div>
+                        <span className="font-bold block">Documentos Schemaless:</span>
+                        No MongoDB os campos são dinâmicos e opcionais. A chave primária é exclusivamente o campo <code className="bg-amber-100 dark:bg-amber-900/40 px-1 py-0.5 rounded font-mono">_id</code> (gerado automaticamente). O valor padrão definido abaixo será atribuído a todos os documentos existentes da coleção.
+                    </div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
+                    <ToggleCard
+                        label="NULL"
+                        checked={form.isNullable}
+                        onChange={handleNullable}
+                        disabled={busy}
+                    />
 
-                <ToggleCard
-                    label="UNIQUE"
-                    checked={form.isUnique}
-                    onChange={handleUnique}
-                    disabled={busy || form.isPrimaryKey}
-                />
+                    <ToggleCard
+                        label="UNIQUE"
+                        checked={form.isUnique}
+                        onChange={handleUnique}
+                        disabled={busy || form.isPrimaryKey}
+                    />
 
-                <ToggleCard
-                    label="PRIMARY"
-                    checked={form.isPrimaryKey}
-                    onChange={handlePrimaryKey}
-                    isPrimary
-                    disabled={busy}
-                />
+                    <ToggleCard
+                        label="PRIMARY"
+                        checked={form.isPrimaryKey}
+                        onChange={handlePrimaryKey}
+                        isPrimary
+                        disabled={busy}
+                    />
 
-                <ToggleCard
-                    label="AUTO INC"
-                    checked={form.isAutoIncrement}
-                    onChange={(v: boolean) => updateFormField("isAutoIncrement", v)}
-                    disabled={busy || !supportsAutoIncrement}
-                />
+                    <ToggleCard
+                        label="AUTO INC"
+                        checked={form.isAutoIncrement}
+                        onChange={(v: boolean) => updateFormField("isAutoIncrement", v)}
+                        disabled={busy || !supportsAutoIncrement}
+                    />
 
-                <ToggleCard
-                    label="UNSIGNED"
-                    checked={supportsUnsigned ? form.isUnsigned : false}
-                    onChange={(v: boolean) => updateFormField("isUnsigned", v)}
-                    disabled={busy || !supportsUnsigned || !isNumericType}
-                />
-            </div>
+                    <ToggleCard
+                        label="UNSIGNED"
+                        checked={supportsUnsigned ? form.isUnsigned : false}
+                        onChange={(v: boolean) => updateFormField("isUnsigned", v)}
+                        disabled={busy || !supportsUnsigned || !isNumericType}
+                    />
+                </div>
+            )}
 
             {/* ================================================= */}
             {/* DEFAULT + COMMENT */}
