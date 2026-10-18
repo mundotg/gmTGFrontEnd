@@ -22,19 +22,14 @@ import {
   Copy,
   Terminal,
   Activity,
-  Flame,
-  ArrowRight,
   Info,
-  Lock,
   X,
-  FileCode,
-  FileJson,
-  UploadCloud,
   Sparkles,
 } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
 import { hasPermission } from "@/permissions_val";
 import api from "@/context/axioCuston";
+import usePersistedState from "@/hook/localStoreUse";
 
 /* =========================================================================
    TIPOS & INTERFACES
@@ -58,7 +53,7 @@ export interface IntegrationItem {
   provider: string;
   description: string;
   category: "Data Warehouse & Cloud" | "Armazenamento & ETL" | "Comunicação & Alertas" | "Desenvolvimento";
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   brandColor: string;
   badge?: string;
   connected: boolean;
@@ -153,6 +148,138 @@ const DatabricksIcon = () => (
 );
 
 /* =========================================================================
+   RESOLUÇÃO DE ÍCONES DAS INTEGRAÇÕES
+========================================================================= */
+
+const getIntegrationIcon = (id: string): React.ReactNode => {
+  switch (id) {
+    case "bigquery":
+      return <BigQueryIcon />;
+    case "snowflake":
+      return <SnowflakeIcon />;
+    case "databricks":
+      return <DatabricksIcon />;
+    case "gcs":
+      return <Cloud className="text-[#4285F4]" />;
+    case "slack":
+      return <MessageSquare className="text-[#4A154B]" />;
+    case "github":
+      return <Github className="text-[#181717]" />;
+    case "jira":
+      return <Trello className="text-[#0052CC]" />;
+    default:
+      return <Layers className="text-gray-500" />;
+  }
+};
+
+/* =========================================================================
+   CATÁLOGO INICIAL PADRÃO
+========================================================================= */
+
+const INITIAL_INTEGRATIONS_LIST: IntegrationItem[] = [
+  {
+    id: "bigquery",
+    name: "Google BigQuery",
+    provider: "Google Cloud Platform",
+    description:
+      "Data warehouse corporativo de alta escalabilidade. Conecta esquemas, executa queries analíticas e alimenta o motor de Dry-Run do MustaInfo para estimativa prévia de custos e bytes.",
+    category: "Data Warehouse & Cloud",
+    brandColor: "#4285F4",
+    badge: "Destaque & Dry-Run",
+    connected: true,
+    featured: true,
+    lastSync: "Há 4 minutos",
+    metrics: [
+      { label: "Datasets", value: "4 ativos" },
+      { label: "Dry-Run", value: "Ativo (10 GB)" },
+      { label: "Economia", value: "$142.80" },
+    ],
+  },
+  {
+    id: "snowflake",
+    name: "Snowflake",
+    provider: "Snowflake Computing",
+    description:
+      "Cloud data platform para cargas analíticas e data sharing seguro. Sincronize bancos de dados analíticos e tabelas externas com o catálogo central.",
+    category: "Data Warehouse & Cloud",
+    brandColor: "#29B5E8",
+    badge: "Cloud DWH",
+    connected: false,
+    metrics: [
+      { label: "Warehouses", value: "XS-Auto" },
+      { label: "Role", value: "SYSADMIN" },
+    ],
+  },
+  {
+    id: "databricks",
+    name: "Databricks Delta Lake",
+    provider: "Databricks Inc.",
+    description:
+      "Lakehouse unificado com suporte a Unity Catalog e Apache Spark. Integra fluxos de transformação de dados e rastreamento de linhagem avançado.",
+    category: "Data Warehouse & Cloud",
+    brandColor: "#FF3621",
+    badge: "Lakehouse",
+    connected: false,
+  },
+  {
+    id: "gcs",
+    name: "Google Cloud Storage (GCS)",
+    provider: "Google Cloud",
+    description:
+      "Armazenamento de objetos em nuvem para arquivos Parquet, CSVs e backups automáticos de bancos relacionais.",
+    category: "Armazenamento & ETL",
+    brandColor: "#4285F4",
+    connected: true,
+    lastSync: "Há 12 minutos",
+    metrics: [
+      { label: "Buckets", value: "3 vinculados" },
+      { label: "Armazenamento", value: "1.2 TB" },
+    ],
+  },
+  {
+    id: "slack",
+    name: "Slack",
+    provider: "Slack Technologies",
+    description:
+      "Receba alertas imediatos em canais dedicados sobre deadlocks, consultas pesadas bloqueadas pelo Dry-Run e auditoria de DDL.",
+    category: "Comunicação & Alertas",
+    brandColor: "#4A154B",
+    badge: "Alertas Críticos",
+    connected: true,
+    lastSync: "Em tempo real",
+    metrics: [
+      { label: "Canais", value: "#db-alertas" },
+      { label: "Notificações", value: "142 hoje" },
+    ],
+  },
+  {
+    id: "github",
+    name: "GitHub",
+    provider: "GitHub, Inc.",
+    description:
+      "Sincronize repositórios de scripts SQL, versionamento de migrações e auditoria de alterações de esquemas via GitOps.",
+    category: "Desenvolvimento",
+    brandColor: "#181717",
+    connected: true,
+    lastSync: "Há 1 hora",
+    metrics: [
+      { label: "Repo", value: "empresa/db-migrations" },
+      { label: "Sync", value: "Automático" },
+    ],
+  },
+  {
+    id: "jira",
+    name: "Jira Software",
+    provider: "Atlassian",
+    description:
+      "Vincule execuções de DDL e tarefas de ajuste de índices diretamente a tickets e sprints da equipe de engenharia.",
+    category: "Desenvolvimento",
+    brandColor: "#0052CC",
+    connected: false,
+  },
+];
+
+/* =========================================================================
    COMPONENTE PRINCIPAL
 ========================================================================= */
 
@@ -169,7 +296,12 @@ export const IntegracoesTab: React.FC = () => {
   // Modais de Configuração
   const [isBigQueryModalOpen, setIsBigQueryModalOpen] = useState(false);
   const [bigQueryTab, setBigQueryTab] = useState<"creds" | "dryrun" | "lineage">("creds");
-  const [bigQueryConfig, setBigQueryConfig] = useState<BigQueryConfig>(DEFAULT_BIGQUERY_CONFIG);
+
+  // Estado persistido com usePersistedState (IndexedDB / arquitetura do projeto)
+  const [bigQueryConfig, setBigQueryConfig] = usePersistedState<BigQueryConfig>(
+    "mustainf_bigquery_config",
+    DEFAULT_BIGQUERY_CONFIG
+  );
   const [testingBigQuery, setTestingBigQuery] = useState(false);
   const [bigQueryTestResult, setBigQueryTestResult] = useState<{ success: boolean; latencyMs: number; message: string } | null>(null);
 
@@ -177,18 +309,27 @@ export const IntegracoesTab: React.FC = () => {
   const [genericModalIntegration, setGenericModalIntegration] = useState<IntegrationItem | null>(null);
   const [genericConfig, setGenericConfig] = useState<Record<string, string>>({});
 
-  // Webhooks State
-  const [webhookUrl, setWebhookUrl] = useState("https://api.empresa.com/v1/mustainf-events");
-  const [webhookSecret, setWebhookSecret] = useState("whsec_9a8b7c6d5e4f3a2b1c0d");
+  // Webhooks State persistido
+  const [webhookUrl, setWebhookUrl] = usePersistedState<string>(
+    "mustainf_webhook_url",
+    "https://api.empresa.com/v1/mustainf-events"
+  );
+  const [webhookSecret, setWebhookSecret] = usePersistedState<string>(
+    "mustainf_webhook_secret",
+    "whsec_9a8b7c6d5e4f3a2b1c0d"
+  );
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [sendingTestWebhook, setSendingTestWebhook] = useState(false);
   const [webhookTestOutput, setWebhookTestOutput] = useState<{ status: number; message: string; payload: any } | null>(null);
-  const [selectedWebhookEvents, setSelectedWebhookEvents] = useState<string[]>([
-    "query.executed",
-    "dry_run.alert",
-    "deadlock.detected",
-    "lineage.pipeline_completed",
-  ]);
+  const [selectedWebhookEvents, setSelectedWebhookEvents] = usePersistedState<string[]>(
+    "mustainf_webhook_events",
+    [
+      "query.executed",
+      "dry_run.alert",
+      "deadlock.detected",
+      "lineage.pipeline_completed",
+    ]
+  );
 
   // Permissões
   const canManage = hasPermission(permissions as string[], [
@@ -202,209 +343,78 @@ export const IntegracoesTab: React.FC = () => {
     "admin:*",
   ]);
 
-  // Estado das integrações
-  const [integrationsList, setIntegrationsList] = useState<IntegrationItem[]>([
-    {
-      id: "bigquery",
-      name: "Google BigQuery",
-      provider: "Google Cloud Platform",
-      description:
-        "Data warehouse corporativo de alta escalabilidade. Conecta esquemas, executa queries analíticas e alimenta o motor de Dry-Run do MustaInfo para estimativa prévia de custos e bytes.",
-      category: "Data Warehouse & Cloud",
-      icon: <BigQueryIcon />,
-      brandColor: "#4285F4",
-      badge: "Destaque & Dry-Run",
-      connected: true,
-      featured: true,
-      lastSync: "Há 4 minutos",
-      metrics: [
-        { label: "Datasets", value: "4 ativos" },
-        { label: "Dry-Run", value: "Ativo (10 GB)" },
-        { label: "Economia", value: "$142.80" },
-      ],
-    },
-    {
-      id: "snowflake",
-      name: "Snowflake",
-      provider: "Snowflake Computing",
-      description:
-        "Cloud data platform para cargas analíticas e data sharing seguro. Sincronize bancos de dados analíticos e tabelas externas com o catálogo central.",
-      category: "Data Warehouse & Cloud",
-      icon: <SnowflakeIcon />,
-      brandColor: "#29B5E8",
-      badge: "Cloud DWH",
-      connected: false,
-      metrics: [
-        { label: "Warehouses", value: "XS-Auto" },
-        { label: "Role", value: "SYSADMIN" },
-      ],
-    },
-    {
-      id: "databricks",
-      name: "Databricks Delta Lake",
-      provider: "Databricks Inc.",
-      description:
-        "Lakehouse unificado com suporte a Unity Catalog e Apache Spark. Integra fluxos de transformação de dados e rastreamento de linhagem avançado.",
-      category: "Data Warehouse & Cloud",
-      icon: <DatabricksIcon />,
-      brandColor: "#FF3621",
-      badge: "Lakehouse",
-      connected: false,
-    },
-    {
-      id: "gcs",
-      name: "Google Cloud Storage (GCS)",
-      provider: "Google Cloud",
-      description:
-        "Armazenamento de objetos em nuvem para arquivos Parquet, CSVs e backups automáticos de bancos relacionais.",
-      category: "Armazenamento & ETL",
-      icon: <Cloud className="text-[#4285F4]" />,
-      brandColor: "#4285F4",
-      connected: true,
-      lastSync: "Há 12 minutos",
-      metrics: [
-        { label: "Buckets", value: "3 vinculados" },
-        { label: "Armazenamento", value: "1.2 TB" },
-      ],
-    },
-    {
-      id: "slack",
-      name: "Slack",
-      provider: "Slack Technologies",
-      description:
-        "Receba alertas imediatos em canais dedicados sobre deadlocks, consultas pesadas bloqueadas pelo Dry-Run e auditoria de DDL.",
-      category: "Comunicação & Alertas",
-      icon: <MessageSquare className="text-[#4A154B]" />,
-      brandColor: "#4A154B",
-      badge: "Alertas Críticos",
-      connected: true,
-      lastSync: "Em tempo real",
-      metrics: [
-        { label: "Canais", value: "#db-alertas" },
-        { label: "Notificações", value: "142 hoje" },
-      ],
-    },
-    {
-      id: "github",
-      name: "GitHub",
-      provider: "GitHub, Inc.",
-      description:
-        "Sincronize repositórios de scripts SQL, versionamento de migrações e auditoria de alterações de esquemas via GitOps.",
-      category: "Desenvolvimento",
-      icon: <Github className="text-[#181717]" />,
-      brandColor: "#181717",
-      connected: true,
-      lastSync: "Há 1 hora",
-      metrics: [
-        { label: "Repo", value: "empresa/db-migrations" },
-        { label: "Sync", value: "Automático" },
-      ],
-    },
-    {
-      id: "jira",
-      name: "Jira Software",
-      provider: "Atlassian",
-      description:
-        "Vincule execuções de DDL e tarefas de ajuste de índices diretamente a tickets e sprints da equipe de engenharia.",
-      category: "Desenvolvimento",
-      icon: <Trello className="text-[#0052CC]" />,
-      brandColor: "#0052CC",
-      connected: false,
-    },
-  ]);
+  // Estado das integrações persistido no IndexedDB via usePersistedState
+  const [integrationsList, setIntegrationsList] = usePersistedState<IntegrationItem[]>(
+    "mustainf_integrations_list",
+    INITIAL_INTEGRATIONS_LIST
+  );
 
-  // Carregar dados do backend (com fallback suave para LocalStorage)
+  // Sincronização suave com o backend mantendo o fallback fluido via usePersistedState
   useEffect(() => {
-    const carregarTudo = async () => {
-      // 1. Tentar ler do localStorage primeiro para exibição instantânea
-      try {
-        const savedBQ = localStorage.getItem("mustainf_bigquery_config");
-        if (savedBQ) setBigQueryConfig(JSON.parse(savedBQ));
+    let isMounted = true;
 
-        const savedState = localStorage.getItem("mustainf_integrations_list_v1");
-        if (savedState) {
-          const parsed = JSON.parse(savedState);
-          setIntegrationsList((prev) =>
-            prev.map((item) => {
-              const found = parsed.find((p: any) => p.id === item.id);
-              return found ? { ...item, connected: found.connected } : item;
-            })
+    const syncWithBackend = async () => {
+      try {
+        const resList = await api.get("/integrations/").catch(() => null);
+        if (resList?.data && Array.isArray(resList.data) && isMounted) {
+          const activeIds = new Set(
+            resList.data
+              .filter((it: any) => it.is_active)
+              .map((it: any) => it.provider)
           );
-        }
-      } catch {
-        // ignore
-      }
 
-      // 2. Sincronizar com o backend
-      try {
-        const [respItems, respBQ, respWb] = await Promise.allSettled([
-          api.get("/integrations/"),
-          api.get("/integrations/bigquery"),
-          api.get("/integrations/webhooks"),
-        ]);
-
-        if (respItems.status === "fulfilled" && respItems.value.data) {
-          const backendItems = respItems.value.data;
-          setIntegrationsList((prev) =>
-            prev.map((local) => {
-              const remote = backendItems.find((r: any) => r.id === local.id);
-              if (remote) {
-                return {
-                  ...local,
-                  connected: remote.connected,
-                  lastSync: remote.last_sync || local.lastSync,
-                  metrics: remote.metrics && remote.metrics.length > 0 ? remote.metrics : local.metrics,
-                };
+          setIntegrationsList((prevList) => {
+            const currentList = Array.isArray(prevList) && prevList.length > 0 ? prevList : INITIAL_INTEGRATIONS_LIST;
+            return currentList.map((item) => {
+              if (activeIds.has(item.id)) {
+                return { ...item, connected: true };
               }
-              return local;
-            })
-          );
+              return item;
+            });
+          });
         }
 
-        if (respBQ.status === "fulfilled" && respBQ.value.data) {
-          const bqData = respBQ.value.data;
-          if (bqData.project_id) {
-            setBigQueryConfig((prev) => ({
-              ...prev,
-              projectId: bqData.project_id || prev.projectId,
-              datasetId: bqData.dataset_id || prev.datasetId,
-              region: bqData.region || prev.region,
-              dryRunEnabled: bqData.dry_run_enabled ?? prev.dryRunEnabled,
-              maxBytesBilledGb: bqData.max_bytes_billed_gb ?? prev.maxBytesBilledGb,
-              costAlertThresholdUsd: bqData.cost_alert_threshold_usd ?? prev.costAlertThresholdUsd,
-              autoSyncLineage: bqData.auto_sync_lineage ?? prev.autoSyncLineage,
-              exportQueryAudit: bqData.export_query_audit ?? prev.exportQueryAudit,
-            }));
+        const resBq = await api.get("/integrations/bigquery").catch(() => null);
+        if (resBq?.data && isMounted) {
+          const bqData = resBq.data;
+          setBigQueryConfig((prev) => ({
+            ...prev,
+            projectId: bqData.project_id || prev.projectId,
+            datasetId: bqData.dataset_id || prev.datasetId,
+            region: bqData.region || prev.region,
+            dryRunEnabled: bqData.dry_run_enabled ?? prev.dryRunEnabled,
+            maxBytesBilledGb: bqData.max_bytes_billed_gb ?? prev.maxBytesBilledGb,
+            costAlertThresholdUsd: bqData.cost_alert_threshold_usd ?? prev.costAlertThresholdUsd,
+            autoSyncLineage: bqData.auto_sync_lineage ?? prev.autoSyncLineage,
+            exportQueryAudit: bqData.export_query_audit ?? prev.exportQueryAudit,
+          }));
+        }
+
+        const resWh = await api.get("/integrations/webhooks").catch(() => null);
+        if (resWh?.data && isMounted) {
+          const whData = resWh.data;
+          if (whData.url) setWebhookUrl(whData.url);
+          if (whData.secret) setWebhookSecret(whData.secret);
+          if (Array.isArray(whData.events) && whData.events.length > 0) {
+            setSelectedWebhookEvents(whData.events);
           }
         }
-
-        if (respWb.status === "fulfilled" && respWb.value.data) {
-          const wbData = respWb.value.data;
-          if (wbData.url) setWebhookUrl(wbData.url);
-          if (wbData.secret) setWebhookSecret(wbData.secret);
-          if (wbData.events && wbData.events.length > 0) setSelectedWebhookEvents(wbData.events);
-        }
-      } catch {
-        // Fallback resiliente
+      } catch (err) {
+        console.warn("Integrações: backend offline, utilizando dados persistidos.", err);
       }
     };
 
-    carregarTudo();
-  }, []);
+    syncWithBackend();
 
-  // Salvar no LocalStorage sempre que a lista mudar
-  const persistIntegrationsState = (newList: IntegrationItem[]) => {
-    try {
-      const slim = newList.map((i) => ({ id: i.id, connected: i.connected }));
-      localStorage.setItem("mustainf_integrations_list_v1", JSON.stringify(slim));
-    } catch {
-      // ignore
-    }
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Filtragem
   const filteredIntegrations = useMemo(() => {
-    return integrationsList.filter((item) => {
+    const list = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
+    return list.filter((item) => {
       const matchesCategory = activeCategory === "Todas" || item.category === activeCategory;
       const matchesSearch =
         searchTerm.trim() === "" ||
@@ -437,11 +447,11 @@ export const IntegracoesTab: React.FC = () => {
       setLoadingId(item.id);
       await api.post(`/integrations/toggle?provider=${item.id}&active=false`).catch(() => {});
 
-      const updated = integrationsList.map((i) =>
+      const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
+      const updated = currentList.map((i) =>
         i.id === item.id ? { ...i, connected: false } : i
       );
       setIntegrationsList(updated);
-      persistIntegrationsState(updated);
 
       setFeedbackMsg({
         text: `Integração "${item.name}" foi desconectada com sucesso.`,
@@ -515,8 +525,8 @@ export const IntegracoesTab: React.FC = () => {
         export_query_audit: bigQueryConfig.exportQueryAudit,
       }).catch(() => {});
 
-      localStorage.setItem("mustainf_bigquery_config", JSON.stringify(bigQueryConfig));
-      const updated = integrationsList.map((i) =>
+      const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
+      const updated = currentList.map((i) =>
         i.id === "bigquery"
           ? {
               ...i,
@@ -531,7 +541,6 @@ export const IntegracoesTab: React.FC = () => {
           : i
       );
       setIntegrationsList(updated);
-      persistIntegrationsState(updated);
 
       setIsBigQueryModalOpen(false);
       setFeedbackMsg({
@@ -558,11 +567,11 @@ export const IntegracoesTab: React.FC = () => {
         category: genericModalIntegration.category,
       }).catch(() => {});
 
-      const updated = integrationsList.map((i) =>
+      const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
+      const updated = currentList.map((i) =>
         i.id === targetId ? { ...i, connected: true, lastSync: "Agora mesmo" } : i
       );
       setIntegrationsList(updated);
-      persistIntegrationsState(updated);
 
       setGenericModalIntegration(null);
       setFeedbackMsg({
@@ -580,7 +589,8 @@ export const IntegracoesTab: React.FC = () => {
     setFeedbackMsg(null);
     try {
       await api.post("/integrations/sync-all").catch(() => {});
-      const updated = integrationsList.map((i) =>
+      const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
+      const updated = currentList.map((i) =>
         i.connected ? { ...i, lastSync: "Agora mesmo" } : i
       );
       setIntegrationsList(updated);
@@ -877,7 +887,7 @@ export const IntegracoesTab: React.FC = () => {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3.5">
                     <div className="w-13 h-13 rounded-2xl bg-gray-50 flex items-center justify-center border border-gray-100 shadow-sm group-hover:scale-105 transition-transform shrink-0 p-2.5">
-                      {app.icon}
+                      {getIntegrationIcon(app.id)}
                     </div>
                     <div>
                       <div className="flex items-center flex-wrap gap-2">
@@ -1463,7 +1473,7 @@ export const IntegracoesTab: React.FC = () => {
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-white border border-gray-200/80 flex items-center justify-center p-2 shadow-sm">
-                  {genericModalIntegration.icon}
+                  {getIntegrationIcon(genericModalIntegration.id)}
                 </div>
                 <div>
                   <h3 className="font-extrabold text-gray-900 text-base">
