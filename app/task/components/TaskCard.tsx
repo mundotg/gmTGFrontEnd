@@ -44,14 +44,14 @@ const ValidationModal: React.FC<{
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-        <h3 className="text-xl font-bold mb-4 text-gray-900">
+        <h3 className="text-lg font-bold tracking-tight mb-4 text-gray-900">
           {isApproval ? "Validar Tarefa" : "Reprovar Tarefa"}
         </h3>
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           placeholder="Adicione um comentário (opcional)"
-          className="w-full border border-gray-300 rounded-lg p-3 mb-4 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="w-full border border-gray-300 rounded-lg p-3 mb-4 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
           rows={4}
         />
         <div className="flex gap-3">
@@ -61,14 +61,14 @@ const ValidationModal: React.FC<{
               setComment("");
               onClose();
             }}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium text-white ${isApproval ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+            className={`flex-1 px-4 py-2.5 rounded-lg font-medium text-sm text-white ${isApproval ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
               }`}
           >
             Confirmar
           </button>
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300"
+            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors"
           >
             Cancelar
           </button>
@@ -190,7 +190,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h3 className={`font-bold text-lg break-words ${task.status === "concluida" ? "line-through text-gray-500" : "text-gray-900"
+                  <h3 className={`font-semibold text-base sm:text-lg tracking-tight break-words ${task.status === "concluida" ? "line-through text-gray-400" : "text-gray-900"
                     }`}>
                     {task.title}
                   </h3>
@@ -198,9 +198,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 </div>
 
                 {task.project && (
-                  <div className="flex items-center gap-1.5 text-sm text-gray-600 mb-1">
+                  <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-600 mb-1">
                     <Target size={14} />
-                    <span className="font-medium">{task.project.name}</span>
+                    <span className="font-medium text-gray-700">{task.project.name}</span>
                   </div>
                 )}
               </div>
@@ -226,7 +226,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
         <div className="p-6">
           {/* Description */}
           {task.description && (
-            <p className="text-gray-700 text-sm leading-relaxed mb-4 break-words">
+            <p className="text-gray-600 text-sm font-normal leading-relaxed mb-4 break-words">
               {task.description}
             </p>
           )}
@@ -235,8 +235,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
           {progressPercentage > 0 && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-gray-600">Progresso</span>
-                <span className="text-xs font-bold text-gray-900">{progressPercentage}%</span>
+                <span className="text-xs font-medium text-gray-500">Progresso</span>
+                <span className="text-xs font-bold tracking-tight text-gray-900">{progressPercentage}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                 <div
@@ -306,7 +306,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
             <div className="mb-4 p-3 bg-purple-50 border-l-4 border-purple-500 rounded-lg">
               <div className="flex items-center gap-2">
                 <Repeat size={16} className="text-purple-700" />
-                <span className="text-sm font-semibold text-purple-900">
+                <span className="text-sm font-medium text-purple-900">
                   Repetição: {task.schedule.repeat}
                   {task.schedule.until && ` até ${new Date(task.schedule.until).toLocaleDateString("pt-BR")}`}
                 </span>
@@ -320,8 +320,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
               <div className="flex items-start gap-3">
                 <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
                 <div>
-                  <p className="text-sm font-bold text-red-900">Tarefa Atrasada</p>
-                  <p className="text-xs text-red-800 mt-1">
+                  <p className="text-sm font-semibold tracking-tight text-red-900">Tarefa Atrasada</p>
+                  <p className="text-xs font-normal text-red-800 mt-1">
                     Atrasada há {Math.abs(daysRemaining)} dias. Ação imediata necessária.
                   </p>
                 </div>
@@ -334,8 +334,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
               <div className="flex items-start gap-3">
                 <Clock className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
                 <div>
-                  <p className="text-sm font-bold text-amber-900">Prazo Próximo</p>
-                  <p className="text-xs text-amber-800 mt-1">
+                  <p className="text-sm font-semibold tracking-tight text-amber-900">Prazo Próximo</p>
+                  <p className="text-xs font-normal text-amber-800 mt-1">
                     Vence em {daysRemaining} dias. Priorize esta tarefa.
                   </p>
                 </div>
@@ -345,7 +345,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
           {/* Engagement Metrics */}
           {(task.comentario_is_validated || task.is_validated) && (
-            <div className="flex gap-4 mb-4 text-sm text-gray-600">
+            <div className="flex gap-4 mb-4 text-xs font-normal text-gray-500">
               {task.comentario_is_validated && (
                 <div className="flex items-center gap-1.5">
                   <MessageSquare size={16} />

@@ -30,7 +30,9 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Workflow,
 } from "lucide-react";
+import Link from "next/link";
 
 import type { DBConnection, DBStructure } from "@/types/db-structure";
 import type { Option } from "@/app/task/components/select_Component";
@@ -489,6 +491,15 @@ export const Step2QueryTables: React.FC<Step2TablesQueryProps> = ({
                 <span>Construtor Visual</span>
               </button>
             </div>
+
+            <Link
+              href="/home/lineage"
+              className="px-3 py-2 text-xs font-semibold text-purple-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors border border-white/10 flex items-center gap-1.5"
+              title="Visualizar o mapa completo de linhagem e fluxo de dados"
+            >
+              <Workflow className="w-3.5 h-3.5 text-purple-300" />
+              <span>Mapa de Linhagem</span>
+            </Link>
 
             {onCloseQueryMode && (
               <button

@@ -65,18 +65,18 @@ export const SpringCard = React.memo(function SpringCard({
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="text-sm font-medium text-gray-900 truncate">
+                  <span className="text-sm font-semibold tracking-tight text-gray-900 truncate">
                     {sprint.name}
                   </span>
                   
                   {isActive && (
-                    <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-semibold rounded-full">
+                    <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-medium rounded-full">
                       Ativa
                     </span>
                   )}
                   
                   {isCancelled && (
-                    <span className="px-2 py-0.5 bg-red-600 text-white text-xs font-semibold rounded-full flex items-center gap-1">
+                    <span className="px-2 py-0.5 bg-red-600 text-white text-xs font-medium rounded-full flex items-center gap-1">
                       <XCircle size={12} />
                       Cancelada
                     </span>
@@ -85,14 +85,14 @@ export const SpringCard = React.memo(function SpringCard({
 
                 {/* Objetivo da sprint */}
                 {sprint.goal && (
-                  <div className="flex items-start gap-1.5 text-xs text-gray-700 mb-2">
+                  <div className="flex items-start gap-1.5 text-xs font-normal text-gray-600 mb-2">
                     <Target size={12} className="mt-0.5 flex-shrink-0" />
                     <span className="line-clamp-2">{sprint.goal}</span>
                   </div>
                 )}
 
                 {/* Datas */}
-                <div className="flex items-center gap-1 text-xs text-gray-600">
+                <div className="flex items-center gap-1 text-xs font-normal text-gray-500">
                   <Clock size={12} className="flex-shrink-0" />
                   <span>
                     {sprint.start_date ? safeDateTime(sprint.start_date) : "N/D"} →{" "}
@@ -105,8 +105,8 @@ export const SpringCard = React.memo(function SpringCard({
                   <div className="flex items-start gap-1.5 mt-2 p-2 bg-red-100 rounded text-xs text-red-800">
                     <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
                     <div>
-                      <span className="font-semibold">Motivo: </span>
-                      {sprint.motivo_cancelamento}
+                      <span className="font-medium">Motivo: </span>
+                      <span className="font-normal">{sprint.motivo_cancelamento}</span>
                     </div>
                   </div>
                 )}
@@ -159,7 +159,7 @@ export const SpringCard = React.memo(function SpringCard({
                     );
                   }}
                   disabled={loadingActions[sprint.id!]}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition ml-auto ${
+                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition ml-auto ${
                     isActive
                       ? "bg-orange-500 hover:bg-orange-600 text-white"
                       : "bg-indigo-600 hover:bg-indigo-700 text-white"

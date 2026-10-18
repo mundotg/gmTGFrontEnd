@@ -264,7 +264,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               value={form.projectId}
               onChange={handleChange}
               disabled={loading || (mode === "create" && !!project)}
-              className="w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full border rounded-lg px-3 py-2 text-sm font-normal text-gray-900 focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Selecione um projeto</option>
               {projects.map((p) => (
@@ -293,7 +293,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
             onChange={handleChange}
             disabled={readOnly || loading}
             placeholder="Ex: Sprint 1 - Desenvolvimento do MVP"
-            className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+            className={`w-full border rounded-lg px-3 py-2 text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
               } ${loading ? "opacity-50" : ""}`}
           />
         </div>
@@ -309,7 +309,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
             onChange={handleChange}
             disabled={readOnly || loading}
             placeholder="Descreva o objetivo principal desta sprint..."
-            className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+            className={`w-full border rounded-lg px-3 py-2 text-sm font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
               } ${loading ? "opacity-50" : ""}`}
             rows={3}
           />
@@ -328,7 +328,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               value={form.start_date}
               onChange={handleChange}
               disabled={readOnly || loading}
-              className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+              className={`w-full border rounded-lg px-3 py-2 text-sm font-normal text-gray-900 focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
                 } ${loading ? "opacity-50" : ""}`}
             />
           </div>
@@ -343,7 +343,7 @@ export const SprintModal: React.FC<SprintModalProps> = ({
               value={form.end_date}
               onChange={handleChange}
               disabled={readOnly || loading}
-              className={`w-full border rounded-lg px-3 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+              className={`w-full border rounded-lg px-3 py-2 text-sm font-normal text-gray-900 focus:ring-2 focus:ring-indigo-500 ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""
                 } ${loading ? "opacity-50" : ""}`}
             />
           </div>

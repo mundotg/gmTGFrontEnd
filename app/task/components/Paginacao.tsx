@@ -198,20 +198,20 @@ export const PaginacaoGenerica = <T,>({
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               placeholder={searchPlaceholder}
-              className="w-full pl-10 pr-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-normal text-gray-900 placeholder:text-gray-400 placeholder:font-normal"
             />
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleSearch}
-              className="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm sm:text-base"
+              className="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm"
             >
               Buscar
             </button>
             {search && (
               <button
                 onClick={handleClearSearch}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm sm:text-base"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
               >
                 Limpar
               </button>
@@ -230,8 +230,8 @@ export const PaginacaoGenerica = <T,>({
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-3 rounded-lg">
-            <p className="font-medium text-sm sm:text-base">Erro ao carregar dados:</p>
-            <p className="text-xs sm:text-sm mt-1">{error}</p>
+            <p className="font-semibold text-sm">Erro ao carregar dados:</p>
+            <p className="text-xs font-normal mt-1">{error}</p>
           </div>
         )}
 
@@ -239,7 +239,7 @@ export const PaginacaoGenerica = <T,>({
           <>
             {data.items.length === 0 ? (
               <div className="flex items-center justify-center h-full">
-                <p className="text-center text-gray-500 text-sm sm:text-base">
+                <p className="text-center text-gray-500 text-sm font-normal">
                   Nenhum resultado encontrado.
                 </p>
               </div>
@@ -261,8 +261,8 @@ export const PaginacaoGenerica = <T,>({
 
       <footer className="flex-shrink-0 border-t border-gray-200 pt-4 p-2 my-3">
         <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 select-none">
-          <p className="text-xs sm:text-sm text-gray-600 text-center px-2">
-            Página <b>{page}</b> de <b>{data.pages}</b> ({data.total} {data.total === 1 ? "registro" : "registros"})
+          <p className="text-xs sm:text-sm font-normal text-gray-600 text-center px-2">
+            Página <b className="font-semibold text-gray-900">{page}</b> de <b className="font-semibold text-gray-900">{data.pages}</b> ({data.total} {data.total === 1 ? "registro" : "registros"})
           </p>
 
           <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center">

@@ -35,8 +35,8 @@ export default function HistoricoPage() {
   const { t } = useI18n();
   const permissions = user?.permissions ?? [];
 
-  const canView = hasPermission(permissions, "logs:view");
-  const canExport = hasPermission(permissions, "logs:export");
+  const canView = hasPermission(permissions, ["query:read_history", "logs:view", "query:execute"]);
+  const canExport = hasPermission(permissions, ["query:export", "logs:export"]);
 
   const [logs, setLogs] = useState<QueryHistory[]>([]);
   const [search, setSearch] = useState("");

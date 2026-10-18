@@ -77,20 +77,20 @@ export const TaskGroup = memo(
         className={`flex w-screen align-middle text-center justify-center overflow-y-auto bg-white rounded-xl border-2 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 ${styles.borderColor}`}
       >
         {/* Cabeçalho */}
-        <div className={`px-4  py-4 bg-gradient-to-r ${styles.bgGradient}`}>
+        <div className={`px-4 py-4 bg-gradient-to-r ${styles.bgGradient}`}>
           <div className="justify-between mb-3">
-            <div className=" items-center gap-3">
-              <h3 className="text-lg font-bold text-gray-800">{groupName}</h3>
-              <span className="bg-white px-3 py-1 rounded-full text-sm font-semibold text-gray-700 border shadow-sm">
+            <div className="items-center gap-3">
+              <h3 className="text-base sm:text-lg font-semibold tracking-tight text-gray-800">{groupName}</h3>
+              <span className="bg-white px-3 py-1 rounded-full text-xs font-medium text-gray-700 border shadow-sm">
                 {groupTasks.length} tarefa{groupTasks.length !== 1 ? "s" : ""}
               </span>
             </div>
 
             <div className="text-right">
-              <div className="text-sm font-semibold text-gray-600">
+              <div className="text-sm font-semibold text-gray-700">
                 {groupProgress}%
               </div>
-              <div className="text-xs text-gray-500">concluído</div>
+              <div className="text-xs font-normal text-gray-500">concluído</div>
             </div>
           </div>
 
@@ -112,14 +112,13 @@ export const TaskGroup = memo(
         {/* Corpo */}
         <div className="p-4">
           {groupTasks.length === 0 ? (
-            <p className="text-center text-gray-400 py-8 text-sm italic bg-gray-50 rounded-lg">
+            <p className="text-center text-gray-400 py-8 text-sm font-normal italic bg-gray-50 rounded-lg">
               Nenhuma tarefa neste grupo
             </p>
           ) : (
             <div className="space-y-3 w-full">
               {groupTasks.map((task) => (
                 <TaskCard
-                // onGenerateReport={()=>{}}
                   key={task.id}
                   task={task}
                   onToggle={() => onToggleTask(task.id!)}
@@ -173,19 +172,19 @@ export const StatCard = memo(
     isHours = false,
   }: StatCardProps): JSX.Element => (
     <div
-      className={`bg-gradient-to-br ${colorClasses[color]} rounded-xl px-4 py-1 border shadow-sm hover:shadow-md transition-all`}
+      className={`bg-gradient-to-br ${colorClasses[color]} rounded-xl px-4 py-2 border shadow-sm hover:shadow-md transition-all`}
     >
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 text-sm font-semibold">
+        <div className="flex items-center gap-2 text-xs sm:text-sm font-medium">
           {icon}
           <span>{label}</span>
         </div>
       </div>
-      <p className="text-2xl font-bold mb-1">
+      <p className="text-2xl font-bold tracking-tight mb-1">
         {isHours ? `${value}h` : value}
       </p>
       {description && (
-        <p className="text-xs text-gray-600 opacity-80">{description}</p>
+        <p className="text-xs font-normal text-gray-600 opacity-90">{description}</p>
       )}
     </div>
   )
@@ -199,8 +198,8 @@ export const LoadingState = memo((): JSX.Element => (
   <div className="flex items-center justify-center py-16">
     <div className="text-center">
       <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600 mx-auto mb-4" />
-      <p className="text-gray-500 font-medium">Carregando tarefas...</p>
-      <p className="text-gray-400 text-sm mt-1">
+      <p className="text-gray-700 font-medium text-sm sm:text-base">Carregando tarefas...</p>
+      <p className="text-gray-400 text-xs sm:text-sm font-normal mt-1">
         Isso pode levar alguns instantes
       </p>
     </div>
@@ -217,13 +216,13 @@ export const ErrorState = memo(
   ({ error, onRetry }: ErrorStateProps): JSX.Element => (
     <div className="text-center py-16 bg-white rounded-xl border">
       <AlertCircle size={64} className="text-red-500 mx-auto mb-4" />
-      <p className="text-red-600 font-medium text-lg mb-2">
+      <p className="text-red-600 font-semibold tracking-tight text-base sm:text-lg mb-2">
         Erro ao carregar tarefas
       </p>
-      <p className="text-gray-500 mb-6 max-w-md mx-auto">{error}</p>
+      <p className="text-gray-600 font-normal text-sm mb-6 max-w-md mx-auto">{error}</p>
       <button
         onClick={onRetry}
-        className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+        className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm"
       >
         Tentar Novamente
       </button>
@@ -246,12 +245,12 @@ export const EmptyState = memo(
   }: EmptyStateProps): JSX.Element => (
     <div className="text-center py-16 bg-white rounded-xl border">
       <Target size={64} className="text-gray-300 mx-auto mb-4" />
-      <p className="text-gray-500 text-lg font-medium mb-2">
+      <p className="text-gray-800 text-base sm:text-lg font-semibold tracking-tight mb-2">
         {hasActiveFilters
           ? "Nenhuma tarefa encontrada"
           : "Nenhuma tarefa criada"}
       </p>
-      <p className="text-gray-400 text-sm mb-6 max-w-md mx-auto">
+      <p className="text-gray-500 text-sm font-normal mb-6 max-w-md mx-auto">
         {hasActiveFilters
           ? "Tente ajustar os filtros ou limpar a busca para ver mais resultados."
           : "Comece criando a primeira tarefa do projeto."}
@@ -260,14 +259,14 @@ export const EmptyState = memo(
         {hasActiveFilters && (
           <button
             onClick={onClearFilters}
-            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
           >
             Limpar Filtros
           </button>
         )}
         <button
           onClick={onCreateTask}
-          className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+          className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm"
         >
           Criar Primeira Tarefa
         </button>

@@ -203,10 +203,11 @@
 }
 
 /* ==========================================================================
-   NEXUS COGNITIVA — TOKENS DE DESIGN & SISTEMA TIPOGRÁFICO
+   SISTEMA TIPOGRÁFICO GLOBAL & SAAS EMPRESARIAL (INTER)
    ========================================================================== */
 
 :root {
+  --font-inter: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --color-brand-primary: #14283F;   /* Azul profundo */
   --color-brand-accent: #087E8B;    /* Verde-azulado de ação */
   --color-background: #F4F7FA;      /* Fundo geral */
@@ -215,9 +216,16 @@
   --color-text-secondary: #475569;  /* Texto secundário */
   --color-border: #DCE3EA;          /* Bordas */
 
-  --font-interface: var(--font-interface, system-ui, -apple-system, sans-serif);
+  --font-interface: var(--font-inter, var(--font-interface, system-ui, -apple-system, sans-serif));
   --font-editorial: var(--font-editorial, "Source Serif 4", Georgia, serif);
   --font-technical: var(--font-technical, "JetBrains Mono", monospace);
+}
+
+body {
+  font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .dark {

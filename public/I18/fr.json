@@ -89,7 +89,8 @@
     "testing": "Test en cours...",
     "connecting": "Connexion en cours...",
     "connected": "Connecté",
-    "available": "Disponible"
+    "available": "Disponible",
+    "error": "Erreur"
   },
   "connection": {
     "up": "Connecter",
@@ -230,7 +231,11 @@
   "time": {
     "justNow": "À l'instant",
     "weeksAgo": "Il y a {{count}} semaines",
-    "yesterdayAt": "Hier, {{time}}"
+    "yesterdayAt": "Hier, {{time}}",
+    "now": "à l'instant",
+    "minutesAgo": "il y a {count} min",
+    "hoursAgo": "il y a {count} h",
+    "daysAgo": "il y a {count} jours"
   },
   "scanner": {
     "texto": "Scanner de Texte Intelligent"
@@ -294,7 +299,10 @@
     "nameRequired": "Le nom complet est obligatoire !",
     "saveError": "Erreur lors de l'enregistrement des modifications",
     "invalidImage": "Veuillez sélectionner une image valide",
-    "imageTooLarge": "L'image ne doit pas dépasser 5 Mo"
+    "imageTooLarge": "L'image ne doit pas dépasser 5 Mo",
+    "emptyAll": "Aucun(e) {type} trouvé(e)",
+    "emptySearch": "Aucun(e) {type} ne correspond à la recherche",
+    "invalidAlias": "Invalide (utilisez lettres, chiffres et _)"
   },
   "roles": {
     "admin": "Administrateur",
@@ -477,7 +485,20 @@
     "field": "Champ",
     "confirm": "Confirmer",
     "noResults": "Aucun résultat trouvé.",
-    "understood": "Compris"
+    "understood": "Compris",
+    "showing": "Affichage",
+    "edit": "Modifier",
+    "closeEsc": "Fermer (Échap)",
+    "success": "Succès",
+    "failed": "Échoué",
+    "toClose": "pour fermer",
+    "database": "Base de données:",
+    "run": "Exécuter",
+    "clear": "Effacer",
+    "collapse": "Réduire",
+    "load": "Charger",
+    "preparing": "En préparation...",
+    "hideSystemTables": "Masquer les tables système"
   },
   "messages": {
     "noColumnsFound": "Aucune colonne trouvée",
@@ -506,7 +527,8 @@
     "hideAdvanced": "Masquer les paramètres avancés",
     "advancedHint": "Moteur/Charset/Collation (principalement MySQL/MariaDB)",
     "advancedTip": "Astuce : Moteur/Charset/Collation sont plus pertinents dans MySQL/MariaDB. Dans d'autres bases de données, ils peuvent être ignorés par le backend sans impact.",
-    "confirmDelete": "Supprimer la table '{full}' ? Cette action est irréversible."
+    "confirmDelete": "Supprimer la table '{full}' ? Cette action est irréversible.",
+    "deleteFailed": "Échec de la suppression de la table."
   },
   "backup": {
     "backupTab": "Sauvegarde",
@@ -554,7 +576,54 @@
     "help": "Aide",
     "lightMode": "Mode Clair",
     "darkMode": "Mode Sombre",
-    "logout": "Se déconnecter"
+    "logout": "Se déconnecter",
+    "panelTitle": "Historique des requêtes et audit",
+    "currentConnectionId": "Connexion actuelle ID: {id}",
+    "panelSubtitle": "Statut d'exécution, succès, échecs et réutilisation sur la connexion active ({db})",
+    "refreshHistory": "Actualiser l'historique",
+    "clearSearch": "Effacer la recherche",
+    "querySuccess": "Requête exécutée avec succès",
+    "queryFailed": "La requête a échoué",
+    "favorites": "Favoris",
+    "withJoins": "Avec jointures",
+    "filteredByTablePrefix": "Filtré par table:",
+    "removeTableFilter": "Supprimer le filtre de table",
+    "suggestions": "Suggestions:",
+    "pickTableTitle": "Ajouter la table '{table}' au formulaire ({uses} utilisations)",
+    "filterByTableTitle": "Filtrer l'historique par '{table}'",
+    "noSearchResults": "Aucune requête trouvée avec les filtres sélectionnés.",
+    "noQueriesFound": "Aucun historique de requêtes pour cette connexion.",
+    "noQueriesSaved": "Aucune requête enregistrée",
+    "emptyHint": "Exécutez des requêtes pour les enregistrer dans l'historique.",
+    "clearFilters": "Effacer les filtres",
+    "removeFromFavorites": "Retirer des favoris",
+    "markFavorite": "Ajouter aux favoris",
+    "rows": "lignes",
+    "tables": "Tables:",
+    "selectTable": "Sélectionner la table '{table}'",
+    "loadIntoBuilder": "Charger dans le constructeur",
+    "noPayload": "Pas de charge utile structurée",
+    "retryTitle": "Réessayer d'exécuter",
+    "rerunAsIs": "Exécuter telle quelle",
+    "retry": "Réessayer",
+    "run": "Exécuter",
+    "queries": "requêtes",
+    "previousPage": "Page précédente",
+    "previous": "Précédent",
+    "nextPage": "Page suivante",
+    "next": "Suivant",
+    "reload": "Recharger l'historique",
+    "loading": "Chargement des requêtes...",
+    "confirmClearOld": "Effacer les requêtes de plus de 30 jours (les favoris ne seront pas supprimés) ?",
+    "clearOldTitle": "Effacer les requêtes de plus de 30 jours",
+    "copySQL": "Copier la requête SQL",
+    "execTime": "Temps d'exécution",
+    "rowsReturned": "Lignes retournées",
+    "executedTimes": "exécutée",
+    "legacyNoPayload": "Requête ancienne sans charge utile",
+    "noActiveConnection": "Aucune connexion active actuellement.",
+    "reusableSubtitle": "Réutilisez ou modifiez en 1 clic",
+    "frequentTables": "Tables fréquentes:"
   },
   "analytics": {
     "dbTitle": "Observabilité",
@@ -613,7 +682,8 @@
     "noDataDetected": "Aucune donnée structurée détectée pour le moment.",
     "extractedText": "Texte Extrait",
     "textPlaceholder": "Le texte apparaîtra ici après le traitement...",
-    "analyzing": "Analyse en cours..."
+    "analyzing": "Analyse en cours...",
+    "invalidFile": "Fichier invalide. Veuillez sélectionner une image ou un PDF."
   },
   "query": {
     "title": "Requête de Données",
@@ -622,7 +692,52 @@
     "selectedTables": "Tables sélectionnées",
     "titleConsulta": "Requête",
     "loadingMetadata": "Chargement des métadonnées de la base de données...",
-    "deleteError": "Erreur inattendue lors de la tentative de suppression de l'enregistrement."
+    "deleteError": "Erreur inattendue lors de la tentative de suppression de l'enregistrement.",
+    "toggleStatsTitle": "Masquer ou afficher les statistiques",
+    "toggleStats": "Statistiques",
+    "toggleHistoryTitle": "Ouvrir ou masquer l'historique (Ctrl + H)",
+    "toggleHistory": "Historique",
+    "toggleTableSelectorTitle": "Réduire ou afficher le sélecteur de tables",
+    "hideSelector": "Masquer le sélecteur",
+    "showSelector": "Afficher le sélecteur",
+    "toggleColumnsTitle": "Réduire ou afficher la vue des colonnes",
+    "hideColumns": "Masquer les colonnes",
+    "showColumns": "Afficher les colonnes",
+    "focusModeTitle": "Mode Focus: agrandit la table des résultats",
+    "focusMode": "Mode Focus",
+    "exitFocusMode": "Quitter le Mode Focus",
+    "focusModeActiveNotice": "Mode Focus Actif: filtres masqués pour maximiser les résultats.",
+    "restorePanels": "Restaurer les panneaux",
+    "clearAllTitle": "Effacer toutes les tables et conditions",
+    "dataScienceTitle": "Sauvegarder et ouvrir l'analyse statistique",
+    "dataScience": "Data Science",
+    "dataScienceError": "Erreur lors de la préparation de l'analyse.",
+    "preparingDataScience": "Préparation de la session chiffrée...",
+    "keyNotReturned": "Clé non retournée par le serveur.",
+    "noActiveQuery": "Aucune requête active trouvée pour l'analyse.",
+    "unlimited": "Sans limite (Tous les enregistrements)",
+    "incompleteDataTitle": "Données incomplètes",
+    "incompleteDataMsg": "Pour quelles tables souhaitez-vous récupérer les données complètes ?",
+    "fetchSelected": "Récupérer sélectionnées",
+    "ignoreAndOpen": "Ignorer et ouvrir",
+    "openHistoryTitle": "Ouvrir l'historique des requêtes (Ctrl + H)",
+    "customLimitPrompt": "✏️ Saisir un nombre personnalisé...",
+    "customLimitPlaceholder": "Entrez un nombre ≤ {max}",
+    "customLimitMaxError": "Le nombre doit être inférieur ou égal à {max}",
+    "rerunningHistory": "Ré-exécution de la requête...",
+    "executedSuccess": "Requête exécutée avec succès !",
+    "loadingHistoryForm": "Chargement du formulaire...",
+    "loadedHistorySuccess": "Requête chargée avec succès !",
+    "tableAdded": "Table '{tableName}' ajoutée.",
+    "removeTable": "Supprimer {tbl}",
+    "noRecordsToEdit": "Aucun enregistrement à modifier.",
+    "noRecordsSelected": "Aucun enregistrement sélectionné.",
+    "editSelection": "Modifier la sélection",
+    "tablesSelectedCount": "{count} sélectionnée(s)",
+    "collapseSelectorTitle": "Réduire le sélecteur",
+    "activeTables": "Tables actives:",
+    "selectedRecordsUpdated": "{count} enregistrement(s) mis à jour",
+    "allRecordsUpdated": "Tous les enregistrements ont été mis à jour avec succès !"
   },
   "reports": {
     "generating": "Génération du rapport PDF en cours...",
@@ -662,7 +777,8 @@
     "createRecordTitle": "Créer un Nouvel Enregistrement",
     "createRecordDesc": "Remplissez les champs ci-dessous pour l'insérer dans la base de données.",
     "pendingChanges": "Modifications en attente",
-    "errAutoIncrement": "Impossible de modifier car il s'agit d'un champ auto-incrémenté"
+    "errAutoIncrement": "Impossible de modifier car il s'agit d'un champ auto-incrémenté",
+    "invalidType": "Valeur invalide pour le type de champ"
   },
   "builder": {
     "title": "Générateur de Requêtes",
@@ -975,7 +1091,8 @@
     "scale": "Échelle",
     "defaultValue": "Valeur par Défaut (Default)",
     "comment": "Dictionnaire de Données (Commentaire)",
-    "precision": "Précision"
+    "precision": "Précision",
+    "mainDefinition": "Définition principale"
   },
   "results": {
     "title": "Résultats de la Requête"
@@ -1116,5 +1233,23 @@
     "loadingComments": "Chargement de la discussion...",
     "errorAuthRequired": "Vous devez être connecté pour publier sur Nexus Cognitiva.",
     "errorTitleAndDescRequired": "Le titre et la description sont obligatoires."
+  },
+  "select": {
+    "clearAllSelections": "Effacer toutes les sélections",
+    "countOfMaxSelected": "{selected}/{max} sélectionné(e)s",
+    "hideSystemTablesTitle": "Cocher pour masquer les tables système",
+    "maxCount": "(max {max})",
+    "optionsSelected": "{count} sélectionné(e)s",
+    "searchOptionsPlaceholder": "Rechercher des options...",
+    "selectOneOrMore": "Sélectionnez une ou plusieurs options",
+    "systemBlocked": "Bloqué: {reason}",
+    "systemUnlockedAdmin": "Système (Débloqué pour Admin)"
+  },
+  "unnamedConnection": "Connexion sans nom",
+  "errors": {
+    "value_required_for_wildcard": "Entrez une valeur avant d'appliquer le filtre joker (%)"
+  },
+  "chat": {
+    "clearConfirm": "Êtes-vous sûr de vouloir effacer tout l'historique du chat ?"
   }
 }

@@ -53,7 +53,7 @@ export const Modal: React.FC<ModalProps> = ({
       >
         {/* Cabeçalho */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h3 id="modal-title" className="text-xl font-bold text-gray-900">
+          <h3 id="modal-title" className="text-xl font-bold tracking-tight text-gray-900">
             {title}
           </h3>
           <button

@@ -108,17 +108,17 @@ export const SessionMenu: React.FC<SessionMenuProps> = ({
           role="menu"
         >
           <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-sm font-medium text-gray-900 truncate" title={user?.nome || ''}>
+            <p className="text-sm font-semibold tracking-tight text-gray-900 truncate" title={user?.nome || ''}>
               {user?.nome || 'Usuário'}
             </p>
             {user?.email && (
-              <p className="text-xs text-gray-500 mt-1 truncate" title={user.email}>
+              <p className="text-xs font-normal text-gray-500 mt-0.5 truncate" title={user.email}>
                 {user.email}
               </p>
             )}
 
             {/* Renderiza a Badge corretamente com o texto limpo */}
-            <span className={`inline-block mt-2 px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(roleName)}`}>
+            <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(roleName)}`}>
               {roleName}
             </span>
           </div>
@@ -127,7 +127,7 @@ export const SessionMenu: React.FC<SessionMenuProps> = ({
             <Link
               href="/home"
               onClick={() => setIsOpen(false)}
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 flex items-center gap-3 transition-colors duration-150 group"
+              className="w-full px-4 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 flex items-center gap-3 transition-colors duration-150 group"
               role="menuitem"
             >
               <LayoutDashboard className="w-4 h-4 text-gray-500 group-hover:text-blue-600 transition-colors" />
@@ -140,8 +140,7 @@ export const SessionMenu: React.FC<SessionMenuProps> = ({
                   setIsOpen(false);
                   onSettings();
                 }}
-                // 5. Melhoria: Usando 'group' para o ícone mudar de cor junto com o texto no hover
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 flex items-center gap-3 transition-colors duration-150 group"
+                className="w-full px-4 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 flex items-center gap-3 transition-colors duration-150 group"
                 role="menuitem"
               >
                 <Settings className="w-4 h-4 text-gray-500 group-hover:text-blue-600 transition-colors" />
@@ -154,7 +153,7 @@ export const SessionMenu: React.FC<SessionMenuProps> = ({
                 setIsOpen(false);
                 onLogout();
               }}
-              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors duration-150 group"
+              className="w-full px-4 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors duration-150 group"
               role="menuitem"
             >
               <LogOut className="w-4 h-4 text-red-500 group-hover:text-red-600 transition-colors" />
