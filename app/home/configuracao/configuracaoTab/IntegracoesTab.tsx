@@ -186,9 +186,9 @@ const INITIAL_INTEGRATIONS_LIST: IntegrationItem[] = [
     category: "Data Warehouse & Cloud",
     brandColor: "#4285F4",
     badge: "Destaque & Dry-Run",
-    connected: true,
+    connected: false,
     featured: true,
-    lastSync: "Há 4 minutos",
+    lastSync: undefined,
     metrics: [
       { label: "Datasets", value: "4 ativos" },
       { label: "Dry-Run", value: "Ativo (10 GB)" },
@@ -229,8 +229,8 @@ const INITIAL_INTEGRATIONS_LIST: IntegrationItem[] = [
       "Armazenamento de objetos em nuvem para arquivos Parquet, CSVs e backups automáticos de bancos relacionais.",
     category: "Armazenamento & ETL",
     brandColor: "#4285F4",
-    connected: true,
-    lastSync: "Há 12 minutos",
+    connected: false,
+    lastSync: undefined,
     metrics: [
       { label: "Buckets", value: "3 vinculados" },
       { label: "Armazenamento", value: "1.2 TB" },
@@ -245,8 +245,8 @@ const INITIAL_INTEGRATIONS_LIST: IntegrationItem[] = [
     category: "Comunicação & Alertas",
     brandColor: "#4A154B",
     badge: "Alertas Críticos",
-    connected: true,
-    lastSync: "Em tempo real",
+    connected: false,
+    lastSync: undefined,
     metrics: [
       { label: "Canais", value: "#db-alertas" },
       { label: "Notificações", value: "142 hoje" },
@@ -260,8 +260,8 @@ const INITIAL_INTEGRATIONS_LIST: IntegrationItem[] = [
       "Sincronize repositórios de scripts SQL, versionamento de migrações e auditoria de alterações de esquemas via GitOps.",
     category: "Desenvolvimento",
     brandColor: "#181717",
-    connected: true,
-    lastSync: "Há 1 hora",
+    connected: false,
+    lastSync: undefined,
     metrics: [
       { label: "Repo", value: "empresa/db-migrations" },
       { label: "Sync", value: "Automático" },
@@ -307,7 +307,8 @@ export const IntegracoesTab: React.FC = () => {
 
   // Configuração genérica para outras integrações
   const [genericModalIntegration, setGenericModalIntegration] = useState<IntegrationItem | null>(null);
-  const [genericConfig, setGenericConfig] = useState<Record<string, string>>({});
+  const [genericHost, setGenericHost] = useState("");
+  const [genericToken, setGenericToken] = useState("");
 
   // Webhooks State persistido
   const [webhookUrl, setWebhookUrl] = usePersistedState<string>(
@@ -349,48 +350,87 @@ export const IntegracoesTab: React.FC = () => {
     INITIAL_INTEGRATIONS_LIST
   );
 
-  // Sincronização suave com o backend mantendo o fallback fluido via usePersistedState
+  // Sincronização suave e bidirecional com o backend mantendo persistência
   useEffect(() => {
     let isMounted = true;
 
     const syncWithBackend = async () => {
       try {
-        const resList = await api.get("/integrations/").catch(() => null);
+        const resList = await api.get("/integrations/").catch((err) => {
+          console.warn("Integrações: falha ao buscar lista do backend.", err);
+          return null;
+        });
+
         if (resList?.data && Array.isArray(resList.data) && isMounted) {
-          const activeIds = new Set(
-            resList.data
-              .filter((it: any) => it.is_active)
-              .map((it: any) => it.provider)
+          const remoteMap = new Map<string, any>(
+            resList.data.map((r: any) => [r.id, r])
           );
 
           setIntegrationsList((prevList) => {
-            const currentList = Array.isArray(prevList) && prevList.length > 0 ? prevList : INITIAL_INTEGRATIONS_LIST;
-            return currentList.map((item) => {
-              if (activeIds.has(item.id)) {
-                return { ...item, connected: true };
-              }
-              return item;
+            const baseList =
+              Array.isArray(prevList) && prevList.length > 0
+                ? prevList
+                : INITIAL_INTEGRATIONS_LIST;
+
+            const updatedBase = baseList.map((item) => {
+              const remote = remoteMap.get(item.id);
+              if (!remote) return item;
+
+              return {
+                ...item,
+                connected: Boolean(remote.connected),
+                lastSync: remote.last_sync || item.lastSync,
+                metrics:
+                  Array.isArray(remote.metrics) && remote.metrics.length > 0
+                    ? remote.metrics
+                    : item.metrics,
+              };
             });
+
+            const existingIds = new Set(baseList.map((i) => i.id));
+            const newItems: IntegrationItem[] = resList.data
+              .filter((r: any) => !existingIds.has(r.id))
+              .map((r: any) => ({
+                id: r.id,
+                name: r.name,
+                provider: r.provider,
+                description: r.description || "",
+                category: (r.category as any) || "Data Warehouse & Cloud",
+                brandColor: "#4285F4",
+                connected: Boolean(r.connected),
+                lastSync: r.last_sync || undefined,
+                metrics: r.metrics || undefined,
+              }));
+
+            return [...updatedBase, ...newItems];
           });
         }
 
-        const resBq = await api.get("/integrations/bigquery").catch(() => null);
+        const resBq = await api.get("/integrations/bigquery").catch((err) => {
+          console.warn("Integrações: falha ao buscar BigQuery do backend.", err);
+          return null;
+        });
         if (resBq?.data && isMounted) {
           const bqData = resBq.data;
-          setBigQueryConfig((prev) => ({
-            ...prev,
-            projectId: bqData.project_id || prev.projectId,
-            datasetId: bqData.dataset_id || prev.datasetId,
-            region: bqData.region || prev.region,
-            dryRunEnabled: bqData.dry_run_enabled ?? prev.dryRunEnabled,
-            maxBytesBilledGb: bqData.max_bytes_billed_gb ?? prev.maxBytesBilledGb,
-            costAlertThresholdUsd: bqData.cost_alert_threshold_usd ?? prev.costAlertThresholdUsd,
-            autoSyncLineage: bqData.auto_sync_lineage ?? prev.autoSyncLineage,
-            exportQueryAudit: bqData.export_query_audit ?? prev.exportQueryAudit,
-          }));
+          if (bqData.project_id) {
+            setBigQueryConfig((prev) => ({
+              ...prev,
+              projectId: bqData.project_id,
+              datasetId: bqData.dataset_id !== undefined ? bqData.dataset_id : prev.datasetId,
+              region: bqData.region || prev.region,
+              dryRunEnabled: bqData.dry_run_enabled ?? prev.dryRunEnabled,
+              maxBytesBilledGb: bqData.max_bytes_billed_gb ?? prev.maxBytesBilledGb,
+              costAlertThresholdUsd: bqData.cost_alert_threshold_usd ?? prev.costAlertThresholdUsd,
+              autoSyncLineage: bqData.auto_sync_lineage ?? prev.autoSyncLineage,
+              exportQueryAudit: bqData.export_query_audit ?? prev.exportQueryAudit,
+            }));
+          }
         }
 
-        const resWh = await api.get("/integrations/webhooks").catch(() => null);
+        const resWh = await api.get("/integrations/webhooks").catch((err) => {
+          console.warn("Integrações: falha ao buscar Webhooks do backend.", err);
+          return null;
+        });
         if (resWh?.data && isMounted) {
           const whData = resWh.data;
           if (whData.url) setWebhookUrl(whData.url);
@@ -400,7 +440,7 @@ export const IntegracoesTab: React.FC = () => {
           }
         }
       } catch (err) {
-        console.warn("Integrações: backend offline, utilizando dados persistidos.", err);
+        console.warn("Integrações: backend offline, utilizando dados locais.", err);
       }
     };
 
@@ -440,12 +480,14 @@ export const IntegracoesTab: React.FC = () => {
       }
       // Se for outra integração, abre modal genérico
       setGenericModalIntegration(item);
+      setGenericHost("");
+      setGenericToken("");
       return;
     }
 
     try {
       setLoadingId(item.id);
-      await api.post(`/integrations/toggle?provider=${item.id}&active=false`).catch(() => {});
+      await api.post(`/integrations/toggle?provider=${item.id}&active=false`);
 
       const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
       const updated = currentList.map((i) =>
@@ -457,9 +499,9 @@ export const IntegracoesTab: React.FC = () => {
         text: `Integração "${item.name}" foi desconectada com sucesso.`,
         type: "info",
       });
-    } catch (e) {
+    } catch (e: any) {
       setFeedbackMsg({
-        text: `Erro ao desconectar ${item.name}: ${e instanceof Error ? e.message : "Erro desconhecido"}`,
+        text: `Erro ao desconectar ${item.name}: ${e?.response?.data?.detail || (e instanceof Error ? e.message : "Erro desconhecido")}`,
         type: "error",
       });
     } finally {
@@ -512,6 +554,14 @@ export const IntegracoesTab: React.FC = () => {
   // Salvar Configurações do BigQuery
   const handleSaveBigQuery = async () => {
     try {
+      if (!bigQueryConfig.projectId.trim()) {
+        setFeedbackMsg({
+          text: "O campo 'GCP Project ID' é obrigatório para salvar a integração.",
+          type: "error",
+        });
+        return;
+      }
+
       // Salva no backend
       await api.post("/integrations/bigquery", {
         project_id: bigQueryConfig.projectId,
@@ -523,7 +573,7 @@ export const IntegracoesTab: React.FC = () => {
         cost_alert_threshold_usd: bigQueryConfig.costAlertThresholdUsd,
         auto_sync_lineage: bigQueryConfig.autoSyncLineage,
         export_query_audit: bigQueryConfig.exportQueryAudit,
-      }).catch(() => {});
+      });
 
       const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
       const updated = currentList.map((i) =>
@@ -547,9 +597,9 @@ export const IntegracoesTab: React.FC = () => {
         text: "Configuração do Google BigQuery salva e ativada com sucesso!",
         type: "success",
       });
-    } catch {
+    } catch (e: any) {
       setFeedbackMsg({
-        text: "Erro ao salvar preferências do BigQuery.",
+        text: `Erro ao salvar preferências do BigQuery: ${e?.response?.data?.detail || e?.message || "Falha na requisição"}`,
         type: "error",
       });
     }
@@ -565,7 +615,9 @@ export const IntegracoesTab: React.FC = () => {
         provider: targetId,
         name: genericModalIntegration.name,
         category: genericModalIntegration.category,
-      }).catch(() => {});
+        config: { host: genericHost },
+        credentials: { token: genericToken },
+      });
 
       const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
       const updated = currentList.map((i) =>
@@ -574,12 +626,17 @@ export const IntegracoesTab: React.FC = () => {
       setIntegrationsList(updated);
 
       setGenericModalIntegration(null);
+      setGenericHost("");
+      setGenericToken("");
       setFeedbackMsg({
         text: `Integração "${genericModalIntegration.name}" configurada e ativada com sucesso!`,
         type: "success",
       });
-    } catch {
-      setGenericModalIntegration(null);
+    } catch (e: any) {
+      setFeedbackMsg({
+        text: `Erro ao conectar ${genericModalIntegration.name}: ${e?.response?.data?.detail || e?.message || "Erro no servidor"}`,
+        type: "error",
+      });
     }
   };
 
@@ -588,7 +645,7 @@ export const IntegracoesTab: React.FC = () => {
     setSyncingAll(true);
     setFeedbackMsg(null);
     try {
-      await api.post("/integrations/sync-all").catch(() => {});
+      await api.post("/integrations/sync-all");
       const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
       const updated = currentList.map((i) =>
         i.connected ? { ...i, lastSync: "Agora mesmo" } : i
@@ -598,8 +655,11 @@ export const IntegracoesTab: React.FC = () => {
         text: "Todas as integrações ativas foram sincronizadas com sucesso.",
         type: "success",
       });
-    } catch {
-      setFeedbackMsg({ text: "Falha na sincronização periódica.", type: "error" });
+    } catch (e: any) {
+      setFeedbackMsg({
+        text: `Falha na sincronização periódica: ${e?.response?.data?.detail || e?.message || "Erro no servidor"}`,
+        type: "error",
+      });
     } finally {
       setSyncingAll(false);
     }
@@ -632,15 +692,15 @@ export const IntegracoesTab: React.FC = () => {
         secret: webhookSecret,
         events: selectedWebhookEvents,
         is_active: true,
-      }).catch(() => {});
+      });
 
       setFeedbackMsg({
         text: "Configuração do Webhook salva com sucesso no backend.",
         type: "success",
       });
-    } catch {
+    } catch (e: any) {
       setFeedbackMsg({
-        text: "Erro ao salvar webhook.",
+        text: `Erro ao salvar webhook: ${e?.response?.data?.detail || e?.message || "Falha na requisição"}`,
         type: "error",
       });
     }
@@ -1483,7 +1543,11 @@ export const IntegracoesTab: React.FC = () => {
                 </div>
               </div>
               <button
-                onClick={() => setGenericModalIntegration(null)}
+                onClick={() => {
+                  setGenericModalIntegration(null);
+                  setGenericHost("");
+                  setGenericToken("");
+                }}
                 className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <X size={18} />
@@ -1502,6 +1566,8 @@ export const IntegracoesTab: React.FC = () => {
                 </label>
                 <input
                   type="text"
+                  value={genericHost}
+                  onChange={(e) => setGenericHost(e.target.value)}
                   placeholder="ex: xyz12345.snowflakecomputing.com ou https://hooks.slack.com/..."
                   className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
@@ -1513,6 +1579,8 @@ export const IntegracoesTab: React.FC = () => {
                 </label>
                 <input
                   type="password"
+                  value={genericToken}
+                  onChange={(e) => setGenericToken(e.target.value)}
                   placeholder="••••••••••••••••••••••••"
                   className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
@@ -1527,7 +1595,11 @@ export const IntegracoesTab: React.FC = () => {
             <div className="p-5 border-t border-gray-100 bg-gray-50/70 flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setGenericModalIntegration(null)}
+                onClick={() => {
+                  setGenericModalIntegration(null);
+                  setGenericHost("");
+                  setGenericToken("");
+                }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-900 rounded-xl font-bold text-xs transition-colors"
               >
                 Cancelar
