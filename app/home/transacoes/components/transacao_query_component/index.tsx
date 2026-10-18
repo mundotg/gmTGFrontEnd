@@ -34,9 +34,10 @@ import {
 
 import type { DBConnection, DBStructure } from "@/types/db-structure";
 import type { Option } from "@/app/task/components/select_Component";
-import type { ColumnMapping, TableMapping } from "@/app/task/types/transfer-types";
+import type { ColumnMapping, TableMapping, QueryImpact } from "@/app/task/types/transfer-types";
 import type { MetadataTableResponse, QueryPayload } from "@/types";
 import QueryBuilderAux from "@/app/component/QueryBuilder-aux";
+import ImpactPredictorCard from "@/app/component/ImpactPredictorCard";
 import api from "@/context/axioCuston";
 
 interface Step2TablesQueryProps {
@@ -112,6 +113,10 @@ export const Step2QueryTables: React.FC<Step2TablesQueryProps> = ({
   } | null>(null);
   const [previewDurationMs, setPreviewDurationMs] = useState<number | null>(null);
   const [columnConfigs, setColumnConfigs] = useState<PreviewColumnConfig[]>([]);
+
+  // --- Dry-Run & Impact Predictor ---
+  const [impactResult, setImpactResult] = useState<QueryImpact | null>(null);
+  const [isImpactLoading, setIsImpactLoading] = useState<boolean>(false);
 
   // --- Status & Feedback ---
   const [appliedSuccess, setAppliedSuccess] = useState<string | null>(null);
@@ -236,6 +241,19 @@ export const Step2QueryTables: React.FC<Step2TablesQueryProps> = ({
     setAppliedSuccess(null);
     const start = performance.now();
 
+    // Avalia também o impacto em paralelo para dar feedback de performance
+    api.post("/transfer/impact-query", {
+      connection_id: sourceConnection.id,
+      query: q,
+      table_name: selectedSourceTable || undefined,
+    }).then((resp) => {
+      if (resp.data?.success && resp.data?.impact) {
+        setImpactResult(resp.data.impact);
+      }
+    }).catch(() => {
+      // silencioso
+    });
+
     try {
       const res = await api.post("/transfer/preview-query", {
         connection_id: sourceConnection.id,
@@ -296,6 +314,27 @@ export const Step2QueryTables: React.FC<Step2TablesQueryProps> = ({
       setIsPreviewLoading(false);
     }
   }, [queryText, sourceConnection?.id, selectedSourceTable, selectedTargetTableId, targetTableMap]);
+
+  // Avaliação manual de impacto / Dry-Run
+  const handleEvaluateImpact = useCallback(async () => {
+    const q = queryText.trim();
+    if (!q || !sourceConnection?.id) return;
+    setIsImpactLoading(true);
+    try {
+      const res = await api.post("/transfer/impact-query", {
+        connection_id: sourceConnection.id,
+        query: q,
+        table_name: selectedSourceTable || undefined,
+      });
+      if (res.data?.success && res.data?.impact) {
+        setImpactResult(res.data.impact);
+      }
+    } catch (err: any) {
+      console.warn("Falha ao avaliar impacto:", err);
+    } finally {
+      setIsImpactLoading(false);
+    }
+  }, [queryText, sourceConnection?.id, selectedSourceTable]);
 
   // ============================================================
   //  Aplicar Consulta à Transferência (Grava no TableMappings)
@@ -628,7 +667,22 @@ export const Step2QueryTables: React.FC<Step2TablesQueryProps> = ({
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleEvaluateImpact}
+                  disabled={isImpactLoading || !queryText.trim()}
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-xl font-bold text-xs shadow-sm transition-all disabled:opacity-50"
+                  title="Executa EXPLAIN no banco e analisa risco de Sequential Scan sem ler dados"
+                >
+                  {isImpactLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  )}
+                  <span>Avaliar Impacto (Dry-Run)</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleTestQuery}
@@ -694,6 +748,19 @@ export const Step2QueryTables: React.FC<Step2TablesQueryProps> = ({
             setAliasTables={setBuilderAliasTables}
             aliasTables={builderAliasTables}
             isExecuting={builderLoading}
+          />
+        </div>
+      )}
+
+      {/* ============================================================
+          DIAGNÓSTICO DE IMPACTO / DRY-RUN PREDICTOR
+         ============================================================ */}
+      {(impactResult || isImpactLoading) && (
+        <div className="pt-2">
+          <ImpactPredictorCard
+            impact={impactResult}
+            loading={isImpactLoading}
+            onClose={() => setImpactResult(null)}
           />
         </div>
       )}

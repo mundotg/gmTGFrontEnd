@@ -26,6 +26,7 @@ O **MustInfo unifica todas estas verticais num único ecossistema seguro, modula
 | O Desafio Atual das Empresas | A Solução Entregue pelo MustInfo |
 | :--- | :--- |
 | **Silos de Dados Fragmentados:** Bases de dados isoladas que exigem equipas dedicadas só para extrair relatórios. | **Database Studio Unificado:** Acesso seguro, consultas visuais, streaming de grandes volumes e histórico com auditoria. |
+| **Quedas de Servidor por Queries Pesadas:** Consultas sem índice e transferências cegas geram Sequential Scans que travam o banco de clientes. | **Dry-Run & Impact Predictor (Estilo BigQuery):** Simulação de custo e tempo pré-execução, bloqueio proativo de queries de risco e sugestão de índices em 1 clique. |
 | **Processamento Manual de Faturas e Documentos:** Horas perdidas a digitar dados de PDFs, faturas e tabelas digitalizadas. | **OCR Multimodal Inteligente:** Extração instantânea de texto e tabelas em PDFs/imagens com análise orientada por LLM (Gemini AI). |
 | **Custos Excessivos com Múltiplos Softwares:** Licenças em dólares para Jira, DBeaver EE, softwares de OCR e wikis. | **All-in-One Cost Efficiency:** Plataforma única com multi-tenancy, planos ajustáveis e compressão FinOps de tráfego de rede. |
 | **Falta de Segurança e Risco de Vazamentos:** Utilizadores usam IAs públicas expondo dados confidenciais de clientes. | **IA Segura com Soberania:** Assistente corporativo fechado, RBAC estrito e auditoria estrita de cada ação realizada. |
@@ -70,6 +71,8 @@ graph TD
 ### 🗄️ Módulo 1: Database Studio & Motor de Transferência de Dados
 * **Multi-Database Support:** Conexão nativa e transparente a PostgreSQL, MySQL, MongoDB e outras fontes.
 * **SQL Studio Interativo:** Editor com realce sintático, autocompletion inteligente e execução segura.
+* **🛡️ Dry-Run & Query Impact Predictor (Inspirado no Google BigQuery):** Avaliação de custo, linhas estimadas e detecção automática de `Sequential Scan` (SQL) ou `COLLSCAN` (MongoDB) **antes** de executar. Bloqueia comandos arriscados e gera comandos `CREATE INDEX` com 1 clique.
+* **Transferência Heterogênea de Dados por Query:** Migração transacional entre PostgreSQL, MySQL, MongoDB e SQLite com construtor visual de queries e preview com amostragem.
 * **Streaming de Resultados:** Capacidade de transmitir milhões de linhas sem estourar a memória do navegador através de SSE (*Server-Sent Events*).
 * **Monitor de Deadlocks em Tempo Real:** Deteção proativa de bloqueios no banco de dados com opção de terminar conexões problemáticas com um clique.
 * **Transferência Segura de Dados:** Migração e sincronização entre tabelas e bases de dados com garantia transacional.
@@ -136,8 +139,10 @@ timeline
 
 ### ⏱️ Passo 3: Demonstração Prática da Solução 360° (11 min)
 Mostre o sistema em funcionamento real com 3 cenários de elevado valor visual:
-1. **Cenário 1 — Gestão de Dados & Automação:**
-   * Abrir o **Database Studio** e mostrar a listagem de conexões.
+1. **Cenário 1 — Gestão de Dados, Dry-Run & Automação:**
+   * Abrir o **Database Studio** e mostrar a listagem de conexões heterogêneas.
+   * Digitar uma consulta de alto volume e clicar em **Explain / Avaliar Impacto**: demonstrar o **Dry-Run** detectando um Sequential Scan, estimando linhas/custo e gerando o `CREATE INDEX` em 1 clique.
+   * Demonstrar o **Impact Guard** interceptando uma operação arriscada com modal de confirmação consciente.
    * Executar uma consulta e demonstrar o **streaming de dados em tempo real** sem lentidão.
    * Abrir o **Monitor de Deadlocks** demonstrando a saúde proativa da base de dados.
 2. **Cenário 2 — Inteligência Documental (OCR + IA):**

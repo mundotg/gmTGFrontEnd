@@ -3,6 +3,8 @@
 import usePersistedState from "@/hook/localStoreUse";
 import { useSession } from "@/context/SessionContext";
 import { useDatabaseMetadata } from "@/hook/useDatabaseMetadata";
+import ImpactPredictorCard from "@/app/component/ImpactPredictorCard";
+import { QueryImpact } from "@/app/task/types/transfer-types";
 import React, {
     useState,
     useMemo,
@@ -225,6 +227,8 @@ export default function SqlEditor() {
 
     const [explainResult, setExplainResult] = useState<unknown[] | null>(null);
     const [explaining, setExplaining] = useState(false);
+    const [impactResult, setImpactResult] = useState<QueryImpact | null>(null);
+    const [impactModalPending, setImpactModalPending] = useState<QueryImpact | null>(null);
 
     // ── refs ──
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -267,6 +271,16 @@ export default function SqlEditor() {
     }
 
     function handleTab(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            executeQuery(false);
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+            e.preventDefault();
+            setSaveModalOpen(true);
+            return;
+        }
         if (e.key === "Tab") {
             e.preventDefault();
             const ta = e.currentTarget;
@@ -280,13 +294,7 @@ export default function SqlEditor() {
         }
     }
 
-    const executeQuery = useCallback(async () => {
-        if (isExecuting) return;
-
-        const { query, isPartial } = getQueryToRun();
-
-        if (!query) return;
-
+    const _runExecute = useCallback(async (query: string, isPartial: boolean) => {
         setIsExecuting(true);
 
         setExecError(null);
@@ -294,6 +302,8 @@ export default function SqlEditor() {
         setRows([]);
         setExplainResult(null);
         setAnalyzeResult(null);
+        setImpactResult(null);
+        setImpactModalPending(null);
 
         setStatusText(
             isPartial
@@ -623,6 +633,28 @@ export default function SqlEditor() {
 
     }, [isExecuting, sql]);
 
+    const executeQuery = useCallback(async (bypassGuard: boolean = false) => {
+        if (isExecuting) return;
+
+        const { query, isPartial } = getQueryToRun();
+        if (!query) return;
+
+        // Guarda de Impacto Pré-Execução (Dry-Run Guard)
+        if (!bypassGuard) {
+            try {
+                const impact = await apiPost<QueryImpact>("/explain", { query });
+                if (impact?.requires_confirmation) {
+                    setImpactModalPending(impact);
+                    return;
+                }
+            } catch {
+                // Se o explain falhar por qualquer motivo sintático, segue sem quebrar a execução
+            }
+        }
+
+        await _runExecute(query, isPartial);
+    }, [_runExecute, isExecuting, sql]);
+
     // ─────────────────────────────────────────────
     // CANCEL QUERY
     // ─────────────────────────────────────────────
@@ -697,11 +729,14 @@ export default function SqlEditor() {
         const { query } = getQueryToRun();
         if (!query) return;
         setExplaining(true);
+        setExecError(null);
         try {
-            const result = await apiPost<{ plan: unknown[] }>("/explain", { query });
-            setExplainResult(result.plan);
+            const result = await apiPost<QueryImpact & { plan?: unknown[] }>("/explain", { query });
+            setImpactResult(result);
+            setExplainResult(result.plan || []);
             setColumns([]);
             setRows([]);
+            setActiveTab("editor");
         } catch (e: unknown) {
             setExecError((e as Error).message);
         } finally {
@@ -1098,7 +1133,7 @@ export default function SqlEditor() {
                         {!isExecuting ? (
                             <button
                                 className="icon-btn green"
-                                onClick={executeQuery}
+                                onClick={() => executeQuery(false)}
                                 disabled={!sql.trim()}
                             >
                                 ▶ Executar
@@ -1282,11 +1317,18 @@ export default function SqlEditor() {
                             </div>
                         )}
 
-                        {explainResult && (
+                        {impactResult ? (
+                            <div className="my-4">
+                                <ImpactPredictorCard
+                                    impact={impactResult}
+                                    onClose={() => setImpactResult(null)}
+                                />
+                            </div>
+                        ) : explainResult ? (
                             <div className="explain-wrap">
                                 <pre>{JSON.stringify(explainResult, null, 2)}</pre>
                             </div>
-                        )}
+                        ) : null}
 
                         {columns.length > 0 && (
                             <div className="results-table-wrap">
@@ -1439,6 +1481,19 @@ export default function SqlEditor() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* ── IMPACT PREDICTOR PRE-EXECUTION GUARD MODAL ── */}
+            {impactModalPending && (
+                <ImpactPredictorCard
+                    impact={impactModalPending}
+                    isModal={true}
+                    onClose={() => setImpactModalPending(null)}
+                    onProceed={() => {
+                        const { query, isPartial } = getQueryToRun();
+                        _runExecute(query, isPartial);
+                    }}
+                />
             )}
         </div>
     );

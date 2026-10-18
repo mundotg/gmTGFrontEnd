@@ -59,10 +59,15 @@ O frontend segue uma arquitetura  **componentizada e orientada a domínio** , fa
 
 ### 🔍 Consultas e Análise de Dados
 
-* Execução de consultas SQL simples e avançadas
+* Execução de consultas SQL simples e avançadas com realce de sintaxe
+* **🛡️ Dry-Run & Avaliação de Risco Pré-Execução (Impact Predictor)**:
+  * Análise de planos de execução nativos (`EXPLAIN JSON` e `queryPlanner`) antes de rodar a query
+  * Detecção de varredura sequencial (`Seq Scan` / `COLLSCAN`) e estimativa de linhas e custo
+  * **Guarda de Segurança (Impact Guard)**: bloqueio e alerta em queries de alto risco (`DELETE` sem `WHERE`, `Seq Scan` em tabelas massivas)
+  * **Recomendação de Índices**: sugestão automática e cópia em 1 clique de instruções `CREATE INDEX`
 * Visualização de resultados com paginação e filtros
-* Destaque de status e performance das queries
-* Exportação de resultados
+* Destaque de status e performance das queries (latência, linhas afetadas)
+* Exportação de resultados (CSV, JSON, Excel)
 
 ### 📊 Visualização e Estatísticas
 
@@ -80,7 +85,9 @@ O frontend segue uma arquitetura  **componentizada e orientada a domínio** , fa
 ### 🔁 Transações de Dados
 
 * Interface para **transações ACID**
-* Transferência de dados entre **diferentes tipos de bases de dados**
+* **Transferência por Query Heterogênea**: migração de dados entre PostgreSQL, MySQL, MongoDB e SQLite através de queries SQL/MQL customizadas
+* **Dry-Run Integrado na Migração**: avaliação de custo e volume antes de disparar transferências pesadas
+* Modo Construtor Visual (`QueryBuilder`) e Modo SQL Livre
 * Monitoramento de execução e rollback visual
 
 ### 💾 Backup e Restore
