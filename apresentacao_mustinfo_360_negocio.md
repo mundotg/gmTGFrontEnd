@@ -27,6 +27,7 @@ O **MustInfo unifica todas estas verticais num único ecossistema seguro, modula
 | :--- | :--- |
 | **Silos de Dados Fragmentados:** Bases de dados isoladas que exigem equipas dedicadas só para extrair relatórios. | **Database Studio Unificado:** Acesso seguro, consultas visuais, streaming de grandes volumes e histórico com auditoria. |
 | **Quedas de Servidor por Queries Pesadas:** Consultas sem índice e transferências cegas geram Sequential Scans que travam o banco de clientes. | **Dry-Run & Impact Predictor (Estilo BigQuery):** Simulação de custo e tempo pré-execução, bloqueio proativo de queries de risco e sugestão de índices em 1 clique. |
+| **Falta de Rastreabilidade e Governança:** CDOs e auditores não sabem de onde vieram os dados nos relatórios nem o que quebra ao alterar uma tabela. | **Linhagem Visual de Dados (Data Lineage & Flow):** Grafo interativo (DAG) em tempo real mapeando origem, filtros aplicados e consumidores downstream com análise de impacto. |
 | **Processamento Manual de Faturas e Documentos:** Horas perdidas a digitar dados de PDFs, faturas e tabelas digitalizadas. | **OCR Multimodal Inteligente:** Extração instantânea de texto e tabelas em PDFs/imagens com análise orientada por LLM (Gemini AI). |
 | **Custos Excessivos com Múltiplos Softwares:** Licenças em dólares para Jira, DBeaver EE, softwares de OCR e wikis. | **All-in-One Cost Efficiency:** Plataforma única com multi-tenancy, planos ajustáveis e compressão FinOps de tráfego de rede. |
 | **Falta de Segurança e Risco de Vazamentos:** Utilizadores usam IAs públicas expondo dados confidenciais de clientes. | **IA Segura com Soberania:** Assistente corporativo fechado, RBAC estrito e auditoria estrita de cada ação realizada. |
@@ -72,6 +73,7 @@ graph TD
 * **Multi-Database Support:** Conexão nativa e transparente a PostgreSQL, MySQL, MongoDB e outras fontes.
 * **SQL Studio Interativo:** Editor com realce sintático, autocompletion inteligente e execução segura.
 * **🛡️ Dry-Run & Query Impact Predictor (Inspirado no Google BigQuery):** Avaliação de custo, linhas estimadas e detecção automática de `Sequential Scan` (SQL) ou `COLLSCAN` (MongoDB) **antes** de executar. Bloqueia comandos arriscados e gera comandos `CREATE INDEX` com 1 clique.
+* **🗺️ Linhagem Visual de Dados (Data Lineage & Flow):** Grafo interativo de dependências (DAG) mapeando a proveniência dos dados: `Banco A (pedidos) ➔ Filtro ➔ Banco B (analytics_pedidos)`. Inclui análise de impacto Upstream/Downstream para apoiar CDOs e auditores.
 * **Transferência Heterogênea de Dados por Query:** Migração transacional entre PostgreSQL, MySQL, MongoDB e SQLite com construtor visual de queries e preview com amostragem.
 * **Streaming de Resultados:** Capacidade de transmitir milhões de linhas sem estourar a memória do navegador através de SSE (*Server-Sent Events*).
 * **Monitor de Deadlocks em Tempo Real:** Deteção proativa de bloqueios no banco de dados com opção de terminar conexões problemáticas com um clique.

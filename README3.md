@@ -90,6 +90,14 @@ O frontend segue uma arquitetura  **componentizada e orientada a domínio** , fa
 * Modo Construtor Visual (`QueryBuilder`) e Modo SQL Livre
 * Monitoramento de execução e rollback visual
 
+### 🗺️ Linhagem Visual de Dados (Data Lineage & Flow)
+
+* Mapa de dependências em nós interativos (DAG) em `/home/lineage`
+* Rastreamento ponta a ponta: `Banco Origem ➔ Regra de Transformação ➔ Banco Destino`
+* Análise de impacto Upstream e Downstream com alertas de risco para exclusão/alteração de tabelas
+* Painel com inspeção de queries aplicadas, volume de linhas e latência de transferência
+* Trilha de auditoria cronológica de migrações e sincronizações
+
 ### 💾 Backup e Restore
 
 * Interface dedicada para backup

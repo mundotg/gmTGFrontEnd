@@ -83,7 +83,8 @@
     "devTest": "Testes (dev)",
     "reference": "Referência",
     "deadlocks": "Estudo de Deadlocks",
-    "transactions": "Transações de Dados"
+    "transactions": "Transações de Dados",
+    "lineage": "Linhagem de Dados"
   },
   "status": {
     "online": "Online",

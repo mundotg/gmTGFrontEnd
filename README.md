@@ -331,6 +331,14 @@ Este repositório contém o **Frontend**, desenvolvido com **Next.js 14**, **Typ
 - Modo Editor SQL livre e Construtor Visual (`QueryBuilderAux`)
 - Botão "Avaliar Impacto (Dry-Run)" e teste de prévia com amostragem em tempo real
 
+### 🗺️ Linhagem Visual de Dados (Data Lineage & Flow)
+- Rota: `/home/lineage`
+- Componentes: `LineageFlowViewer`, `LineageImpactModal`
+- Mapa interativo de nós e arestas (DAG) ilustrando o fluxo: `Origem (Banco A) ➔ Transformação ➔ Destino (Banco B)`
+- Controles de zoom, pan, busca e painel lateral com visualização da query SQL e métricas de transferência
+- Análise de impacto Upstream e Downstream com classificação de risco (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`)
+
+
 ---
 
 ## 🧪 4. Tecnologias e Pacotes Sugeridos
