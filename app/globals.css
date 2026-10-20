@@ -248,4 +248,65 @@ body {
 
 .font-technical {
   font-family: var(--font-technical);
-}
+}
+
+/* ==========================================================================
+   VIDEO RECOMMENDER DESIGN SYSTEM & TOKENS
+   ========================================================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-surface: #14141c;
+  --bg-elevated: #1e1e2a;
+  --accent: #ff3b5c;
+  --accent-hover: #ff5470;
+  --text-primary: #f5f5f7;
+  --text-muted: #8a8a99;
+  --border: #2a2a38;
+  --success: #22c55e;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.08) 37%,
+    rgba(255, 255, 255, 0.03) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+}
+
+.glass-card {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background-color: rgba(20, 20, 28, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card:hover {
+  border-color: rgba(255, 59, 92, 0.35);
+}
+

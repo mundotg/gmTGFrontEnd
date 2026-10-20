@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt" className={`${inter.variable} h-full`}>
+    <html lang="pt" data-scroll-behavior="smooth" className={`${inter.variable} h-full`}>
       <body className={`${inter.className} font-sans antialiased h-full text-gray-900 bg-gray-50/50 selection:bg-indigo-500/20`}>
         <AuthProvider>
           <SessionProvider>

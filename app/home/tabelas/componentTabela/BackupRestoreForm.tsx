@@ -18,7 +18,7 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/context/I18nContext";
 import { DBConnection } from "@/app/task/types";
-import { usePaginatedFetcher } from "../../hooks/useDBConnections";
+import { usePaginatedFetcher } from "../../../task/hook/useDBConnections";
 import { JoinSelect } from "@/app/task/components/select_Component";
 import { useBackupJob, BackupJob } from "@/hook/useBackupJob";
 
