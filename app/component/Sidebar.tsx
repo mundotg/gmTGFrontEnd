@@ -8,7 +8,7 @@ import {
   ScanLine, LucideProjector,
   Terminal, Sparkles,
   LayoutDashboard, Bot, Brain,
-  Activity, ArrowLeftRight, Workflow,
+  Activity, ArrowLeftRight, Workflow, Youtube, Gamepad2, Swords,
 } from "lucide-react";
 import type { ElementType } from "react";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
@@ -67,6 +67,9 @@ export const sidebarItems: SidebarItem[] = [
   { id: "ai", group: GROUP_MORE, label: "sidebar.ai", title: "Assistente IA", icon: Bot, href: "/home/ai" },
   { id: "mll", group: GROUP_MORE, label: "sidebar.mll", title: "ML / Insights", icon: Sparkles, href: "/home/mll" },
   { id: "ocr", group: GROUP_MORE, label: "scanner.texto", title: "OCR / Scanner", icon: ScanLine, badge: "registros_analizados", href: "/home/ocr" },
+  { id: "recommendations", group: GROUP_MORE, label: "sidebar.recommendations", title: "Vídeos & Recomendações", icon: Youtube, badge: "YouTube", href: "/recommendations" },
+  { id: "jogos", group: GROUP_MORE, label: "sidebar.jogos", title: "Jogos do Sistema", icon: Gamepad2, badge: "Jogos", href: "/jogo-home" },
+  { id: "jogo", group: GROUP_MORE, label: "sidebar.jogo", title: "Tapatan 3x3", icon: Swords, badge: "3x3", href: "/jogo-home/jogo" },
 ];
 
 export default function Sidebar({ children }: { children: React.ReactNode }) {

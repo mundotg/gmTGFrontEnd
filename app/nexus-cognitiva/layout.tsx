@@ -131,7 +131,7 @@ export default function NexusRootLayout({
   };
 
   return (
-    <html lang="pt" className={`${fontInterface.variable} ${fontEditorial.variable} ${fontTechnical.variable}`}>
+    <html lang="pt" data-scroll-behavior="smooth" className={`${fontInterface.variable} ${fontEditorial.variable} ${fontTechnical.variable}`}>
       <head>
         <script
           type="application/ld+json"

@@ -15,7 +15,7 @@ import type { DBConnection } from "@/types/db-structure";
 
 import usePersistedState from "@/hook/localStoreUse";
 import { useTransferWs } from "@/hook/useTransferWs";
-import { usePaginatedFetcher } from "../../hooks/useDBConnections";
+import { usePaginatedFetcher } from "../../../task/hook/useDBConnections";
 import { getDatabaseIcon } from "./steps/utils";
 import { buildTransferPayload } from "./transacao_query_component/compactar-payload";
 
@@ -357,4 +357,4 @@ export const DataTransactionForm: React.FC<DataTransactionFormProps> = ({
       {cardContent}
     </div>
   );
-};
+};

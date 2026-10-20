@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function DataScienceLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt" className="h-full">
+    <html lang="pt" data-scroll-behavior="smooth" className="h-full">
       <body className="h-full antialiased bg-slate-50">
         <AuthProvider>{children}</AuthProvider>
       </body>

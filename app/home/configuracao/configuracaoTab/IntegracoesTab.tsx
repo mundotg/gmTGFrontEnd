@@ -196,21 +196,6 @@ const INITIAL_INTEGRATIONS_LIST: IntegrationItem[] = [
     ],
   },
   {
-    id: "snowflake",
-    name: "Snowflake",
-    provider: "Snowflake Computing",
-    description:
-      "Cloud data platform para cargas analíticas e data sharing seguro. Sincronize bancos de dados analíticos e tabelas externas com o catálogo central.",
-    category: "Data Warehouse & Cloud",
-    brandColor: "#29B5E8",
-    badge: "Cloud DWH",
-    connected: false,
-    metrics: [
-      { label: "Warehouses", value: "XS-Auto" },
-      { label: "Role", value: "SYSADMIN" },
-    ],
-  },
-  {
     id: "databricks",
     name: "Databricks Delta Lake",
     provider: "Databricks Inc.",
@@ -234,22 +219,6 @@ const INITIAL_INTEGRATIONS_LIST: IntegrationItem[] = [
     metrics: [
       { label: "Buckets", value: "3 vinculados" },
       { label: "Armazenamento", value: "1.2 TB" },
-    ],
-  },
-  {
-    id: "slack",
-    name: "Slack",
-    provider: "Slack Technologies",
-    description:
-      "Receba alertas imediatos em canais dedicados sobre deadlocks, consultas pesadas bloqueadas pelo Dry-Run e auditoria de DDL.",
-    category: "Comunicação & Alertas",
-    brandColor: "#4A154B",
-    badge: "Alertas Críticos",
-    connected: false,
-    lastSync: undefined,
-    metrics: [
-      { label: "Canais", value: "#db-alertas" },
-      { label: "Notificações", value: "142 hoje" },
     ],
   },
   {
