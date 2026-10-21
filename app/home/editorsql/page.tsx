@@ -1,10 +1,5 @@
 "use client";
 
-import usePersistedState from "@/hook/localStoreUse";
-import { useSession } from "@/context/SessionContext";
-import { useDatabaseMetadata } from "@/hook/useDatabaseMetadata";
-import ImpactPredictorCard from "@/app/component/ImpactPredictorCard";
-import { QueryImpact } from "@/app/task/types/transfer-types";
 import React, {
     useState,
     useMemo,
@@ -12,192 +7,52 @@ import React, {
     useRef,
     useCallback,
 } from "react";
+import usePersistedState from "@/hook/localStoreUse";
+import { useSession } from "@/context/SessionContext";
+import { useDatabaseMetadata } from "@/hook/useDatabaseMetadata";
+import { useI18n } from "@/context/I18nContext";
 
-// Deriva o URL do WebSocket a partir do backend HTTP.
-const WS_BASE = ((process.env.NEXT_PUBLIC_BACKEND_URL ?? "")
-    .replace(/^http/, "ws")
-    .replace(/\/$/, "")) + "/sql-editor/ws";
+// Tipos locais da rota
+import {
+    Tab,
+    AcItem,
+    ExecError,
+    ExecutePayload,
+    AnalyzeResponse,
+    AnalyzeResult,
+    SavedQuery,
+    HistoryEntry,
+    Metrics,
+    QueryImpact,
+    ValidationState,
+    LastExecutionTelemetry,
+} from "./types";
 
-type AcItem = { label: string; type: string; detail?: string; insert: string };
-type LintMsg = { severity?: string; type?: string; message: string; replace?: string; with?: string };
-type ValidationState = { errors: LintMsg[]; suggestions: LintMsg[] } | null;
+// Helpers locais da rota
+import {
+    BASE_URL,
+    WS_BASE,
+    highlight,
+    analyzeQueryRealtime,
+    apiPost,
+    apiGet,
+} from "./utils/sqlHelpers";
 
-// ─────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────
-
-/**
- * O evento "error" do stream pode chegar como texto simples ou como o payload
- * bruto do backend (`{ error, message, ... }`), por isso a união.
- */
-type ExecError = string | { error?: string; message?: string } | null;
-
-interface ExecutePayload {
-    query: string;
-    limit?: number;
-    offset?: number;
-    stream?: boolean;
-}
-
-interface AnalyzeQuery {
-    query: string;
-    queryType: string;
-    tables: string[];
-
-    risk: {
-        safe: boolean;
-        risks: string[];
-    };
-
-    complexity: number;
-}
-
-interface AnalyzeResult {
-    formatted: string;
-
-    queries: AnalyzeQuery[];
-
-    totalStatements: number;
-}
-
-interface AnalyzeResponse {
-    success: boolean;
-    message: string;
-    data: AnalyzeResult;
-}
-
-interface SavedQuery {
-    id: string;
-    name: string;
-    query: string;
-    created_at: string;
-}
-
-interface HistoryEntry {
-    query: string;
-    created_at: string;
-}
-
-interface Metrics {
-    queriesExecuted: number;
-    activeQueries: number;
-    savedQueries: number;
-}
-
-// ─────────────────────────────────────────────────────────────
-// CONFIG
-// ─────────────────────────────────────────────────────────────
-
-const BASE_URL = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "") + "sql-editor";
-
-const KEYWORDS = [
-    "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "JOIN", "INNER", "LEFT",
-    "RIGHT", "OUTER", "ON", "AND", "OR", "NOT", "IN", "IS", "NULL", "GROUP BY", "ORDER BY",
-    "LIMIT", "OFFSET", "HAVING", "DISTINCT", "AS", "CREATE", "ALTER", "DROP", "TABLE",
-    "UNION", "ALL", "CASE", "WHEN", "THEN", "ELSE", "END", "BETWEEN", "LIKE", "EXISTS",
-    "COUNT", "SUM", "AVG", "MIN", "MAX", "COALESCE", "CAST", "RETURNING", "VALUES", "SET", "INTO",
-];
-
-// ─────────────────────────────────────────────────────────────
-// API CLIENT
-// ─────────────────────────────────────────────────────────────
-
-async function apiPost<T>(path: string, body: unknown): Promise<T> {
-    const res = await fetch(`${BASE_URL}${path}`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-    });
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-        throw new Error(json.message ?? "Erro na requisição");
-    }
-    return json.data as T;
-}
-
-async function apiGet<T>(path: string): Promise<T> {
-    const res = await fetch(`${BASE_URL}${path}`, {
-        credentials: "include",
-    });
-    const json = await res.json();
-    if (!res.ok || !json.success) throw new Error(json.message ?? "Erro");
-    return json.data as T;
-}
-
-// ─────────────────────────────────────────────────────────────
-// HIGHLIGHT
-// ─────────────────────────────────────────────────────────────
-
-function highlight(sql: string): string {
-    const esc = (s: string) =>
-        s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-    const tokens: string[] = [];
-    let i = 0;
-
-    while (i < sql.length) {
-        // single-line comment
-        if (sql[i] === "-" && sql[i + 1] === "-") {
-            const j = sql.indexOf("\n", i);
-            const end = j === -1 ? sql.length : j;
-            tokens.push(`<span class="hl-cmt">${esc(sql.slice(i, end))}</span>`);
-            i = end;
-            continue;
-        }
-        // string literals
-        if (sql[i] === "'" || sql[i] === '"') {
-            const q = sql[i];
-            let j = i + 1;
-            while (j < sql.length && sql[j] !== q) {
-                if (sql[j] === "\\") j++;
-                j++;
-            }
-            j++;
-            tokens.push(`<span class="hl-str">${esc(sql.slice(i, j))}</span>`);
-            i = j;
-            continue;
-        }
-        // numbers
-        if (/\d/.test(sql[i]) && (i === 0 || !/\w/.test(sql[i - 1]))) {
-            let j = i;
-            while (j < sql.length && /[\d.]/.test(sql[j])) j++;
-            tokens.push(`<span class="hl-num">${esc(sql.slice(i, j))}</span>`);
-            i = j;
-            continue;
-        }
-        // words / keywords
-        if (/[a-zA-Z_*]/.test(sql[i])) {
-            let j = i;
-            while (j < sql.length && /[\w*]/.test(sql[j])) j++;
-            const word = sql.slice(i, j);
-            if (KEYWORDS.includes(word.toUpperCase())) {
-                tokens.push(`<span class="hl-kw">${esc(word)}</span>`);
-            } else {
-                tokens.push(esc(word));
-            }
-            i = j;
-            continue;
-        }
-        tokens.push(esc(sql[i]));
-        i++;
-    }
-    return tokens.join("");
-}
-
-// ─────────────────────────────────────────────────────────────
-// TABS
-// ─────────────────────────────────────────────────────────────
-
-type Tab = "editor" | "history" | "saved" | "metrics";
-
-// ─────────────────────────────────────────────────────────────
-// COMPONENT
-// ─────────────────────────────────────────────────────────────
+// Componentes agrupados na pasta da rota
+import SqlEditorStyles from "./components/SqlEditorStyles";
+import SqlToolbar from "./components/SqlToolbar";
+import RealtimeQueryHud from "./components/RealtimeQueryHud";
+import SqlCodeEditor from "./components/SqlCodeEditor";
+import SqlResultsPanel from "./components/SqlResultsPanel";
+import SqlSaveModal from "./components/SqlSaveModal";
+import ImpactPredictorCard from "./components/ImpactPredictorCard";
 
 export default function SqlEditor() {
+    const { t } = useI18n();
+
     // ── editor state ──
-    const [sql, setSql] = usePersistedState<string>("editor_sql",
+    const [sql, setSql] = usePersistedState<string>(
+        "editor_sql",
         `SELECT u.id, u.name, u.email, u.created_at\nFROM users u\nWHERE u.active = 1\nORDER BY u.created_at DESC\nLIMIT 100;`
     );
     const [activeTab, setActiveTab] = useState<Tab>("editor");
@@ -207,9 +62,16 @@ export default function SqlEditor() {
     const [queryId, setQueryId] = useState<string | null>(null);
     const [columns, setColumns] = useState<string[]>([]);
     const [rows, setRows] = useState<Record<string, unknown>[]>([]);
-    // O stream de erro pode devolver uma string ou o objeto bruto do backend
     const [execError, setExecError] = useState<ExecError>(null);
     const [statusText, setStatusText] = useState("Pronto");
+
+    // ── realtime query analysis & live telemetry ──
+    const [lastExecution, setLastExecution] = useState<LastExecutionTelemetry | null>(null);
+    const execStartTimeRef = useRef<number>(0);
+
+    const realtimeAnalysis = useMemo(() => {
+        return analyzeQueryRealtime(sql);
+    }, [sql]);
 
     // ── selection badge ──
     const [selectionInfo, setSelectionInfo] = useState<string | null>(null);
@@ -264,7 +126,10 @@ export default function SqlEditor() {
         const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd).trim();
         if (sel.length > 0) {
             const lines = sel.split("\n").length;
-            setSelectionInfo(`${sel.length} chars · ${lines} linha${lines > 1 ? "s" : ""}`);
+            const lineWord = lines > 1 ? t("sqlEditorPage.linesCount", "linhas") : "linha";
+            setSelectionInfo(
+                `${sel.length} ${t("sqlEditorPage.chars", "chars")} · ${lines} ${lineWord}`
+            );
         } else {
             setSelectionInfo(null);
         }
@@ -294,35 +159,35 @@ export default function SqlEditor() {
         }
     }
 
-    const _runExecute = useCallback(async (query: string, isPartial: boolean) => {
-        setIsExecuting(true);
+    const _runExecute = useCallback(
+        async (query: string, isPartial: boolean) => {
+            setIsExecuting(true);
+            execStartTimeRef.current = performance.now();
 
-        setExecError(null);
-        setColumns([]);
-        setRows([]);
-        setExplainResult(null);
-        setAnalyzeResult(null);
-        setImpactResult(null);
-        setImpactModalPending(null);
+            setExecError(null);
+            setColumns([]);
+            setRows([]);
+            setExplainResult(null);
+            setAnalyzeResult(null);
+            setImpactResult(null);
+            setImpactModalPending(null);
 
-        setStatusText(
-            isPartial
-                ? "Executando seleção…"
-                : "Executando…"
-        );
+            setStatusText(
+                isPartial
+                    ? t("sqlEditorPage.runningSelection", "Executando seleção…")
+                    : t("sqlEditorPage.executing", "Executando…")
+            );
 
-        abortRef.current = new AbortController();
+            abortRef.current = new AbortController();
 
-        try {
-            const payload: ExecutePayload = {
-                query,
-                limit: 1000,
-                stream: true,
-            };
+            try {
+                const payload: ExecutePayload = {
+                    query,
+                    limit: 1000,
+                    stream: true,
+                };
 
-            const res = await fetch(
-                `${BASE_URL}/execute`,
-                {
+                const res = await fetch(`${BASE_URL}/execute`, {
                     method: "POST",
                     credentials: "include",
                     headers: {
@@ -330,330 +195,248 @@ export default function SqlEditor() {
                     },
                     body: JSON.stringify(payload),
                     signal: abortRef.current.signal,
-                }
-            );
-
-            if (!res.ok) {
-                let err: any = null;
-
-                try {
-                    err = await res.json();
-                } catch {
-                    //
-                }
-
-                throw new Error(
-                    err?.detail?.message ??
-                    err?.message ??
-                    "Erro na execução"
-                );
-            }
-
-            // fallback via header
-            const qid = res.headers.get("X-Query-Id");
-
-            if (qid) {
-                setQueryId(qid);
-            }
-
-            const reader = res.body?.getReader();
-
-            if (!reader) {
-                throw new Error(
-                    "Falha ao iniciar leitura do stream"
-                );
-            }
-
-            readerRef.current = reader;
-
-            const decoder = new TextDecoder();
-
-            let buffer = "";
-
-            // evita re-render excessivo
-            let rowsBuffer: any[] = [];
-
-            const flushRows = () => {
-                if (rowsBuffer.length === 0) return;
-
-                setRows((prev) => [
-                    ...prev,
-                    ...rowsBuffer,
-                ]);
-
-                rowsBuffer = [];
-            };
-
-            while (true) {
-                const { done, value } =
-                    await reader.read();
-
-                if (done) break;
-
-                buffer += decoder.decode(value, {
-                    stream: true,
                 });
 
-                // suporta \n\n e \r\n\r\n
-                const parts =
-                    buffer.split(/\r?\n\r?\n/);
-
-                buffer = parts.pop() ?? "";
-
-                for (const part of parts) {
-                    let eventType = "message";
-
-                    let data = "";
-
-                    const lines =
-                        part.split(/\r?\n/);
-
-                    for (const line of lines) {
-                        if (
-                            line.startsWith("event:")
-                        ) {
-                            eventType = line
-                                .slice(6)
-                                .trim();
-                        }
-
-                        if (
-                            line.startsWith("data:")
-                        ) {
-                            data += line
-                                .slice(5)
-                                .trim();
-                        }
-                    }
-
-                    if (!data) continue;
-
-                    let parsed: any;
-
+                if (!res.ok) {
+                    let err: any = null;
                     try {
-                        parsed = JSON.parse(data);
-                    } catch (e) {
-                        console.error(
-                            "Erro ao parsear SSE:",
-                            e,
-                            data
-                        );
-
-                        continue;
+                        err = await res.json();
+                    } catch {
+                        //
                     }
+                    throw new Error(
+                        err?.detail?.message ?? err?.message ?? "Erro na execução"
+                    );
+                }
 
-                    switch (eventType) {
+                // fallback via header
+                const qid = res.headers.get("X-Query-Id");
+                if (qid) {
+                    setQueryId(qid);
+                }
 
-                        // ─────────────────────
-                        // START
-                        // ─────────────────────
+                const reader = res.body?.getReader();
+                if (!reader) {
+                    throw new Error("Falha ao iniciar leitura do stream");
+                }
+                readerRef.current = reader;
 
-                        case "start": {
-                            if (parsed.queryId) {
-                                setQueryId(
-                                    parsed.queryId
+                const decoder = new TextDecoder();
+                let buffer = "";
+                let rowsBuffer: any[] = [];
+
+                const flushRows = () => {
+                    if (rowsBuffer.length === 0) return;
+                    setRows((prev) => [...prev, ...rowsBuffer]);
+                    rowsBuffer = [];
+                };
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const parts = buffer.split(/\r?\n\r?\n/);
+                    buffer = parts.pop() ?? "";
+
+                    for (const part of parts) {
+                        let eventType = "message";
+                        let data = "";
+                        const lines = part.split(/\r?\n/);
+
+                        for (const line of lines) {
+                            if (line.startsWith("event:")) {
+                                eventType = line.slice(6).trim();
+                            }
+                            if (line.startsWith("data:")) {
+                                data += line.slice(5).trim();
+                            }
+                        }
+
+                        if (!data) continue;
+                        let parsed: any;
+                        try {
+                            parsed = JSON.parse(data);
+                        } catch (e) {
+                            console.error("Erro ao parsear SSE:", e, data);
+                            continue;
+                        }
+
+                        switch (eventType) {
+                            case "start": {
+                                if (parsed.queryId) {
+                                    setQueryId(parsed.queryId);
+                                }
+                                break;
+                            }
+                            case "progress": {
+                                setStatusText(
+                                    `Executando ${parsed.current}/${parsed.total}`
                                 );
+                                break;
                             }
-
-                            break;
-                        }
-
-                        // ─────────────────────
-                        // PROGRESS
-                        // ─────────────────────
-
-                        case "progress": {
-                            setStatusText(
-                                `Executando ${parsed.current}/${parsed.total}`
-                            );
-
-                            break;
-                        }
-
-                        // ─────────────────────
-                        // STATEMENT START
-                        // ─────────────────────
-
-                        case "statement_start": {
-                            setStatusText(
-                                `Executando ${parsed.type ?? "query"}`
-                            );
-
-                            break;
-                        }
-
-                        // ─────────────────────
-                        // COLUMNS
-                        // ─────────────────────
-
-                        case "columns": {
-                            setColumns(
-                                parsed.columns ?? []
-                            );
-
-                            setStatusText(
-                                "Lendo dados…"
-                            );
-
-                            break;
-                        }
-
-                        // ─────────────────────
-                        // ROW
-                        // ─────────────────────
-
-                        case "row": {
-
-                            if (parsed.row) {
-
-                                setRows((prev) => [
-                                    ...prev,
-                                    parsed.row
-                                ]);
+                            case "statement_start": {
+                                setStatusText(
+                                    `Executando ${parsed.type ?? "query"}`
+                                );
+                                break;
                             }
+                            case "columns": {
+                                setColumns(parsed.columns ?? []);
+                                setStatusText("Lendo dados…");
+                                break;
+                            }
+                            case "row": {
+                                if (parsed.row) {
+                                    setRows((prev) => [...prev, parsed.row]);
+                                }
+                                break;
+                            }
+                            case "statement_complete": {
+                                flushRows();
+                                const elapsed = Math.round(
+                                    performance.now() - execStartTimeRef.current
+                                );
+                                const count = parsed.rows ?? rows.length;
 
-                            break;
+                                setStatusText(
+                                    `Statement concluído · ${count} ${t("sqlEditorPage.rows", "linhas")}`
+                                );
+
+                                setLastExecution({
+                                    durationMs: elapsed,
+                                    rowsCount: count,
+                                    statementType: parsed.type || realtimeAnalysis.statementType,
+                                    timestamp: new Date(),
+                                    status: "success",
+                                });
+                                break;
+                            }
+                            case "complete": {
+                                flushRows();
+                                const elapsed = Math.round(
+                                    performance.now() - execStartTimeRef.current
+                                );
+                                setStatusText(t("sqlEditorPage.completed", "Concluído"));
+
+                                setLastExecution((prev) => ({
+                                    durationMs: elapsed,
+                                    rowsCount:
+                                        (prev?.rowsCount ?? 0) || rows.length + rowsBuffer.length,
+                                    statementType:
+                                        prev?.statementType || realtimeAnalysis.statementType,
+                                    timestamp: new Date(),
+                                    status: "success",
+                                }));
+                                break;
+                            }
+                            case "limit": {
+                                flushRows();
+                                setStatusText("Limite de linhas atingido");
+                                break;
+                            }
+                            case "cancelled": {
+                                flushRows();
+                                const elapsed = Math.round(
+                                    performance.now() - execStartTimeRef.current
+                                );
+                                setStatusText("Cancelado pelo usuário");
+
+                                setLastExecution({
+                                    durationMs: elapsed,
+                                    rowsCount: rows.length,
+                                    statementType: realtimeAnalysis.statementType,
+                                    timestamp: new Date(),
+                                    status: "cancelled",
+                                });
+                                break;
+                            }
+                            case "error": {
+                                flushRows();
+                                const elapsed = Math.round(
+                                    performance.now() - execStartTimeRef.current
+                                );
+                                const errMsg = parsed?.message ?? parsed ?? "Erro na execução";
+
+                                setExecError(errMsg);
+                                setStatusText("Erro na execução");
+
+                                setLastExecution({
+                                    durationMs: elapsed,
+                                    rowsCount: rows.length,
+                                    statementType: realtimeAnalysis.statementType,
+                                    timestamp: new Date(),
+                                    status: "error",
+                                    errorMsg:
+                                        typeof errMsg === "string" ? errMsg : JSON.stringify(errMsg),
+                                });
+                                break;
+                            }
+                            default:
+                                break;
                         }
-
-                        // ─────────────────────
-                        // STATEMENT COMPLETE
-                        // ─────────────────────
-
-                        case "statement_complete": {
-                            flushRows();
-
-                            setStatusText(
-                                `Statement concluído · ${parsed.rows ?? 0} linhas`
-                            );
-
-                            break;
-                        }
-
-                        // ─────────────────────
-                        // COMPLETE
-                        // ─────────────────────
-
-                        case "complete": {
-                            flushRows();
-
-                            setStatusText(
-                                "Concluído"
-                            );
-
-                            break;
-                        }
-
-                        // ─────────────────────
-                        // LIMIT
-                        // ─────────────────────
-
-                        case "limit": {
-                            flushRows();
-
-                            setStatusText(
-                                "Limite de linhas atingido"
-                            );
-
-                            break;
-                        }
-
-                        // ─────────────────────
-                        // CANCELLED
-                        // ─────────────────────
-
-                        case "cancelled": {
-                            flushRows();
-
-                            setStatusText(
-                                "Cancelado pelo usuário"
-                            );
-
-                            break;
-                        }
-
-                        // ─────────────────────
-                        // ERROR
-                        // ─────────────────────
-
-                        case "error": {
-                            flushRows();
-
-                            setExecError(
-                                parsed?.message ??
-                                parsed ??
-                                "Erro na execução"
-                            );
-
-                            setStatusText(
-                                "Erro na execução"
-                            );
-
-                            break;
-                        }
-
-                        default:
-                            break;
                     }
                 }
-            }
 
-            // flush final
-            flushRows();
+                flushRows();
+            } catch (err: unknown) {
+                const e = err as Error;
+                const elapsed = Math.round(performance.now() - execStartTimeRef.current);
 
-        } catch (err: unknown) {
-
-            const e = err as Error;
-
-            if (e.name === "AbortError") {
-
-                setStatusText(
-                    "Cancelado pelo usuário"
-                );
-
-            } else {
-
-                setExecError(
-                    e.message ??
-                    "Erro inesperado"
-                );
-
-                setStatusText(
-                    "Falha na execução"
-                );
-            }
-
-        } finally {
-
-            setIsExecuting(false);
-
-            abortRef.current = null;
-
-            readerRef.current = null;
-        }
-
-    }, [isExecuting, sql]);
-
-    const executeQuery = useCallback(async (bypassGuard: boolean = false) => {
-        if (isExecuting) return;
-
-        const { query, isPartial } = getQueryToRun();
-        if (!query) return;
-
-        // Guarda de Impacto Pré-Execução (Dry-Run Guard)
-        if (!bypassGuard) {
-            try {
-                const impact = await apiPost<QueryImpact>("/explain", { query });
-                if (impact?.requires_confirmation) {
-                    setImpactModalPending(impact);
-                    return;
+                if (e.name === "AbortError") {
+                    setStatusText("Cancelado pelo usuário");
+                    setLastExecution({
+                        durationMs: elapsed,
+                        rowsCount: rows.length,
+                        statementType: realtimeAnalysis.statementType,
+                        timestamp: new Date(),
+                        status: "cancelled",
+                    });
+                } else {
+                    setExecError(e.message ?? "Erro inesperado");
+                    setStatusText("Falha na execução");
+                    setLastExecution({
+                        durationMs: elapsed,
+                        rowsCount: rows.length,
+                        statementType: realtimeAnalysis.statementType,
+                        timestamp: new Date(),
+                        status: "error",
+                        errorMsg: e.message ?? "Erro inesperado",
+                    });
                 }
-            } catch {
-                // Se o explain falhar por qualquer motivo sintático, segue sem quebrar a execução
+            } finally {
+                setIsExecuting(false);
+                abortRef.current = null;
+                readerRef.current = null;
             }
-        }
+        },
+        [isExecuting, sql, realtimeAnalysis.statementType, t, rows.length]
+    );
 
-        await _runExecute(query, isPartial);
-    }, [_runExecute, isExecuting, sql]);
+    const executeQuery = useCallback(
+        async (bypassGuard: boolean = false) => {
+            if (isExecuting) return;
+
+            const { query, isPartial } = getQueryToRun();
+            if (!query) return;
+
+            // Guarda de Impacto Pré-Execução (Dry-Run Guard)
+            if (!bypassGuard) {
+                try {
+                    const impact = await apiPost<QueryImpact>("/explain", { query });
+                    if (impact?.requires_confirmation) {
+                        setImpactModalPending(impact);
+                        return;
+                    }
+                } catch {
+                    // Segue sem quebrar caso explain falhe por sintaxe
+                }
+            }
+
+            await _runExecute(query, isPartial);
+        },
+        [_runExecute, isExecuting, sql]
+    );
 
     // ─────────────────────────────────────────────
     // CANCEL QUERY
@@ -662,7 +445,6 @@ export default function SqlEditor() {
     const cancelQuery = useCallback(async () => {
         try {
             abortRef.current?.abort();
-
             await readerRef.current?.cancel();
         } catch {
             //
@@ -670,13 +452,10 @@ export default function SqlEditor() {
 
         if (queryId) {
             try {
-                await fetch(
-                    `${BASE_URL}/cancel/${queryId}`,
-                    {
-                        method: "POST",
-                        credentials: "include",
-                    }
-                );
+                await fetch(`${BASE_URL}/cancel/${queryId}`, {
+                    method: "POST",
+                    credentials: "include",
+                });
             } catch {
                 //
             }
@@ -691,38 +470,22 @@ export default function SqlEditor() {
 
     const analyzeQuery = useCallback(async () => {
         const { query } = getQueryToRun();
-
         if (!query) return;
 
         setAnalyzing(true);
-
         try {
             setExecError(null);
-
-            const result = await apiPost<AnalyzeResponse>(
-                "/analyze",
-                { query }
-            );
-
-            console.log("Analyze result:", result);
-
-            // se apiPost retorna JSON completo
+            const result = await apiPost<AnalyzeResponse>("/analyze", { query });
             setAnalyzeResult(result.data);
-
-            // se apiPost já retorna data:
-            // setAnalyzeResult(result);
-
         } catch (e: unknown) {
-            setExecError(
-                (e as Error).message ?? "Erro ao analisar query"
-            );
+            setExecError((e as Error).message ?? "Erro ao analisar query");
         } finally {
             setAnalyzing(false);
         }
     }, [sql]);
 
     // ─────────────────────────────────────────────────────────
-    // EXPLAIN
+    // EXPLAIN / DRY-RUN
     // ─────────────────────────────────────────────────────────
 
     const explainQuery = useCallback(async () => {
@@ -731,14 +494,16 @@ export default function SqlEditor() {
         setExplaining(true);
         setExecError(null);
         try {
-            const result = await apiPost<QueryImpact & { plan?: unknown[] }>("/explain", { query });
+            const result = await apiPost<QueryImpact & { plan?: unknown[] }>("/explain", {
+                query,
+            });
             setImpactResult(result);
             setExplainResult(result.plan || []);
             setColumns([]);
             setRows([]);
             setActiveTab("editor");
         } catch (e: unknown) {
-            setExecError((e as Error).message);
+            setExecError((e as Error).message ?? "Erro ao executar Explain");
         } finally {
             setExplaining(false);
         }
@@ -751,17 +516,20 @@ export default function SqlEditor() {
     const saveQuery = useCallback(async () => {
         if (!saveName.trim()) return;
         try {
-            await apiPost<SavedQuery>("/save", { name: saveName, query: sql });
+            await apiPost("/save", {
+                name: saveName.trim(),
+                query: sql,
+            });
             setSaveModalOpen(false);
             setSaveName("");
-            loadSaved();
+            if (activeTab === "saved") loadSaved();
         } catch (e: unknown) {
-            setExecError((e as Error).message);
+            setExecError((e as Error).message ?? "Erro ao salvar query");
         }
-    }, [saveName, sql]);
+    }, [saveName, sql, activeTab]);
 
     // ─────────────────────────────────────────────────────────
-    // LOAD SIDEBAR DATA
+    // SIDEBAR DATA LOADERS
     // ─────────────────────────────────────────────────────────
 
     const loadHistory = useCallback(async () => {
@@ -792,7 +560,7 @@ export default function SqlEditor() {
         if (activeTab === "history") loadHistory();
         if (activeTab === "saved") loadSaved();
         if (activeTab === "metrics") loadMetrics();
-    }, [activeTab]);
+    }, [activeTab, loadHistory, loadSaved, loadMetrics]);
 
     // ─────────────────────────────────────────────────────────
     // KEYBOARD SHORTCUTS
@@ -823,10 +591,8 @@ export default function SqlEditor() {
     // ─────────────────────────────────────────────────────────
 
     const { user } = useSession();
-    const { metadata } = useDatabaseMetadata("light"); // só nomes de tabela (barato)
+    const { metadata } = useDatabaseMetadata("light");
 
-    // Schema para autocomplete/validação: nomes de tabela (colunas vêm vazias
-    // por agora — evita N chamadas; o backend sugere keywords + tabelas).
     const schemaTables = useMemo(
         () =>
             (metadata?.table_names ?? []).map((t) => ({
@@ -836,13 +602,11 @@ export default function SqlEditor() {
         [metadata?.table_names]
     );
 
-    // Deteta MongoDB pela conexão ativa (o backend também deteta, mas a UI
-    // precisa de saber para não marcar sintaxe Mongo como erro de SQL).
     const isMongo = useMemo(() => {
         const t = String(
             (user?.info_extra as Record<string, unknown> | undefined)?.type ??
-            (user?.info_extra as Record<string, unknown> | undefined)?.db_type ??
-            ""
+                (user?.info_extra as Record<string, unknown> | undefined)?.db_type ??
+                ""
         ).toLowerCase();
         return t.includes("mongo");
     }, [user?.info_extra]);
@@ -855,7 +619,6 @@ export default function SqlEditor() {
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const cursorRef = useRef<number>(0);
 
-    // Liga o WebSocket (religa se cair).
     useEffect(() => {
         let closed = false;
         let retry: ReturnType<typeof setTimeout> | null = null;
@@ -877,7 +640,10 @@ export default function SqlEditor() {
                         const msg = JSON.parse(ev.data);
                         if (msg.type === "autocomplete") setAcItems(msg.items ?? []);
                         else if (msg.type === "validate")
-                            setValidation({ errors: msg.errors ?? [], suggestions: msg.suggestions ?? [] });
+                            setValidation({
+                                errors: msg.errors ?? [],
+                                suggestions: msg.suggestions ?? [],
+                            });
                     } catch {
                         //
                     }
@@ -896,22 +662,22 @@ export default function SqlEditor() {
         };
     }, []);
 
-    // Envia validação + autocomplete ao WS (debounced).
     const pushRealtime = useCallback(
         (val: string, cursor: number) => {
             const ws = wsRef.current;
             if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
             const tables = schemaTables;
-            // autocomplete só quando há uma palavra a ser escrita
             const before = val.slice(0, cursor);
             const typing = /([\w.]{1,})$/.exec(before)?.[1] ?? "";
             if (typing.length >= 1) {
-                ws.send(JSON.stringify({ type: "autocomplete", query: val, cursor, tables }));
+                ws.send(
+                    JSON.stringify({ type: "autocomplete", query: val, cursor, tables })
+                );
             } else {
                 setAcItems([]);
             }
-            // validação (o Mongo não é SQL → não valida como SQL)
+
             if (!isMongo) {
                 ws.send(JSON.stringify({ type: "validate", query: val, tables }));
             } else {
@@ -934,7 +700,6 @@ export default function SqlEditor() {
         [pushRealtime, setSql]
     );
 
-    // Insere um item do autocomplete no ponto do cursor.
     const applyAcItem = useCallback(
         (item: AcItem) => {
             const ta = textareaRef.current;
@@ -943,9 +708,10 @@ export default function SqlEditor() {
             const before = sql.slice(0, pos);
             const m = before.match(/([\w.]+)$/);
             const start = m ? pos - m[1].length : pos;
-            // se estiver a completar `tabela.col`, mantém o prefixo `tabela.`
-            const dot = m && m[1].includes(".") ? m[1].slice(0, m[1].lastIndexOf(".") + 1) : "";
-            const insert = dot && !item.insert.includes(".") ? dot + item.insert : item.insert;
+            const dot =
+                m && m[1].includes(".") ? m[1].slice(0, m[1].lastIndexOf(".") + 1) : "";
+            const insert =
+                dot && !item.insert.includes(".") ? dot + item.insert : item.insert;
             const next = sql.slice(0, start) + insert + " " + sql.slice(pos);
             setSql(next);
             setAcItems([]);
@@ -958,530 +724,88 @@ export default function SqlEditor() {
         [sql, setSql]
     );
 
+    const handleApplyLintFix = useCallback(
+        (replace: string, withText: string) => {
+            setSql((prev) => prev.replace(new RegExp(`\\b${replace}\\b`), withText));
+        },
+        [setSql]
+    );
+
     // ─────────────────────────────────────────────────────────
     // RENDER
     // ─────────────────────────────────────────────────────────
 
     return (
         <div className="sql-root">
-            <style>{`
-        .sql-root { display:flex; flex-direction:column; gap:12px; width:100%; font-family:var(--font-sans,sans-serif); }
-
-        /* ── editor shell ── */
-        .editor-shell { border:0.5px solid #3a3a3a; border-radius:12px; overflow:hidden; background:#1e1e1e; }
-
-        /* ── toolbar ── */
-        .toolbar { height:52px; border-bottom:0.5px solid #333; padding:0 14px; display:flex; align-items:center; justify-content:space-between; background:#252526; gap:10px; }
-        .toolbar-left { display:flex; align-items:center; gap:10px; color:#ccc; font-size:14px; font-weight:500; }
-        .toolbar-right { display:flex; align-items:center; gap:8px; }
-
-        .sel-badge { font-size:11px; background:#1a3a5c; color:#7ec8f4; padding:3px 9px; border-radius:5px; white-space:nowrap; }
-        .hint { font-size:11px; color:#555; }
-        .hint kbd { background:#2d2d2d; color:#888; padding:1px 4px; border-radius:3px; font-family:monospace; font-size:10px; }
-
-        /* ── icon buttons ── */
-        .icon-btn { display:flex; align-items:center; gap:5px; padding:5px 10px; border:0.5px solid #444; border-radius:6px; background:transparent; color:#aaa; cursor:pointer; font-size:12px; transition:background .12s,color .12s; white-space:nowrap; }
-        .icon-btn:hover { background:#2a2a2a; color:#e0e0e0; }
-        .icon-btn:disabled { opacity:0.4; cursor:not-allowed; }
-        .icon-btn.green { border-color:#2d6a4f; color:#6fcf97; }
-        .icon-btn.green:hover { background:#1a3d2a; color:#a8f0c2; }
-        .icon-btn.red { border-color:#7b2d2d; color:#f08080; animation:pulse 1.2s infinite; }
-        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.65} }
-
-        /* ── editor area ── */
-        .editor-area { position:relative; height:240px; overflow:hidden; background:#1e1e1e; }
-        .hl-pre { position:absolute; inset:0; padding:13px 16px; font-family:monospace; font-size:13px; line-height:1.65; color:#d4d4d4; pointer-events:none; overflow:hidden; white-space:pre-wrap; word-break:break-word; }
-        .sql-ta { position:absolute; inset:0; width:100%; height:100%; background:transparent; color:transparent; caret-color:#aeafad; resize:none; outline:none; padding:13px 16px; font-family:monospace; font-size:13px; line-height:1.65; overflow:auto; border:none; }
-        .hl-kw { color:#569cd6; font-weight:600; }
-        .hl-str { color:#ce9178; }
-        .hl-num { color:#b5cea8; }
-        .hl-cmt { color:#6a9955; font-style:italic; }
-
-        /* ── autocomplete dropdown ── */
-        .ac-list { position:absolute; bottom:0; left:16px; min-width:220px; max-height:240px; overflow-y:auto; background:#252526; border:0.5px solid #444; border-radius:6px; z-index:10; transform:translateY(100%); box-shadow:0 8px 24px rgba(0,0,0,.4); }
-        .ac-item { display:flex; align-items:center; gap:8px; padding:5px 12px; font-family:monospace; font-size:12px; color:#ccc; cursor:pointer; }
-        .ac-item:hover { background:#37373d; }
-        .ac-tag { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:3px; font-size:10px; font-weight:700; flex-shrink:0; }
-        .ac-keyword { background:#264f78; color:#9cdcfe; }
-        .ac-table { background:#3d2f5c; color:#c9a8f4; }
-        .ac-column { background:#2d4a35; color:#9fe0b0; }
-        .ac-label { flex:1; }
-        .ac-detail { font-size:10px; color:#777; }
-
-        /* ── painel de lint (erros/sugestões) ── */
-        .lint-panel { max-height:120px; overflow-y:auto; border-top:0.5px solid #2d2d2d; background:#1b1b1b; padding:4px 0; }
-        .lint-row { display:flex; align-items:center; gap:8px; padding:3px 14px; font-size:11.5px; }
-        .lint-ico { flex-shrink:0; }
-        .lint-err { color:#f4a3a3; }
-        .lint-warn { color:#e9c46a; }
-        .lint-sug { color:#8ab4f8; }
-        .lint-fix { margin-left:auto; font-size:10px; background:#264f78; color:#cfe6ff; border:0; border-radius:4px; padding:2px 8px; cursor:pointer; }
-        .lint-fix:hover { background:#2f5f90; }
-
-        /* ── status bar ── */
-        .status-bar { height:28px; border-top:0.5px solid #2d2d2d; background:#252526; padding:0 14px; display:flex; align-items:center; justify-content:space-between; font-size:11px; color:#666; }
-        .status-mid { display:flex; align-items:center; gap:10px; }
-        .badge-mongo { color:#6fcf97; font-weight:600; }
-        .badge-ws.on { color:#6fcf97; }
-        .badge-ws.off { color:#a05a5a; }
-
-        /* ── secondary tabs ── */
-        .sec-tabs { display:flex; gap:2px; border-bottom:0.5px solid var(--color-border-tertiary,#e0e0e0); background:var(--color-background-primary,#fff); }
-        .sec-tab { padding:8px 14px; font-size:12px; cursor:pointer; color:var(--color-text-secondary,#666); border-bottom:2px solid transparent; background:none; border-top:none; border-left:none; border-right:none; transition:color .12s; }
-        .sec-tab.active { color:var(--color-text-primary,#111); border-bottom-color:#3b82f6; font-weight:500; }
-
-        /* ── results area ── */
-        .results-shell { border:0.5px solid var(--color-border-secondary,#ddd); border-radius:12px; overflow:hidden; background:var(--color-background-primary,#fff); }
-        .results-table-wrap { max-height:320px; overflow:auto; }
-        table { width:100%; border-collapse:collapse; font-size:13px; }
-        thead th { position:sticky; top:0; background:var(--color-background-secondary,#f5f5f5); padding:7px 14px; text-align:left; font-size:11px; font-weight:500; color:var(--color-text-secondary,#666); text-transform:uppercase; letter-spacing:.04em; border-bottom:0.5px solid var(--color-border-secondary,#ddd); white-space:nowrap; }
-        tbody tr { border-bottom:0.5px solid var(--color-border-tertiary,#eee); }
-        tbody tr:hover { background:var(--color-background-secondary,#f9f9f9); }
-        td { padding:6px 14px; color:var(--color-text-primary,#111); white-space:nowrap; font-size:13px; }
-        .null-v { color:var(--color-text-tertiary,#aaa); font-style:italic; }
-        .empty-row td { text-align:center; padding:28px; color:var(--color-text-tertiary,#aaa); font-size:13px; }
-
-        /* ── error box ── */
-        .error-box { padding:14px 16px; display:flex; gap:10px; background:var(--color-background-danger,#fff5f5); color:var(--color-text-danger,#c0392b); font-size:13px; border-radius:12px; }
-
-        /* ── analyze panel ── */
-        .analyze-panel { padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
-        .analyze-row { display:flex; gap:8px; flex-wrap:wrap; }
-        .tag { font-size:11px; padding:3px 8px; border-radius:5px; background:var(--color-background-secondary,#f0f0f0); color:var(--color-text-secondary,#555); }
-        .tag.risk { background:#fff0f0; color:#c0392b; }
-        .tag.ok { background:#f0fff4; color:#27ae60; }
-        .suggestion { font-size:12px; color:#2563eb; }
-        .kv { display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:0.5px solid var(--color-border-tertiary,#eee); }
-        .kv:last-child { border-bottom:none; }
-        .kv-label { color:var(--color-text-secondary,#666); }
-        .kv-val { font-weight:500; color:var(--color-text-primary,#111); }
-
-        /* ── history / saved ── */
-        .list-item { padding:10px 14px; border-bottom:0.5px solid var(--color-border-tertiary,#eee); cursor:pointer; transition:background .1s; }
-        .list-item:hover { background:var(--color-background-secondary,#f5f5f5); }
-        .list-item-q { font-family:monospace; font-size:12px; color:var(--color-text-primary,#111); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .list-item-meta { font-size:11px; color:var(--color-text-tertiary,#aaa); margin-top:2px; }
-
-        /* ── metrics ── */
-        .metrics-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:14px; }
-        .metric-card { background:var(--color-background-secondary,#f5f5f5); border-radius:8px; padding:14px; text-align:center; }
-        .metric-val { font-size:28px; font-weight:500; color:var(--color-text-primary,#111); }
-        .metric-label { font-size:11px; color:var(--color-text-secondary,#777); margin-top:4px; text-transform:uppercase; letter-spacing:.05em; }
-
-        /* ── save modal ── */
-        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:100; }
-        .modal { background:var(--color-background-primary,#fff); border-radius:12px; padding:20px; width:340px; display:flex; flex-direction:column; gap:12px; }
-        .modal h3 { font-size:15px; font-weight:500; color:var(--color-text-primary,#111); }
-        .modal input { width:100%; padding:8px 10px; border:0.5px solid var(--color-border-secondary,#ccc); border-radius:6px; font-size:13px; outline:none; color:var(--color-text-primary,#111); background:var(--color-background-primary,#fff); }
-        .modal input:focus { border-color:#3b82f6; }
-        .modal-actions { display:flex; justify-content:flex-end; gap:8px; }
-        .btn-primary { padding:7px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:13px; cursor:pointer; }
-        .btn-primary:hover { background:#1d4ed8; }
-        .btn-ghost { padding:7px 16px; background:transparent; border:0.5px solid var(--color-border-secondary,#ccc); border-radius:6px; font-size:13px; cursor:pointer; color:var(--color-text-secondary,#666); }
-
-        /* ── explain ── */
-        .explain-wrap { padding:14px; overflow:auto; max-height:320px; }
-        .explain-wrap pre { font-family:monospace; font-size:12px; color:var(--color-text-primary,#111); white-space:pre-wrap; }
-      `}</style>
+            <SqlEditorStyles />
 
             {/* ── EDITOR SHELL ── */}
             <div className="editor-shell">
+                <SqlToolbar
+                    selectionInfo={selectionInfo}
+                    isExecuting={isExecuting}
+                    analyzing={analyzing}
+                    explaining={explaining}
+                    canExecute={Boolean(sql.trim())}
+                    onAnalyze={analyzeQuery}
+                    onExplain={explainQuery}
+                    onOpenSave={() => setSaveModalOpen(true)}
+                    onExecute={() => executeQuery(false)}
+                    onCancel={cancelQuery}
+                />
 
-                {/* TOOLBAR */}
-                <div className="toolbar">
-                    <div className="toolbar-left">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#569cd6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></svg>
-                        SQL Editor
-                        {selectionInfo && (
-                            <span className="sel-badge">✦ {selectionInfo}</span>
-                        )}
-                    </div>
+                <RealtimeQueryHud
+                    analysis={realtimeAnalysis}
+                    isExecuting={isExecuting}
+                    lastExecution={lastExecution}
+                    rowsCount={rows.length}
+                />
 
-                    <div className="toolbar-right">
-                        <span className="hint">
-                            <kbd>Ctrl</kbd>+<kbd>Enter</kbd> Executar &nbsp;
-                            <kbd>Ctrl</kbd>+<kbd>S</kbd> Salvar
-                        </span>
-
-                        <button
-                            className="icon-btn"
-                            onClick={analyzeQuery}
-                            disabled={isExecuting || analyzing}
-                            title="Analisar query"
-                        >
-                            {analyzing ? "…" : "⚡ Analisar"}
-                        </button>
-
-                        <button
-                            className="icon-btn"
-                            onClick={explainQuery}
-                            disabled={isExecuting || explaining}
-                            title="EXPLAIN"
-                        >
-                            {explaining ? "…" : "🔍 Explain"}
-                        </button>
-
-                        <button
-                            className="icon-btn"
-                            onClick={() => setSaveModalOpen(true)}
-                            disabled={isExecuting}
-                            title="Salvar query"
-                        >
-                            💾 Salvar
-                        </button>
-
-                        {!isExecuting ? (
-                            <button
-                                className="icon-btn green"
-                                onClick={() => executeQuery(false)}
-                                disabled={!sql.trim()}
-                            >
-                                ▶ Executar
-                            </button>
-                        ) : (
-                            <button className="icon-btn red" onClick={cancelQuery}>
-                                ■ Cancelar
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {/* EDITOR AREA */}
-                <div className="editor-area">
-                    <pre
-                        ref={preRef}
-                        className="hl-pre"
-                        dangerouslySetInnerHTML={{ __html: highlighted }}
-                    />
-                    <textarea
-                        ref={textareaRef}
-                        value={sql}
-                        onChange={handleEditorChange}
-                        onScroll={handleScroll}
-                        onKeyDown={handleTab}
-                        onSelect={updateSelBadge}
-                        onMouseUp={updateSelBadge}
-                        onKeyUp={updateSelBadge}
-                        spellCheck={false}
-                        className="sql-ta"
-                    />
-                    {acItems.length > 0 && (
-                        <div className="ac-list">
-                            {acItems.map((it, i) => (
-                                <div
-                                    key={it.label + i + "_ac"}
-                                    className="ac-item"
-                                    onMouseDown={(e) => {
-                                        e.preventDefault();
-                                        applyAcItem(it);
-                                    }}
-                                >
-                                    <span className={`ac-tag ac-${it.type}`}>{it.type[0].toUpperCase()}</span>
-                                    <span className="ac-label">{it.label}</span>
-                                    {it.detail && <span className="ac-detail">{it.detail}</span>}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* PAINEL DE ERROS / SUGESTÕES (tempo real) */}
-                {(validation?.errors?.length || validation?.suggestions?.length) ? (
-                    <div className="lint-panel">
-                        {validation?.errors?.map((e, i) => (
-                            <div key={"err" + i} className={`lint-row ${e.severity === "error" ? "lint-err" : "lint-warn"}`}>
-                                <span className="lint-ico">{e.severity === "error" ? "⛔" : "⚠️"}</span>
-                                <span>{e.message}</span>
-                            </div>
-                        ))}
-                        {validation?.suggestions?.map((s, i) => (
-                            <div key={"sug" + i} className="lint-row lint-sug">
-                                <span className="lint-ico">💡</span>
-                                <span>{s.message}</span>
-                                {s.replace && s.with && (
-                                    <button
-                                        className="lint-fix"
-                                        onClick={() =>
-                                            setSql((prev) =>
-                                                prev.replace(new RegExp(`\\b${s.replace}\\b`), s.with as string)
-                                            )
-                                        }
-                                    >
-                                        corrigir
-                                    </button>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : null}
-
-                {/* STATUS BAR */}
-                <div className="status-bar">
-                    <span>{statusText}</span>
-                    <span className="status-mid">
-                        {isMongo && <span className="badge-mongo">🍃 MongoDB</span>}
-                        <span className={`badge-ws ${wsReady ? "on" : "off"}`}>
-                            {wsReady ? "● tempo real" : "○ offline"}
-                        </span>
-                    </span>
-                    <span>{rows.length} linha{rows.length !== 1 ? "s" : ""}</span>
-                </div>
+                <SqlCodeEditor
+                    sql={sql}
+                    highlighted={highlighted}
+                    textareaRef={textareaRef}
+                    preRef={preRef}
+                    acItems={acItems}
+                    validation={validation}
+                    statusText={statusText}
+                    isMongo={isMongo}
+                    wsReady={wsReady}
+                    rowsCount={rows.length}
+                    onChange={handleEditorChange}
+                    onScroll={handleScroll}
+                    onKeyDown={handleTab}
+                    onSelect={updateSelBadge}
+                    onApplyAcItem={applyAcItem}
+                    onApplyLintFix={handleApplyLintFix}
+                />
             </div>
 
-            {/* ── SECONDARY TABS ── */}
-            <div className="results-shell">
-                <div className="sec-tabs">
-                    {(["editor", "history", "saved", "metrics"] as Tab[]).map((t, i) => (
-                        <button
-                            key={t + i + "_secTab"}
-                            className={`sec-tab${activeTab === t ? " active" : ""}`}
-                            onClick={() => setActiveTab(t)}
-                        >
-                            {t === "editor" && "Resultados"}
-                            {t === "history" && "Histórico"}
-                            {t === "saved" && "Salvos"}
-                            {t === "metrics" && "Métricas"}
-                        </button>
-                    ))}
-                </div>
-
-                {/* RESULTADOS */}
-                {activeTab === "editor" && (
-                    <>
-                        {execError && (
-                            <div className="error-box">
-                                <span>⚠</span>
-
-                                <span>
-                                    {typeof execError === "string"
-                                        ? execError
-                                        : execError?.error || "Erro desconhecido"}
-                                </span>
-                            </div>
-                        )}
-
-                        {analyzeResult && (
-                            <div className="analyze-panel">
-
-                                <div className="analyze-row">
-                                    <span className="tag">
-                                        Statements: {analyzeResult.totalStatements}
-                                    </span>
-                                </div>
-
-                                <pre className="formatted-sql">
-                                    {analyzeResult.formatted}
-                                </pre>
-
-                                {analyzeResult.queries.map((q, qi) => (
-                                    <div
-                                        key={`query-${qi}`}
-                                        className="query-analysis-block"
-                                    >
-                                        <div className="analyze-row">
-
-                                            <span className="tag">
-                                                {q.queryType}
-                                            </span>
-
-                                            <span
-                                                className={`tag ${q.risk?.safe
-                                                    ? "ok"
-                                                    : "risk"
-                                                    }`}
-                                            >
-                                                {q.risk?.safe
-                                                    ? "✓ Seguro"
-                                                    : `⚠ ${q.risk?.risks?.join(", ")}`}
-                                            </span>
-
-                                            <span className="tag">
-                                                Complexidade: {q.complexity}
-                                            </span>
-
-                                            {q.tables?.map((t, i) => (
-                                                <span
-                                                    key={`${t}-${i}`}
-                                                    className="tag"
-                                                >
-                                                    📋 {t}
-                                                </span>
-                                            ))}
-                                        </div>
-
-                                        <div className="query-preview">
-                                            <code>{q.query}</code>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {impactResult ? (
-                            <div className="my-4">
-                                <ImpactPredictorCard
-                                    impact={impactResult}
-                                    onClose={() => setImpactResult(null)}
-                                />
-                            </div>
-                        ) : explainResult ? (
-                            <div className="explain-wrap">
-                                <pre>{JSON.stringify(explainResult, null, 2)}</pre>
-                            </div>
-                        ) : null}
-
-                        {columns.length > 0 && (
-                            <div className="results-table-wrap">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            {columns.map((c, i) => (
-                                                <th key={`${c}-${i}`}>
-                                                    {c}
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        {rows.length === 0 ? (
-                                            <tr className="empty-row">
-                                                <td colSpan={columns.length}>
-                                                    Nenhum resultado.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            rows.map((row, ri) => (
-                                                <tr key={`row-${ri}`}>
-                                                    {columns.map((c, ci) => {
-                                                        // suporta lowercase/uppercase
-                                                        const value =
-                                                            row?.[c] ??
-                                                            row?.[c.toUpperCase()] ??
-                                                            row?.[c.toLowerCase()];
-
-                                                        return (
-                                                            <td key={`cell-${ri}-${ci}`}>
-                                                                {value == null ? (
-                                                                    <span className="null-v">
-                                                                        null
-                                                                    </span>
-                                                                ) : typeof value === "object" ? (
-                                                                    <pre className="json-cell">
-                                                                        {JSON.stringify(
-                                                                            value,
-                                                                            null,
-                                                                            2
-                                                                        )}
-                                                                    </pre>
-                                                                ) : (
-                                                                    String(value)
-                                                                )}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </>
-                )}
-
-                {/* HISTÓRICO */}
-                {activeTab === "history" && (
-                    <div>
-                        {history.length === 0 ? (
-                            <div className="empty-row">
-                                <span>Nenhum histórico ainda.</span>
-                            </div>
-                        ) : (
-                            history
-                                .slice()
-                                .reverse()
-                                .map((h, i) => (
-                                    <div
-                                        key={`${h.created_at}-${i}`}
-                                        className="list-item"
-                                        onClick={() => {
-                                            setSql(h.query);
-                                            setActiveTab("editor");
-                                        }}
-                                    >
-                                        <div className="list-item-q">
-                                            {h.query}
-                                        </div>
-
-                                        <div
-                                            className="list-item-meta"
-                                            suppressHydrationWarning
-                                        >
-                                            {typeof window !== "undefined"
-                                                ? new Date(h.created_at).toLocaleString("pt-BR")
-                                                : ""}
-                                        </div>
-                                    </div>
-                                ))
-                        )}
-                    </div>
-                )}
-
-                {/* SALVOS */}
-                {activeTab === "saved" && (
-                    <div>
-                        {saved.length === 0
-                            ? <div className="empty-row"><td>Nenhuma query salva.</td></div>
-                            : saved.map((s, i) => (
-                                <div key={s.id + i + "_saved"} className="list-item" onClick={() => { setSql(s.query); setActiveTab("editor"); }}>
-                                    <div className="list-item-q" style={{ fontWeight: 500, fontFamily: "var(--font-sans)" }}>{s.name}</div>
-                                    <div className="list-item-meta list-item-q" style={{ marginTop: 3 }}>{s.query}</div>
-                                    <div className="list-item-meta">{new Date(s.created_at).toLocaleString("pt-BR")}</div>
-                                </div>
-                            ))
-                        }
-                    </div>
-                )}
-
-                {/* MÉTRICAS */}
-                {activeTab === "metrics" && metrics && (
-                    <div className="metrics-grid">
-                        <div className="metric-card">
-                            <div className="metric-val">{metrics.queriesExecuted}</div>
-                            <div className="metric-label">Queries Executadas</div>
-                        </div>
-                        <div className="metric-card">
-                            <div className="metric-val">{metrics.activeQueries}</div>
-                            <div className="metric-label">Queries Ativas</div>
-                        </div>
-                        <div className="metric-card">
-                            <div className="metric-val">{metrics.savedQueries}</div>
-                            <div className="metric-label">Queries Salvas</div>
-                        </div>
-                    </div>
-                )}
-            </div>
+            {/* ── SECONDARY TABS & RESULTS ── */}
+            <SqlResultsPanel
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                execError={execError}
+                analyzeResult={analyzeResult}
+                impactResult={impactResult}
+                setImpactResult={setImpactResult}
+                explainResult={explainResult}
+                columns={columns}
+                rows={rows}
+                history={history}
+                saved={saved}
+                metrics={metrics}
+                onSelectQuery={(q) => setSql(q)}
+            />
 
             {/* ── SAVE MODAL ── */}
-            {saveModalOpen && (
-                <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setSaveModalOpen(false); }}>
-                    <div className="modal">
-                        <h3>Salvar query</h3>
-                        <input
-                            autoFocus
-                            placeholder="Nome da query…"
-                            value={saveName}
-                            onChange={(e) => setSaveName(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter") saveQuery(); }}
-                        />
-                        <div className="modal-actions">
-                            <button className="btn-ghost" onClick={() => setSaveModalOpen(false)}>Cancelar</button>
-                            <button className="btn-primary" onClick={saveQuery} disabled={!saveName.trim()}>Salvar</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <SqlSaveModal
+                isOpen={saveModalOpen}
+                saveName={saveName}
+                onNameChange={setSaveName}
+                onClose={() => setSaveModalOpen(false)}
+                onSave={saveQuery}
+            />
 
             {/* ── IMPACT PREDICTOR PRE-EXECUTION GUARD MODAL ── */}
             {impactModalPending && (
