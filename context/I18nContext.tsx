@@ -23,7 +23,11 @@ export type Language = {
 
 interface I18nContextType {
   locale: LanguageCode;
-  t: (key: string, vars?: Record<string, string | number>) => string;
+  t: (
+    key: string,
+    fallbackOrVars?: string | Record<string, string | number>,
+    vars?: Record<string, string | number>
+  ) => string;
   setLocale: (locale: LanguageCode) => void;
 }
 
@@ -38,7 +42,8 @@ const translations = {
 
 const I18nContext = createContext<I18nContextType>({
   locale: "pt",
-  t: (key: string) => key,
+  t: (key: string, fallbackOrVars?: string | Record<string, string | number>) =>
+    typeof fallbackOrVars === "string" ? fallbackOrVars : key,
   setLocale: () => {},
 });
 
@@ -75,7 +80,19 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const t = useCallback(
-    (key: string, vars?: Record<string, string | number>) => {
+    (
+      key: string,
+      fallbackOrVars?: string | Record<string, string | number>,
+      vars?: Record<string, string | number>
+    ) => {
+      let fallbackText: string | undefined = undefined;
+      let variables = vars;
+      if (typeof fallbackOrVars === "string") {
+        fallbackText = fallbackOrVars;
+      } else if (typeof fallbackOrVars === "object" && fallbackOrVars !== null) {
+        variables = fallbackOrVars;
+      }
+
       // 1. Tenta buscar no idioma atual
       const currentLang = locale || "pt";
       let value = getTranslationValue(currentLang, key);
@@ -90,18 +107,20 @@ export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
         value = getTranslationValue("en", key);
       }
 
-      // 4. Se não encontrou nem no idioma principal nem nos fallbacks, avisa no console
+      // 4. Se não encontrou nem no idioma principal nem nos fallbacks
       if (value === undefined) {
-        console.warn(`🔍 Tradução não encontrada para a chave: "${key}"`);
+        if (fallbackText !== undefined) {
+          return fallbackText;
+        }
         return key; // Retorna a própria chave para não quebrar o layout
       }
 
       // 5. Substituição de variáveis (ex: {{count}} ou {count})
-      if (typeof value === "string" && vars) {
-        return value.replace(/\{{1,2}(\w+)\}{1,2}/g, (_, v) => String(vars[v] ?? ""));
+      if (typeof value === "string" && variables) {
+        return value.replace(/\{{1,2}(\w+)\}{1,2}/g, (_, v) => String(variables[v] ?? ""));
       }
 
-      return typeof value === "string" ? value : key;
+      return typeof value === "string" ? value : (fallbackText ?? key);
     },
     [locale]
   );
