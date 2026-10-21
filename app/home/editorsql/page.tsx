@@ -97,6 +97,8 @@ export default function SqlEditor() {
     const preRef = useRef<HTMLPreElement>(null);
     const abortRef = useRef<AbortController | null>(null);
     const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+    const receivedRowsRef = useRef(0);
+    const pendingExecutionRef = useRef<{ query: string; isPartial: boolean } | null>(null);
 
     // ── highlighted SQL ──
     const highlighted = useMemo(() => highlight(sql) + "\u00a0", [sql]);
@@ -136,16 +138,6 @@ export default function SqlEditor() {
     }
 
     function handleTab(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-            e.preventDefault();
-            executeQuery(false);
-            return;
-        }
-        if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
-            e.preventDefault();
-            setSaveModalOpen(true);
-            return;
-        }
         if (e.key === "Tab") {
             e.preventDefault();
             const ta = e.currentTarget;
@@ -167,6 +159,7 @@ export default function SqlEditor() {
             setExecError(null);
             setColumns([]);
             setRows([]);
+            receivedRowsRef.current = 0;
             setExplainResult(null);
             setAnalyzeResult(null);
             setImpactResult(null);
@@ -223,12 +216,13 @@ export default function SqlEditor() {
 
                 const decoder = new TextDecoder();
                 let buffer = "";
-                let rowsBuffer: any[] = [];
+                let rowsBuffer: Record<string, unknown>[] = [];
 
                 const flushRows = () => {
                     if (rowsBuffer.length === 0) return;
-                    setRows((prev) => [...prev, ...rowsBuffer]);
+                    const batch = rowsBuffer;
                     rowsBuffer = [];
+                    setRows((prev) => [...prev, ...batch]);
                 };
 
                 while (true) {
@@ -288,7 +282,9 @@ export default function SqlEditor() {
                             }
                             case "row": {
                                 if (parsed.row) {
-                                    setRows((prev) => [...prev, parsed.row]);
+                                    rowsBuffer.push(parsed.row as Record<string, unknown>);
+                                    receivedRowsRef.current += 1;
+                                    if (rowsBuffer.length >= 50) flushRows();
                                 }
                                 break;
                             }
@@ -297,7 +293,7 @@ export default function SqlEditor() {
                                 const elapsed = Math.round(
                                     performance.now() - execStartTimeRef.current
                                 );
-                                const count = parsed.rows ?? rows.length;
+                                const count = parsed.rows ?? receivedRowsRef.current;
 
                                 setStatusText(
                                     `Statement concluído · ${count} ${t("sqlEditorPage.rows", "linhas")}`
@@ -322,7 +318,7 @@ export default function SqlEditor() {
                                 setLastExecution((prev) => ({
                                     durationMs: elapsed,
                                     rowsCount:
-                                        (prev?.rowsCount ?? 0) || rows.length + rowsBuffer.length,
+                                        (prev?.rowsCount ?? 0) || receivedRowsRef.current,
                                     statementType:
                                         prev?.statementType || realtimeAnalysis.statementType,
                                     timestamp: new Date(),
@@ -344,7 +340,7 @@ export default function SqlEditor() {
 
                                 setLastExecution({
                                     durationMs: elapsed,
-                                    rowsCount: rows.length,
+                                    rowsCount: receivedRowsRef.current,
                                     statementType: realtimeAnalysis.statementType,
                                     timestamp: new Date(),
                                     status: "cancelled",
@@ -363,7 +359,7 @@ export default function SqlEditor() {
 
                                 setLastExecution({
                                     durationMs: elapsed,
-                                    rowsCount: rows.length,
+                                    rowsCount: receivedRowsRef.current,
                                     statementType: realtimeAnalysis.statementType,
                                     timestamp: new Date(),
                                     status: "error",
@@ -387,7 +383,7 @@ export default function SqlEditor() {
                     setStatusText("Cancelado pelo usuário");
                     setLastExecution({
                         durationMs: elapsed,
-                        rowsCount: rows.length,
+                        rowsCount: receivedRowsRef.current,
                         statementType: realtimeAnalysis.statementType,
                         timestamp: new Date(),
                         status: "cancelled",
@@ -397,7 +393,7 @@ export default function SqlEditor() {
                     setStatusText("Falha na execução");
                     setLastExecution({
                         durationMs: elapsed,
-                        rowsCount: rows.length,
+                        rowsCount: receivedRowsRef.current,
                         statementType: realtimeAnalysis.statementType,
                         timestamp: new Date(),
                         status: "error",
@@ -425,6 +421,7 @@ export default function SqlEditor() {
                 try {
                     const impact = await apiPost<QueryImpact>("/explain", { query });
                     if (impact?.requires_confirmation) {
+                        pendingExecutionRef.current = { query, isPartial };
                         setImpactModalPending(impact);
                         return;
                     }
@@ -568,23 +565,18 @@ export default function SqlEditor() {
 
     useEffect(() => {
         const handle = (e: KeyboardEvent) => {
-            if (e.ctrlKey && e.key === "Enter") {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                 e.preventDefault();
                 executeQuery();
             }
-            if (e.ctrlKey && e.key === "s") {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
                 e.preventDefault();
-                const blob = new Blob([sql], { type: "text/sql" });
-                const a = document.createElement("a");
-                a.href = URL.createObjectURL(blob);
-                a.download = "query.sql";
-                a.click();
-                URL.revokeObjectURL(a.href);
+                setSaveModalOpen(true);
             }
         };
         window.addEventListener("keydown", handle);
         return () => window.removeEventListener("keydown", handle);
-    }, [executeQuery, sql]);
+    }, [executeQuery]);
 
     // ─────────────────────────────────────────────────────────
     // AUTOCOMPLETE + VALIDAÇÃO EM TEMPO REAL (WebSocket)
@@ -812,10 +804,15 @@ export default function SqlEditor() {
                 <ImpactPredictorCard
                     impact={impactModalPending}
                     isModal={true}
-                    onClose={() => setImpactModalPending(null)}
+                    onClose={() => {
+                        pendingExecutionRef.current = null;
+                        setImpactModalPending(null);
+                    }}
                     onProceed={() => {
-                        const { query, isPartial } = getQueryToRun();
-                        _runExecute(query, isPartial);
+                        const pending = pendingExecutionRef.current;
+                        pendingExecutionRef.current = null;
+                        setImpactModalPending(null);
+                        if (pending) void _runExecute(pending.query, pending.isPartial);
                     }}
                 />
             )}
