@@ -1,75 +1,126 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { Sparkles, RefreshCw, Video as VideoIcon, Youtube, Info, CheckCircle2, AlertTriangle, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  RefreshCw,
+  Sparkles,
+  Youtube,
+} from "lucide-react";
 import SearchBar from "@/components/video/SearchBar";
 import RecommendationFeed from "@/components/video/RecommendationFeed";
 import { useI18n } from "@/context/I18nContext";
 import {
   DEFAULT_RECOMMENDATIONS_LIMIT,
   DEFAULT_SEARCH_VIDEOS_LIMIT,
-  RecommendationItem,
-  VideoItem,
+  type RecommendationItem,
+  type VideoItem,
   getRecommendations,
   refreshRecommendations,
   searchVideos,
 } from "@/lib/api/videos";
 
-const TOAST_TIMEOUT = Number(process.env.NEXT_PUBLIC_TOAST_AUTO_DISMISS_MS) || 4500;
+const TOAST_TIMEOUT =
+  Number(process.env.NEXT_PUBLIC_TOAST_AUTO_DISMISS_MS) || 4500;
+
+type ToastType = "success" | "error" | "info";
+type ToastState = { message: string; type: ToastType } | null;
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message.trim()
+  ) {
+    return error.message;
+  }
+  return fallback;
+}
 
 export default function RecommendationsPage() {
   const { t } = useI18n();
+
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [searchResults, setSearchResults] = useState<VideoItem[] | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [toast, setToast] = useState<ToastState>(null);
 
-  const showToast = (message: string, type: "success" | "error" | "info" = "info") => {
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recommendationsRequestRef = useRef(0);
+  const searchRequestRef = useRef(0);
+
+  const dismissToast = useCallback(() => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = null;
+    setToast(null);
+  }, []);
+
+  const showToast = useCallback((message: string, type: ToastType = "info") => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+
     setToast({ message, type });
-    setTimeout(() => {
+    toastTimerRef.current = setTimeout(() => {
       setToast(null);
+      toastTimerRef.current = null;
     }, TOAST_TIMEOUT);
-  };
+  }, []);
 
-  // Carrega recomendações iniciais
-  const loadRecommendations = useCallback(async (refresh: boolean = false) => {
+  const loadRecommendations = useCallback(async (refresh = false) => {
+    const requestId = ++recommendationsRequestRef.current;
+
+    if (refresh) setIsRefreshing(true);
+    else setIsLoading(true);
+    setError(null);
+
     try {
-      if (refresh) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-      setError(null);
-
       const data = refresh
         ? await refreshRecommendations(DEFAULT_RECOMMENDATIONS_LIMIT)
         : await getRecommendations(DEFAULT_RECOMMENDATIONS_LIMIT, false);
 
+      if (requestId !== recommendationsRequestRef.current) return;
+
       setRecommendations(data);
       if (refresh) {
-        showToast(t("recommendations_page.toastSuccess") || "Recomendações atualizadas com sucesso!", "success");
+        showToast(
+          t("recommendations_page.toastSuccess") ||
+            "Recomendações atualizadas com sucesso!",
+          "success",
+        );
       }
-    } catch (err: any) {
-      const msg = err?.message || t("recommendations_page.toastError") || "Erro ao conectar com o serviço de recomendações.";
-      setError(msg);
-      showToast(msg, "error");
+    } catch (err: unknown) {
+      if (requestId !== recommendationsRequestRef.current) return;
+      const message = getErrorMessage(
+        err,
+        t("recommendations_page.toastError") ||
+          "Erro ao conectar com o serviço de recomendações.",
+      );
+      setError(message);
+      showToast(message, "error");
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (requestId === recommendationsRequestRef.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
-  }, [t]);
+  }, [showToast, t]);
 
   useEffect(() => {
-    loadRecommendations(false);
+    void loadRecommendations();
+    return () => {
+      recommendationsRequestRef.current += 1;
+    };
   }, [loadRecommendations]);
 
-  // Manipulador de Busca Debounced
-  const handleSearch = async (query: string, categoryId?: string) => {
+  const handleSearch = useCallback(async (query: string, categoryId?: string) => {
     const cleanQuery = query.trim();
+    const requestId = ++searchRequestRef.current;
 
     if (!cleanQuery) {
       setSearchResults(null);
@@ -77,69 +128,99 @@ export default function RecommendationsPage() {
       return;
     }
 
+    setIsSearching(true);
     try {
-      setIsSearching(true);
-      const results = await searchVideos(cleanQuery, DEFAULT_SEARCH_VIDEOS_LIMIT, categoryId);
+      const results = await searchVideos(
+        cleanQuery,
+        DEFAULT_SEARCH_VIDEOS_LIMIT,
+        categoryId,
+      );
+      if (requestId !== searchRequestRef.current) return;
       setSearchResults(results);
-    } catch (err: any) {
-      showToast(err?.message || "Erro ao pesquisar vídeos no YouTube.", "error");
+    } catch (err: unknown) {
+      if (requestId !== searchRequestRef.current) return;
+      showToast(getErrorMessage(err, "Erro ao pesquisar vídeos no YouTube."), "error");
     } finally {
-      setIsSearching(false);
+      if (requestId === searchRequestRef.current) setIsSearching(false);
     }
-  };
+  }, [showToast]);
+
+  const clearSearch = useCallback(() => {
+    searchRequestRef.current += 1;
+    setSearchResults(null);
+    setIsSearching(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+      recommendationsRequestRef.current += 1;
+      searchRequestRef.current += 1;
+    };
+  }, []);
 
   return (
-    <div className="flex-1 w-full min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8 transition-colors">
-      {/* Toast de Notificação */}
+    <div className="min-h-screen w-full flex-1 bg-gray-50 p-4 text-gray-900 transition-colors dark:bg-gray-950 dark:text-gray-100 sm:p-6 lg:p-8">
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-md shadow-2xl border text-sm transition-all duration-300 animate-in slide-in-from-bottom-5 ${
+          role={toast.type === "error" ? "alert" : "status"}
+          aria-live={toast.type === "error" ? "assertive" : "polite"}
+          className={`fixed bottom-6 right-6 z-50 flex max-w-[calc(100vw-3rem)] items-center gap-3 rounded-2xl border px-4 py-3 text-sm shadow-2xl backdrop-blur-md transition-all duration-300 animate-in slide-in-from-bottom-5 ${
             toast.type === "success"
-              ? "bg-white/95 dark:bg-gray-900/95 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+              ? "border-emerald-500/30 bg-white/95 text-emerald-600 dark:bg-gray-900/95 dark:text-emerald-400"
               : toast.type === "error"
-              ? "bg-white/95 dark:bg-gray-900/95 text-rose-600 dark:text-rose-400 border-rose-500/30"
-              : "bg-white/95 dark:bg-gray-900/95 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-800"
+                ? "border-rose-500/30 bg-white/95 text-rose-600 dark:bg-gray-900/95 dark:text-rose-400"
+                : "border-gray-200 bg-white/95 text-gray-900 dark:border-gray-800 dark:bg-gray-900/95 dark:text-gray-100"
           }`}
         >
-          {toast.type === "success" && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
-          {toast.type === "error" && <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />}
-          {toast.type === "info" && <Info className="h-4 w-4 text-blue-500 shrink-0" />}
+          {toast.type === "success" && <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-500" />}
+          {toast.type === "error" && <AlertTriangle aria-hidden="true" className="h-4 w-4 shrink-0 text-rose-500" />}
+          {toast.type === "info" && <Info aria-hidden="true" className="h-4 w-4 shrink-0 text-blue-500" />}
           <span className="font-medium">{toast.message}</span>
+          <button
+            type="button"
+            onClick={dismissToast}
+            aria-label="Fechar notificação"
+            className="ml-1 rounded-md px-1 text-current opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-current/40"
+          >
+            ×
+          </button>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto flex flex-col gap-6">
-        {/* Header no Padrão do Projeto MustaInf */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 sm:p-7 shadow-sm border border-gray-200/80 dark:border-gray-800 transition-colors">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        <header className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm transition-colors dark:border-gray-800 dark:bg-gray-900 sm:p-7">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40">
-                  <Youtube className="h-3.5 w-3.5" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-400">
+                  <Youtube aria-hidden="true" className="h-3.5 w-3.5" />
                   <span>YouTube Intelligence Engine</span>
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                  <Sparkles className="w-3 h-3 text-amber-500" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                  <Sparkles aria-hidden="true" className="h-3 w-3 text-amber-500" />
                   {t("recommendations_page.badgeTech") || "Inteligência Artificial & Dados"}
                 </span>
               </div>
-
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">
+              <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
                 {t("recommendations_page.title") || "Recomendador de Vídeos"}
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 max-w-2xl">
-                {t("recommendations_page.subtitle") || "Conteúdos técnicos sugeridos com base no seu histórico e preferências de tecnologia."}
+              <p className="max-w-2xl text-xs text-gray-500 dark:text-gray-400 sm:text-sm">
+                {t("recommendations_page.subtitle") ||
+                  "Conteúdos técnicos sugeridos com base no seu histórico e preferências de tecnologia."}
               </p>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex shrink-0 items-center gap-3">
               <button
-                onClick={() => loadRecommendations(true)}
+                type="button"
+                onClick={() => void loadRecommendations(true)}
                 disabled={isRefreshing || isLoading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700 shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-500/40"
                 title="Recalcular recomendações"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-semibold text-gray-800 shadow-sm transition-all hover:scale-[1.02] hover:bg-gray-50 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700 sm:text-sm"
               >
-                <RefreshCw className={`h-4 w-4 text-red-500 ${isRefreshing ? "animate-spin" : ""}`} />
+                <RefreshCw aria-hidden="true" className={`h-4 w-4 text-red-500 ${isRefreshing ? "animate-spin" : ""}`} />
                 <span>
                   {isRefreshing
                     ? t("recommendations_page.refreshing") || "A atualizar..."
@@ -148,43 +229,44 @@ export default function RecommendationsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* 🔍 Barra de Pesquisa com Debounce */}
         <div className="w-full">
           <SearchBar
             onSearch={handleSearch}
             isLoading={isSearching}
-            placeholder={t("recommendations_page.searchPlaceholder") || "Buscar novos vídeos no YouTube para adicionar ao histórico..."}
+            placeholder={
+              t("recommendations_page.searchPlaceholder") ||
+              "Buscar novos vídeos no YouTube para adicionar ao histórico..."
+            }
           />
         </div>
 
-        {/* Indicador de Modo de Busca */}
         {searchResults !== null && (
-          <div className="flex items-center justify-between px-1">
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              {t("recommendations_page.searchResultsFor") || "Mostrando resultados da pesquisa"} ({searchResults.length} {t("recommendations_page.gamesFound") || "vídeos encontrados"})
+          <div className="flex items-center justify-between gap-3 px-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 sm:text-sm">
+              {t("recommendations_page.searchResultsFor") || "Mostrando resultados da pesquisa"}{" "}
+              ({searchResults.length} {t("recommendations_page.gamesFound") || "vídeos encontrados"})
             </p>
             <button
-              onClick={() => setSearchResults(null)}
-              className="text-xs text-red-600 dark:text-red-400 hover:underline font-medium"
+              type="button"
+              onClick={clearSearch}
+              className="shrink-0 text-xs font-medium text-red-600 hover:underline focus:outline-none focus:ring-2 focus:ring-red-500/40 dark:text-red-400"
             >
               {t("recommendations_page.clearSearch") || "Voltar às recomendações"}
             </button>
           </div>
         )}
 
-        {/* 🎬 Feed de Vídeos */}
         <RecommendationFeed
           recommendations={recommendations}
-          searchResults={searchResults || undefined}
+          searchResults={searchResults ?? undefined}
           isLoading={isLoading}
           isRefreshing={isRefreshing}
           error={error}
-          onRefresh={() => loadRecommendations(true)}
+          onRefresh={() => void loadRecommendations(true)}
         />
       </div>
     </div>
   );
 }
-
