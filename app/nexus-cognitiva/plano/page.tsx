@@ -1,488 +1,429 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Brain,
-  Sparkles,
   ArrowLeft,
-  Search,
-  CheckCircle2,
-  Circle,
-  ShieldCheck,
-  Layers,
-  Database,
-  Server,
-  FileText,
-  Bookmark,
-  Share2,
-  Video,
-  Image as ImageIcon,
-  Link2,
+  Sparkles,
+  Brain,
+  Compass,
+  BookOpen,
   Users,
-  Tag,
+  ShieldCheck,
+  Rocket,
+  Heart,
+  MessageCircle,
+  Search,
   ChevronDown,
   ChevronRight,
-  Filter,
-  Lock,
-  Scale,
-  ExternalLink,
-  Copy,
-  Printer,
-  Clock,
-  Info,
-  AlertTriangle,
-  Flame,
-  BookOpen,
-  FolderTree,
-  Terminal,
-  Activity,
-  UserCheck,
-  FileCheck,
-  Check,
+  CheckCircle2,
+  Lightbulb,
+  Target,
+  GraduationCap,
 } from "lucide-react";
-
 import { useI18n } from "@/context/I18nContext";
 
-type SectionFilter =
-  | "all"
-  | "fundamentos"
-  | "arquitetura"
-  | "design"
-  | "editor"
-  | "descoberta"
-  | "seguranca"
-  | "roadmap";
+type Section = {
+  id: number;
+  category: string;
+  title: string;
+  intro: string;
+  icon: React.ElementType;
+  points: { title: string; description: string }[];
+};
 
 export default function NexusPlanoPage() {
   const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<SectionFilter>("all");
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [selectedDemoType, setSelectedDemoType] = useState<
-    "cientifico" | "curiosidade" | "experiencia"
-  >("cientifico");
-
-  const [mvpChecklist, setMvpChecklist] = useState<Record<number, boolean>>({});
-
   const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({
     1: true,
     2: true,
-    3: true,
-    7: true,
-    13: true,
-    15: true,
-    16: true,
   });
 
-  const toggleSection = useCallback((id: number) => {
-    setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
-  }, []);
-
-  const expandAll = useCallback(() => {
-    const all: Record<number, boolean> = {};
-    for (let i = 1; i <= 17; i++) all[i] = true;
-    setExpandedSections(all);
-  }, []);
-
-  const collapseAll = useCallback(() => {
-    setExpandedSections({});
-  }, []);
-
-  const toggleChecklistItem = useCallback((index: number) => {
-    setMvpChecklist((prev) => ({ ...prev, [index]: !prev[index] }));
-  }, []);
-
-  const copyPageUrl = useCallback(() => {
-    if (typeof window !== "undefined") {
-      navigator.clipboard.writeText(window.location.href);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
-    }
-  }, []);
-
-  const handlePrint = useCallback(() => {
-    if (typeof window !== "undefined") {
-      window.print();
-    }
-  }, []);
-
-  const mvpCriteria = useMemo(
+  const sections: Section[] = useMemo(
     () => [
-      "O utilizador consegue autenticar-se.",
-      "O sistema permite publicar conteúdo.",
-      "A descrição Markdown é obrigatória.",
-      "Os anexos são ativados apenas quando houver descrição preenchida.",
-      "O limite de tamanho dos vídeos (<= 100 MiB) é rigorosamente validado.",
-      "As publicações são persistidas na base de dados PostgreSQL.",
-      "Os anexos são guardados no serviço de objetos MinIO/S3.",
-      "O feed principal apresenta as publicações com cartões contextuais.",
-      "A página individual renderiza Markdown seguro e referências.",
-      "Os filtros funcionam no backend com paginação e ordenação.",
-      "As permissões de acesso são validadas e aplicadas no servidor.",
-      "A idade mínima de acesso é validada em todas as rotas relevantes.",
-      "As publicações podem ser editadas e arquivadas pelo autor sob regras estritas.",
-      "Existem mecanismos transparentes de denúncia e moderação.",
-      "Os testes principais (unitários, integração e segurança) passam com 100% de sucesso.",
-      "O sistema possui rotinas de cópia de segurança e procedimento de recuperação testado.",
+      {
+        id: 1,
+        category: "A ideia",
+        title: "Conhecimento que desperta curiosidade",
+        intro:
+          "O Nexus Cognitiva é um espaço para descobrir ideias, aprender algo novo e explorar o mundo com outros olhos. Queremos aproximar o conhecimento das pessoas, com conteúdos interessantes, claros e úteis para o dia a dia.",
+        icon: Brain,
+        points: [
+          {
+            title: "Aprender sem complicações",
+            description:
+              "Conteúdos explicados de forma acessível, para que qualquer pessoa possa acompanhar e aprender ao seu ritmo.",
+          },
+          {
+            title: "Descobrir diferentes perspetivas",
+            description:
+              "Da ciência à tecnologia, da cultura ao comportamento humano, há sempre algo novo para explorar.",
+          },
+          {
+            title: "Curiosidade com responsabilidade",
+            description:
+              "Distinguir factos, opiniões e experiências ajuda cada pessoa a compreender melhor aquilo que lê.",
+          },
+        ],
+      },
+      {
+        id: 2,
+        category: "O que vais encontrar",
+        title: "Um universo de ideias à tua espera",
+        intro:
+          "O Nexus Cognitiva pretende reunir diferentes formas de conhecimento num só lugar, para que cada visita seja uma oportunidade de aprender, refletir ou encontrar inspiração.",
+        icon: Compass,
+        points: [
+          {
+            title: "Ciência e tecnologia",
+            description:
+              "Descobre explicações, avanços e ideias que ajudam a compreender o mundo e o futuro.",
+          },
+          {
+            title: "Curiosidades e descobertas",
+            description:
+              "Encontra respostas surpreendentes para perguntas que talvez nunca tenhas pensado fazer.",
+          },
+          {
+            title: "Experiências e percursos pessoais",
+            description:
+              "Aprende com histórias, desafios e lições partilhadas por outras pessoas.",
+          },
+          {
+            title: "Ideias e reflexão",
+            description:
+              "Explora opiniões e diferentes pontos de vista com abertura, respeito e espírito crítico.",
+          },
+        ],
+      },
+      {
+        id: 3,
+        category: "Descoberta",
+        title: "Encontra conteúdos que combinam contigo",
+        intro:
+          "Cada pessoa tem interesses e perguntas diferentes. A experiência do Nexus Cognitiva será pensada para tornar a descoberta simples e agradável.",
+        icon: Search,
+        points: [
+          {
+            title: "Pesquisa simples",
+            description:
+              "Procura temas, palavras ou assuntos que despertam a tua curiosidade.",
+          },
+          {
+            title: "Categorias para explorar",
+            description:
+              "Navega por áreas de interesse e descobre conteúdos relacionados com aquilo de que gostas.",
+          },
+          {
+            title: "Guarda o que te inspira",
+            description:
+              "A ideia é poderes guardar publicações interessantes para regressar a elas quando quiseres.",
+          },
+        ],
+      },
+      {
+        id: 4,
+        category: "Comunidade",
+        title: "O conhecimento cresce quando é partilhado",
+        intro:
+          "Queremos criar um espaço onde as pessoas possam aprender umas com as outras, trocar ideias e contribuir para conversas construtivas.",
+        icon: Users,
+        points: [
+          {
+            title: "Partilha as tuas ideias",
+            description:
+              "Contribui com conhecimentos, descobertas e experiências que possam ser úteis a outras pessoas.",
+          },
+          {
+            title: "Conversa com respeito",
+            description:
+              "Os comentários e as discussões devem acolher diferentes opiniões sem ataques pessoais.",
+          },
+          {
+            title: "Aprende em conjunto",
+            description:
+              "Perguntas, respostas e perspetivas diferentes podem transformar uma leitura numa aprendizagem maior.",
+          },
+        ],
+      },
+      {
+        id: 5,
+        category: "Confiança",
+        title: "Informação clara, com respeito por quem lê",
+        intro:
+          "A confiança é essencial num espaço dedicado ao conhecimento. Queremos que seja fácil perceber que tipo de conteúdo estás a consultar e avaliar a informação com espírito crítico.",
+        icon: ShieldCheck,
+        points: [
+          {
+            title: "Contexto transparente",
+            description:
+              "Conteúdos científicos, curiosidades, opiniões e experiências pessoais devem ser apresentados de forma distinta.",
+          },
+          {
+            title: "Fontes que ajudam a aprofundar",
+            description:
+              "Sempre que existam referências, estas devem ajudar-te a explorar o tema e a procurar informação adicional.",
+          },
+          {
+            title: "Um ambiente mais seguro",
+            description:
+              "A comunidade deve promover o respeito, a responsabilidade e a possibilidade de sinalizar conteúdos inadequados.",
+          },
+        ],
+      },
+      {
+        id: 6,
+        category: "O caminho",
+        title: "Estamos a construir esta experiência contigo",
+        intro:
+          "O Nexus Cognitiva quer crescer com base nas necessidades reais da comunidade. O objetivo é lançar uma experiência útil, ouvir quem a utiliza e melhorá-la continuamente.",
+        icon: Rocket,
+        points: [
+          {
+            title: "Começar pelo essencial",
+            description:
+              "Dar prioridade à leitura, à descoberta de conteúdos e a uma experiência simples em diferentes dispositivos.",
+          },
+          {
+            title: "Ouvir a comunidade",
+            description:
+              "As sugestões e opiniões dos utilizadores ajudam-nos a perceber o que funciona e o que merece ser melhorado.",
+          },
+          {
+            title: "Evoluir com propósito",
+            description:
+              "Novas funcionalidades serão consideradas de acordo com a sua utilidade e o valor que acrescentam à comunidade.",
+          },
+        ],
+      },
     ],
     []
   );
 
-  const completedCount = useMemo(
-    () => Object.values(mvpChecklist).filter(Boolean).length,
-    [mvpChecklist]
-  );
-  const progressPercent = Math.round((completedCount / mvpCriteria.length) * 100);
+  const filteredSections = sections.filter((section) => {
+    const query = searchQuery.trim().toLocaleLowerCase("pt");
+    if (!query) return true;
+    const searchable = [
+      section.category,
+      section.title,
+      section.intro,
+      ...section.points.flatMap((point) => [point.title, point.description]),
+    ]
+      .join(" ")
+      .toLocaleLowerCase("pt");
+    return searchable.includes(query);
+  });
 
-  const roadmapSteps = useMemo(
-    () => [
-      { step: 1, title: "Analisar a arquitetura do MustInfo", phase: "Fundação" },
-      { step: 2, title: "Definir a integração entre os produtos", phase: "Fundação" },
-      { step: 3, title: "Criar a identidade visual do Nexus Cognitiva", phase: "Design" },
-      { step: 4, title: "Preparar o frontend e o backend", phase: "Estrutura" },
-      { step: 5, title: "Integrar a autenticação", phase: "Segurança" },
-      { step: 6, title: "Criar o modelo de dados PostgreSQL", phase: "Dados" },
-      { step: 7, title: "Implementar categorias e tags", phase: "Taxonomia" },
-      { step: 8, title: "Desenvolver o editor Markdown com regras de ativação", phase: "Editor" },
-      { step: 9, title: "Implementar o armazenamento de anexos (MinIO/S3)", phase: "Multimédia" },
-      { step: 10, title: "Criar o fluxo de publicação e persistência com estados", phase: "Core" },
-      { step: 11, title: "Construir o feed principal responsivo", phase: "Descoberta" },
-      { step: 12, title: "Desenvolver a página individual da publicação", phase: "Visualização" },
-      { step: 13, title: "Implementar pesquisa full-text e filtros combinados", phase: "Busca" },
-      { step: 14, title: "Adicionar favoritos e coleções pessoais", phase: "Social" },
-      { step: 15, title: "Implementar sistema de comentários e respostas", phase: "Comunidade" },
-      { step: 16, title: "Implementar moderação, permissões e denúncias", phase: "Governança" },
-      { step: 17, title: "Executar bateria de testes (unitários, integração, segurança)", phase: "Qualidade" },
-      { step: 18, title: "Preparar o deployment e ambientes (dev, test, prod)", phase: "Infraestrutura" },
-      { step: 19, title: "Publicar versão beta para utilizadores selecionados", phase: "Lançamento" },
-      { step: 20, title: "Recolher feedback e iterar melhorias contínuas", phase: "Evolução" },
-    ],
-    []
-  );
+  const toggleSection = (id: number) => {
+    setExpandedSections((current) => ({ ...current, [id]: !current[id] }));
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-10 font-interface">
-      {/* TOPO: VOLTAR AO FEED */}
-      <div className="flex items-center justify-between gap-4">
+    <main className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-8 sm:py-12 font-interface">
+      <div className="flex items-center justify-between gap-3">
         <Link
           href="/nexus-cognitiva"
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#14283F] dark:text-slate-300 bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A] hover:border-slate-400 dark:hover:border-slate-500 transition-all cursor-pointer shadow-xs"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#DCE3EA] bg-white px-3 py-2 text-sm font-semibold text-[#14283F] shadow-xs transition hover:border-[#087E8B] dark:border-[#1E2D5A] dark:bg-[#111D3D] dark:text-slate-200"
         >
-          <ArrowLeft className="w-4 h-4 text-[#087E8B] dark:text-teal-400" />
-          <span>{t("nexus.backToFeed") || "Voltar ao Feed"}</span>
+          <ArrowLeft className="h-4 w-4 text-[#087E8B]" />
+          <span>{t("nexus.backToFeed") || "Voltar ao Nexus"}</span>
         </Link>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={copyPageUrl}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A] hover:border-slate-400 dark:hover:border-slate-500 text-[#14283F] dark:text-slate-300 transition-all shadow-xs cursor-pointer"
-          >
-            {copiedLink ? <Check className="w-3.5 h-3.5 text-[#087E8B] dark:text-teal-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedLink ? (t("nexus.copied") || "Copiado!") : (t("nexus.share") || "Copiar Link")}</span>
-          </button>
-
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A] hover:border-slate-400 dark:hover:border-slate-500 text-[#14283F] dark:text-slate-300 transition-all shadow-xs cursor-pointer"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Exportar / Imprimir</span>
-          </button>
-        </div>
+        <span className="hidden items-center gap-2 text-sm text-slate-500 sm:inline-flex dark:text-slate-400">
+          <Heart className="h-4 w-4 text-[#087E8B]" />
+          Feito para pessoas curiosas
+        </span>
       </div>
 
-      {/* HERO SECTION DO PLANO */}
-      <section className="relative rounded-2xl border border-[#DCE3EA] dark:border-[#1E2D5A] bg-white dark:bg-[#111D3D] p-8 sm:p-12 shadow-xs overflow-hidden">
-        <div className="max-w-4xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-[#087E8B]/10 text-[#087E8B] dark:text-teal-400 border border-[#087E8B]/20">
-            <Sparkles className="w-3.5 h-3.5 text-[#087E8B] dark:text-teal-400" />
-            <span>Documento Técnico e de Arquitetura</span>
+      <section className="relative overflow-hidden rounded-3xl border border-[#DCE3EA] bg-white p-7 shadow-xs sm:p-12 dark:border-[#1E2D5A] dark:bg-[#111D3D]">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#087E8B]/10 blur-3xl" />
+        <div className="relative max-w-3xl space-y-5">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#087E8B]/20 bg-[#087E8B]/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[#087E8B] dark:text-teal-300">
+            <Sparkles className="h-4 w-4" />
+            Um espaço para descobrir e aprender
           </div>
-
-          <h1 className="font-editorial text-3xl sm:text-5xl font-bold tracking-tight text-[#14283F] dark:text-white leading-tight">
-            NEXUS COGNITIVA
+          <h1 className="font-editorial text-4xl font-bold leading-tight tracking-tight text-[#14283F] sm:text-6xl dark:text-white">
+            NEXUS <span className="text-[#087E8B] dark:text-teal-400">COGNITIVA</span>
           </h1>
-          <p className="text-lg sm:text-xl font-semibold text-[#087E8B] dark:text-teal-400">
-            Plano de Implementação e Desenvolvimento
+          <p className="max-w-2xl text-xl font-semibold leading-relaxed text-[#087E8B] dark:text-teal-300">
+            A tua curiosidade pode levar-te mais longe.
           </p>
-
-          <p className="text-[#475569] dark:text-slate-300 text-xs sm:text-sm leading-relaxed max-w-3xl">
-            Especificação oficial das 17 fases de engenharia para desenvolvimento modular e incremental do subsite no ecossistema MustInfo.
+          <p className="max-w-2xl text-base leading-7 text-slate-600 sm:text-lg dark:text-slate-300">
+            Um espaço dedicado a ideias, descobertas e experiências que ampliam a forma como vemos o mundo. Explora temas, aprende algo novo e partilha aquilo que sabes com uma comunidade curiosa.
           </p>
+          <div className="flex flex-wrap gap-3 pt-1">
+            <a
+              href="/nexus-cognitiva"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#087E8B] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#066873]"
+            >
+              <Compass className="h-4 w-4" />
+              Explorar conteúdos
+            </a>
+            <a
+              href="#como-funciona"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#DCE3EA] px-5 py-3 text-sm font-bold text-[#14283F] transition hover:border-[#087E8B] dark:border-[#334466] dark:text-slate-200"
+            >
+              Conhecer o projeto
+              <ChevronDown className="h-4 w-4" />
+            </a>
+          </div>
         </div>
       </section>
 
-      {/* FILTROS E AÇÕES DE SEÇÃO */}
-      <section className="space-y-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-[#475569] dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Pesquisar nas seções do plano (ex: PostgreSQL, MinIO, moderação, MVP)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#F4F7FA] dark:bg-[#0B132B] border border-[#DCE3EA] dark:border-[#1E2D5A] focus:border-[#087E8B] text-xs sm:text-sm text-[#14283F] dark:text-white placeholder-[#475569]/70 dark:placeholder-slate-400 outline-none transition-all"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={expandAll}
-              className="px-3 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A] hover:border-slate-400 text-[#14283F] dark:text-slate-300 transition-all cursor-pointer shadow-xs"
-            >
-              Expandir Todas
-            </button>
-            <button
-              onClick={collapseAll}
-              className="px-3 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A] hover:border-slate-400 text-[#14283F] dark:text-slate-300 transition-all cursor-pointer shadow-xs"
-            >
-              Recolher Todas
-            </button>
-          </div>
-        </div>
-
-        {/* PILLS */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-          {[
-            { id: "all", label: "Todas as 17 Seções" },
-            { id: "fundamentos", label: "1-2. Fundamentos" },
-            { id: "arquitetura", label: "3, 9. Arquitetura" },
-            { id: "design", label: "4-6. Identidade" },
-            { id: "editor", label: "7-8. Editor" },
-            { id: "descoberta", label: "10-11. Descoberta" },
-            { id: "seguranca", label: "12-14. Segurança & Testes" },
-            { id: "roadmap", label: "15-17. Roadmap & MVP" },
-          ].map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setActiveFilter(f.id as SectionFilter)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                activeFilter === f.id
-                  ? "bg-[#087E8B] text-white shadow-xs"
-                  : "bg-white dark:bg-[#111D3D] text-[#475569] dark:text-slate-300 hover:text-[#14283F] dark:hover:text-white border border-[#DCE3EA] dark:border-[#1E2D5A]"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[
+          {
+            icon: BookOpen,
+            title: "Aprende",
+            text: "Explicações, descobertas e novas perspetivas para alimentar a tua curiosidade.",
+          },
+          {
+            icon: Lightbulb,
+            title: "Descobre",
+            text: "Explora assuntos diferentes e encontra ideias que talvez ainda não conheças.",
+          },
+          {
+            icon: MessageCircle,
+            title: "Partilha",
+            text: "Contribui com as tuas experiências e aprende com a comunidade.",
+          },
+        ].map((item) => (
+          <article
+            key={item.title}
+            className="rounded-2xl border border-[#DCE3EA] bg-white p-5 dark:border-[#1E2D5A] dark:bg-[#111D3D]"
+          >
+            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#087E8B]/10 text-[#087E8B] dark:text-teal-300">
+              <item.icon className="h-5 w-5" />
+            </div>
+            <h2 className="mb-2 text-lg font-bold text-[#14283F] dark:text-white">{item.title}</h2>
+            <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{item.text}</p>
+          </article>
+        ))}
       </section>
 
-      {/* SEÇÕES COMPLETAS 1 A 17 */}
-      <div className="space-y-6">
-        {/* SEÇÃO 1: VISÃO */}
-        {(activeFilter === "all" || activeFilter === "fundamentos") && (
-          <PlanoCard
-            id={1}
-            isExpanded={expandedSections[1]}
-            onToggle={() => toggleSection(1)}
-            icon={Brain}
-            badge="Seção 1"
-            title="1. Visão e posicionamento do produto"
-          >
-            <div className="space-y-3 text-xs sm:text-sm text-[#14283F] dark:text-slate-300 leading-relaxed">
-              <p>
-                O <strong>Nexus Cognitiva</strong> é uma marca do ecossistema <strong>MustInfo</strong> destinada à partilha e descoberta de conhecimento científico, curiosidades fundamentadas e vivências estruturadas.
-              </p>
-              <div className="p-3.5 bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800/30 rounded-xl text-[#087E8B] dark:text-teal-300 text-xs italic">
-                "A plataforma distingue claramente informação científica, curiosidades, opiniões e experiências pessoais. Uma experiência individual não é apresentada automaticamente como facto científico."
-              </div>
-            </div>
-          </PlanoCard>
-        )}
+      <section id="como-funciona" className="space-y-4">
+        <div className="max-w-3xl space-y-2">
+          <p className="text-xs font-bold uppercase tracking-widest text-[#087E8B]">O que nos move</p>
+          <h2 className="font-editorial text-2xl font-bold text-[#14283F] sm:text-3xl dark:text-white">
+            Mais do que ler. É descobrir novas formas de pensar.
+          </h2>
+          <p className="text-sm leading-6 text-slate-600 sm:text-base dark:text-slate-300">
+            Conhece a visão do Nexus Cognitiva, os temas que queremos aproximar de ti e a comunidade que estamos a construir.
+          </p>
+        </div>
 
-        {/* SEÇÃO 2: ANÁLISE INICIAL */}
-        {(activeFilter === "all" || activeFilter === "fundamentos") && (
-          <PlanoCard
-            id={2}
-            isExpanded={expandedSections[2]}
-            onToggle={() => toggleSection(2)}
-            icon={Search}
-            badge="Seção 2"
-            title="2. Fase inicial — Análise do projeto existente"
-          >
-            <div className="space-y-2 text-xs text-[#14283F] dark:text-slate-300">
-              <p>
-                Passo 1: Inspecionar o ecossistema MustInfo para reutilizar mecanismos estáveis de autenticação e sessão.
-              </p>
-              <p>
-                Passo 2: Modelo de integração com contratos bem definidos e isolamento de permissões e dados.
-              </p>
-            </div>
-          </PlanoCard>
-        )}
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="O que gostarias de descobrir?"
+            aria-label="Pesquisar neste plano"
+            className="w-full rounded-xl border border-[#DCE3EA] bg-white py-3 pl-11 pr-4 text-sm text-[#14283F] outline-none transition focus:border-[#087E8B] dark:border-[#1E2D5A] dark:bg-[#0B132B] dark:text-white"
+          />
+        </div>
 
-        {/* SEÇÃO 3: ARQUITETURA */}
-        {(activeFilter === "all" || activeFilter === "arquitetura") && (
-          <PlanoCard
-            id={3}
-            isExpanded={expandedSections[3]}
-            onToggle={() => toggleSection(3)}
-            icon={Server}
-            badge="Seção 3"
-            title="3. Fase de arquitetura — Stack técnica"
-          >
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div className="p-3 rounded-lg bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A]">
-                <span className="font-semibold text-[#14283F] dark:text-white block">Frontend</span>
-                <span className="text-[#475569] dark:text-slate-400 text-[11px]">Next.js, React 19, TypeScript, Tailwind</span>
-              </div>
-              <div className="p-3 rounded-lg bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A]">
-                <span className="font-semibold text-[#14283F] dark:text-white block">Backend</span>
-                <span className="text-[#475569] dark:text-slate-400 text-[11px]">Python, FastAPI, Pydantic, SQLAlchemy</span>
-              </div>
-              <div className="p-3 rounded-lg bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A]">
-                <span className="font-semibold text-[#14283F] dark:text-white block">Database</span>
-                <span className="text-[#475569] dark:text-slate-400 text-[11px]">PostgreSQL relacional com índices full-text</span>
-              </div>
-              <div className="p-3 rounded-lg bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A]">
-                <span className="font-semibold text-[#14283F] dark:text-white block">Multimédia</span>
-                <span className="text-[#475569] dark:text-slate-400 text-[11px]">MinIO / S3 com streaming e URLs assinados</span>
-              </div>
-            </div>
-          </PlanoCard>
-        )}
-
-        {/* SEÇÃO 7: EDITOR */}
-        {(activeFilter === "all" || activeFilter === "editor") && (
-          <PlanoCard
-            id={7}
-            isExpanded={expandedSections[7]}
-            onToggle={() => toggleSection(7)}
-            icon={FileText}
-            badge="Seção 7"
-            title="7. Fase de publicação — Campos do editor (A a K)"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              {[
-                "A. Categoria e subcategoria (Obrigatório)",
-                "B. Tipo de informação: Científico, Curiosidade, Experiência...",
-                "C. Título recomendado e claro",
-                "D. Descrição em Markdown obrigatória",
-                "E. Imagem (ativada apenas com descrição preenchida)",
-                "F. Vídeo com limite rigoroso de 100 MiB",
-                "G. URL externa com bloqueio de javascript:",
-                "H. Referências a pessoas e cientistas",
-                "I. Idade mínima (todas, 13+, 16+, 18+)",
-                "J. Tags de classificação transversal",
-                "K. Fontes estruturadas (DOI, autores, ano)",
-              ].map((c, i) => (
-                <div key={i} className="p-2.5 rounded-lg bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A] text-[#14283F] dark:text-slate-300">
-                  {c}
-                </div>
-              ))}
-            </div>
-          </PlanoCard>
-        )}
-
-        {/* SEÇÃO 15: TIMELINE ROADMAP */}
-        {(activeFilter === "all" || activeFilter === "roadmap") && (
-          <PlanoCard
-            id={15}
-            isExpanded={expandedSections[15]}
-            onToggle={() => toggleSection(15)}
-            icon={Activity}
-            badge="Seção 15"
-            title="15. Ordem de desenvolvimento recomendada (20 Passos)"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-              {roadmapSteps.map((s) => (
-                <div key={s.step} className="p-2.5 rounded-lg bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A] flex items-center justify-between">
-                  <span className="font-semibold text-[#14283F] dark:text-slate-200">
-                    {s.step}. {s.title}
+        <div className="space-y-3">
+          {filteredSections.map((section) => {
+            const Icon = section.icon;
+            const isExpanded = Boolean(expandedSections[section.id]) || Boolean(searchQuery.trim());
+            return (
+              <article
+                key={section.id}
+                className="overflow-hidden rounded-2xl border border-[#DCE3EA] bg-white shadow-xs dark:border-[#1E2D5A] dark:bg-[#111D3D]"
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  aria-expanded={isExpanded}
+                  className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-slate-50 dark:hover:bg-[#162447]"
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#087E8B]/10 text-[#087E8B] dark:text-teal-300">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold uppercase tracking-wider text-[#087E8B] dark:text-teal-300">
+                        {section.category}
+                      </span>
+                      <span className="mt-1 block font-editorial text-base font-bold text-[#14283F] sm:text-lg dark:text-white">
+                        {section.title}
+                      </span>
+                    </span>
                   </span>
-                  <span className="text-[10px] font-semibold text-[#087E8B] dark:text-teal-400 bg-[#087E8B]/10 px-2 py-0.5 rounded">
-                    {s.phase}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </PlanoCard>
-        )}
+                  {isExpanded ? (
+                    <ChevronDown className="h-5 w-5 shrink-0 text-slate-400" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" />
+                  )}
+                </button>
 
-        {/* SEÇÃO 16: CRITÉRIOS DE ACEITAÇÃO DO MVP */}
-        {(activeFilter === "all" || activeFilter === "roadmap") && (
-          <PlanoCard
-            id={16}
-            isExpanded={expandedSections[16]}
-            onToggle={() => toggleSection(16)}
-            icon={CheckCircle2}
-            badge="Seção 16"
-            title="16. Critérios de aceitação do MVP (Checklist Interativo)"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-xs font-semibold text-[#14283F] dark:text-white">
-                <span>Progresso de Prontidão:</span>
-                <span className="text-[#087E8B] dark:text-teal-400">{completedCount} de {mvpCriteria.length} ({progressPercent}%)</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                <div className="h-full bg-[#087E8B] transition-all" style={{ width: `${progressPercent}%` }}></div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                {mvpCriteria.map((c, i) => (
-                  <div
-                    key={i}
-                    onClick={() => toggleChecklistItem(i)}
-                    className={`p-2.5 rounded-lg border cursor-pointer flex items-center gap-2 select-none transition-colors ${
-                      mvpChecklist[i] ? "bg-teal-50 dark:bg-teal-950/20 border-teal-300 dark:border-teal-500/40 text-[#087E8B] dark:text-teal-200" : "bg-white dark:bg-[#111D3D] border-[#DCE3EA] dark:border-[#1E2D5A] text-[#14283F] dark:text-slate-300"
-                    }`}
-                  >
-                    {mvpChecklist[i] ? <CheckCircle2 className="w-4 h-4 text-[#087E8B] dark:text-teal-400 shrink-0" /> : <Circle className="w-4 h-4 text-[#475569] dark:text-slate-500 shrink-0" />}
-                    <span className={mvpChecklist[i] ? "line-through opacity-80" : ""}>{c}</span>
+                {isExpanded && (
+                  <div className="space-y-5 border-t border-[#DCE3EA] bg-slate-50/70 p-5 dark:border-[#1E2D5A] dark:bg-[#0B132B]/40">
+                    <p className="max-w-4xl text-sm leading-7 text-slate-600 dark:text-slate-300">
+                      {section.intro}
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {section.points.map((point) => (
+                        <div
+                          key={point.title}
+                          className="rounded-xl border border-[#DCE3EA] bg-white p-4 dark:border-[#1E2D5A] dark:bg-[#111D3D]"
+                        >
+                          <h3 className="mb-1.5 flex items-start gap-2 text-sm font-bold text-[#14283F] dark:text-white">
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#087E8B]" />
+                            {point.title}
+                          </h3>
+                          <p className="pl-6 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                            {point.description}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
+                )}
+              </article>
+            );
+          })}
+          {filteredSections.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-[#DCE3EA] p-8 text-center dark:border-[#1E2D5A]">
+              <Search className="mx-auto mb-3 h-7 w-7 text-slate-400" />
+              <p className="font-semibold text-[#14283F] dark:text-white">Não encontrámos esse tema.</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Experimenta outra palavra para continuares a explorar.
+              </p>
             </div>
-          </PlanoCard>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function PlanoCard({
-  id,
-  isExpanded,
-  onToggle,
-  icon: Icon,
-  badge,
-  title,
-  children,
-}: {
-  id: number;
-  isExpanded: boolean;
-  onToggle: () => void;
-  icon: React.ElementType;
-  badge: string;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <article className="bg-white dark:bg-[#111D3D] border border-[#DCE3EA] dark:border-[#1E2D5A] rounded-xl overflow-hidden shadow-xs font-interface">
-      <header
-        onClick={onToggle}
-        className="p-4 sm:p-5 cursor-pointer select-none flex items-center justify-between gap-3 bg-white dark:bg-[#111D3D] hover:bg-[#F8FAFC] dark:hover:bg-[#162447] transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#087E8B]/10 dark:bg-teal-500/20 text-[#087E8B] dark:text-teal-400 border border-[#087E8B]/20 dark:border-teal-500/30 flex items-center justify-center shrink-0">
-            <Icon className="w-4 h-4" />
-          </div>
-          <div>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#087E8B] dark:text-teal-400 bg-[#087E8B]/10 px-2 py-0.5 rounded border border-[#087E8B]/20">
-              {badge}
-            </span>
-            <h3 className="font-editorial text-sm sm:text-base font-semibold text-[#14283F] dark:text-white mt-1">{title}</h3>
-          </div>
+          )}
         </div>
-        <button type="button" className="text-[#475569] hover:text-[#14283F] dark:text-slate-400 dark:hover:text-white cursor-pointer">
-          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </button>
-      </header>
+      </section>
 
-      {isExpanded && <div className="p-5 border-t border-[#DCE3EA] dark:border-[#1E2D5A] bg-[#F8FAFC] dark:bg-[#0B132B]/50">{children}</div>}
-    </article>
+      <section className="overflow-hidden rounded-3xl bg-[#10243A] p-7 text-white sm:p-10">
+        <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
+          <div className="max-w-2xl space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-teal-300">
+              <GraduationCap className="h-5 w-5" />
+              O próximo passo começa com uma pergunta
+            </div>
+            <h2 className="font-editorial text-2xl font-bold sm:text-3xl">
+              A tua próxima descoberta pode começar hoje.
+            </h2>
+            <p className="text-sm leading-6 text-slate-300 sm:text-base">
+              Visita o Nexus Cognitiva, explora os conteúdos disponíveis e acompanha a evolução deste espaço de aprendizagem e partilha.
+            </p>
+          </div>
+          <Link
+            href="/nexus-cognitiva"
+            className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#10243A] transition hover:bg-teal-50 md:self-center"
+          >
+            Começar a explorar
+            <Target className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
+      <footer className="pb-2 text-center text-xs leading-5 text-slate-500 dark:text-slate-400">
+        Nexus Cognitiva · Um projeto de conhecimento e descoberta do ecossistema MustInfo.
+      </footer>
+    </main>
   );
 }
