@@ -116,14 +116,14 @@ export const NexusNavbar: React.FC<NexusNavbarProps> = ({ onOpenLogin }) => {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* LOGO & SUBSITE BRANDING */}
         <div className="flex items-center gap-3.5">
-          <Link
+          {/* <Link
             href={isStandalone ? mainPlatformUrl : "/"}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#475569] dark:text-slate-300 hover:text-[#14283F] dark:hover:text-white bg-[#F4F7FA] dark:bg-[#0B132B] hover:bg-[#E8EEF4] dark:hover:bg-slate-800/80 transition-all border border-[#DCE3EA] dark:border-[#1E2D5A] shrink-0"
             title={t("nexus.parentPlatform") || "MustInfo"}
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span className="hidden md:inline">MustInfo</span>
-          </Link>
+          </Link> */}
 
           <Link href={feedPath} className="flex items-center gap-2.5 group">
             <div className="w-9 h-9 rounded-xl bg-[#14283F] dark:bg-[#087E8B] flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
