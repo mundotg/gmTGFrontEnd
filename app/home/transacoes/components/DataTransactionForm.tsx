@@ -60,10 +60,18 @@ export const DataTransactionForm: React.FC<DataTransactionFormProps> = ({
   /** =========================
    * CONEXÕES DE BANCO
    ========================== */
-  const { fetchPaginated, loading } = usePaginatedFetcher<DBConnection>((row) => ({
-    value: String(row.id),
-    label: `${getDatabaseIcon(row.type)} ${row.name}`,
-  }));
+  const mapDbConnectionToOption = useCallback(
+    (row: DBConnection) => ({
+      value: String(row.id),
+      label: `${getDatabaseIcon(row.type)} ${row.name}${row.database_name ? ` (${row.database_name})` : ""}`,
+    }),
+    []
+  );
+
+  const { fetchPaginated, loading } = usePaginatedFetcher<DBConnection>(
+    mapDbConnectionToOption,
+    25
+  );
 
   /** =========================
    * REINICIAR / LIMPAR MIGRAÇÃO
@@ -80,7 +88,15 @@ export const DataTransactionForm: React.FC<DataTransactionFormProps> = ({
    * PAYLOAD DA TRANSFERÊNCIA
    ========================== */
   const montarParametro = useMemo(() => {
-    const compact = buildTransferPayload(tableMappings, {
+    // Garante que APENAS as tabelas selecionadas em selectedTables sejam incluídas no payload
+    const activeTableMappings: Record<string, TableMapping> = {};
+    for (const sourceTableId of Object.keys(selectedTables ?? {})) {
+      if (tableMappings?.[sourceTableId]) {
+        activeTableMappings[sourceTableId] = tableMappings[sourceTableId];
+      }
+    }
+
+    const compact = buildTransferPayload(activeTableMappings, {
       dropTablesWithNoEnabledColumns: true,
       keepDisabledColumns: false,
     });
@@ -90,7 +106,7 @@ export const DataTransactionForm: React.FC<DataTransactionFormProps> = ({
       id_connectio_distino: targetConnection?.id,
       tables_origen: JSON.stringify(compact),
     };
-  }, [tableMappings, targetConnection?.id, sourceConnection?.id]);
+  }, [tableMappings, selectedTables, targetConnection?.id, sourceConnection?.id]);
 
   /** =========================
    * WEBSOCKET DE TRANSFERÊNCIA
@@ -118,27 +134,39 @@ export const DataTransactionForm: React.FC<DataTransactionFormProps> = ({
    ========================== */
   const validation = useMemo(() => {
     const issues: { tableId: string; message: string }[] = [];
-    const tableEntries = Object.entries(tableMappings ?? {});
+    const selectedEntries = Object.entries(selectedTables ?? {});
 
-    if (Object.keys(selectedTables ?? {}).length === 0) {
+    if (selectedEntries.length === 0) {
       issues.push({ tableId: "all", message: "Nenhuma tabela selecionada para migração." });
       return { isValid: false, issues };
     }
 
-    for (const [tableId, mapping] of tableEntries) {
-      const cols = mapping?.colunas_relacionados_para_transacao ?? [];
+    for (const [sourceTableId] of selectedEntries) {
+      const mapping = tableMappings?.[sourceTableId];
+      const srcStruct = sourceConnection?.structures?.find((s) => String(s.id) === String(sourceTableId));
+      const tableName = mapping?.tabela_name_origem || srcStruct?.table_name || `Tabela #${sourceTableId}`;
+
+      if (!mapping || !mapping.colunas_relacionados_para_transacao?.length) {
+        issues.push({
+          tableId: sourceTableId,
+          message: `Aguardando carregar/mapear colunas da tabela "${tableName}".`,
+        });
+        continue;
+      }
+
+      const cols = mapping.colunas_relacionados_para_transacao;
       const enabled = cols.filter((c) => c?.enabled);
 
       if (enabled.length === 0) {
         issues.push({
-          tableId,
-          message: `Ative pelo menos 1 coluna na tabela "${mapping?.tabela_name_origem || tableId}".`,
+          tableId: sourceTableId,
+          message: `Ative pelo menos 1 coluna na tabela "${tableName}".`,
         });
       }
     }
 
     return { isValid: issues.length === 0, issues };
-  }, [tableMappings, selectedTables]);
+  }, [tableMappings, selectedTables, sourceConnection?.structures]);
 
   /** =========================
    * CONDIÇÕES DE PROGRESSO
@@ -235,7 +263,10 @@ export const DataTransactionForm: React.FC<DataTransactionFormProps> = ({
             tableMappings={tableMappings}
             setTableMappings={setTableMappings}
             onSelectAll={(all) => setSelectedTables(all)}
-            onClearSelection={() => setSelectedTables({})}
+            onClearSelection={() => {
+              setSelectedTables({});
+              setTableMappings({});
+            }}
           />
         )}
 

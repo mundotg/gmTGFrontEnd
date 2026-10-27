@@ -43,7 +43,9 @@ function ensureQualifiedTable(
   if (rawTable.includes(".")) return rawTable; // já qualificado: schema.table
 
   const found = metadata.find((t) => t.table_name === rawTable);
-  return found ? `${found.schema_name}.${found.table_name}` : rawTable;
+  return found
+    ? (found.schema_name ? `${found.schema_name}.${found.table_name}` : found.table_name)
+    : rawTable;
 }
 
 /** compara se "users" bate com "public.users" também */
@@ -93,7 +95,7 @@ export function useExecuteQuery({
 
     if (select.length === 0) {
       columns.forEach((t) => {
-        const tblQualified = `${t.schema_name}.${t.table_name}`;
+        const tblQualified = t.schema_name ? `${t.schema_name}.${t.table_name}` : t.table_name;
 
         // inclui se essa tabela está na table_list (qualificada ou não)
         if (!tableMatchesList(tblQualified, table_list)) return;

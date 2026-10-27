@@ -1915,6 +1915,91 @@
     "confirmPlaceholder": "Digite CONFIRMAR...",
     "executeAnyway": "Executar Mesmo Assim",
     "cancelSimulation": "Cancelar / Fechar"
+  },
+  "datasetImportModal": {
+    "title": "Importar dataset",
+    "description": "Faz upload de um arquivo, usa uma URL pública ou importa do Kaggle para criar uma conexão SQLite.",
+    "closeAria": "Fechar modal",
+    "modes": {
+      "file": "Upload",
+      "url": "URL pública",
+      "kaggle": "Kaggle"
+    },
+    "file": {
+      "selectLabel": "Seleciona o arquivo",
+      "dropLabel": "Clica para escolher um arquivo",
+      "formats": "Formatos suportados: CSV, JSON, XLS e XLSX",
+      "maxSizeInfo": "Tamanho máx: 20 GB",
+      "selectedFile": "Arquivo selecionado",
+      "largeFileSamplingActive": "Arquivo volumoso",
+      "largeFileSamplingDesc": "A amostragem de linhas está ativa. O envio será otimizado automaticamente para carregar em segundos.",
+      "largeFileWarning": "Atenção",
+      "largeFileWarningDesc": "Arquivos com mais de 1 GB necessitam de uma amostragem de linhas (ex: 50.000 linhas) para evitar lentidão ou falta de memória no servidor (máx. 20 GB)."
+    },
+    "url": {
+      "label": "URL pública do dataset",
+      "placeholder": "https://exemplo.com/dataset.csv",
+      "helper": "Usa uma URL direta para um arquivo CSV, JSON, XLS ou XLSX."
+    },
+    "kaggle": {
+      "handleLabel": "Dataset do Kaggle",
+      "handleBadge": "ID, URL ou Código",
+      "handlePlaceholder": "ex: ofurkancoban/discogs-data-dumps-february-2026",
+      "listBtn": "Listar arquivos",
+      "listBtnTitle": "Ver arquivos contidos no dataset",
+      "handleHelpPrefix": "Pode colar o ID (",
+      "handleHelpOr": "), a URL do Kaggle ou o snippet Python com ",
+      "fileLabel": "Arquivo específico (tabela)",
+      "selectFileOption": "Selecione um arquivo ({count} encontrados)...",
+      "fileInputPlaceholder": "ex: artists.csv (obrigatório se o dataset tiver múltiplos arquivos)",
+      "discogsHelpPrefix": "Para o Discogs: use ",
+      "discogsHelpSuffix": ", etc.",
+      "samplingLabel": "Amostragem de linhas",
+      "samplingBadge": "Recomendado para datasets grandes",
+      "samplingOptions": {
+        "rows10k": "10.000 linhas (Amostra rápida)",
+        "rows50k": "50.000 linhas (Recomendado)",
+        "rows100k": "100.000 linhas (Amostra média)",
+        "rows250k": "250.000 linhas (Amostra grande)",
+        "allRows": "Todas as linhas (Atenção: arquivos de gigabytes podem demorar ou esgotar RAM)"
+      },
+      "credentialsTitle": "Credenciais do Kaggle (API Token)",
+      "credentialsLink": "Obter chave no Kaggle ↗",
+      "credentialsHelp": "Opcional se já configurado no .env do servidor.",
+      "clearCreds": "Limpar credenciais guardadas",
+      "usernamePlaceholder": "Kaggle Username",
+      "keyPlaceholder": "Kaggle API Key / Token",
+      "saveCredsCheckbox": "Guardar credenciais no servidor para futuras importações"
+    },
+    "errors": {
+      "title": "Erro na importação",
+      "selectFile": "Seleciona um arquivo antes de importar.",
+      "validUrl": "Informa uma URL pública válida.",
+      "kaggleHandleRequired": "Informa o identificador do dataset do Kaggle (ex: usuario/dataset ou URL).",
+      "failedToImport": "Não foi possível importar o dataset.",
+      "fetchFilesError": "Erro ao consultar arquivos do dataset no Kaggle.",
+      "timeout": "O envio do dataset excedeu o tempo limite. Tente novamente ou use uma amostragem menor.",
+      "maxSizeExceeded": "O arquivo selecionado excede o limite máximo permitido de 20 GB."
+    },
+    "actions": {
+      "cancel": "Cancelar",
+      "importing": "Importando...",
+      "importKaggle": "Importar do Kaggle",
+      "importDataset": "Importar dataset"
+    },
+    "preview": {
+      "title": "Preview",
+      "emptyTitle": "Nenhum dataset importado ainda",
+      "emptyDesc": "Depois da importação vais ver aqui as tabelas geradas, número de linhas, colunas e uma pré-visualização dos dados.",
+      "successTitle": "Dataset importado com sucesso",
+      "originalFile": "Arquivo Original",
+      "connection": "Conexão",
+      "generatedTables": "Tabelas Geradas",
+      "rowsCount": "{count} Linhas",
+      "colsCount": "{count} Colunas",
+      "noData": "Não há dados para preview nesta tabela.",
+      "closeAndOpen": "Fechar e Ver Conexão"
+    }
   }
 }
 

@@ -6,7 +6,6 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
-  useDeferredValue,
 } from "react";
 import { createPortal } from "react-dom";
 import { Dropdown, OptionItem, SelectButton } from "./componentDoSelect";
@@ -29,6 +28,7 @@ interface JoinSelectProps {
   value: string;
   onChange: (value: string) => void;
   fetchOptions?: FetchOptions;
+  defaultOptions?: Option[];
   required?: boolean;
   placeholder?: string;
   disabled?: boolean;
@@ -47,6 +47,7 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
   value,
   onChange,
   fetchOptions,
+  defaultOptions,
   placeholder = "Selecione uma opção",
   disabled = false,
   searchable = true,
@@ -63,7 +64,12 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [options, setOptions] = useState<Option[]>([]);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [options, setOptions] = useState<Option[]>(() => {
+    if (defaultOptions && defaultOptions.length > 0) return defaultOptions;
+    if (initialOption && initialOption.value) return [initialOption];
+    return [];
+  });
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -86,10 +92,10 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const fetchingRef = useRef(false);
-
-  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const requestIdRef = useRef(0);
+  const fetchOptionsRef = useRef(fetchOptions);
+  fetchOptionsRef.current = fetchOptions;
+  const prevDebouncedSearchRef = useRef<string | null>(null);
 
   // Selected option
   const selectedOption = useMemo(
@@ -105,91 +111,140 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
     (initialOption && initialOption.value === value ? initialOption.label : "") ||
     (value && value !== "" ? value : placeholder);
 
-  // Debounce search
+  // Debounce search sem travar digitação do input
   useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
-
-    debounceRef.current = setTimeout(() => {
-      setSearchTerm(deferredSearchTerm);
-      setCurrentPage(1);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
     }, debounceMs);
 
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-        debounceRef.current = null;
-      }
-    };
-  }, [deferredSearchTerm, debounceMs]);
+    return () => clearTimeout(timer);
+  }, [searchTerm, debounceMs]);
 
-  // Fetch data
-  const fetchData = useCallback(async () => {
-    if (!fetchOptions || fetchingRef.current) return;
-
-    fetchingRef.current = true;
-    setLoading(true);
-
-    try {
-      const result = await fetchOptions(1, searchTerm);
-
-      let opts = result.options;
-      if (initialOption && initialOption.value !== "" && !opts.some((o) => o.value === initialOption.value) && !searchTerm) {
-        opts = [initialOption, ...opts];
-      }
-
-      setOptions(opts);
-      setHasMore(result.hasMore);
-      setTotal(result.total ?? 0);
-      setCurrentPage(1);
-    } catch (error) {
-      console.error("Erro ao buscar opções:", error);
-      setOptions([]);
-      setHasMore(false);
-    } finally {
-      fetchingRef.current = false;
-      setLoading(false);
-    }
-  }, [searchTerm]);
-
+  // Sincroniza quando defaultOptions é fornecido ou atualizado externamente
   useEffect(() => {
-    fetchData();
-  }, [searchTerm]);
+    if (defaultOptions && defaultOptions.length > 0 && !debouncedSearch) {
+      setOptions((prev) => {
+        if (prev.length === 0) return defaultOptions;
+        const prevKeys = new Set(prev.map((p) => p.value));
+        const missing = defaultOptions.filter((d) => !prevKeys.has(d.value));
+        return missing.length > 0 ? [...prev, ...missing] : prev;
+      });
+      setTotal((prev) => Math.max(prev, defaultOptions.length));
+    }
+  }, [defaultOptions, debouncedSearch]);
 
-  // Load more
+  // Busca dados para a primeira página
+  const fetchData = useCallback(
+    async (search: string) => {
+      const fetcher = fetchOptionsRef.current;
+      if (!fetcher) return;
+
+      const currentReqId = ++requestIdRef.current;
+      setLoading(true);
+
+      try {
+        const result = await fetcher(1, search);
+
+        // Se uma busca mais recente foi disparada enquanto esta ocorria, descarta
+        if (currentReqId !== requestIdRef.current) return;
+
+        let opts = result?.options || [];
+        if (
+          initialOption &&
+          initialOption.value !== "" &&
+          !opts.some((o) => o.value === initialOption.value) &&
+          !search
+        ) {
+          opts = [initialOption, ...opts];
+        }
+
+        setOptions(opts);
+        setHasMore(Boolean(result?.hasMore));
+        setTotal(result?.total ?? opts.length);
+        setCurrentPage(1);
+      } catch (error) {
+        if (currentReqId === requestIdRef.current) {
+          console.error("Erro ao buscar opções:", error);
+          setHasMore(false);
+        }
+      } finally {
+        if (currentReqId === requestIdRef.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [initialOption]
+  );
+
+  // Executa a busca somente quando o termo pesquisado realmente mudar
+  useEffect(() => {
+    if (prevDebouncedSearchRef.current === null) {
+      prevDebouncedSearchRef.current = debouncedSearch;
+      // Se não há defaultOptions e temos fetchOptions, busca inicialmente se não tiver opções
+      if ((!defaultOptions || defaultOptions.length === 0) && options.length === 0) {
+        fetchData(debouncedSearch);
+      }
+      return;
+    }
+
+    if (prevDebouncedSearchRef.current !== debouncedSearch) {
+      prevDebouncedSearchRef.current = debouncedSearch;
+      fetchData(debouncedSearch);
+    }
+  }, [debouncedSearch, defaultOptions, options.length, fetchData]);
+
+  // Se o dropdown for aberto e a lista estiver vazia, faz o fetch imediatamente
+  useEffect(() => {
+    if (isOpen && options.length === 0 && fetchOptionsRef.current && !loading) {
+      fetchData(debouncedSearch);
+    }
+  }, [isOpen, options.length, loading, fetchData, debouncedSearch]);
+
+  // Carregar mais itens (rolagem infinita)
   const loadMore = useCallback(async () => {
-    if (!fetchOptions || loadingMore || !hasMore) return;
+    const fetcher = fetchOptionsRef.current;
+    if (!fetcher || loadingMore || !hasMore) return;
 
+    const currentReqId = requestIdRef.current;
     setLoadingMore(true);
 
     try {
       const nextPage = currentPage + 1;
-      const result = await fetchOptions(nextPage, searchTerm);
+      const result = await fetcher(nextPage, debouncedSearch);
 
-      setOptions((prev) => {
-        const newItems = result.options.filter(
-          (o) => !prev.some((p) => p.value === o.value)
-        );
-        return [...prev, ...newItems];
-      });
+      if (currentReqId !== requestIdRef.current) return;
 
-      setHasMore(result.hasMore);
-      setCurrentPage(nextPage);
+      if (result?.options && Array.isArray(result.options)) {
+        setOptions((prev) => {
+          const existingKeys = new Set(prev.map((p) => p.value));
+          const newItems = result.options.filter((o) => !existingKeys.has(o.value));
+          return [...prev, ...newItems];
+        });
+        setHasMore(Boolean(result.hasMore));
+        if (typeof result.total === "number") {
+          setTotal(result.total);
+        }
+        setCurrentPage(nextPage);
+      } else {
+        setHasMore(false);
+      }
     } catch (err) {
-      console.error("Erro ao carregar mais:", err);
+      console.error("Erro ao carregar mais opções:", err);
     } finally {
       setLoadingMore(false);
     }
-  }, [fetchOptions, hasMore, loadingMore, currentPage, searchTerm]);
+  }, [hasMore, loadingMore, currentPage, debouncedSearch]);
 
-  // Infinite Scroll observer
+  // Observer do scroll infinito
   useEffect(() => {
     if (!isOpen || !hasMore || loadingMore) return;
 
     observerRef.current = new IntersectionObserver(
-      (entries) => entries[0].isIntersecting && loadMore(),
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
       { threshold: 0.1 }
     );
 
@@ -341,7 +396,7 @@ const JoinSelectComponent: React.FC<JoinSelectProps> = ({
               ? searchTerm
                 ? "Nenhuma opção encontrada"
                 : "Nenhuma opção disponível"
-              : `${options.length} de ${total} opções`
+              : `${options.length} de ${Math.max(total, options.length)} opções`
           }
           loading={loading}
           optionsLength={options.length}

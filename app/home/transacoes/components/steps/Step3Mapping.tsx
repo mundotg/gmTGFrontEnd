@@ -92,17 +92,40 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
 
   // --- 2) Auto-Mapping (COM ENABLED: TRUE POR PADRÃO!) ---
   useEffect(() => {
-    if (!Object.keys(selectedTables ?? {}).length || !sourceConnection?.structures?.length) {
+    const selectedEntries = Object.entries(selectedTables ?? {});
+    if (!selectedEntries.length || !sourceConnection?.structures?.length) {
+      // Se não há tabelas selecionadas e tableMappings tem dados residuais, limpa
+      if (Object.keys(tableMappings ?? {}).length > 0) {
+        onTableMappingsChange({});
+      }
       return;
     }
 
     let changed = false;
     const next: Record<string, TableMapping> = { ...tableMappings };
+    const currentSelectedIds = new Set(Object.keys(selectedTables));
 
-    for (const [sourceId, targetId] of Object.entries(selectedTables)) {
+    // 1) Remove qualquer tabela que não esteja mais selecionada no Passo 2
+    for (const tableId of Object.keys(next)) {
+      if (!currentSelectedIds.has(tableId)) {
+        delete next[tableId];
+        changed = true;
+      }
+    }
+
+    // 2) Sincroniza e mapeia as tabelas ativas
+    for (const [sourceId, targetId] of selectedEntries) {
       const current = next[sourceId];
-      // Se já tem colunas geradas, preserva
-      if (current && (current.colunas_relacionados_para_transacao?.length ?? 0) > 0) continue;
+      const targetIdNum = targetId ? Number(targetId) : 0;
+
+      // Se já tem colunas geradas e o destino NÃO mudou, preserva o mapeamento
+      if (
+        current &&
+        (current.colunas_relacionados_para_transacao?.length ?? 0) > 0 &&
+        (current.id_tabela_destino === targetIdNum || (!current.id_tabela_destino && !targetIdNum))
+      ) {
+        continue;
+      }
 
       const srcStruct = getStructureById("src", sourceId);
       const tgtStruct = targetId ? getStructureById("tgt", targetId) : undefined;
@@ -133,7 +156,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
           type_coluna_destino: tf?.type || sf.type || "VARCHAR",
           id_coluna_origem: sf.id,
           id_coluna_destino: tf?.id || 0,
-          enabled: true, // ✅ Ativado por padrão para o usuário não precisar clicar dezenas de vezes!
+          enabled: true, // ✅ Ativado por padrão
         };
       });
 
@@ -142,7 +165,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
           tabela_name_origem: srcStruct?.table_name || current?.tabela_name_origem || "",
           tabela_name_destino: tgtStruct?.table_name || current?.tabela_name_destino || srcStruct?.table_name || "",
           id_tabela_origen: srcStruct?.id || Number(sourceId),
-          id_tabela_destino: tgtStruct?.id || (targetId ? Number(targetId) : 0),
+          id_tabela_destino: tgtStruct?.id || targetIdNum,
           colunas_relacionados_para_transacao: cols,
         };
         changed = true;
@@ -152,7 +175,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
     if (changed) {
       onTableMappingsChange(next);
     }
-  }, [selectedTables, sourceConnection?.structures, tableMappings, onTableMappingsChange, getStructureById]);
+  }, [selectedTables, sourceConnection?.structures, targetConnection?.structures, tableMappings, onTableMappingsChange, getStructureById]);
 
   // --- 3) Ações Individuais e em Lote ---
   // Alternar checkbox de uma coluna
@@ -192,11 +215,22 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
     [tableMappings, onTableMappingsChange]
   );
 
+  const selectedTableIds = useMemo(
+    () => new Set(Object.keys(selectedTables ?? {})),
+    [selectedTables]
+  );
+
+  // Mapeamentos ativos estritamente pertencentes às tabelas selecionadas
+  const activeTableMappings = useMemo(() => {
+    return Object.entries(tableMappings).filter(([id]) => selectedTableIds.has(id));
+  }, [tableMappings, selectedTableIds]);
+
   // Ativar ou desativar todas as colunas de TODAS as tabelas selecionadas
   const setAllColumnsGlobal = useCallback(
     (enabled: boolean) => {
       const next: Record<string, TableMapping> = {};
       for (const [tId, mapping] of Object.entries(tableMappings)) {
+        if (!selectedTableIds.has(tId)) continue;
         const cols = (mapping.colunas_relacionados_para_transacao ?? []).map((col) => ({
           ...col,
           enabled,
@@ -205,7 +239,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
       }
       onTableMappingsChange(next);
     },
-    [tableMappings, onTableMappingsChange]
+    [tableMappings, selectedTableIds, onTableMappingsChange]
   );
 
   // Atualizar mapeamento de coluna (alvo selecionado no dropdown ou digitado)
@@ -255,8 +289,8 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   }, []);
 
   const expandAllTables = useCallback(() => {
-    setExpandedTables(new Set(Object.keys(tableMappings)));
-  }, [tableMappings]);
+    setExpandedTables(new Set(activeTableMappings.map(([id]) => id)));
+  }, [activeTableMappings]);
 
   const collapseAllTables = useCallback(() => {
     setExpandedTables(new Set());
@@ -265,20 +299,19 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   // --- 4) Métricas e Filtros ---
   const filteredTableMappings = useMemo(() => {
     const term = searchTable.trim().toLowerCase();
-    const entries = Object.entries(tableMappings);
 
-    if (!term) return entries;
+    if (!term) return activeTableMappings;
 
-    return entries.filter(
+    return activeTableMappings.filter(
       ([, mapping]) =>
         mapping.tabela_name_origem.toLowerCase().includes(term) ||
         mapping.tabela_name_destino.toLowerCase().includes(term)
     );
-  }, [tableMappings, searchTable]);
+  }, [activeTableMappings, searchTable]);
 
   const { totalColumns, enabledColumns } = useMemo(() => {
-    return Object.values(tableMappings).reduce(
-      (acc, mapping) => {
+    return activeTableMappings.reduce(
+      (acc, [, mapping]) => {
         const cols = mapping.colunas_relacionados_para_transacao ?? [];
         acc.totalColumns += cols.length;
         acc.enabledColumns += cols.filter((c) => c.enabled).length;
@@ -286,7 +319,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
       },
       { totalColumns: 0, enabledColumns: 0 }
     );
-  }, [tableMappings]);
+  }, [activeTableMappings]);
 
   if (Object.keys(selectedTables).length === 0) {
     return (
@@ -316,8 +349,8 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
                 Mapeamento Refinado de Colunas
               </h3>
               <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                {isLoading
-                  ? "Sincronizando tipos e colunas com as bases de dados..."
+                {isLoading || activeTableMappings.length < selectedTableIds.size
+                  ? `Sincronizando tipos e colunas (${activeTableMappings.length} de ${selectedTableIds.size} tabela(s) pronta(s))...`
                   : "Por padrão, todos os campos detectados estão ativos para migração. Desmarque o que não desejar transferir."}
               </p>
             </div>

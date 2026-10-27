@@ -1423,6 +1423,91 @@
     "confirmPlaceholder": "Tapez CONFIRMAR...",
     "executeAnyway": "Exécuter Quand Même",
     "cancelSimulation": "Annuler / Fermer"
+  },
+  "datasetImportModal": {
+    "title": "Importer un jeu de données",
+    "description": "Téléchargez un fichier, utilisez une URL publique ou importez depuis Kaggle pour créer une connexion SQLite.",
+    "closeAria": "Fermer le modal",
+    "modes": {
+      "file": "Téléverser",
+      "url": "URL publique",
+      "kaggle": "Kaggle"
+    },
+    "file": {
+      "selectLabel": "Sélectionnez le fichier",
+      "dropLabel": "Cliquez pour choisir un fichier",
+      "formats": "Formats supportés: CSV, JSON, XLS et XLSX",
+      "maxSizeInfo": "Taille max: 20 Go",
+      "selectedFile": "Fichier sélectionné",
+      "largeFileSamplingActive": "Fichier volumineux",
+      "largeFileSamplingDesc": "L'échantillonnage de lignes est actif. Le téléversement sera optimisé automatiquement pour charger en quelques secondes.",
+      "largeFileWarning": "Attention",
+      "largeFileWarningDesc": "Les fichiers de plus de 1 Go nécessitent un échantillonnage de lignes (ex: 50 000 lignes) pour éviter la saturation de la mémoire sur le serveur (max. 20 Go)."
+    },
+    "url": {
+      "label": "URL publique du jeu de données",
+      "placeholder": "https://exemple.com/dataset.csv",
+      "helper": "Utilisez une URL directe vers un fichier CSV, JSON, XLS ou XLSX."
+    },
+    "kaggle": {
+      "handleLabel": "Jeu de données Kaggle",
+      "handleBadge": "ID, URL ou Code",
+      "handlePlaceholder": "ex: ofurkancoban/discogs-data-dumps-february-2026",
+      "listBtn": "Lister les fichiers",
+      "listBtnTitle": "Voir les fichiers contenus dans le jeu de données",
+      "handleHelpPrefix": "Vous pouvez coller l'ID (",
+      "handleHelpOr": "), l'URL Kaggle ou l'extrait Python avec ",
+      "fileLabel": "Fichier spécifique (table)",
+      "selectFileOption": "Sélectionnez un fichier ({count} trouvés)...",
+      "fileInputPlaceholder": "ex: artists.csv (requis si le dataset contient plusieurs fichiers)",
+      "discogsHelpPrefix": "Pour Discogs: utilisez ",
+      "discogsHelpSuffix": ", etc.",
+      "samplingLabel": "Échantillonnage de lignes",
+      "samplingBadge": "Recommandé pour les grands jeux de données",
+      "samplingOptions": {
+        "rows10k": "10 000 lignes (Échantillon rapide)",
+        "rows50k": "50 000 lignes (Recommandé)",
+        "rows100k": "100 000 lignes (Échantillon moyen)",
+        "rows250k": "250 000 lignes (Grand échantillon)",
+        "allRows": "Toutes les lignes (Attention: les fichiers volumineux peuvent prendre du temps ou saturer la RAM)"
+      },
+      "credentialsTitle": "Identifiants Kaggle (Jeton API)",
+      "credentialsLink": "Obtenir une clé sur Kaggle ↗",
+      "credentialsHelp": "Facultatif si déjà configuré dans le fichier .env du serveur.",
+      "clearCreds": "Effacer les identifiants enregistrés",
+      "usernamePlaceholder": "Nom d'utilisateur Kaggle",
+      "keyPlaceholder": "Clé d'API Kaggle / Jeton",
+      "saveCredsCheckbox": "Enregistrer les identifiants sur le serveur pour les futures importations"
+    },
+    "errors": {
+      "title": "Erreur d'importation",
+      "selectFile": "Sélectionnez un fichier avant d'importer.",
+      "validUrl": "Indiquez une URL publique valide.",
+      "kaggleHandleRequired": "Indiquez l'identifiant du jeu de données Kaggle (ex: utilisateur/dataset ou URL).",
+      "failedToImport": "Impossible d'importer le jeu de données.",
+      "fetchFilesError": "Erreur lors de la consultation des fichiers sur Kaggle.",
+      "timeout": "L'envoi du jeu de données a dépassé le délai d'attente. Veuillez réessayer ou utiliser un échantillon plus petit.",
+      "maxSizeExceeded": "Le fichier sélectionné dépasse la taille maximale autorisée de 20 Go."
+    },
+    "actions": {
+      "cancel": "Annuler",
+      "importing": "Importation en cours...",
+      "importKaggle": "Importer depuis Kaggle",
+      "importDataset": "Importer le jeu de données"
+    },
+    "preview": {
+      "title": "Aperçu",
+      "emptyTitle": "Aucun jeu de données importé pour le moment",
+      "emptyDesc": "Après l'importation, vous verrez les tables générées, le nombre de lignes, de colonnes et un aperçu des données ici.",
+      "successTitle": "Jeu de données importé avec succès",
+      "originalFile": "Fichier Original",
+      "connection": "Connexion",
+      "generatedTables": "Tables Générées",
+      "rowsCount": "{count} Lignes",
+      "colsCount": "{count} Colonnes",
+      "noData": "Aucune donnée d'aperçu disponible pour cette table.",
+      "closeAndOpen": "Fermer et voir la connexion"
+    }
   }
 }
 

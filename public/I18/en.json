@@ -1915,6 +1915,91 @@
     "confirmPlaceholder": "Type CONFIRMAR...",
     "executeAnyway": "Execute Anyway",
     "cancelSimulation": "Cancel / Close"
+  },
+  "datasetImportModal": {
+    "title": "Import dataset",
+    "description": "Upload a file, use a public URL, or import from Kaggle to create a SQLite connection.",
+    "closeAria": "Close modal",
+    "modes": {
+      "file": "Upload",
+      "url": "Public URL",
+      "kaggle": "Kaggle"
+    },
+    "file": {
+      "selectLabel": "Select file",
+      "dropLabel": "Click to choose a file",
+      "formats": "Supported formats: CSV, JSON, XLS, and XLSX",
+      "maxSizeInfo": "Max size: 20 GB",
+      "selectedFile": "Selected file",
+      "largeFileSamplingActive": "Large file",
+      "largeFileSamplingDesc": "Row sampling is active. Upload will be optimized automatically to load in seconds.",
+      "largeFileWarning": "Attention",
+      "largeFileWarningDesc": "Files over 1 GB require selecting row sampling (e.g. 50,000 rows) to avoid server memory exhaustion (max. 20 GB)."
+    },
+    "url": {
+      "label": "Public dataset URL",
+      "placeholder": "https://example.com/dataset.csv",
+      "helper": "Use a direct URL to a CSV, JSON, XLS, or XLSX file."
+    },
+    "kaggle": {
+      "handleLabel": "Kaggle Dataset",
+      "handleBadge": "ID, URL or Code",
+      "handlePlaceholder": "e.g.: ofurkancoban/discogs-data-dumps-february-2026",
+      "listBtn": "List files",
+      "listBtnTitle": "View files contained in the dataset",
+      "handleHelpPrefix": "You can paste the ID (",
+      "handleHelpOr": "), the Kaggle URL, or the Python snippet with ",
+      "fileLabel": "Specific file (table)",
+      "selectFileOption": "Select a file ({count} found)...",
+      "fileInputPlaceholder": "e.g.: artists.csv (required if dataset contains multiple files)",
+      "discogsHelpPrefix": "For Discogs: use ",
+      "discogsHelpSuffix": ", etc.",
+      "samplingLabel": "Row sampling",
+      "samplingBadge": "Recommended for large datasets",
+      "samplingOptions": {
+        "rows10k": "10,000 rows (Fast sample)",
+        "rows50k": "50,000 rows (Recommended)",
+        "rows100k": "100,000 rows (Medium sample)",
+        "rows250k": "250,000 rows (Large sample)",
+        "allRows": "All rows (Caution: multi-GB files may take long or exhaust RAM)"
+      },
+      "credentialsTitle": "Kaggle Credentials (API Token)",
+      "credentialsLink": "Get Kaggle key ↗",
+      "credentialsHelp": "Optional if already configured in the server's .env.",
+      "clearCreds": "Clear saved credentials",
+      "usernamePlaceholder": "Kaggle Username",
+      "keyPlaceholder": "Kaggle API Key / Token",
+      "saveCredsCheckbox": "Save credentials on server for future imports"
+    },
+    "errors": {
+      "title": "Import error",
+      "selectFile": "Select a file before importing.",
+      "validUrl": "Provide a valid public URL.",
+      "kaggleHandleRequired": "Provide the Kaggle dataset identifier (e.g. user/dataset or URL).",
+      "failedToImport": "Could not import the dataset.",
+      "fetchFilesError": "Error querying dataset files on Kaggle.",
+      "timeout": "Dataset upload exceeded the timeout limit. Please try again or use a smaller sample.",
+      "maxSizeExceeded": "The selected file exceeds the maximum allowed size of 20 GB."
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "importing": "Importing...",
+      "importKaggle": "Import from Kaggle",
+      "importDataset": "Import dataset"
+    },
+    "preview": {
+      "title": "Preview",
+      "emptyTitle": "No dataset imported yet",
+      "emptyDesc": "After importing, you will see the generated tables, row count, columns, and data preview here.",
+      "successTitle": "Dataset imported successfully",
+      "originalFile": "Original File",
+      "connection": "Connection",
+      "generatedTables": "Generated Tables",
+      "rowsCount": "{count} Rows",
+      "colsCount": "{count} Columns",
+      "noData": "No preview data available for this table.",
+      "closeAndOpen": "Close and View Connection"
+    }
   }
 }
 

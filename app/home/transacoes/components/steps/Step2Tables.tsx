@@ -153,16 +153,33 @@ export const Step2Tables: React.FC<Step2TablesProps> = ({
         const suggestedTargetId = targetTableMap.get(tableName.toLowerCase()) || "";
         return { ...prev, [sourceId]: suggestedTargetId };
       });
+
+      // Sincroniza tableMappings: se desmarcou a tabela, remove do mapeamento de campos
+      setTableMappings?.((prev) => {
+        if (prev && prev[sourceId]) {
+          const { [sourceId]: _, ...rest } = prev;
+          return rest;
+        }
+        return prev;
+      });
     },
-    [setSelectedTables, targetTableMap]
+    [setSelectedTables, setTableMappings, targetTableMap]
   );
 
   // Mapear tabela para outra existente no destino
   const handleMappingChange = useCallback(
     (sourceId: string, targetTableId: string) => {
       setSelectedTables((prev) => ({ ...prev, [sourceId]: targetTableId }));
+      // Se mudar o destino da tabela, invalida o mapeamento de colunas anterior para re-mapear com os campos corretos
+      setTableMappings?.((prev) => {
+        if (prev && prev[sourceId] && String(prev[sourceId].id_tabela_destino) !== String(targetTableId)) {
+          const { [sourceId]: _, ...rest } = prev;
+          return rest;
+        }
+        return prev;
+      });
     },
-    [setSelectedTables]
+    [setSelectedTables, setTableMappings]
   );
 
   // Tabelas de origem filtradas pela pesquisa
@@ -188,11 +205,20 @@ export const Step2Tables: React.FC<Step2TablesProps> = ({
   // Desmarcar todas as tabelas visíveis
   const handleDeselectAllVisible = useCallback(() => {
     const next = { ...selectedTables };
+    const idsToRemove: string[] = [];
     filteredTables.forEach((table) => {
-      delete next[String(table.id)];
+      const sId = String(table.id);
+      delete next[sId];
+      idsToRemove.push(sId);
     });
     setSelectedTables(next);
-  }, [filteredTables, selectedTables, setSelectedTables]);
+    setTableMappings?.((prev) => {
+      if (!prev) return prev;
+      const nextMap = { ...prev };
+      idsToRemove.forEach((id) => delete nextMap[id]);
+      return nextMap;
+    });
+  }, [filteredTables, selectedTables, setSelectedTables, setTableMappings]);
 
   // Modo alternativo de consulta personalizada
   if (useQueryMode) {

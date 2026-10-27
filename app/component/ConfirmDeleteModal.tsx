@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { AlertTriangle, Trash2, X, Loader2, Info } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Trash2, X, Loader2, Info, FlaskConical, CheckCircle2 } from "lucide-react";
 import { useI18n } from "@/context/I18nContext";
 import { PayloadDeleteRow } from "./ResultadosQueryComponent/types";
 
@@ -13,6 +13,7 @@ export interface ConfirmDeleteModalProps {
   isDeleting: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  onDryRun?: () => Promise<any> | any; // 🧪 Suporte opcional a simulação de exclusão (Dry Run)
 }
 
 export default function ConfirmDeleteModal({
@@ -23,8 +24,22 @@ export default function ConfirmDeleteModal({
   isDeleting,
   onClose,
   onConfirm,
+  onDryRun,
 }: ConfirmDeleteModalProps) {
   const { t } = useI18n();
+  const [isDryRunning, setIsDryRunning] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState<{
+    success: boolean;
+    message: string;
+    affected?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setDryRunResult(null);
+      setIsDryRunning(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || isDeleting) return;
@@ -146,6 +161,38 @@ export default function ConfirmDeleteModal({
     );
   };
 
+  const handleDryRunClick = async () => {
+    if (!onDryRun || isDeleting || isDryRunning) return;
+    setIsDryRunning(true);
+    setDryRunResult(null);
+
+    try {
+      const res = await onDryRun();
+      const success = res?.sucesso ?? res?.success ?? true;
+      const totalAfetados = res?.itens_afetados
+        ? res.itens_afetados.reduce((acc: number, item: any) => acc + (item.afetados || 0), 0)
+        : (res?.total_afetados ?? (safeTotal || 1));
+      const msg = res?.error || res?.mensagem || (
+        success
+          ? `${totalAfetados} registro(s) seriam excluídos com sucesso. Nenhuma restrição violada.`
+          : "Falha na simulação de exclusão."
+      );
+      setDryRunResult({
+        success,
+        message: msg,
+        affected: totalAfetados,
+      });
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.detail || err?.message || "Erro durante a simulação da exclusão.";
+      setDryRunResult({
+        success: false,
+        message: errMsg,
+      });
+    } finally {
+      setIsDryRunning(false);
+    }
+  };
+
   const progressPercent =
     isDeleting && safeTotal > 0
       ? Math.min(100, (lista.length / safeTotal) * 100)
@@ -164,7 +211,7 @@ export default function ConfirmDeleteModal({
       >
         <button
           onClick={onClose}
-          disabled={isDeleting}
+          disabled={isDeleting || isDryRunning}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label={t("actions.close") || "Fechar"}
         >
@@ -188,6 +235,38 @@ export default function ConfirmDeleteModal({
           </div>
 
           {renderRecordsPreview()}
+
+          {/* Feedback da Simulação (Dry Run) */}
+          {dryRunResult && (
+            <div
+              className={`mt-4 p-3.5 rounded-xl border flex items-start gap-2.5 transition-all animate-in fade-in ${
+                dryRunResult.success
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  : "bg-red-50 border-red-200 text-red-900"
+              }`}
+            >
+              {dryRunResult.success ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+              )}
+              <div className="text-xs flex-1">
+                <p className="font-bold">
+                  {dryRunResult.success
+                    ? (t("modals.simulationSuccessTitle") || "✅ Simulação Aprovada (Dry Run)")
+                    : (t("modals.simulationErrorTitle") || "❌ Falha na Simulação")}
+                </p>
+                <p className="mt-1 font-medium leading-relaxed">{dryRunResult.message}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDryRunResult(null)}
+                className="text-gray-400 hover:text-gray-600 p-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {isDeleting && (
             <div className="mt-5 p-4 bg-gray-50 border border-gray-200 rounded-xl">
@@ -221,10 +300,32 @@ export default function ConfirmDeleteModal({
           )}
         </div>
 
-        <div className="p-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl flex gap-3 justify-end">
+        <div className="p-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl flex flex-wrap gap-3 justify-end items-center">
+          {onDryRun && (
+            <button
+              type="button"
+              onClick={handleDryRunClick}
+              disabled={isDeleting || isDryRunning}
+              className="mr-auto px-4 py-2.5 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 hover:border-purple-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              title={t("actions.simulateDelete") || "Simular exclusão sem apagar registros (Dry Run)"}
+            >
+              {isDryRunning ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                  {t("actions.simulating") || "Simulando..."}
+                </>
+              ) : (
+                <>
+                  <FlaskConical className="w-3.5 h-3.5 text-purple-600" />
+                  {t("actions.dryRunDelete") || "Testar Exclusão (Dry Run)"}
+                </>
+              )}
+            </button>
+          )}
+
           <button
             onClick={onClose}
-            disabled={isDeleting}
+            disabled={isDeleting || isDryRunning}
             className="px-5 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
           >
             {t("actions.cancel") || "Cancelar"}
@@ -232,7 +333,7 @@ export default function ConfirmDeleteModal({
 
           <button
             onClick={onConfirm}
-            disabled={isDeleting}
+            disabled={isDeleting || isDryRunning}
             className="px-5 py-2.5 text-sm font-bold text-white bg-red-600 border border-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:border-red-400 disabled:cursor-not-allowed rounded-xl transition-all shadow-sm flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-red-500/50"
           >
             {isDeleting ? (

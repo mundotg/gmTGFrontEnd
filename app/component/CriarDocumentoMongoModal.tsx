@@ -39,7 +39,7 @@ export interface CriarDocumentoMongoModalProps {
   isOpen: boolean;
   onClose: () => void;
   tableName: string;
-  schemaName?: string;
+  schemaName?: string | null;
   knownColumns?: CampoDetalhado[];
   onSaveSuccess?: (document: Record<string, any>) => void;
 }
