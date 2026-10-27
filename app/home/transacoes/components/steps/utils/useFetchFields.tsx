@@ -181,39 +181,59 @@ export function useFetchColumns({
     (async () => {
       let ok = false;
       try {
-        const [srcRes, tgtRes] = await Promise.all([
+        const [srcRes, tgtRes] = await Promise.allSettled([
           srcConnId && work.src.length
             ? api.post<ResponseWrapper<FieldsByTableName>>(
                 `/consu/fields/${srcConnId}`,
                 { table_names: work.src },
-                { signal: controller.signal, timeout: 20000 }
+                { signal: controller.signal, timeout: 90000 }
               )
             : Promise.resolve(null),
           tgtConnId && work.tgt.length
             ? api.post<ResponseWrapper<FieldsByTableName>>(
                 `/consu/fields/${tgtConnId}`,
                 { table_names: work.tgt },
-                { signal: controller.signal, timeout: 20000 }
+                { signal: controller.signal, timeout: 90000 }
               )
             : Promise.resolve(null),
         ]);
 
-        const srcData = srcRes?.data?.data ?? null;
-        const tgtData = tgtRes?.data?.data ?? null;
+        const srcData =
+          srcRes.status === "fulfilled" && srcRes.value
+            ? srcRes.value.data?.data ?? null
+            : null;
+        const tgtData =
+          tgtRes.status === "fulfilled" && tgtRes.value
+            ? tgtRes.value.data?.data ?? null
+            : null;
+
+        if (srcRes.status === "rejected") {
+          console.error("[useFetchColumns] erro ao carregar colunas da origem:", srcRes.reason);
+        }
+        if (tgtRes.status === "rejected") {
+          console.error("[useFetchColumns] erro ao carregar colunas do destino:", tgtRes.reason);
+        }
 
         // ✅ ignora resposta velha
         if (srcToken && latestTokenRef.current.src !== srcToken) return;
         if (tgtToken && latestTokenRef.current.tgt !== tgtToken) return;
 
         // ✅ aplica SEM apagar
-        if (srcData) setSourceConnection((prev) => applyIncomingFieldsToConnection(prev, srcData));
-        if (tgtData) setTargetConnection((prev) => applyIncomingFieldsToConnection(prev, tgtData));
+        if (srcData) {
+          setSourceConnection((prev) => applyIncomingFieldsToConnection(prev, srcData));
+          srcKeys.forEach((k) => doneRef.current.add(k));
+        } else if (srcRes.status === "rejected") {
+          srcKeys.forEach((k) => doneRef.current.delete(k));
+        }
 
-        ok = true;
+        if (tgtData) {
+          setTargetConnection((prev) => applyIncomingFieldsToConnection(prev, tgtData));
+          tgtKeys.forEach((k) => doneRef.current.add(k));
+        } else if (tgtRes.status === "rejected") {
+          tgtKeys.forEach((k) => doneRef.current.delete(k));
+        }
 
-        // ✅ marca done só do que foi pedido
-        srcKeys.forEach((k) => doneRef.current.add(k));
-        tgtKeys.forEach((k) => doneRef.current.add(k));
+        ok = Boolean(srcData || tgtData);
       } catch (err) {
         // ⚠️ Só ignorar o CANCELAMENTO (StrictMode / troca de seleção aborta
         // o pedido anterior). A condição antiga `typeof err === "object"`

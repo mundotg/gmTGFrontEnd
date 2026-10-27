@@ -2,9 +2,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  BarChart3, Database, TableProperties, 
-  TrendingUp, Activity, Zap, Shield,  Eye,
-   GitBranch, Clock, Sparkles,
+  BarChart3, Database, TableProperties,
+  TrendingUp, Activity, Zap, Shield, Eye,
+  GitBranch, Clock, Sparkles,
   ArrowRight, CheckCircle2, AlertCircle, X, Terminal,
   Workflow, Settings, Brain, ScanText, Cloud,
   LayoutTemplate, Users, BookOpen
@@ -239,80 +239,107 @@ const DatabaseManager = () => {
         <Header />
 
         {/* Hero Banner Dinâmico: Conexão Atual & Ações Rápidas */}
-        <div className={`p-5 rounded-2xl border shadow-sm transition-all ${
-          isDbConnected 
-            ? 'bg-gradient-to-r from-emerald-90/90   text-white border-emerald-500/30' 
-            : 'bg-gradient-to-r from-slate-90   text-white border-indigo-500/20'
-        }`}>
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className={`p-3.5 rounded-2xl ${
-                isDbConnected ? ' text-emerald-300 ring-1 ' : ' text-amber-300 ring-1 '
-              }`}>
-                {isDbConnected ? <CheckCircle2 className="w-7 h-7" /> : <AlertCircle className="w-7 h-7" />}
+
+        {/* Hero Banner: Estado da conexão e ações rápidas */}
+        <div
+          className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 lg:p-6 shadow-sm transition-colors ${isDbConnected
+              ? 'bg-gradient-to-br from-emerald-50 via-white to-teal-50 border-emerald-200 dark:from-emerald-950/40 dark:via-slate-900 dark:to-teal-950/30 dark:border-emerald-800/60'
+              : 'bg-gradient-to-br from-slate-50 via-white to-indigo-50 border-slate-200 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/40 dark:border-slate-700'
+            }`}
+        >
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+
+            {/* Estado da conexão */}
+            <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
+              <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border sm:h-12 sm:w-12 ${isDbConnected
+                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800'
+                    : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800'
+                  }`}
+              >
+                {isDbConnected ? (
+                  <CheckCircle2 className="h-6 w-6" />
+                ) : (
+                  <AlertCircle className="h-6 w-6" />
+                )}
               </div>
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <span className={`inline-block w-2.5 h-2.5 rounded-full ${isDbConnected ? 'animate-pulse' : 'bg-amber-400'}`}></span>
-                  <h2 className="text-lg font-bold text-white tracking-tight">
-                    {isDbConnected 
-                      ? `Conectado ao Banco: ${user?.info_extra?.name_db}` 
-                      : 'Nenhuma Conexão Ativa no Momento'}
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${isDbConnected
+                        ? 'bg-emerald-500 animate-pulse'
+                        : 'bg-amber-500'
+                      }`}
+                  />
+
+                  <h2 className="min-w-0 break-words text-base font-bold tracking-tight text-slate-900 dark:text-white sm:text-lg">
+                    {isDbConnected
+                      ? `Conectado ao Banco: ${user?.info_extra?.name_db || 'Base de dados'}`
+                      : 'Nenhuma conexão ativa'}
                   </h2>
-                  {user?.info_extra?.type && (
-                    <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase bg-emerald-500/30 text-emerald-200 border border-emerald-400/30">
+
+                  {isDbConnected && user?.info_extra?.type && (
+                    <span className="max-w-full break-all rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 sm:text-xs">
                       {user.info_extra.type}
                     </span>
                   )}
                 </div>
-                <p className="text-xs md:text-sm text-gray-300 mt-1">
-                  {isDbConnected 
-                    ? `${user?.info_extra?.num_table ?? 0} tabelas disponíveis • ${user?.info_extra?.num_consultas ?? 0} consultas executadas na sessão`
-                    : 'Conecte sua base de dados PostgreSQL, MySQL, SQL Server, Oracle ou SQLite para começar a consultar e auditar seus dados.'}
+
+                <p className="mt-1.5 max-w-2xl break-words text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  {isDbConnected
+                    ? `${user?.info_extra?.num_table ?? 0} tabelas disponíveis · ${user?.info_extra?.num_consultas ?? 0} consultas executadas nesta sessão.`
+                    : 'Conecte a sua base de dados PostgreSQL, MySQL, SQL Server, Oracle ou SQLite para explorar tabelas, executar consultas e analisar os seus dados.'}
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+            {/* Ações rápidas */}
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:w-auto xl:min-w-0 xl:flex xl:flex-wrap xl:justify-end">
               {isDbConnected ? (
                 <>
                   <Link
                     href="/home/tabelas"
-                    className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition-all shadow-sm hover:shadow active:scale-95"
+                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900"
                   >
-                    <TableProperties className="w-4 h-4" />
+                    <TableProperties className="h-4 w-4 shrink-0" />
                     <span>Explorar Tabelas</span>
                   </Link>
+
                   <Link
                     href="/home/editorsql"
-                    className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-sm border border-white/10 transition-all hover:border-white/25 active:scale-95"
+                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-center text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
                   >
-                    <Terminal className="w-4 h-4 text-emerald-300" />
+                    <Terminal className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                     <span>Editor SQL</span>
                   </Link>
+
                   <Link
                     href="/home/ai"
-                    className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500/30 hover:bg-indigo-500/40 text-indigo-200 font-medium text-sm border border-indigo-400/30 transition-all active:scale-95"
+                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-center text-sm font-semibold text-indigo-800 transition-colors hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
                   >
-                    <Sparkles className="w-4 h-4 text-amber-300" />
-                    <span>IA Assistant</span>
+                    <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
+                    <span>Assistente IA</span>
                   </Link>
+
                   <Link
                     href="/home/conexao"
-                    className="inline-flex items-center justify-center p-2.5 rounded-xl bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white transition-all border border-white/10"
-                    title="Configurações de Conexão"
+                    title="Configurações de conexão"
+                    aria-label="Configurações de conexão"
+                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 xl:px-3"
                   >
-                    <Database className="w-4 h-4" />
+                    <Database className="h-4 w-4 shrink-0" />
+                    <span className="xl:hidden">Configurações</span>
                   </Link>
                 </>
               ) : (
                 <Link
                   href="/home/conexao"
-                  className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-semibold text-sm transition-all shadow-md hover:shadow-indigo-500/25 active:scale-95"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 sm:col-span-2 xl:w-auto"
                 >
-                  <Database className="w-4 h-4" />
-                  <span>Configurar Nova Conexão</span>
-                  <ArrowRight className="w-4 h-4 ml-0.5" />
+                  <Database className="h-4 w-4 shrink-0" />
+                  <span>Configurar nova conexão</span>
+                  <ArrowRight className="h-4 w-4 shrink-0" />
                 </Link>
               )}
             </div>

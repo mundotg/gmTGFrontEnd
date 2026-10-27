@@ -180,6 +180,33 @@ function ResultTable({
     setIsDeleting,
   ]);
 
+  const handleDryRunDelete = useCallback(async () => {
+    return logger.measure("Simulação de exclusão (Dry Run)", async () => {
+      if (confirmDelete.type === "all") {
+        if (!queryResults.QueryPayload) {
+          throw new Error("QueryPayload não encontrado para simular exclusão total.");
+        }
+        const response = await api.delete("/delete/delete_all", {
+          data: queryResults.QueryPayload,
+          params: { dry_run: true },
+          withCredentials: true,
+        });
+        return response.data;
+      } else {
+        const response = await api.delete("/delete/records", {
+          data: {
+            registros: confirmDelete.lista,
+            payloadSelectedRow: queryResults.QueryPayload,
+            dry_run: true,
+          },
+          params: { dry_run: true },
+          withCredentials: true,
+        });
+        return response.data;
+      }
+    });
+  }, [confirmDelete, queryResults.QueryPayload]);
+
   const handleRowClick = useCallback(
     (row: Record<string, unknown>, index: number) => {
       if (isSelectionMode) {
@@ -192,6 +219,11 @@ function ResultTable({
         return;
       }
 
+      const defaultTable =
+        queryResults.QueryPayload?.table_list?.[0] ||
+        columnsInfo?.[0]?.table_name ||
+        "";
+
       const tabelasAssociadas = new Set<string>();
 
       Object.keys(row).forEach((campo, idx) => {
@@ -199,13 +231,23 @@ function ResultTable({
         if (!fullColumnName) return;
 
         const parts = fullColumnName.split(".");
-        const tableName =
-          parts.length >= 3 ? parts.slice(0, -1).join(".") : parts[0];
+        let tableName = "";
+        if (parts.length >= 3) {
+          tableName = parts.slice(0, -1).join(".");
+        } else if (parts.length === 2) {
+          tableName = parts[0];
+        } else if (defaultTable) {
+          tableName = defaultTable;
+        }
 
         if (tableName?.trim()) {
           tabelasAssociadas.add(tableName.trim());
         }
       });
+
+      if (tabelasAssociadas.size === 0 && defaultTable) {
+        tabelasAssociadas.add(defaultTable);
+      }
 
       const tabelas = Array.from(tabelasAssociadas);
 
@@ -510,6 +552,7 @@ function ResultTable({
         isDeleting={isDeleting}
         onClose={() => setConfirmDelete((prev) => ({ ...prev, isOpen: false }))}
         onConfirm={handleConfirmDelete}
+        onDryRun={handleDryRunDelete}
       />
     </div>
   );

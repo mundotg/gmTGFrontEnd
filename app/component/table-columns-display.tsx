@@ -747,7 +747,7 @@ const TableColumnsDisplay: React.FC<TableColumnsDisplayProps> = ({
           isOpen={mongoModalOpen}
           onClose={() => setMongoModalOpen(false)}
           tableName={tableNames || columns?.[0]?.table_name || ""}
-          schemaName={columns?.[0]?.schema_name}
+          schemaName={columns?.[0]?.schema_name || undefined}
           knownColumns={columns?.[0]?.colunas || []}
           onSaveSuccess={handleMongoSaveSuccess}
         />

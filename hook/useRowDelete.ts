@@ -11,12 +11,12 @@ interface UseRowDeleteProps {
   responseModal?: string[];
   setResponseModal?: (r?: string[]) => void;
   selectedTables: MetadataTableResponse[];
-  onDelete?: (payload: PayloadDeleteRow, rowIndex: number) => Promise<void>;
+  onDelete?: (payload: PayloadDeleteRow, rowIndex: number, dryRun?: boolean) => Promise<any>;
   onClose: () => void;
 }
 
 interface UseRowDeleteReturn {
-  handleDelete: () => Promise<void>;
+  handleDelete: (dryRun?: boolean) => Promise<any>;
   showDeleteConfirm: boolean;
   setShowDeleteConfirm: (show: boolean) => void;
   isDeleting: boolean;
@@ -36,7 +36,7 @@ export const useRowDelete = ({
 
   const tablesForDelete = useMemo(() => responseModal ?? [], [responseModal]);
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(async (dryRun: boolean = false) => {
     if (!onDelete || !row) {
       logger.warn("Operação de delete cancelada - condições não atendidas", {
         hasOnDelete: !!onDelete,
@@ -46,28 +46,33 @@ export const useRowDelete = ({
       return;
     }
 
-    const confirmed = window.confirm(
-      "Tens a certeza que queres ELIMINAR este registro? Esta ação não pode ser desfeita."
-    );
+    if (!dryRun) {
+      const confirmed = window.confirm(
+        "Tens a certeza que queres ELIMINAR este registro? Esta ação não pode ser desfeita."
+      );
 
-    if (!confirmed) {
-      logger.debug("Usuário cancelou a eliminação na confirmação", {
-        rowIndex: row.index,
-      });
-      return;
+      if (!confirmed) {
+        logger.debug("Usuário cancelou a eliminação na confirmação", {
+          rowIndex: row.index,
+        });
+        return;
+      }
     }
 
     return logger.measure(
-      "Eliminação de registro via modal",
+      dryRun ? "Simulação de eliminação de registro (Dry Run)" : "Eliminação de registro via modal",
       async () => {
-        logger.info("Iniciando processo de eliminação", {
+        logger.info(dryRun ? "Iniciando simulação de eliminação" : "Iniciando processo de eliminação", {
           rowIndex: row.index,
           tableNames: row.tableName,
           selectedTablesCount: selectedTables.length,
           tablesForDelete,
+          dryRun,
         });
 
-        setIsDeleting(true);
+        if (!dryRun) {
+          setIsDeleting(true);
+        }
 
         try {
           const primaryKeyInfo = getPrimaryKeyInfo(row, tablesForDelete);
@@ -87,7 +92,11 @@ export const useRowDelete = ({
             },
           });
 
-          await onDelete(primaryKeyInfo, row.index ?? -1);
+          const result = await onDelete(primaryKeyInfo, row.index ?? -1, dryRun);
+
+          if (dryRun) {
+            return result;
+          }
 
           logger.success("Registro eliminado com sucesso", {
             rowIndex: row.index,
@@ -98,6 +107,7 @@ export const useRowDelete = ({
           });
 
           onClose();
+          return result;
         } catch (error) {
           let errorMessage = "Erro desconhecido ao eliminar registro";
           let logLevel: "warn" | "error" = "error";
@@ -134,15 +144,21 @@ export const useRowDelete = ({
             });
           }
 
-          alert(`Erro ao eliminar registro: ${errorMessage}`);
+          if (!dryRun) {
+            alert(`Erro ao eliminar registro: ${errorMessage}`);
+          } else {
+            throw error;
+          }
         } finally {
-          setIsDeleting(false);
-          setShowDeleteConfirm(false);
+          if (!dryRun) {
+            setIsDeleting(false);
+            setShowDeleteConfirm(false);
 
-          logger.debug("Estado de deleção resetado", {
-            isDeleting: false,
-            showDeleteConfirm: false,
-          });
+            logger.debug("Estado de deleção resetado", {
+              isDeleting: false,
+              showDeleteConfirm: false,
+            });
+          }
         }
       },
       {

@@ -7,7 +7,7 @@ import {
   MetadataTableResponse,
   Tables_primary_keys_values,
 } from "@/types";
-import { X, AlertCircle, Pencil } from "lucide-react";
+import { X, AlertCircle, Pencil, FlaskConical, CheckCircle2, AlertTriangle } from "lucide-react";
 import { validateField } from "@/util";
 import { usePopupReference } from "../services/popups";
 import { findIdentifierField } from "@/util/func";
@@ -19,6 +19,7 @@ import { FieldEditor } from "./ResultadosQueryComponent/FieldEditor";
 import ModalFooter from "./ResultadosQueryComponent/ModalFooter";
 import { RowDetailsModalProps } from "./ResultadosQueryComponent/types";
 import OCRButton from "./ocrComponent";
+import api from "@/context/axioCuston";
 
 const logger = createLogger({ component: "RowDetailsModal" });
 
@@ -36,71 +37,98 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
   isSelectionBulk = false,
   totalRows,
   onSaveBulk,
+  onDryRun,
+  onDryRunBulk,
 }) => {
   const { t } = useI18n();
   const [editedFields, setEditedFields] = useState<Record<string, EditedField>>({});
   const [enabledFields, setEnabledFields] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isDryRunning, setIsDryRunning] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState<{
+    success: boolean;
+    message: string;
+    query?: string;
+  } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { openReferencePopup: viewReferenceTable } = usePopupReference();
   // Memoização das tabelas selecionadas
+  // Memoização das tabelas selecionadas
   const selectedTables = useMemo<MetadataTableResponse[]>(() => {
-    if (!row?.tableName || !informacaosOftables) return [];
+    if (!row?.row) return [];
 
-    return Object.entries(informacaosOftables)
-      .filter(([keyName]) => {
-        return row?.tableName?.some((tName) => {
-          if (!tName) return false;
+    let matched: MetadataTableResponse[] = [];
 
-          // 1. Possibilidade: Match exato ("public.users" === "public.users")
-          if (tName === keyName) return true;
+    if (informacaosOftables && Object.keys(informacaosOftables).length > 0) {
+      matched = Object.entries(informacaosOftables)
+        .filter(([keyName]) => {
+          if (!row.tableName || row.tableName.length === 0) return true;
+          return row.tableName.some((tName) => {
+            if (!tName) return false;
+            if (tName === keyName) return true;
+            if (tName.startsWith(`${keyName}.`)) return true;
+            const tBase = tName.split(".").pop();
+            const kBase = keyName.split(".").pop();
+            return tBase === kBase;
+          });
+        })
+        .map(([keyName, colunas]) => {
+          // Se as colunas vierem vazias, extrai as colunas da própria linha
+          const safeColunas: CampoDetalhado[] =
+            colunas && colunas.length > 0
+              ? colunas
+              : Object.keys(row.row || {}).map((colKey) => {
+                  const colName = colKey.includes(".") ? colKey.split(".").pop()! : colKey;
+                  const val = row.row?.[colKey];
+                  return {
+                    nome: colName,
+                    tipo: typeof val === "number" ? "integer" : "text",
+                    is_nullable: true,
+                    is_primary_key: colName.toLowerCase() === "pk" || colName.toLowerCase() === "id",
+                  } as CampoDetalhado;
+                });
 
-          // 2. Possibilidade: tName tem uma coluna pendurada ("public.users.id" vs "public.users")
-          if (tName.startsWith(`${keyName}.`)) return true;
-
-          // Desmontamos as strings para analisar a fundo
-          const tParts = tName.split(".");
-          const kParts = keyName.split(".");
-
-          // Extraímos a base da tabela (sempre o último elemento do array)
-          // Ex: "public.db_fields" vira "db_fields"
-          const tBase = tParts[tParts.length - 1];
-          const kBase = kParts[kParts.length - 1];
-
-          // Se as tabelas base NÃO são iguais, verificamos um último fallback
-          if (tBase !== kBase) {
-            // Fallback: e se tName for "tabela.coluna" (ex: "users.id") e keyName for "users"?
-            if (tParts.length >= 2 && tParts[tParts.length - 2] === kBase) {
-              return true;
-            }
-            return false;
-          }
-
-          // 3. Possibilidade: As tabelas base são IGUAIS (ex: "db_fields" e "db_fields").
-          // Agora verificamos a segurança: há conflito de schema?
-          const tSchema = tParts.length > 1 ? tParts[tParts.length - 2] : null;
-          const kSchema = kParts.length > 1 ? kParts[kParts.length - 2] : null;
-
-          // Se AMBOS forneceram um schema, eles DEVEM ser iguais. 
-          // (Isso impede que "audit.users" dê match com "public.users")
-          if (tSchema && kSchema && tSchema !== kSchema) {
-            return false;
-          }
-
-          // 4. Possibilidade: Base igual, e apenas um (ou nenhum) tem schema (ex: "db_fields" === "public.db_fields")
-          return true;
+          return {
+            message: "",
+            executado_em: "",
+            connection_id: 0,
+            schema_name: keyName.includes(".") ? keyName.split(".")[0] : "",
+            table_name: keyName,
+            total_colunas: safeColunas.length,
+            colunas: safeColunas,
+          };
         });
-      })
-      .map(([keyName, colunas]) => ({
-        message: "",
-        executado_em: "",
-        connection_id: 0,
-        schema_name: keyName.includes(".") ? keyName.split(".")[0] : "",
-        table_name: keyName,
-        total_colunas: colunas?.length || 0,
-        colunas: colunas || [],
-      }));
+    }
+
+    // Fallback: se não encontrou nenhuma tabela correspondente nos metadados, constrói a partir da linha
+    if (matched.length === 0) {
+      const primaryTable = row.tableName?.[0] || "tabela";
+      const fallbackColunas: CampoDetalhado[] = Object.keys(row.row || {}).map((colKey) => {
+        const colName = colKey.includes(".") ? colKey.split(".").pop()! : colKey;
+        const val = row.row?.[colKey];
+        return {
+          nome: colName,
+          tipo: typeof val === "number" ? "integer" : "text",
+          is_nullable: true,
+          is_primary_key: colName.toLowerCase() === "pk" || colName.toLowerCase() === "id",
+        } as CampoDetalhado;
+      });
+
+      matched = [
+        {
+          message: "",
+          executado_em: "",
+          connection_id: 0,
+          schema_name: primaryTable.includes(".") ? primaryTable.split(".")[0] : "",
+          table_name: primaryTable,
+          total_colunas: fallbackColunas.length,
+          colunas: fallbackColunas,
+        },
+      ];
+    }
+
+    return matched;
   }, [row, informacaosOftables]);
 
   // Usa o hook de delete
@@ -333,6 +361,158 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     }
   }, [onSave, hasChanges, errors, editedFields, onClose, row, selectedTables, t, isBulkEdit, totalRows, onSaveBulk]);
 
+  // Handler para testar/simular alterações sem persistir (Dry Run)
+  const handleDryRun = useCallback(async () => {
+    if (!hasChanges) {
+      setDryRunResult({
+        success: false,
+        message: t("errors.noChangesToSimulate") || "Nenhum campo foi alterado para simular.",
+      });
+      return;
+    }
+
+    const hasErrors = Object.entries(errors).some(
+      ([k, error]) => error && (!isBulkEdit || editedFields[k]?.hasChanged)
+    );
+    if (hasErrors) {
+      setDryRunResult({
+        success: false,
+        message: t("errors.validationErrorsPresent") || "Existem erros de validação nos campos. Corrija-os antes de simular.",
+      });
+      return;
+    }
+
+    setIsDryRunning(true);
+    setDryRunResult(null);
+
+    try {
+      if (isBulkEdit) {
+        const updatedRow = Object.entries(editedFields)
+          .filter(([, field]) => field.hasChanged)
+          .reduce<EditedFieldForQuery>((acc, [key, field]) => {
+            const tableName = field.tableName;
+            const keyParts = key.split(".");
+            const column = keyParts[keyParts.length - 1];
+
+            if (!acc[tableName]) acc[tableName] = {};
+            acc[tableName][column] = {
+              value: String(field.value),
+              type_column: field.type_column,
+            };
+            return acc;
+          }, {});
+
+        let resData;
+        if (onDryRunBulk) {
+          resData = await onDryRunBulk(updatedRow);
+        } else {
+          const endpoint = isSelectionBulk ? "/exe/update_selected" : "/exe/update_all";
+          const payload = isSelectionBulk
+            ? { updatedRow, rows_primary_keys: [], dry_run: true }
+            : { updatedRow, query: (row as any)?.QueryPayload || {}, dry_run: true };
+          const response = await api.post(endpoint, payload, { withCredentials: true });
+          resData = response.data;
+        }
+
+        const isValid = resData?.valid ?? resData?.success ?? true;
+        const msg = resData?.error || resData?.response || (
+          isValid
+            ? (t("modals.simulationSuccess") || "Simulação concluída com sucesso! Nenhuma restrição violada.")
+            : (t("modals.simulationFailed") || "Falha na simulação.")
+        );
+
+        setDryRunResult({
+          success: isValid,
+          message: msg,
+          query: resData?.query,
+        });
+        return;
+      }
+
+      // Edição de uma única linha
+      const tables_primary_keys_values = Object.entries(editedFields)
+        .filter(([, field]) => field.hasChanged)
+        .reduce((acc, [key, field]) => {
+          const table = selectedTables.find((t) => t.table_name === field.tableName);
+          if (!table) return acc;
+
+          if (!acc[table.table_name]) {
+            const primaryKeyField = findIdentifierField(table.table_name, selectedTables)?.nome;
+            const primary_key_name = `${table.table_name}.${primaryKeyField}`;
+            acc[table.table_name] = {
+              primaryKey: primary_key_name,
+              valor: String(row?.row?.[primary_key_name]) ?? "null",
+            };
+          }
+
+          acc[table.table_name][key] = field.value;
+          return acc;
+        }, {} as Tables_primary_keys_values);
+
+      const updatedRow = Object.entries(editedFields)
+        .filter(([, field]) => field.hasChanged)
+        .reduce<EditedFieldForQuery>((acc, [key, field]) => {
+          const tableName = field.tableName;
+          const keyParts = key.split(".");
+          const column = keyParts[keyParts.length - 1];
+
+          if (!acc[tableName]) acc[tableName] = {};
+
+          acc[tableName][column] = {
+            value: String(field.value),
+            type_column: field.type_column,
+          };
+
+          return acc;
+        }, {});
+
+      let resData;
+      if (onDryRun) {
+        resData = await onDryRun(updatedRow, tables_primary_keys_values, row?.index ?? -1);
+      } else {
+        const response = await api.post(
+          "/exe/update_row",
+          { updatedRow, tables_primary_keys_values, dry_run: true },
+          { withCredentials: true }
+        );
+        resData = response.data;
+      }
+
+      const isValid = resData?.valid ?? resData?.success ?? true;
+      const msg = resData?.error || resData?.response || (
+        isValid
+          ? (t("modals.simulationSuccess") || "Simulação concluída com sucesso! Nenhuma restrição violada.")
+          : (t("modals.simulationFailed") || "Falha na simulação.")
+      );
+
+      setDryRunResult({
+        success: isValid,
+        message: msg,
+        query: resData?.query,
+      });
+
+    } catch (error: any) {
+      const errMsg = error.response?.data?.detail || error.message || "Erro durante simulação.";
+      setDryRunResult({
+        success: false,
+        message: errMsg,
+      });
+    } finally {
+      setIsDryRunning(false);
+    }
+  }, [
+    hasChanges,
+    errors,
+    isBulkEdit,
+    isSelectionBulk,
+    editedFields,
+    t,
+    onDryRunBulk,
+    row,
+    selectedTables,
+    onDryRun,
+  ]);
+
   // Handler para alternar edição
   const toggleEdit = useCallback((field: string) => {
     setEnabledFields((prev) => ({ ...prev, [field]: !prev[field] }));
@@ -355,33 +535,29 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
 
     return Object.entries(editedFields)
       .map(([key, field]) => {
-        // 2. CORREÇÃO: Remove o "nome_da_tabela." do início da key para sobrar apenas a coluna
-        // Ex: "dbo.t_aluno.nome" -> tira "dbo.t_aluno." -> sobra "nome"
-        const colName = key.replace(`${field.tableName}.`, "");
+        // 2. Extrai o nome da coluna pegando o último segmento
+        const colName = key.includes(".") ? key.split(".").pop()! : key;
 
         // 3. Procura a tabela
-        const table = selectedTables.find(
-          (t) => t.table_name === field.tableName
-        );
+        const table =
+          selectedTables.find(
+            (t) =>
+              t.table_name === field.tableName ||
+              t.table_name.split(".").pop() === field.tableName?.split(".").pop()
+          ) || selectedTables[0];
 
         if (!table) {
-          console.warn(`❌ Tabela '${field.tableName}' não encontrada.`);
           return null;
         }
 
-        // 4. Procura a coluna
+        // 4. Procura a coluna (case-insensitive para compatibilidade com SQLite/Postgres)
         const coluna = table.colunas?.find(
-          (c: any) => c.nome === colName
+          (c: any) => c.nome?.toLowerCase() === colName.toLowerCase()
         );
 
-        if (!coluna) {
-          console.warn(`❌ Coluna '${colName}' não encontrada na tabela '${table.table_name}'`);
-          return null;
-        }
-
-        // Encontrou tudo com sucesso!
+        // Retorna a coluna encontrada ou fallback limpo
         return {
-          nome: key, // Tem de ser a key original (ex: "dbo.t_aluno.nome") para o Modal atualizar o campo certo
+          nome: key, // Mantém a chave original
           tipo: coluna?.tipo || field.type_column || "text",
           is_nullable: coluna?.is_nullable,
           enum_valores_encontrados: coluna?.enum_valores_encontrados,
@@ -554,7 +730,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
               <div key={`${metadata.table_name}_${tableIndex}`} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
                 <h3 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2 pb-3 border-b border-gray-100">
                   <span className="w-2.5 h-2.5 bg-blue-600 rounded-full"></span>
-                  {t("common.table") || "Tabela"}: {metadata.table_name.substring(metadata.table_name.indexOf(".",) + 1)}
+                  {t("common.table") || "Tabela"}: {metadata.table_name.includes(".") ? metadata.table_name.split(".").pop() : metadata.table_name}
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -570,10 +746,15 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
                     const keyJustColumn = col.nome;                             // Ex: name
 
                     // 3. Descobre qual é a chave correta procurando no objeto (do mais específico pro mais genérico)
-                    const correctKey = editedFields[keyWithSchema] ? keyWithSchema :
+                    const correctKey =
+                      editedFields[keyWithSchema] ? keyWithSchema :
                       editedFields[keyWithTable] ? keyWithTable :
-                        editedFields[keyJustColumn] ? keyJustColumn :
-                          null;
+                      editedFields[keyJustColumn] ? keyJustColumn :
+                      Object.keys(editedFields).find(
+                        (k) =>
+                          k.toLowerCase() === col.nome?.toLowerCase() ||
+                          k.toLowerCase().endsWith(`.${col.nome?.toLowerCase()}`)
+                      ) || null;
 
                     // 4. Agora sim, pegamos os valores corretamente e separados!
                     const editedField = correctKey ? editedFields[correctKey] : null;
@@ -606,11 +787,53 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
           </div>
         </main>
 
+        {/* Banner de Feedback do Dry Run */}
+        {dryRunResult && (
+          <div
+            className={`mx-5 my-2 p-4 rounded-xl border flex items-start gap-3 transition-all animate-in fade-in ${
+              dryRunResult.success
+                ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                : "bg-red-50 border-red-200 text-red-900"
+            }`}
+          >
+            {dryRunResult.success ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            )}
+            <div className="flex-1 text-xs">
+              <p className="font-bold text-sm">
+                {dryRunResult.success
+                  ? (t("modals.simulationSuccessTitle") || "✅ Simulação Aprovada (Dry Run)")
+                  : (t("modals.simulationErrorTitle") || "❌ Falha na Simulação (Restrição Detectada)")}
+              </p>
+              <p className="mt-1 font-medium leading-relaxed">{dryRunResult.message}</p>
+              {dryRunResult.query && (
+                <details className="mt-2 text-[11px] text-gray-600 font-mono bg-white/70 p-2 rounded border border-gray-200">
+                  <summary className="cursor-pointer font-sans font-semibold text-gray-700 hover:underline">
+                    {t("modals.viewSimulatedQuery") || "Ver query gerada"}
+                  </summary>
+                  <pre className="mt-1 whitespace-pre-wrap overflow-x-auto">{dryRunResult.query}</pre>
+                </details>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setDryRunResult(null)}
+              className="text-gray-400 hover:text-gray-600 p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Footer */}
         <ModalFooter
           onDelete={isBulkEdit ? undefined : confirmeDelet_open_modal_for_selection_table}
           onCancel={handleClose}
           onSave={handleSave}
+          onDryRun={handleDryRun}
+          isDryRunning={isDryRunning}
           isLoading={isLoading}
           isDeleting={isDeleting}
           isSaving={isLoading}
@@ -632,6 +855,14 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
             !hasChanges ||
             isLoading ||
             isDeleting ||
+            isDryRunning ||
+            Object.entries(errors).some(([k, error]) => error && (!isBulkEdit || editedFields[k]?.hasChanged))
+          }
+          disableDryRun={
+            !hasChanges ||
+            isLoading ||
+            isDeleting ||
+            isDryRunning ||
             Object.entries(errors).some(([k, error]) => error && (!isBulkEdit || editedFields[k]?.hasChanged))
           }
         />
@@ -643,6 +874,7 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
           isDeleting={isDeleting}
           onClose={() => setShowDeleteConfirm(false)}
           onConfirm={handleDelete}
+          onDryRun={() => handleDelete(true)}
         />
       </div>
     </div>

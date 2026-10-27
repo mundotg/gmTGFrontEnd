@@ -2,12 +2,18 @@ import { DatabaseType, DisplayFormat, ForeignKeyOption, MetadataTableResponse } 
 import { DBStructure } from "@/types/db-structure";
 
 export const findIdentifierField = (tableName: string, columnsInfo: MetadataTableResponse[]) => {
-  const table = columnsInfo.find(col => col.table_name === tableName);
-  if (!table) return undefined;
+  const table = columnsInfo.find((col) => {
+    if (col.table_name === tableName) return true;
+    const qualified = col.schema_name ? `${col.schema_name}.${col.table_name}` : col.table_name;
+    if (qualified === tableName) return true;
+    const justTable = tableName.includes(".") ? tableName.split(".").pop() : tableName;
+    return col.table_name === justTable;
+  });
+  if (!table || !table.colunas || table.colunas.length === 0) return undefined;
   return (
-    table.colunas.find(c => c.is_primary_key)||
+    table.colunas.find(c => c.is_primary_key) ||
     table.colunas.find(c => c.is_unique) ||
-    table.colunas.find(c => !c.is_nullable)||
+    table.colunas.find(c => !c.is_nullable) ||
     table.colunas[0]
   );
 };

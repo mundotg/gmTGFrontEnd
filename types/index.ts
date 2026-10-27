@@ -650,7 +650,7 @@ export interface MetadataTableResponse {
   message: string;
   executado_em: string; // ou `Date` se você for converter depois
   connection_id: number;
-  schema_name: string;
+  schema_name?: string | null;
   table_name: string;
   total_colunas: number;
   colunas: CampoDetalhado[];

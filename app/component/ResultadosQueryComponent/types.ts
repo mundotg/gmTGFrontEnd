@@ -25,6 +25,7 @@ export type PayloadDeleteRow = {
 export type BatchDeleteRequest = {
   registros: PayloadDeleteRow[];
   payloadSelectedRow?: QueryPayload;
+  dry_run?: boolean;
 };
 
 
@@ -45,4 +46,6 @@ export interface RowDetailsModalProps {
   isSelectionBulk?: boolean;
   totalRows?: number;
   onSaveBulk?: (updatedRow: EditedFieldForQuery) => Promise<void>;
+  onDryRun?: (updatedRow: EditedFieldForQuery, tables_primary_keys_values: Record<string, Record<string, any>>, index: number) => Promise<any>;
+  onDryRunBulk?: (updatedRow: EditedFieldForQuery) => Promise<any>;
 }

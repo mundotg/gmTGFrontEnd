@@ -235,22 +235,31 @@ export const useHandleRowClick = ({
     // ========================================================================
     const handleRowUpdate = useCallback(async (
         updatedRow: EditedFieldForQuery,
-        tables_primary_keys_values: Tables_primary_keys_values
+        tables_primary_keys_values: Tables_primary_keys_values,
+        indexOrDryRun?: number | boolean,
+        isDryRun?: boolean
     ) => {
-        if (!updatedRow || isEditingRow || !tables_primary_keys_values) {
+        const dryRun = typeof indexOrDryRun === "boolean" ? indexOrDryRun : Boolean(isDryRun);
+        if (!updatedRow || (!dryRun && isEditingRow) || !tables_primary_keys_values) {
             console.warn("⚠️ Dados inválidos para atualização da linha");
             return;
         }
 
-        setIsEditingRow(true);
-        setError(null);
+        if (!dryRun) {
+            setIsEditingRow(true);
+            setError(null);
+        }
 
         try {
-            await api.post(
+            const response = await api.post(
                 "/exe/update_row",
-                { updatedRow, tables_primary_keys_values },
+                { updatedRow, tables_primary_keys_values, dry_run: dryRun },
                 { withCredentials: true }
             );
+
+            if (dryRun) {
+                return response.data;
+            }
 
             // Transforma o updatedRow aninhado de volta para um formato plano
             const updatedValues = Object.entries(updatedRow).reduce<Record<string, string>>(
@@ -272,19 +281,30 @@ export const useHandleRowClick = ({
                 setSelectedRow(updatedSelectedRow);
             }
 
+            return response.data;
+
         } catch (error) {
             const errorMsg = parseErrorMessage(error);
-            setError(errorMsg);
+            if (!dryRun) {
+                setError(errorMsg);
+            }
             console.error("❌ Erro ao atualizar linha:", errorMsg);
+            throw error;
         } finally {
-            setIsEditingRow(false);
+            if (!dryRun) {
+                setIsEditingRow(false);
+            }
         }
     }, [isEditingRow, selectedRow, setError, setIsEditingRow, setSelectedRow]);
 
     // ========================================================================
     // 3. AÇÃO: ELIMINAR A LINHA (DELETE)
     // ========================================================================
-    const handleDelete = useCallback(async (payload: PayloadDeleteRow, rowIndex?: number) => {
+    const handleDelete = useCallback(async (
+        payload: PayloadDeleteRow,
+        rowIndex?: number,
+        dryRun: boolean = false
+    ) => {
         try {
             // 1. Clona o payload da query original para não mutar o estado do React
             const filteredPayloadSelectedRow = queryResults?.QueryPayload
@@ -325,14 +345,20 @@ export const useHandleRowClick = ({
             // 3. Monta o payload final
             const finalPayload: BatchDeleteRequest = {
                 registros: [payload],
-                payloadSelectedRow: filteredPayloadSelectedRow // 👈 Agora vai limpinho!
+                payloadSelectedRow: filteredPayloadSelectedRow, // 👈 Agora vai limpinho!
+                dry_run: dryRun,
             };
 
             // 4. Dispara a requisição
-            await api.delete("/delete/records", {
+            const response = await api.delete("/delete/records", {
                 data: finalPayload,
+                params: dryRun ? { dry_run: true } : undefined,
                 withCredentials: true,
             });
+
+            if (dryRun) {
+                return response.data;
+            }
 
             // 5. Determina o índice exato da linha a remover
             const targetIndex = typeof rowIndex === "number" && rowIndex >= 0
@@ -354,6 +380,8 @@ export const useHandleRowClick = ({
                 };
             });
 
+            return response.data;
+
         } catch (error: unknown) {
             console.error("❌ Erro ao eliminar registro:", error);
             let errorMessage = t("query.deleteError") || "Erro inesperado ao tentar eliminar o registro.";
@@ -372,21 +400,30 @@ export const useHandleRowClick = ({
     // ========================================================================
     // 4. AÇÃO: ATUALIZAR TODOS OS REGISTROS DA CONSULTA (BULK UPDATE)
     // ========================================================================
-    const handleBulkUpdate = useCallback(async (updatedRow: EditedFieldForQuery) => {
+    const handleBulkUpdate = useCallback(async (
+        updatedRow: EditedFieldForQuery,
+        dryRun: boolean = false
+    ) => {
         if (!queryResults?.QueryPayload || !updatedRow || Object.keys(updatedRow).length === 0) {
             console.warn("⚠️ Dados inválidos para atualização em massa");
             return;
         }
 
-        setIsEditingRow(true);
-        setError(null);
+        if (!dryRun) {
+            setIsEditingRow(true);
+            setError(null);
+        }
 
         try {
             const response = await api.post(
                 "/exe/update_all",
-                { updatedRow, query: queryResults.QueryPayload },
+                { updatedRow, query: queryResults.QueryPayload, dry_run: dryRun },
                 { withCredentials: true }
             );
+
+            if (dryRun) {
+                return response.data;
+            }
 
             // Mapeia colunas atualizadas em formato plano para sincronizar a UI
             const flatUpdates: Record<string, string> = {};
@@ -423,25 +460,32 @@ export const useHandleRowClick = ({
             return response.data;
         } catch (error) {
             const errorMsg = parseErrorMessage(error);
-            setError(errorMsg);
+            if (!dryRun) {
+                setError(errorMsg);
+            }
             console.error("❌ Erro ao atualizar registros em massa:", errorMsg);
             throw error;
         } finally {
-            setIsEditingRow(false);
+            if (!dryRun) {
+                setIsEditingRow(false);
+            }
         }
     }, [queryResults?.QueryPayload, setQueryResults, setError, setIsEditingRow]);
 
     const handleUpdateSelected = useCallback(async (
         updatedRow: EditedFieldForQuery,
-        selectedRowsPayload: { rows_primary_keys: Record<string, { primaryKey: string; valor: any }>[], indices: number[] }
+        selectedRowsPayload: { rows_primary_keys: Record<string, { primaryKey: string; valor: any }>[], indices: number[] },
+        dryRun: boolean = false
     ) => {
         if (!updatedRow || Object.keys(updatedRow).length === 0 || !selectedRowsPayload.rows_primary_keys.length) {
             console.warn("⚠️ Dados inválidos para atualização dos selecionados");
             return;
         }
 
-        setIsEditingRow(true);
-        setError(null);
+        if (!dryRun) {
+            setIsEditingRow(true);
+            setError(null);
+        }
 
         try {
             const response = await api.post(
@@ -449,9 +493,14 @@ export const useHandleRowClick = ({
                 {
                     updatedRow,
                     rows_primary_keys: selectedRowsPayload.rows_primary_keys,
+                    dry_run: dryRun,
                 },
                 { withCredentials: true }
             );
+
+            if (dryRun) {
+                return response.data;
+            }
 
             // Mapeia colunas atualizadas em formato plano para sincronizar a UI
             const flatUpdates: Record<string, string> = {};
@@ -490,11 +539,15 @@ export const useHandleRowClick = ({
             return response.data;
         } catch (error) {
             const errorMsg = parseErrorMessage(error);
-            setError(errorMsg);
+            if (!dryRun) {
+                setError(errorMsg);
+            }
             console.error("❌ Erro ao atualizar registros selecionados:", errorMsg);
             throw error;
         } finally {
-            setIsEditingRow(false);
+            if (!dryRun) {
+                setIsEditingRow(false);
+            }
         }
     }, [setQueryResults, setError, setIsEditingRow]);
 

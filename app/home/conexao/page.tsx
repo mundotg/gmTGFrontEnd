@@ -502,6 +502,7 @@ const DatabaseConnectionForm = () => {
           isOpen={isDatasetModalOpen}
           onClose={() => setIsDatasetModalOpen(false)}
           onImported={handleDatasetImported}
+          onError={refreshConnections}
         />
 
         {sharingConnection && (
@@ -709,10 +710,10 @@ const DatabaseConnectionForm = () => {
                       <div className="flex items-center justify-between gap-4">
                         <div className="min-w-0">
                           <h3 className="truncate text-sm font-bold text-gray-900">
-                            {entry.connection}
+                            {entry.connection || (entry.details?.filename ? `Dataset: ${entry.details.filename}` : "Conexão")}
                           </h3>
                           <p className="mt-0.5 truncate text-xs font-medium text-gray-600">
-                            {entry.action}
+                            {entry.action || (entry.details?.error ? String(entry.details.error) : "")}
                           </p>
                           <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                             {formatDate(entry.timestamp)}

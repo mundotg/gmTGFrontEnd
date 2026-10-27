@@ -1,7 +1,4 @@
-// components/steps/Step1Connections.tsx
-"use client";
-
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { Server, ArrowRight, AlertTriangle, CheckCircle, Database } from "lucide-react";
 import { JoinSelect, Option } from "@/app/task/components/select_Component";
 import type { DBConnection } from "@/types/db-structure";
@@ -32,6 +29,64 @@ export const Step1Connections: React.FC<Step1ConnectionsProps> = ({
     if (targetDb?.id) initial[String(targetDb.id)] = targetDb;
     return initial;
   });
+
+  // Opções compartilhadas pré-carregadas para preencher ambos os selects no início
+  const [initialOptions, setInitialOptions] = useState<Option[]>([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const initialLoadedRef = useRef(false);
+
+  // Mantém o pool sincronizado com qualquer alteração externa em sourceDb ou targetDb
+  useEffect(() => {
+    if (sourceDb?.id) {
+      setConnectionsPool((prev) => ({ ...prev, [String(sourceDb.id)]: sourceDb }));
+    }
+  }, [sourceDb]);
+
+  useEffect(() => {
+    if (targetDb?.id) {
+      setConnectionsPool((prev) => ({ ...prev, [String(targetDb.id)]: targetDb }));
+    }
+  }, [targetDb]);
+
+  // Consulta inicial única para preencher ambos os selects logo na montagem
+  useEffect(() => {
+    if (initialLoadedRef.current) return;
+    initialLoadedRef.current = true;
+
+    let isMounted = true;
+
+    const carregarConexoesIniciais = async () => {
+      setIsInitialLoading(true);
+      try {
+        const data = await fetchDBConnections(1, "");
+        if (!isMounted) return;
+
+        if (data?.data?.items && Array.isArray(data.data.items)) {
+          setConnectionsPool((prev) => {
+            const next = { ...prev };
+            data.data.items.forEach((item: DBConnection) => {
+              if (item?.id) next[String(item.id)] = item;
+            });
+            return next;
+          });
+        }
+
+        if (data?.options && Array.isArray(data.options)) {
+          setInitialOptions(data.options);
+        }
+      } catch (err) {
+        console.error("Erro ao pré-carregar conexões iniciais:", err);
+      } finally {
+        if (isMounted) setIsInitialLoading(false);
+      }
+    };
+
+    carregarConexoesIniciais();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchDBConnections]);
 
   // Função para buscar opções no backend e registrar no pool local
   const handleFetchOptions = useCallback(
@@ -67,7 +122,7 @@ export const Step1Connections: React.FC<Step1ConnectionsProps> = ({
     if (!sourceDb?.id) return undefined;
     return {
       value: String(sourceDb.id),
-      label: `${getDatabaseIcon(sourceDb.type)} ${sourceDb.name} (${sourceDb.database_name})`,
+      label: `${getDatabaseIcon(sourceDb.type)} ${sourceDb.name}${sourceDb.database_name ? ` (${sourceDb.database_name})` : ""}`,
     };
   }, [sourceDb]);
 
@@ -75,7 +130,7 @@ export const Step1Connections: React.FC<Step1ConnectionsProps> = ({
     if (!targetDb?.id) return undefined;
     return {
       value: String(targetDb.id),
-      label: `${getDatabaseIcon(targetDb.type)} ${targetDb.name} (${targetDb.database_name})`,
+      label: `${getDatabaseIcon(targetDb.type)} ${targetDb.name}${targetDb.database_name ? ` (${targetDb.database_name})` : ""}`,
     };
   }, [targetDb]);
 
@@ -132,9 +187,10 @@ export const Step1Connections: React.FC<Step1ConnectionsProps> = ({
                 onSourceDbChange(found);
               }
             }}
-            fetchOptions={loading ? undefined : handleFetchOptions}
+            fetchOptions={handleFetchOptions}
+            defaultOptions={initialOptions}
             initialOption={initialSourceOption}
-            placeholder="Clique para pesquisar ou selecionar a conexão de origem..."
+            placeholder={isInitialLoading ? "Carregando conexões..." : "Clique para pesquisar ou selecionar a conexão de origem..."}
             className="w-full"
             buttonClassName="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-colors shadow-2xs font-medium"
           />
@@ -174,9 +230,10 @@ export const Step1Connections: React.FC<Step1ConnectionsProps> = ({
                 onTargetDbChange(found);
               }
             }}
-            fetchOptions={loading ? undefined : handleFetchOptions}
+            fetchOptions={handleFetchOptions}
+            defaultOptions={initialOptions}
             initialOption={initialTargetOption}
-            placeholder="Clique para pesquisar ou selecionar a conexão de destino..."
+            placeholder={isInitialLoading ? "Carregando conexões..." : "Clique para pesquisar ou selecionar a conexão de destino..."}
             className="w-full"
             buttonClassName="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-emerald-400 transition-colors shadow-2xs font-medium"
           />

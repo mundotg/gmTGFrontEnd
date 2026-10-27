@@ -984,10 +984,17 @@ const ConsultaPage = () => {
                   const tabelaCountColuna: Record<string, CampoDetalhado[]> = {};
 
                   query.table_list?.forEach((t) => {
-                    tabelaCountColuna[t] =
-                      columnsInfo.find(
-                        (inf) => inf.schema_name + "." + inf.table_name === t
-                      )?.colunas || [];
+                    const match = columnsInfo.find((inf) => {
+                      const qualified = inf.schema_name
+                        ? `${inf.schema_name}.${inf.table_name}`
+                        : inf.table_name;
+                      return (
+                        qualified === t ||
+                        inf.table_name === t ||
+                        (t.includes(".") && t.endsWith(`.${inf.table_name}`))
+                      );
+                    });
+                    tabelaCountColuna[t] = match?.colunas || [];
                   });
 
                   setQueryResults((prev) => {
@@ -1082,6 +1089,7 @@ const ConsultaPage = () => {
             row={selectedRow}
             informacaosOftables={queryResults?.tabela_coluna}
             onSave={handleRowUpdate}
+            onDryRun={(updatedRow, pks) => handleRowUpdate(updatedRow, pks, true)}
             onSaveBulk={async (updatedRow) => {
               if (selectedRowsForEdit && selectedRowsForEdit.rows_primary_keys.length > 0) {
                 await handleUpdateSelected(updatedRow, selectedRowsForEdit);
@@ -1096,6 +1104,13 @@ const ConsultaPage = () => {
               setModalOpenEdit(false);
               setIsBulkEditMode(false);
               setSelectedRowsForEdit(null);
+            }}
+            onDryRunBulk={async (updatedRow) => {
+              if (selectedRowsForEdit && selectedRowsForEdit.rows_primary_keys.length > 0) {
+                return await handleUpdateSelected(updatedRow, selectedRowsForEdit, true);
+              } else {
+                return await handleBulkUpdate(updatedRow, true);
+              }
             }}
             isBulkEdit={isBulkEditMode}
             isSelectionBulk={!!selectedRowsForEdit}
