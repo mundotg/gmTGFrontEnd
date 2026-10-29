@@ -22,7 +22,7 @@ export const privacidade: LegalDoc = {
     <>Guardamos os dados da sua conta (nome, email, empresa, cargo) e a password só em forma irreversível (hash).</>,
     <>
       As credenciais das bases que liga são guardadas cifradas. Mas <strong>as consultas correm a partir dos nossos
-      servidores</strong>: os resultados passam por eles e o histórico guarda o texto das consultas e uma
+        servidores</strong>: os resultados passam por eles e o histórico guarda o texto das consultas e uma
       pré-visualização dos resultados.
     </>,
     <>
@@ -144,7 +144,7 @@ export const privacidade: LegalDoc = {
             <li>
               Para poder editar uma conexão, as credenciais são enviadas para o seu browser. Isso acontece também para
               quem tiver acesso a essa conexão — <strong>partilhar uma conexão, mesmo só com acesso de leitura, dá acesso
-              às credenciais dela.</strong>
+                às credenciais dela.</strong>
             </li>
             <li>
               Os administradores da plataforma têm acesso técnico a todas as conexões, para suporte e segurança.
@@ -198,7 +198,7 @@ export const privacidade: LegalDoc = {
                 "Uma cópia completa da base.",
                 <>
                   O ficheiro de backup (comprimido) nos nossos servidores. <strong>Não é cifrado individualmente e não é
-                  apagado automaticamente.</strong> Os ficheiros que envia para restauro também ficam guardados.
+                    apagado automaticamente.</strong> Os ficheiros que envia para restauro também ficam guardados.
                 </>,
               ],
               ["Transferência entre bases", "Os dados transferidos, em lotes.", "Nada — os dados atravessam os servidores sem cópia."],
@@ -242,7 +242,7 @@ export const privacidade: LegalDoc = {
       content: (
         <UL>
           <li>
-            Os ficheiros que carrega ficam num armazenamento de objetos compatível com S3 (s3.mustainfo.cloud). Se esse
+            Os ficheiros que carrega ficam num armazenamento de objetos compatível com S3 (s3.MustaInfoo.cloud). Se esse
             armazenamento estiver indisponível no momento do envio, é guardada uma cópia nos nossos servidores.
           </li>
           <li>Os links de download são temporários (1 hora).</li>
@@ -455,7 +455,7 @@ export const privacidade: LegalDoc = {
           </UL>
           <P>
             Também dizemos o que ainda não fazemos: <strong>os ficheiros de backup, os ficheiros carregados e a cache de
-            OCR não são cifrados individualmente pela aplicação</strong>, e não há autenticação em dois passos. Nenhum
+              OCR não são cifrados individualmente pela aplicação</strong>, e não há autenticação em dois passos. Nenhum
             sistema é totalmente seguro; se houver uma violação que afete os seus dados, informamo-lo e às autoridades,
             nos termos da lei.
           </P>

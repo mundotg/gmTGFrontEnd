@@ -180,7 +180,7 @@ export function useSystemStatus() {
       const url = URL.createObjectURL(new Blob([resposta.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.download = `mustainf-logs-${new Date().toISOString().slice(0, 10)}.log`;
+      link.download = `MustaInfo-logs-${new Date().toISOString().slice(0, 10)}.log`;
       document.body.appendChild(link);
       link.click();
       link.remove();

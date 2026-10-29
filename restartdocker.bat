@@ -1,9 +1,9 @@
 # 1. Para o container atual
-docker stop mustainfo-front
-docker rm mustainfo-front
+docker stop MustaInfoo-front
+docker rm MustaInfoo-front
 
 # 2. Reconstrói a imagem (o Docker vai usar cache para ser mais rápido)
-docker build -t mustainfo-vercel-clone .
+docker build -t MustaInfoo-vercel-clone .
 
 # 3. Roda novamente
-docker run -d -p 3000:3000 --name mustainfo-front mustainfo-vercel-clone
+docker run -d -p 3000:3000 --name MustaInfoo-front MustaInfoo-vercel-clone

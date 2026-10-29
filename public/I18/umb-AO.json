@@ -1,6 +1,6 @@
 {
   "header": {
-    "welcome": "Wouya ciwa ko MustaInf, imue",
+    "welcome": "Wouya ciwa ko MustaInfo, imue",
     "platformType": "Data Pipeline and Analytics Platform",
     "desc": {
       "part1": "Ocitumasuku end-to-end ci tokeka ",
@@ -15,7 +15,7 @@
     }
   },
   "nav": {
-    "brandName": "MustaInf",
+    "brandName": "MustaInfo",
     "tasks": "Ovapange",
     "ocr": "OCR",
     "login": "Iñila",
@@ -31,7 +31,7 @@
     "roadmapBadge": "ROADMAP",
     "featuresTitle": "Ovapange Avelapo",
     "futureTitle": "Eci cikeya",
-    "footer": "MustaInf © 2026. Todos os direitos reservados. Desenvolvido com ❤️ em Next.js + Python FastAPI por Francemy Sebastião"
+    "footer": "MustaInfo © 2026. Todos os direitos reservados. Desenvolvido com ❤️ em Next.js + Python FastAPI por Francemy Sebastião"
   },
   "features": {
     "consultas": "Oku pula ca leluka: soneka lika onduko yo tabela.",
@@ -553,7 +553,7 @@
     "activityLog": "Eci capita Coku linga",
     "milestones": "Endelo lio Milestones",
     "accessDenied": "Oku Iñila Kua Teyiwa ko Módulo",
-    "accessDeniedDesc": "Sapela lukualondumbi wo MustaInf."
+    "accessDeniedDesc": "Sapela lukualondumbi wo MustaInfo."
   },
   "settings": {
     "title": "Ovisokiyo (Configurações)",

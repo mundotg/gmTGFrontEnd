@@ -1,6 +1,6 @@
 # 📊 ResultadosQueryComponent · InteractiveResultTable
 
-O componente **`InteractiveResultTable`** é o **orquestrador visual e operacional dos resultados de consultas SQL** no frontend do MustaInf.
+O componente **`InteractiveResultTable`** é o **orquestrador visual e operacional dos resultados de consultas SQL** no frontend do MustaInfo.
 
 Ele vai além da exibição de linhas e colunas em tabela: ele gerencia a paginação contínua e eficiente por cursor (*keyset pagination*), seleção individual e em lote de registros, extração e resolução de chaves primárias (*Primary Keys*) para exclusão segura, clique para inspeção/edição e integração completa com modais e indicadores de status.
 

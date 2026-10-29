@@ -54,8 +54,8 @@ export async function generateMetadata({
   const images = article.cover_image
     ? [article.cover_image]
     : [
-        "https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=1200&auto=format&fit=crop&q=80",
-      ];
+      "https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=1200&auto=format&fit=crop&q=80",
+    ];
   const tags = Array.isArray(article.tags) ? article.tags : [];
   const authorName = article.author?.name || "Autor Nexus Cognitiva";
 
@@ -100,7 +100,7 @@ export async function generateMetadata({
       title,
       description,
       images,
-      creator: "@mustainfo",
+      creator: "@MustaInfoo",
     },
     robots: {
       index: true,
@@ -130,41 +130,41 @@ export default async function ArticleLayout({
   // Schema.org Article e BreadcrumbList
   const jsonLdArticle = article
     ? {
-        "@context": "https://schema.org",
-        "@type": "ScholarlyArticle",
-        headline: article.title,
-        description: article.summary || article.title,
-        image: article.cover_image || "https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=1200&auto=format&fit=crop&q=80",
-        datePublished: article.published_at || new Date().toISOString(),
-        dateModified: article.updated_at || article.published_at || new Date().toISOString(),
-        author: {
-          "@type": "Person",
-          name: article.author?.name || "Autor Nexus Cognitiva",
-          jobTitle: article.author?.title || "Pesquisador",
-          worksFor: article.author?.institution
-            ? {
-                "@type": "Organization",
-                name: article.author.institution,
-              }
-            : undefined,
+      "@context": "https://schema.org",
+      "@type": "ScholarlyArticle",
+      headline: article.title,
+      description: article.summary || article.title,
+      image: article.cover_image || "https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=1200&auto=format&fit=crop&q=80",
+      datePublished: article.published_at || new Date().toISOString(),
+      dateModified: article.updated_at || article.published_at || new Date().toISOString(),
+      author: {
+        "@type": "Person",
+        name: article.author?.name || "Autor Nexus Cognitiva",
+        jobTitle: article.author?.title || "Pesquisador",
+        worksFor: article.author?.institution
+          ? {
+            "@type": "Organization",
+            name: article.author.institution,
+          }
+          : undefined,
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "MustInfo",
+        url: mainSiteUrl,
+        logo: {
+          "@type": "ImageObject",
+          url: `${mainSiteUrl}/favicon.ico`,
         },
-        publisher: {
-          "@type": "Organization",
-          name: "MustInfo",
-          url: mainSiteUrl,
-          logo: {
-            "@type": "ImageObject",
-            url: `${mainSiteUrl}/favicon.ico`,
-          },
-        },
-        mainEntityOfPage: {
-          "@type": "WebPage",
-          "@id": articleUrl,
-        },
-        articleSection: article.category || "Ciência",
-        keywords: Array.isArray(article.tags) ? article.tags.join(", ") : undefined,
-        inLanguage: "pt",
-      }
+      },
+      mainEntityOfPage: {
+        "@type": "WebPage",
+        "@id": articleUrl,
+      },
+      articleSection: article.category || "Ciência",
+      keywords: Array.isArray(article.tags) ? article.tags.join(", ") : undefined,
+      inLanguage: "pt",
+    }
     : null;
 
   const jsonLdBreadcrumbs = {

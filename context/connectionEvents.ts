@@ -15,9 +15,9 @@
  * comum ter a app em dois sítios e o menu do outro ficava a mentir.
  */
 
-export const CONNECTION_CHANGED = "mustainf:connection-changed";
+export const CONNECTION_CHANGED = "MustaInfo:connection-changed";
 
-const CANAL = "mustainf-connection";
+const CANAL = "MustaInfo-connection";
 
 function canal(): BroadcastChannel | null {
     if (typeof window === "undefined" || !("BroadcastChannel" in window)) return null;

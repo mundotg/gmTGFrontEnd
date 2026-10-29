@@ -4,7 +4,7 @@ import AuthProvider from "@/app/component/provader";
 import Sidebar from "@/app/component/Sidebar";
 
 export const metadata: Metadata = {
-  title: "Recomendador de Vídeos | MustaInf",
+  title: "Recomendador de Vídeos | MustaInfo",
   description: "Vídeos recomendados com base no seu histórico e preferências de tecnologia.",
 };
 

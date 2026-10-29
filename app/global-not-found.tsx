@@ -18,7 +18,7 @@ import "./globals.css";
  */
 
 export const metadata: Metadata = {
-  title: "Página não encontrada · MustaInf",
+  title: "Página não encontrada · MustaInfo",
   description: "O endereço que abriu não corresponde a nenhuma página.",
 };
 

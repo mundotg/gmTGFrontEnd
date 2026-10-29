@@ -1,6 +1,6 @@
 {
   "header": {
-    "welcome": "Bienvenue sur MustaInf, une",
+    "welcome": "Bienvenue sur MustaInfo, une",
     "platformType": "Data Pipeline and Analytics Platform",
     "desc": {
       "part1": "Projet de bout en bout qui intègre ",
@@ -15,7 +15,7 @@
     }
   },
   "nav": {
-    "brandName": "MustaInf",
+    "brandName": "MustaInfo",
     "tasks": "Tâches",
     "ocr": "OCR",
     "login": "Connexion",
@@ -31,7 +31,7 @@
     "roadmapBadge": "FEUILLE DE ROUTE",
     "featuresTitle": "Fonctionnalités Principales",
     "futureTitle": "À venir",
-    "footer": "MustaInf © 2026. Tous droits réservés. Développé avec ❤️ en Next.js + Python FastAPI par Francemy Sebastião"
+    "footer": "MustaInfo © 2026. Tous droits réservés. Développé avec ❤️ en Next.js + Python FastAPI par Francemy Sebastião"
   },
   "features": {
     "consultas": "Requêtes simplifiées : saisissez uniquement le nom de la table.",
@@ -648,7 +648,7 @@
     "activityLog": "Historique d'Exécution",
     "milestones": "Progression des Jalons",
     "accessDenied": "Accès Restreint au Module",
-    "accessDeniedDesc": "Veuillez contacter l'administrateur de MustaInf."
+    "accessDeniedDesc": "Veuillez contacter l'administrateur de MustaInfo."
   },
   "settings": {
     "title": "Paramètres",
@@ -1510,4 +1510,3 @@
     }
   }
 }
-

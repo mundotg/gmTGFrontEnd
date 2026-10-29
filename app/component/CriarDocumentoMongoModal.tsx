@@ -307,7 +307,7 @@ export const CriarDocumentoMongoModal: React.FC<CriarDocumentoMongoModalProps> =
       ativo: true,
       tags: ["mongodb", "nosql", "documento"],
       metadata: {
-        criadoPor: "MustaInf",
+        criadoPor: "MustaInfo",
         versao: "1.0",
       },
       criadoEm: new Date().toISOString(),
@@ -513,11 +513,10 @@ export const CriarDocumentoMongoModal: React.FC<CriarDocumentoMongoModalProps> =
             <button
               type="button"
               onClick={() => handleSwitchTab("visual")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === "visual"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeTab === "visual"
                   ? "bg-white dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 shadow-sm"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-              }`}
+                }`}
             >
               <List className="w-3.5 h-3.5" />
               <span>Campos Chave-Valor</span>
@@ -525,11 +524,10 @@ export const CriarDocumentoMongoModal: React.FC<CriarDocumentoMongoModalProps> =
             <button
               type="button"
               onClick={() => handleSwitchTab("json")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === "json"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeTab === "json"
                   ? "bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-300 shadow-sm"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-              }`}
+                }`}
             >
               <Code className="w-3.5 h-3.5" />
               <span>Editor JSON Direto</span>

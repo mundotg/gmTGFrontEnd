@@ -1,5 +1,5 @@
 # =============================================================================
-#  MustaInf — stack de desenvolvimento
+#  MustaInfo — stack de desenvolvimento
 #
 #  Sobe frontend + API + Redis. O Postgres fica de fora de propósito: a base de
 #  dados desta máquina já corre no Windows, com dados reais, e containerizá-la
@@ -21,7 +21,7 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: mustainfo-redis
+    container_name: MustaInfoo-redis
 
     # Autenticação por ACL (utilizador + password). Sem isto o Redis aceita
     # qualquer ligação, e a porta publicada abaixo fica aberta a quem estiver
@@ -42,9 +42,9 @@ services:
       - default
       - "off"
       - --user
-      - ${REDIS_USERNAME:-mustainf}
+      - ${REDIS_USERNAME:-MustaInfo}
       - "on"
-      - ">${REDIS_PASSWORD:-mustainf_redis_dev}"
+      - ">${REDIS_PASSWORD:-MustaInfo_redis_dev}"
       - "~*"
       - "&*"
       - "+@all"
@@ -68,7 +68,7 @@ services:
     healthcheck:
       # `--user`/`--pass` são precisos com o `default` desligado: sem eles o
       # ping responde NOAUTH e o contentor ficava eternamente "unhealthy".
-      test: ["CMD", "redis-cli", "--no-auth-warning", "--user", "${REDIS_USERNAME:-mustainf}", "--pass", "${REDIS_PASSWORD:-mustainf_redis_dev}", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "--user", "${REDIS_USERNAME:-MustaInfo}", "--pass", "${REDIS_PASSWORD:-MustaInfo_redis_dev}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -83,8 +83,8 @@ services:
     build:
       context: ../gmTGBackend
       dockerfile: Dockerfile
-    image: mustainfo-backend
-    container_name: mustainfo-api
+    image: MustaInfoo-backend
+    container_name: MustaInfoo-api
 
     depends_on:
       redis:
@@ -119,14 +119,14 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_DB: "0"
-      REDIS_USERNAME: ${REDIS_USERNAME:-mustainf}
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-mustainf_redis_dev}
+      REDIS_USERNAME: ${REDIS_USERNAME:-MustaInfo}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-MustaInfo_redis_dev}
 
       # O .env do backend tem `app_cache_REDIS_URL` a apontar para o Redis do
       # anfitrião (localhost:6380). Essa variável ganha a tudo o resto em
       # `_build_url()`, por isso é reescrita aqui — senão a API no contentor ia
       # bater a `localhost`, que dentro do contentor é o próprio contentor.
-      app_cache_REDIS_URL: redis://${REDIS_USERNAME:-mustainf}:${REDIS_PASSWORD:-mustainf_redis_dev}@redis:6379/0
+      app_cache_REDIS_URL: redis://${REDIS_USERNAME:-MustaInfo}:${REDIS_PASSWORD:-MustaInfo_redis_dev}@redis:6379/0
 
       # --- Outros -----------------------------------------------------------
       # O front corre em http://localhost:3000 do ponto de vista do browser.
@@ -172,7 +172,7 @@ services:
       # `npm run dev` abaixo não teria com que trabalhar. O estágio `builder`
       # tem as duas coisas.
       target: builder
-    container_name: mustainfo-front
+    container_name: MustaInfoo-front
 
     depends_on:
       # Só `started`: o front arranca e mostra o ecrã de login enquanto a API

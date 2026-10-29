@@ -86,7 +86,7 @@ export const metadata: Metadata = {
     images: [
       "https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=1200&auto=format&fit=crop&q=80",
     ],
-    creator: "@mustainfo",
+    creator: "@MustaInfoo",
   },
   robots: {
     index: true,

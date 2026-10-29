@@ -1,98 +1,123 @@
 import { useRef, useState } from "react";
-import { ALLOWED_EXTENSIONS, MAX_FILE_SIZE_MB, ProgressBar, validateFile } from ".";
+import { Archive, Layers, UploadCloud } from "lucide-react";
+import { ALLOWED_EXTENSIONS, MAX_FILE_SIZE_MB } from ".";
 
-// ─── Drop Zone ────────────────────────────────────────────────────────────────
+// ─── Drop Zone (Multi-Ficheiro / Fila Concorrente estilo MEGA) ────────────────
 export function DropZone({
+    onFiles,
     onFile,
-    uploadProgress,
     disabled,
+    activeCount = 0,
+    queuedCount = 0,
+    compressionEnabled = true,
+    onToggleCompression,
+    concurrency = 3,
 }: {
-    onFile: (file: File) => void;
-    uploadProgress: number | null;
-    disabled: boolean;
+    onFiles?: (files: File[]) => void;
+    onFile?: (f: File) => void;
+    disabled?: boolean;
+    activeCount?: number;
+    queuedCount?: number;
+    compressionEnabled?: boolean;
+    onToggleCompression?: (enabled: boolean) => void;
+    concurrency?: number;
 }) {
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragError, setDragError] = useState<string | null>(null);
+    const [dragging, setDragging] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        if (!disabled) setIsDragging(true);
+    const dispatchFiles = (fileList: FileList | null) => {
+        if (!fileList || fileList.length === 0) return;
+        const arr = Array.from(fileList);
+        if (onFiles) {
+            onFiles(arr);
+        } else if (onFile) {
+            arr.forEach((f) => onFile(f));
+        }
     };
-    const handleDragLeave = () => { setIsDragging(false); setDragError(null); };
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
-        setIsDragging(false);
+        setDragging(false);
         if (disabled) return;
-        const file = e.dataTransfer.files[0];
-        if (!file) return;
-        const err = validateFile(file);
-        if (err) { setDragError(err); return; }
-        setDragError(null);
-        onFile(file);
+        dispatchFiles(e.dataTransfer.files);
     };
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const err = validateFile(file);
-        if (err) { setDragError(err); return; }
-        setDragError(null);
-        onFile(file);
-        e.target.value = "";
-    };
-
-    if (uploadProgress !== null) {
-        return (
-            <div className="p-10 border-2 border-blue-200 rounded-2xl bg-blue-50 flex flex-col items-center gap-4">
-                <div className="w-14 h-14 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" />
-                <div className="w-full max-w-xs text-center">
-                    <p className="text-blue-700 font-semibold text-sm mb-2">A enviar... {uploadProgress}%</p>
-                    <ProgressBar value={uploadProgress} color="blue" />
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
+            onDragOver={(e) => {
+                e.preventDefault();
+                if (!disabled) setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
             onClick={() => !disabled && inputRef.current?.click()}
-            className={`
-                relative p-10 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer
-                transition-all duration-200 select-none
-                ${isDragging
-                    ? "border-blue-500 bg-blue-100 scale-[1.01]"
-                    : "border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) =>
+                (e.key === "Enter" || e.key === " ") && !disabled && inputRef.current?.click()
+            }
+            aria-label="Zona de upload multi-ficheiro"
+            className={`relative flex flex-col items-center justify-center gap-3 p-7 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-200 select-none
+                ${
+                    dragging
+                        ? "border-blue-500 bg-blue-50/70 scale-[1.01] shadow-md"
+                        : "border-gray-200 bg-gray-50/60 hover:border-blue-400 hover:bg-blue-50/30"
                 }
-                ${disabled ? "opacity-50 cursor-not-allowed" : ""}
-            `}
+                ${disabled ? "opacity-50 pointer-events-none" : ""}`}
         >
-            <span className="text-4xl">{isDragging ? "📥" : "☁️"}</span>
-            <div className="text-center">
-                <p className="font-semibold text-gray-700">
-                    {isDragging ? "Larga para fazer upload" : "Arrasta um ficheiro ou clica para selecionar"}
-                </p>
-                <p className="text-sm text-gray-400 mt-1">
-                    {Array.from(ALLOWED_EXTENSIONS).join(", ")} · Máx. {MAX_FILE_SIZE_MB}MB
-                </p>
-            </div>
-            {dragError && (
-                <p className="text-red-600 text-sm font-medium bg-red-50 px-3 py-1 rounded-lg border border-red-200">
-                    {dragError}
-                </p>
-            )}
             <input
                 ref={inputRef}
                 type="file"
-                className="hidden"
-                onChange={handleChange}
+                multiple
                 accept={Array.from(ALLOWED_EXTENSIONS).join(",")}
-                disabled={disabled}
+                className="hidden"
+                onChange={(e) => {
+                    dispatchFiles(e.target.files);
+                    e.target.value = "";
+                }}
             />
+
+            <div className="w-12 h-12 rounded-2xl bg-blue-100/80 text-blue-600 flex items-center justify-center shadow-sm">
+                <UploadCloud className="w-6 h-6" />
+            </div>
+
+            <div className="text-center">
+                <p className="text-sm font-semibold text-gray-800">
+                    Arraste vários ficheiros em simultâneo ou{" "}
+                    <span className="text-blue-600 underline">clique para selecionar em lote</span>
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                    Fila paralela MEGA ({concurrency} canais simultâneos) · Máx. {MAX_FILE_SIZE_MB} MB por ficheiro
+                </p>
+            </div>
+
+            {/* Pílulas de estado de Compressão e Concorrência */}
+            <div
+                className="flex flex-wrap items-center justify-center gap-2 mt-1"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {onToggleCompression && (
+                    <button
+                        type="button"
+                        onClick={() => onToggleCompression(!compressionEnabled)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition ${
+                            compressionEnabled
+                                ? "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+                                : "bg-white text-gray-500 border-gray-200 hover:bg-gray-100"
+                        }`}
+                    >
+                        <Archive className="w-3.5 h-3.5" />
+                        Compressão Gzip: {compressionEnabled ? "Ativa" : "Desativada"}
+                    </button>
+                )}
+
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    <Layers className="w-3.5 h-3.5" />
+                    {activeCount > 0
+                        ? `${activeCount} em envio paralelo (${queuedCount} em fila)`
+                        : `Pronto para ${concurrency}x uploads paralelos`}
+                </span>
+            </div>
         </div>
     );
 }

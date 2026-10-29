@@ -1,177 +1,258 @@
-"use client";
-
-import { useMemo, useState, useEffect, memo } from "react";
+import { useMemo, useState } from "react";
+import { Archive, ArrowDownToLine, CheckSquare, Square } from "lucide-react";
+import { DragItem } from "./folders";
 import { FileRow } from "./file_row";
-import { FileItem } from ".";
-import Pagination from "@/app/component/pagination-component";
-import { Search, CloudOff, Loader2, X } from "lucide-react"; // Certifique-se de ter o lucide-react instalado
+import { FileItem, Pagination } from ".";
 
-type Props = {
-    files: FileItem[];
-    search: string;
-    setSearch: (v: string) => void;
-    isLoading: boolean;
-    downloadingFile: { name: string; progress: number } | null;
-    uploadProgress: number | null;
-    page: number;
-    totalPages: number;
-    onPageChange: (page: number) => void;
-    onDownload: (filename: string) => void;
-    onDelete: (filename: string) => void;
-    /** Arrastar um ficheiro para uma pasta move-o (ver page.tsx). */
-    onFileDragStart?: (file: FileItem) => void;
-    onFileDragEnd?: () => void;
-    draggingFileId?: string | null;
-};
-
-export const FileList = memo(function FileList({
-    files = [],
-    page,
-    totalPages,
+export function FileList({
+    files,
+    pagination,
     onPageChange,
     search,
-    setSearch,
-    isLoading,
-    downloadingFile,
-    uploadProgress,
+    onSearchChange,
     onDownload,
     onDelete,
-    onFileDragStart,
-    onFileDragEnd,
-    draggingFileId,
-}: Props) {
+    onPermissions,
+    selectedIds = [],
+    onToggleSelect,
+    onSelectAll,
+    onClearSelection,
+    onBulkParallelDownload,
+    onBulkZipDownload,
+    downloadingProgressById = {},
+    loading,
+    onDragStart,
+    onDragEnd,
+    dragItem,
+}: {
+    files: FileItem[];
+    pagination: Pagination;
+    onPageChange: (page: number) => void;
+    search: string;
+    onSearchChange: (s: string) => void;
+    onDownload: (file: FileItem) => void;
+    onDelete: (filename: string) => void;
+    onPermissions?: (file: FileItem) => void;
+    selectedIds?: string[];
+    onToggleSelect?: (id: string) => void;
+    onSelectAll?: (ids: string[]) => void;
+    onClearSelection?: () => void;
+    onBulkParallelDownload?: (selectedFiles: FileItem[]) => void;
+    onBulkZipDownload?: (selectedFiles: FileItem[]) => void;
+    downloadingProgressById?: Record<string, number>;
+    loading: boolean;
+    onDragStart?: (item: DragItem) => void;
+    onDragEnd?: () => void;
+    dragItem?: DragItem | null;
+}) {
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-    // ⏱️ Estado local para o input (feedback visual imediato sem travar o React)
-    const [localSearch, setLocalSearch] = useState(search);
+    const filtered = useMemo(() => {
+        return files
+            .filter((f) => f.filename.toLowerCase().includes(search.toLowerCase()))
+            .sort((a, b) =>
+                sortOrder === "asc"
+                    ? a.filename.localeCompare(b.filename)
+                    : b.filename.localeCompare(a.filename)
+            );
+    }, [files, search, sortOrder]);
 
-    // ⏱️ DEBOUNCE: Só atualiza o estado global (e faz o filtro) 300ms após o utilizador parar de digitar
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (localSearch !== search) {
-                setSearch(localSearch);
-            }
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [localSearch, setSearch, search]);
-
-    // Sincroniza caso a prop 'search' seja limpa pelo componente pai
-    useEffect(() => {
-        setLocalSearch(search);
-    }, [search]);
-
-    // 🔍 Filtro otimizado
-    const filteredFiles = useMemo(() => {
-        const query = search.trim().toLowerCase();
-        if (!query) return files;
-
-        return files.filter((f) =>
-            f.filename.toLowerCase().includes(query) ||
-            f.mime_type?.toLowerCase().includes(query) ||
-            f.size_bytes?.toString().includes(query)
-        );
-    }, [files, search]);
-
-    const showPagination = !search && totalPages > 1;
-    const isEmpty = files.length === 0;
-    const noResults = !isEmpty && filteredFiles.length === 0;
+    const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+    const allFilteredSelected =
+        filtered.length > 0 && filtered.every((f) => selectedSet.has(f.id));
+    const selectedFiles = useMemo(
+        () => files.filter((f) => selectedSet.has(f.id)),
+        [files, selectedSet]
+    );
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
+        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
             {/* HEADER */}
-            <div className="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h2 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                        Ficheiros Armazenados
-                        <span className="text-xs font-semibold bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full">
-                            {search ? filteredFiles.length : files.length}
+            <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-2.5 flex-1">
+                    {onSelectAll && filtered.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (allFilteredSelected) {
+                                    onClearSelection?.();
+                                } else {
+                                    onSelectAll(filtered.map((f) => f.id));
+                                }
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-blue-600 px-2 py-1 rounded-lg hover:bg-gray-50 transition"
+                            title={
+                                allFilteredSelected
+                                    ? "Desmarcar todos"
+                                    : "Selecionar todos desta página"
+                            }
+                        >
+                            {allFilteredSelected ? (
+                                <CheckSquare className="w-4 h-4 text-blue-600" />
+                            ) : (
+                                <Square className="w-4 h-4 text-gray-400" />
+                            )}
+                        </button>
+                    )}
+
+                    <h2 className="font-semibold text-gray-800 text-base">
+                        Ficheiros{" "}
+                        <span className="ml-1.5 text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                            {pagination?.total ?? 0}
                         </span>
                     </h2>
                 </div>
 
-                {!isEmpty && (
-                    <div className="relative group w-full sm:w-72">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={16} />
-                        <input
-                            type="text"
-                            placeholder="Pesquisar ficheiros..."
-                            value={localSearch}
-                            onChange={(e) => setLocalSearch(e.target.value)}
-                            className="w-full pl-10 pr-10 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                        />
-                        {/* Botão para limpar a pesquisa rapidamente */}
-                        {localSearch && (
+                {/* SEARCH */}
+                <div className="relative flex-1 max-w-xs">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                        🔍
+                    </span>
+                    <input
+                        type="text"
+                        placeholder="Filtrar ficheiros…"
+                        value={search}
+                        onChange={(e) => onSearchChange(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                    />
+                </div>
+
+                {/* SORT */}
+                <button
+                    type="button"
+                    onClick={() => setSortOrder((s) => (s === "asc" ? "desc" : "asc"))}
+                    className="text-xs text-gray-500 hover:text-gray-800 px-2.5 py-1.5 border border-gray-200 rounded-lg transition self-start sm:self-auto"
+                >
+                    Nome {sortOrder === "asc" ? "↑" : "↓"}
+                </button>
+            </div>
+
+            {/* BARRA DE AÇÃO EM LOTE (MEGA Paralelo + Compressão ZIP) */}
+            {selectedFiles.length > 0 && (
+                <div className="px-5 py-2.5 bg-indigo-50/80 border-b border-indigo-100 flex flex-wrap items-center justify-between gap-2 animate-slide-in">
+                    <span className="text-xs font-semibold text-indigo-900">
+                        {selectedFiles.length} ficheiro{selectedFiles.length === 1 ? "" : "s"}{" "}
+                        selecionado{selectedFiles.length === 1 ? "" : "s"}
+                    </span>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        {onBulkParallelDownload && (
                             <button
-                                onClick={() => setLocalSearch("")}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                                aria-label="Limpar pesquisa"
+                                type="button"
+                                onClick={() => onBulkParallelDownload(selectedFiles)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm"
                             >
-                                <X size={16} />
+                                <ArrowDownToLine className="w-3.5 h-3.5" />
+                                Baixar em Paralelo (MEGA)
+                            </button>
+                        )}
+
+                        {onBulkZipDownload && (
+                            <button
+                                type="button"
+                                onClick={() => onBulkZipDownload(selectedFiles)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white hover:bg-purple-700 transition shadow-sm"
+                            >
+                                <Archive className="w-3.5 h-3.5" />
+                                Comprimir & Baixar (.ZIP)
+                            </button>
+                        )}
+
+                        {onClearSelection && (
+                            <button
+                                type="button"
+                                onClick={onClearSelection}
+                                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition"
+                            >
+                                Limpar seleção
                             </button>
                         )}
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
-            {/* CONTENT AREA */}
-            <div className="flex-1 flex flex-col relative" aria-live="polite">
-                {isLoading ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 bg-white/80 z-10">
-                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
-                        <p className="text-sm font-medium">A carregar ficheiros...</p>
-                    </div>
-                ) : isEmpty ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                            <CloudOff className="text-gray-300" size={32} />
-                        </div>
-                        <p className="font-medium text-gray-600">A tua cloud está vazia</p>
-                        <p className="text-sm text-gray-400 mt-1">Arrasta ou seleciona um ficheiro para começar</p>
-                    </div>
-                ) : noResults ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                        <Search className="text-gray-200 mb-4" size={40} />
-                        <p className="text-sm text-gray-500">
-                            Nenhum ficheiro corresponde a <strong className="text-gray-700">"{search}"</strong>
-                        </p>
-                        <button
-                            onClick={() => setLocalSearch("")}
-                            className="mt-4 text-sm font-medium text-blue-600 hover:underline"
-                        >
-                            Limpar filtro
-                        </button>
-                    </div>
-                ) : (
-                    <div className="flex-1 flex flex-col justify-between">
-                        <ul className="divide-y divide-gray-50">
-                            {filteredFiles.map((file) => (
+            {/* LOADING */}
+            {loading ? (
+                <div className="p-8 space-y-3">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+                    ))}
+                </div>
+            ) : filtered.length === 0 ? (
+                <div className="py-16 text-center text-gray-400">
+                    <p className="text-4xl mb-2">🗂️</p>
+                    <p className="text-sm font-medium">
+                        {search ? "Nenhum ficheiro corresponde à pesquisa" : "Sem ficheiros"}
+                    </p>
+                </div>
+            ) : (
+                <>
+                    {/* LIST */}
+                    <ul className="divide-y divide-gray-50">
+                        {filtered.map((f) => {
+                            const prog = downloadingProgressById[f.id] ?? downloadingProgressById[f.filename];
+                            const isDl = prog !== undefined && prog >= 0 && prog < 100;
+                            return (
                                 <FileRow
-                                    key={file.id || file.filename}
-                                    file={file}
-                                    isDownloading={downloadingFile?.name === file.filename}
-                                    downloadProgress={downloadingFile?.name === file.filename ? downloadingFile.progress : 0}
-                                    onDownload={() => onDownload(file.filename)}
-                                    onDelete={() => onDelete(file.filename)}
-                                    disabled={downloadingFile !== null || uploadProgress !== null}
-                                    onDragStart={onFileDragStart ? () => onFileDragStart(file) : undefined}
-                                    onDragEnd={onFileDragEnd}
-                                    isDragging={draggingFileId === file.id}
+                                    key={f.id}
+                                    file={f}
+                                    isDownloading={isDl}
+                                    downloadProgress={prog ?? 0}
+                                    onDownload={() => onDownload(f)}
+                                    onDelete={() => onDelete(f.filename)}
+                                    onPermissions={
+                                        onPermissions ? () => onPermissions(f) : undefined
+                                    }
+                                    selected={selectedSet.has(f.id)}
+                                    onToggleSelect={
+                                        onToggleSelect ? () => onToggleSelect(f.id) : undefined
+                                    }
+                                    disabled={false}
+                                    onDragStart={
+                                        onDragStart
+                                            ? () =>
+                                                  onDragStart({
+                                                      kind: "file",
+                                                      id: f.id,
+                                                      name: f.filename,
+                                                  })
+                                            : undefined
+                                    }
+                                    onDragEnd={onDragEnd}
+                                    isDragging={dragItem?.kind === "file" && dragItem.id === f.id}
                                 />
-                            ))}
-                        </ul>
+                            );
+                        })}
+                    </ul>
 
-                        {/* PAGINAÇÃO */}
-                        {showPagination && (
-                            <div className="p-4 border-t border-gray-100 bg-gray-50/50 mt-auto">
-                                <Pagination
-                                    page={page}
-                                    totalPages={totalPages}
-                                    onPageChange={onPageChange}
-                                />
-                            </div>
-                        )}
+                    {/* PAGINATION */}
+                    <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                        <span>
+                            Página {pagination?.page} de {Math.max(1, pagination?.pages || 1)}
+                        </span>
+
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                disabled={pagination?.page <= 1}
+                                onClick={() => onPageChange(pagination.page - 1)}
+                                className="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-50"
+                            >
+                                ← Anterior
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={pagination?.page >= pagination?.pages}
+                                onClick={() => onPageChange(pagination.page + 1)}
+                                className="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-50"
+                            >
+                                Próxima →
+                            </button>
+                        </div>
                     </div>
-                )}
-            </div>
+                </>
+            )}
         </div>
     );
-});
+}

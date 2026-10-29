@@ -40,7 +40,7 @@ export const VARIABLE_GROUPS: VariableGroup[] = [
   {
     group: "Empresa / Utilizador",
     items: [
-      { key: "empresa.nome", label: "Nome da empresa", sample: "MustaInfo" },
+      { key: "empresa.nome", label: "Nome da empresa", sample: "MustaInfoo" },
       { key: "usuario.nome", label: "Nome do utilizador", sample: "Francys" },
     ],
   },
@@ -55,7 +55,7 @@ export const TABLE_BIND = {
 // Contexto de EXEMPLO para o preview (mesma forma do backend).
 export const SAMPLE_CONTEXT: Record<string, unknown> = {
   data: { hoje: "09/08/2026", hora: "14:03", iso: "2026-08-09T14:03:00" },
-  empresa: { nome: "MustaInfo" },
+  empresa: { nome: "MustaInfoo" },
   usuario: { nome: "Francys" },
   query: {
     total: 3,

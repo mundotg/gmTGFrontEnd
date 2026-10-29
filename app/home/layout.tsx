@@ -5,7 +5,7 @@ import Sidebar from "../component/Sidebar";
 
 
 export const metadata: Metadata = {
-  title: "MustaInf plataforma",
+  title: "MustaInfo plataforma",
   description: "Uma plataforma completa para gerir a sua infraestrutura de dados.",
 };
 

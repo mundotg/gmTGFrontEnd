@@ -5,8 +5,8 @@ import { LegalDocument } from "../_legal/LegalDocument";
 import { privacidade } from "../_legal/privacidade";
 
 export const metadata: Metadata = {
-  title: "Política de Privacidade · MustaInfo",
-  description: "Que dados o MustaInfo recolhe, como os usa e durante quanto tempo os guarda.",
+  title: "Política de Privacidade · MustaInfoo",
+  description: "Que dados o MustaInfoo recolhe, como os usa e durante quanto tempo os guarda.",
 };
 
 export default function Page() {

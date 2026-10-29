@@ -1,11 +1,25 @@
 "use client";
-import React, { useCallback, useMemo, useState } from "react";
-import { ChevronDown, Eye, EyeOff, Plus, Server, CheckCircle2, XCircle, Link2 } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Plus,
+  Server,
+  CheckCircle2,
+  XCircle,
+  Link2,
+  ShieldCheck,
+  Globe,
+  Copy,
+  Check,
+} from "lucide-react";
 import { ConnectionFormData, DatabaseOption } from "@/types";
 import {
   CONNECTION_URL_EXAMPLES,
   checkConnectionUrl,
 } from "@/util/connectioPage/connectionUrl";
+import type { MustaLinkAgent } from "@/service/mustalink";
 
 interface ConnectionFormProps {
   t: (key: string, vars?: Record<string, string | number>) => string;
@@ -22,6 +36,20 @@ interface ConnectionFormProps {
   testConnection: () => void;
   connect: () => void;
   getStatusIcon: (status: string) => React.ReactNode;
+  onlineAgents?: MustaLinkAgent[];
+  onOpenMustaLinkModal?: () => void;
+}
+
+function extractAgentIdFromHost(host: string): string | null {
+  const raw = (host || "").trim();
+  const lower = raw.toLowerCase();
+  if (lower === "agent" || lower === "musta-agent") return "default";
+  for (const prefix of ["agent://", "musta-agent://", "tunnel://", "agent:"]) {
+    if (lower.startsWith(prefix)) {
+      return raw.slice(prefix.length).trim() || "default";
+    }
+  }
+  return null;
 }
 
 export const ConnectionForm: React.FC<ConnectionFormProps> = ({
@@ -37,10 +65,34 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   setShowDropdown,
   handleDbSelect,
   testConnection,
-  connect
+  connect,
+  onlineAgents = [],
+  onOpenMustaLinkModal,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showUrl, setShowUrl] = useState(false);
+  const [copiedVirtualHost, setCopiedVirtualHost] = useState(false);
+
+  const detectedAgentId = useMemo(
+    () => extractAgentIdFromHost(formData.host || ""),
+    [formData.host]
+  );
+
+  const [connectionMode, setConnectionMode] = useState<"direct" | "agent">(
+    detectedAgentId ? "agent" : "direct"
+  );
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(
+    detectedAgentId || onlineAgents[0]?.agent_id || "luanda-pg-01"
+  );
+
+  // Sincroniza o modo automaticamente se o utilizador carregar uma conexão salva ou escolher um agente no modal
+  useEffect(() => {
+    const parsed = extractAgentIdFromHost(formData.host || "");
+    if (parsed) {
+      setConnectionMode("agent");
+      setSelectedAgentId(parsed);
+    }
+  }, [formData.host]);
 
   /** Atualiza campo do formulário */
   const updateField = useCallback(
@@ -52,6 +104,53 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
     },
     [setFormData]
   );
+
+  const handleModeChange = useCallback(
+    (mode: "direct" | "agent") => {
+      setConnectionMode(mode);
+      if (mode === "agent") {
+        const targetId =
+          selectedAgentId.trim() ||
+          onlineAgents[0]?.agent_id ||
+          "luanda-pg-01";
+        setSelectedAgentId(targetId);
+        setFormData((prev) => ({
+          ...prev,
+          useUrl: false,
+          host: `agent://${targetId}`,
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          host: extractAgentIdFromHost(prev.host || "") ? "127.0.0.1" : prev.host,
+        }));
+      }
+    },
+    [onlineAgents, selectedAgentId, setFormData]
+  );
+
+  const handleAgentIdChange = useCallback(
+    (agentId: string) => {
+      setSelectedAgentId(agentId);
+      const clean = agentId.trim() || "default";
+      setFormData((prev) => ({
+        ...prev,
+        host: `agent://${clean}`,
+      }));
+    },
+    [setFormData]
+  );
+
+  const copyVirtualHost = useCallback(async () => {
+    const vh = `agent://${selectedAgentId.trim() || "default"}`;
+    try {
+      await navigator.clipboard.writeText(vh);
+      setCopiedVirtualHost(true);
+      setTimeout(() => setCopiedVirtualHost(false), 2000);
+    } catch {
+      // ignore clipboard errors
+    }
+  }, [selectedAgentId]);
 
   const useUrl = !!formData.useUrl;
 
@@ -108,8 +207,8 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
               type="button"
               onClick={() => setShowDropdown(!showDropdown)}
               className={`w-full px-4 py-3 text-left border rounded-xl flex items-center justify-between transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
-                showDropdown 
-                  ? "border-blue-500 bg-white shadow-sm" 
+                showDropdown
+                  ? "border-blue-500 bg-white shadow-sm"
                   : "border-gray-200 bg-gray-50 hover:bg-white"
               }`}
             >
@@ -152,31 +251,156 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         {/* Campos dinâmicos */}
         {selectedDb && (
           <div className="space-y-5 animate-in fade-in slide-in-from-top-4 duration-300">
+            {/* Escolha de Modalidade: Ligação Direta vs Ligação Privada MustaLink Agent */}
+            {selectedDb !== "sqlite" && (
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-2">
+                  TIPO DE LIGAÇÃO
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleModeChange("direct")}
+                    className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left text-xs font-bold transition ${
+                      connectionMode === "direct"
+                        ? "border-blue-500 bg-blue-50/70 text-blue-900 shadow-xs"
+                        : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-white"
+                    }`}
+                  >
+                    <Globe className="h-4 w-4 shrink-0 text-blue-600" />
+                    <div>
+                      <div>Ligação direta — Host / IP</div>
+                      <div className="text-[10px] font-medium text-gray-500">
+                        Acessível pela rede do servidor
+                      </div>
+                    </div>
+                  </button>
 
-            {/* Como ligar a ESTE tipo: campos separados ou uma URL única */}
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 transition-colors hover:border-blue-300 hover:bg-white">
-              <input
-                type="checkbox"
-                checked={useUrl}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, useUrl: e.target.checked }))
-                }
-                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500/50"
-              />
-              <span className="min-w-0">
-                <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
-                  <Link2 className="h-4 w-4 text-gray-400" />
-                  {t("connectUseUrl")}
-                </span>
-                <span className="mt-1 block text-xs font-medium text-gray-500">
-                  {t("connectUseUrlHint", {
-                    db: selectedDatabase?.name ?? "",
-                  })}
-                </span>
-              </span>
-            </label>
+                  <button
+                    type="button"
+                    onClick={() => handleModeChange("agent")}
+                    className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left text-xs font-bold transition ${
+                      connectionMode === "agent"
+                        ? "border-emerald-500 bg-emerald-50/70 text-emerald-900 shadow-xs"
+                        : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-white"
+                    }`}
+                  >
+                    <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                    <div>
+                      <div>Ligação privada — MustaLink Agent</div>
+                      <div className="text-[10px] font-medium text-gray-500">
+                        Túnel reverso sem abrir portas
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
 
-            {useUrl ? (
+            {/* Painel de seleção do Agente MustaLink quando em modo "agent" */}
+            {connectionMode === "agent" && selectedDb !== "sqlite" && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                    Agente MustaLink
+                  </span>
+                  {onOpenMustaLinkModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenMustaLinkModal}
+                      className="text-xs font-bold text-emerald-700 underline hover:text-emerald-900"
+                    >
+                      Gerir agentes ({onlineAgents.length} online)
+                    </button>
+                  )}
+                </div>
+
+                {onlineAgents.length > 0 && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                      Selecionar agente ligado
+                    </label>
+                    <select
+                      value={selectedAgentId}
+                      onChange={(e) => handleAgentIdChange(e.target.value)}
+                      className="w-full rounded-xl border border-emerald-200 bg-white px-3.5 py-2.5 text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    >
+                      {onlineAgents.map((ag) => (
+                        <option key={ag.agent_id} value={ag.agent_id}>
+                          🟢 {ag.agent_id} ({ag.target_db} · {ag.active_streams} sessões)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                      ID do Agente
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedAgentId}
+                      onChange={(e) => handleAgentIdChange(e.target.value)}
+                      placeholder="luanda-pg-01"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-mono font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                      Host virtual gerado automaticamente
+                    </label>
+                    <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2">
+                      <code className="truncate font-mono text-xs font-bold text-emerald-700">
+                        {`agent://${selectedAgentId.trim() || "default"}`}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={copyVirtualHost}
+                        className="ml-2 text-gray-400 hover:text-gray-700"
+                        title="Copiar host virtual"
+                      >
+                        {copiedVirtualHost ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Como ligar a ESTE tipo: campos separados ou uma URL única (apenas no modo direto) */}
+            {connectionMode === "direct" && (
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 transition-colors hover:border-blue-300 hover:bg-white">
+                <input
+                  type="checkbox"
+                  checked={useUrl}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, useUrl: e.target.checked }))
+                  }
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500/50"
+                />
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
+                    <Link2 className="h-4 w-4 text-gray-400" />
+                    {t("connectUseUrl")}
+                  </span>
+                  <span className="mt-1 block text-xs font-medium text-gray-500">
+                    {t("connectUseUrlHint", {
+                      db: selectedDatabase?.name ?? "",
+                    })}
+                  </span>
+                </span>
+              </label>
+            )}
+
+            {useUrl && connectionMode === "direct" ? (
               <div className="space-y-5">
                 <InputField
                   label={t("connectionName") || "NOME DA CONEXÃO"}
@@ -244,92 +468,103 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
                 )}
               </div>
             ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <InputField
+                  label={t("connectionName") || "NOME DA CONEXÃO"}
+                  value={formData.name || ""}
+                  onChange={(e) => updateField("name", e.target.value)}
+                  placeholder={getPlaceholder("name")}
+                />
 
-              <InputField
-                label={t("connectionName") || "NOME DA CONEXÃO"}
-                value={formData.name || ""}
-                onChange={(e) => updateField("name", e.target.value)}
-                placeholder={getPlaceholder("name")}
-              />
+                <InputField
+                  label={
+                    connectionMode === "agent"
+                      ? "HOST VIRTUAL (MUSTALINK)"
+                      : t("host") || "HOST / IP"
+                  }
+                  value={formData.host || ""}
+                  onChange={(e) => updateField("host", e.target.value)}
+                  placeholder={
+                    connectionMode === "agent"
+                      ? "agent://luanda-pg-01"
+                      : getPlaceholder("host")
+                  }
+                />
 
-              <InputField
-                label={t("host") || "HOST / IP"}
-                value={formData.host || ""}
-                onChange={(e) => updateField("host", e.target.value)}
-                placeholder={getPlaceholder("host")}
-              />
+                <InputField
+                  label={t("port") || "PORTA"}
+                  value={formData.port || ""}
+                  onChange={(e) => updateField("port", e.target.value)}
+                  placeholder={getPlaceholder("port")}
+                />
 
-              <InputField
-                label={t("port") || "PORTA"}
-                value={formData.port || ""}
-                onChange={(e) => updateField("port", e.target.value)}
-                placeholder={getPlaceholder("port")}
-              />
+                <InputField
+                  label={
+                    selectedDb === "sqlite"
+                      ? t("filePath") || "CAMINHO DO ARQUIVO"
+                      : t("database") || "NOME DO BANCO"
+                  }
+                  value={formData.database || ""}
+                  onChange={(e) => updateField("database", e.target.value)}
+                  placeholder={getPlaceholder("database")}
+                />
 
-              <InputField
-                label={
-                  selectedDb === "sqlite" ? (t("filePath") || "CAMINHO DO ARQUIVO") : (t("database") || "NOME DO BANCO")
-                }
-                value={formData.database || ""}
-                onChange={(e) => updateField("database", e.target.value)}
-                placeholder={getPlaceholder("database")}
-              />
+                {selectedDb !== "sqlite" && (
+                  <>
+                    <InputField
+                      label={t("username") || "USUÁRIO"}
+                      value={formData.username || ""}
+                      onChange={(e) => updateField("username", e.target.value)}
+                      placeholder={getPlaceholder("username")}
+                    />
 
-              {selectedDb !== "sqlite" && (
-                <>
+                    <PasswordField
+                      label={t("password") || "SENHA"}
+                      value={formData.password || ""}
+                      showPassword={showPassword}
+                      togglePassword={() => setShowPassword((p) => !p)}
+                      onChange={(e) => updateField("password", e.target.value)}
+                      placeholder={getPlaceholder("password")}
+                    />
+                  </>
+                )}
+
+                {selectedDb === "postgresql" && (
                   <InputField
-                    label={t("username") || "USUÁRIO"}
-                    value={formData.username || ""}
-                    onChange={(e) => updateField("username", e.target.value)}
-                    placeholder={getPlaceholder("username")}
+                    label="SSL MODE"
+                    value={formData.sslmode || ""}
+                    onChange={(e) => updateField("sslmode", e.target.value)}
+                    placeholder={getPlaceholder("sslmode")}
                   />
+                )}
 
-                  <PasswordField
-                    label={t("password") || "SENHA"}
-                    value={formData.password || ""}
-                    showPassword={showPassword}
-                    togglePassword={() => setShowPassword((p) => !p)}
-                    onChange={(e) => updateField("password", e.target.value)}
-                    placeholder={getPlaceholder("password")}
+                {selectedDb === "oracle" && (
+                  <InputField
+                    label="SERVICE NAME"
+                    value={formData.service || ""}
+                    onChange={(e) => updateField("service", e.target.value)}
+                    placeholder={getPlaceholder("service")}
                   />
-                </>
-              )}
+                )}
 
-              {selectedDb === "postgresql" && (
-                <InputField
-                  label="SSL MODE"
-                  value={formData.sslmode || ""}
-                  onChange={(e) => updateField("sslmode", e.target.value)}
-                  placeholder={getPlaceholder("sslmode")}
-                />
-              )}
-
-              {selectedDb === "oracle" && (
-                <InputField
-                  label="SERVICE NAME"
-                  value={formData.service || ""}
-                  onChange={(e) => updateField("service", e.target.value)}
-                  placeholder={getPlaceholder("service")}
-                />
-              )}
-
-              {selectedDb === "sqlserver" && (
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-2">
-                    TRUST SERVER CERTIFICATE
-                  </label>
-                  <select
-                    value={formData.trustServerCertificate || "yes"}
-                    onChange={(e) => updateField("trustServerCertificate", e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 hover:bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors appearance-none cursor-pointer"
-                  >
-                    <option value="yes">yes</option>
-                    <option value="no">no</option>
-                  </select>
-                </div>
-              )}
-            </div>
+                {selectedDb === "sqlserver" && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-2">
+                      TRUST SERVER CERTIFICATE
+                    </label>
+                    <select
+                      value={formData.trustServerCertificate || "yes"}
+                      onChange={(e) =>
+                        updateField("trustServerCertificate", e.target.value)
+                      }
+                      className="w-full px-4 py-3 bg-gray-50 hover:bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors appearance-none cursor-pointer"
+                    >
+                      <option value="yes">yes</option>
+                      <option value="no">no</option>
+                    </select>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -343,16 +578,17 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
                 : "bg-red-50 border-red-200 text-red-800"
             }`}
           >
-            {connectionStatus === "success" || connectionStatus === "connected" 
-              ? <CheckCircle2 className="w-5 h-5 text-green-600" />
-              : <XCircle className="w-5 h-5 text-red-600" />
-            }
+            {connectionStatus === "success" || connectionStatus === "connected" ? (
+              <CheckCircle2 className="w-5 h-5 text-green-600" />
+            ) : (
+              <XCircle className="w-5 h-5 text-red-600" />
+            )}
             <span className="font-bold text-sm tracking-wide">
               {connectionStatus === "success"
-                ? (t("testSuccess") || "Conexão testada com sucesso!")
+                ? t("testSuccess") || "Conexão testada com sucesso!"
                 : connectionStatus === "connected"
-                ? (t("connectedSuccess") || "Conectado e salvo com sucesso!")
-                : (t("connectionError") || "Erro ao conectar. Verifique as credenciais.")}
+                ? t("connectedSuccess") || "Conectado e salvo com sucesso!"
+                : t("connectionError") || "Erro ao conectar. Verifique as credenciais."}
             </span>
           </div>
         )}
@@ -363,7 +599,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
             onClick={testConnection}
             disabled={isConnecting || !selectedDb || urlIncompleta}
             icon={<Server className="w-4 h-4" />}
-            text={isConnecting ? (t("testing") || "Testando...") : (t("test") || "Testar Conexão")}
+            text={isConnecting ? t("testing") || "Testando..." : t("test") || "Testar Conexão"}
             loading={isConnecting}
             variant="outline"
           />
@@ -371,7 +607,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
             onClick={connect}
             disabled={isConnecting || !selectedDb || urlIncompleta}
             icon={<Plus className="w-4 h-4" />}
-            text={isConnecting ? (t("connecting") || "Conectando...") : (t("connect") || "Salvar & Conectar")}
+            text={isConnecting ? t("connecting") || "Conectando..." : t("connect") || "Salvar & Conectar"}
             loading={isConnecting}
             variant="solid"
           />

@@ -126,8 +126,8 @@ const LoginPage = () => {
       const resp = await api.post("/auth/resend-verification", { email: targetEmail });
       setResendSuccess(
         resp.data?.message ||
-          t("auth.resendVerificationSuccess") ||
-          "Novo e-mail de confirmação enviado! Por favor consulte a sua caixa de entrada."
+        t("auth.resendVerificationSuccess") ||
+        "Novo e-mail de confirmação enviado! Por favor consulte a sua caixa de entrada."
       );
     } catch (err: any) {
       const msg =
@@ -190,13 +190,13 @@ const LoginPage = () => {
         setUnverifiedEmail(email);
         setVerificationError(
           detailStr ||
-            t("auth.errorEmailNotVerified") ||
-            "E-mail não verificado. Confirme o seu endereço de e-mail através da ligação enviada para iniciar sessão."
+          t("auth.errorEmailNotVerified") ||
+          "E-mail não verificado. Confirme o seu endereço de e-mail através da ligação enviada para iniciar sessão."
         );
         showToast(
           "error",
           t("auth.errorEmailNotVerified") ||
-            "E-mail não verificado. Confirme o seu e-mail antes de aceder.",
+          "E-mail não verificado. Confirme o seu e-mail antes de aceder.",
           6000
         );
       } else if (status === 403 && detailStr.toLowerCase().includes("desativada")) {
@@ -225,14 +225,14 @@ const LoginPage = () => {
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 w-full max-w-md animate-in fade-in zoom-in-95 duration-300">
 
         {/* 4. Uso do next/script para evitar erros de hidratação */}
-       
+
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="text-center mb-8">
             <div className="bg-blue-50 border border-blue-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
               <Database className="w-8 h-8 text-blue-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">MustaInf</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">MustaInfo</h1>
             <p className="text-gray-500 text-sm font-medium">{t("header.platformType")}</p>
           </div>
 

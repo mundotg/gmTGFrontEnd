@@ -91,7 +91,7 @@ export async function downloadUserData() {
   );
   const link = document.createElement("a");
   link.href = url;
-  link.download = `mustainf-meus-dados-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `MustaInfo-meus-dados-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();
