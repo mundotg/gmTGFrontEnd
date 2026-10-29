@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Loader2,
   AlertTriangle,
@@ -11,7 +11,6 @@ import {
   MessageSquare,
   Trello,
   Cloud,
-  Database,
   Layers,
   Settings,
   Shield,
@@ -25,11 +24,52 @@ import {
   Info,
   X,
   Sparkles,
+  FileWarning,
+  Trash2,
+  Filter,
 } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
 import { hasPermission } from "@/permissions_val";
 import api from "@/context/axioCuston";
-import usePersistedState from "@/hook/localStoreUse";
+
+/* =========================================================================
+   CONFIGURAÇÕES ESTÁTICAS VIA VARIÁVEIS DE AMBIENTE (.env)
+========================================================================= */
+
+const ENV_DEFAULT_BQ_REGION =
+  process.env.NEXT_PUBLIC_INTEGRATION_DEFAULT_BQ_REGION || "us-central1";
+const ENV_DEFAULT_BQ_MAX_GB = Number(
+  process.env.NEXT_PUBLIC_INTEGRATION_DEFAULT_BQ_MAX_GB || 10
+);
+const ENV_DEFAULT_BQ_COST_USD = Number(
+  process.env.NEXT_PUBLIC_INTEGRATION_DEFAULT_BQ_COST_USD || 1.0
+);
+const ENV_DOCS_BASE_URL =
+  process.env.NEXT_PUBLIC_INTEGRATION_DOCS_BASE_URL ||
+  "https://cloud.google.com/bigquery/docs";
+const ENV_LOGS_LIMIT = Number(
+  process.env.NEXT_PUBLIC_INTEGRATION_LOGS_LIMIT || 50
+);
+
+function parseEnvRegions(raw?: string): { value: string; label: string }[] {
+  const fallback =
+    "us-central1:us-central1 (Iowa),us-east4:us-east4 (N. Virgínia),southamerica-east1:southamerica-east1 (São Paulo),europe-west1:europe-west1 (Bélgica),europe-west3:europe-west3 (Frankfurt),asia-east1:asia-east1 (Taiwan)";
+  return (raw || fallback)
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [val, label] = entry.split(":");
+      return {
+        value: (val || "").trim(),
+        label: (label || val || "").trim(),
+      };
+    });
+}
+
+const STATIC_GCP_REGIONS = parseEnvRegions(
+  process.env.NEXT_PUBLIC_INTEGRATION_GCP_REGIONS
+);
 
 /* =========================================================================
    TIPOS & INTERFACES
@@ -52,14 +92,24 @@ export interface IntegrationItem {
   name: string;
   provider: string;
   description: string;
-  category: "Data Warehouse & Cloud" | "Armazenamento & ETL" | "Comunicação & Alertas" | "Desenvolvimento";
-  icon?: React.ReactNode;
+  category:
+    | "Data Warehouse & Cloud"
+    | "Armazenamento & ETL"
+    | "Comunicação & Alertas"
+    | "Desenvolvimento";
   brandColor: string;
   badge?: string;
+  docsUrl?: string;
   connected: boolean;
+  status?: string;
+  endpointUrl?: string;
   featured?: boolean;
   lastSync?: string;
+  lastError?: string | null;
+  errorCount?: number;
+  lastLatencyMs?: number | null;
   metrics?: IntegrationMetric[];
+  config?: Record<string, any>;
 }
 
 export interface BigQueryConfig {
@@ -67,44 +117,51 @@ export interface BigQueryConfig {
   datasetId: string;
   region: string;
   serviceAccountJson: string;
+  hasCredentials: boolean;
+  clientEmail?: string | null;
   dryRunEnabled: boolean;
   maxBytesBilledGb: number;
   costAlertThresholdUsd: number;
   autoSyncLineage: boolean;
   exportQueryAudit: boolean;
+  status?: string;
+  lastError?: string | null;
+  lastLatencyMs?: number | null;
 }
 
-export interface GenericConfig {
-  [key: string]: any;
+export interface IntegrationLogEntry {
+  id: number;
+  provider: string;
+  action: string;
+  level: "INFO" | "WARNING" | "ERROR" | "CRITICAL" | string;
+  status_code?: number | null;
+  error_code?: string | null;
+  endpoint_url?: string | null;
+  latency_ms?: number | null;
+  message: string;
+  details?: Record<string, any> | null;
+  created_at: string;
 }
-
-/* =========================================================================
-   DADOS PADRÃO & CONSTANTES
-========================================================================= */
 
 const DEFAULT_BIGQUERY_CONFIG: BigQueryConfig = {
-  projectId: "MustaInfo-analytics-prod",
-  datasetId: "analytics_dw",
-  region: "us-central1",
-  serviceAccountJson: `{\n  "type": "service_account",\n  "project_id": "MustaInfo-analytics-prod",\n  "private_key_id": "key_7f8a9b2c3d4e",\n  "client_email": "MustaInfo-sa@MustaInfo-analytics-prod.iam.gserviceaccount.com"\n}`,
+  projectId: "",
+  datasetId: "",
+  region: ENV_DEFAULT_BQ_REGION,
+  serviceAccountJson: "",
+  hasCredentials: false,
+  clientEmail: null,
   dryRunEnabled: true,
-  maxBytesBilledGb: 10,
-  costAlertThresholdUsd: 1.0,
+  maxBytesBilledGb: ENV_DEFAULT_BQ_MAX_GB,
+  costAlertThresholdUsd: ENV_DEFAULT_BQ_COST_USD,
   autoSyncLineage: true,
   exportQueryAudit: true,
+  status: "disconnected",
+  lastError: null,
+  lastLatencyMs: null,
 };
 
-const GCP_REGIONS = [
-  { value: "us-central1", label: "us-central1 (Iowa)" },
-  { value: "us-east4", label: "us-east4 (N. Virgínia)" },
-  { value: "southamerica-east1", label: "southamerica-east1 (São Paulo)" },
-  { value: "europe-west1", label: "europe-west1 (Bélgica)" },
-  { value: "europe-west3", label: "europe-west3 (Frankfurt)" },
-  { value: "asia-east1", label: "asia-east1 (Taiwan)" },
-];
-
 /* =========================================================================
-   ÍCONE PERSONALIZADO GOOGLE BIGQUERY
+   ÍCONES DAS INTEGRAÇÕES
 ========================================================================= */
 
 const BigQueryIcon = () => (
@@ -147,10 +204,6 @@ const DatabricksIcon = () => (
   </svg>
 );
 
-/* =========================================================================
-   RESOLUÇÃO DE ÍCONES DAS INTEGRAÇÕES
-========================================================================= */
-
 const getIntegrationIcon = (id: string): React.ReactNode => {
   switch (id) {
     case "bigquery":
@@ -173,82 +226,6 @@ const getIntegrationIcon = (id: string): React.ReactNode => {
 };
 
 /* =========================================================================
-   CATÁLOGO INICIAL PADRÃO
-========================================================================= */
-
-const INITIAL_INTEGRATIONS_LIST: IntegrationItem[] = [
-  {
-    id: "bigquery",
-    name: "Google BigQuery",
-    provider: "Google Cloud Platform",
-    description:
-      "Data warehouse corporativo de alta escalabilidade. Conecta esquemas, executa queries analíticas e alimenta o motor de Dry-Run do MustaInfoo para estimativa prévia de custos e bytes.",
-    category: "Data Warehouse & Cloud",
-    brandColor: "#4285F4",
-    badge: "Destaque & Dry-Run",
-    connected: false,
-    featured: true,
-    lastSync: undefined,
-    metrics: [
-      { label: "Datasets", value: "4 ativos" },
-      { label: "Dry-Run", value: "Ativo (10 GB)" },
-      { label: "Economia", value: "$142.80" },
-    ],
-  },
-  {
-    id: "databricks",
-    name: "Databricks Delta Lake",
-    provider: "Databricks Inc.",
-    description:
-      "Lakehouse unificado com suporte a Unity Catalog e Apache Spark. Integra fluxos de transformação de dados e rastreamento de linhagem avançado.",
-    category: "Data Warehouse & Cloud",
-    brandColor: "#FF3621",
-    badge: "Lakehouse",
-    connected: false,
-  },
-  {
-    id: "gcs",
-    name: "Google Cloud Storage (GCS)",
-    provider: "Google Cloud",
-    description:
-      "Armazenamento de objetos em nuvem para arquivos Parquet, CSVs e backups automáticos de bancos relacionais.",
-    category: "Armazenamento & ETL",
-    brandColor: "#4285F4",
-    connected: false,
-    lastSync: undefined,
-    metrics: [
-      { label: "Buckets", value: "3 vinculados" },
-      { label: "Armazenamento", value: "1.2 TB" },
-    ],
-  },
-  {
-    id: "github",
-    name: "GitHub",
-    provider: "GitHub, Inc.",
-    description:
-      "Sincronize repositórios de scripts SQL, versionamento de migrações e auditoria de alterações de esquemas via GitOps.",
-    category: "Desenvolvimento",
-    brandColor: "#181717",
-    connected: false,
-    lastSync: undefined,
-    metrics: [
-      { label: "Repo", value: "empresa/db-migrations" },
-      { label: "Sync", value: "Automático" },
-    ],
-  },
-  {
-    id: "jira",
-    name: "Jira Software",
-    provider: "Atlassian",
-    description:
-      "Vincule execuções de DDL e tarefas de ajuste de índices diretamente a tickets e sprints da equipe de engenharia.",
-    category: "Desenvolvimento",
-    brandColor: "#0052CC",
-    connected: false,
-  },
-];
-
-/* =========================================================================
    COMPONENTE PRINCIPAL
 ========================================================================= */
 
@@ -258,48 +235,79 @@ export const IntegracoesTab: React.FC = () => {
 
   const [activeCategory, setActiveCategory] = useState<IntegrationCategory>("Todas");
   const [searchTerm, setSearchTerm] = useState("");
+  const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [syncingAll, setSyncingAll] = useState(false);
-  const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: "success" | "error" | "info" } | null>(null);
+  const [feedbackMsg, setFeedbackMsg] = useState<{
+    text: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
-  // Modais de Configuração
+  // Regiões e configurações estáticas (carregadas do .env e sincronizadas com o backend)
+  const [gcpRegions, setGcpRegions] = useState<{ value: string; label: string }[]>(
+    STATIC_GCP_REGIONS
+  );
+  const [enforceHttps, setEnforceHttps] = useState<boolean>(true);
+
+  // Lista de integrações (100% proveniente da base de dados)
+  const [integrationsList, setIntegrationsList] = useState<IntegrationItem[]>([]);
+
+  // Modal e Estado do BigQuery (persistido na base de dados)
   const [isBigQueryModalOpen, setIsBigQueryModalOpen] = useState(false);
   const [bigQueryTab, setBigQueryTab] = useState<"creds" | "dryrun" | "lineage">("creds");
-
-  // Estado persistido com usePersistedState (IndexedDB / arquitetura do projeto)
-  const [bigQueryConfig, setBigQueryConfig] = usePersistedState<BigQueryConfig>(
-    "MustaInfo_bigquery_config",
+  const [bigQueryConfig, setBigQueryConfig] = useState<BigQueryConfig>(
     DEFAULT_BIGQUERY_CONFIG
   );
   const [testingBigQuery, setTestingBigQuery] = useState(false);
-  const [bigQueryTestResult, setBigQueryTestResult] = useState<{ success: boolean; latencyMs: number; message: string } | null>(null);
+  const [bigQueryTestResult, setBigQueryTestResult] = useState<{
+    success: boolean;
+    latencyMs: number;
+    errorCode?: string;
+    message: string;
+  } | null>(null);
 
-  // Configuração genérica para outras integrações
-  const [genericModalIntegration, setGenericModalIntegration] = useState<IntegrationItem | null>(null);
+  // Modal e Estado para demais integrações (Snowflake, Databricks, GCS, Slack, GitHub, Jira)
+  const [genericModalIntegration, setGenericModalIntegration] =
+    useState<IntegrationItem | null>(null);
   const [genericHost, setGenericHost] = useState("");
   const [genericToken, setGenericToken] = useState("");
+  const [testingGeneric, setTestingGeneric] = useState(false);
+  const [savingGeneric, setSavingGeneric] = useState(false);
+  const [genericTestResult, setGenericTestResult] = useState<{
+    success: boolean;
+    latencyMs: number;
+    statusCode?: number;
+    errorCode?: string;
+    resolvedEndpoint?: string;
+    message: string;
+  } | null>(null);
 
-  // Webhooks State persistido
-  const [webhookUrl, setWebhookUrl] = usePersistedState<string>(
-    "MustaInfo_webhook_url",
-    "https://api.empresa.com/v1/MustaInfo-events"
-  );
-  const [webhookSecret, setWebhookSecret] = usePersistedState<string>(
-    "MustaInfo_webhook_secret",
-    "whsec_9a8b7c6d5e4f3a2b1c0d"
-  );
+  // Estado de Webhooks (persistido na base de dados)
+  const [webhookUrl, setWebhookUrl] = useState<string>("");
+  const [webhookSecret, setWebhookSecret] = useState<string>("");
+  const [webhookLastError, setWebhookLastError] = useState<string | null>(null);
+  const [webhookLastTriggered, setWebhookLastTriggered] = useState<string | null>(null);
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [sendingTestWebhook, setSendingTestWebhook] = useState(false);
-  const [webhookTestOutput, setWebhookTestOutput] = useState<{ status: number; message: string; payload: any } | null>(null);
-  const [selectedWebhookEvents, setSelectedWebhookEvents] = usePersistedState<string[]>(
-    "MustaInfo_webhook_events",
-    [
-      "query.executed",
-      "dry_run.alert",
-      "deadlock.detected",
-      "lineage.pipeline_completed",
-    ]
-  );
+  const [webhookTestOutput, setWebhookTestOutput] = useState<{
+    status: number;
+    success: boolean;
+    errorCode?: string;
+    message: string;
+    payload: any;
+  } | null>(null);
+  const [selectedWebhookEvents, setSelectedWebhookEvents] = useState<string[]>([
+    "query.executed",
+    "dry_run.alert",
+    "deadlock.detected",
+    "lineage.pipeline_completed",
+  ]);
+
+  // Estado dos Logs de Integrações na Base de Dados
+  const [integrationLogs, setIntegrationLogs] = useState<IntegrationLogEntry[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [logLevelFilter, setLogLevelFilter] = useState<string>("ALL");
+  const [logProviderFilter, setLogProviderFilter] = useState<string>("all");
 
   // Permissões
   const canManage = hasPermission(permissions as string[], [
@@ -313,118 +321,125 @@ export const IntegracoesTab: React.FC = () => {
     "admin:*",
   ]);
 
-  // Estado das integrações persistido no IndexedDB via usePersistedState
-  const [integrationsList, setIntegrationsList] = usePersistedState<IntegrationItem[]>(
-    "MustaInfo_integrations_list",
-    INITIAL_INTEGRATIONS_LIST
-  );
-
-  // Sincronização suave e bidirecional com o backend mantendo persistência
-  useEffect(() => {
-    let isMounted = true;
-
-    const syncWithBackend = async () => {
+  const fetchIntegrationLogs = useCallback(
+    async (level = logLevelFilter, provider = logProviderFilter) => {
+      setLoadingLogs(true);
       try {
-        const resList = await api.get("/integrations/").catch((err) => {
-          console.warn("Integrações: falha ao buscar lista do backend.", err);
-          return null;
-        });
+        const params = new URLSearchParams();
+        if (level && level !== "ALL") params.set("level", level);
+        if (provider && provider !== "all") params.set("provider", provider);
+        params.set("limit", String(ENV_LOGS_LIMIT));
 
-        if (resList?.data && Array.isArray(resList.data) && isMounted) {
-          const remoteMap = new Map<string, any>(
-            resList.data.map((r: any) => [r.id, r])
-          );
-
-          setIntegrationsList((prevList) => {
-            const baseList =
-              Array.isArray(prevList) && prevList.length > 0
-                ? prevList
-                : INITIAL_INTEGRATIONS_LIST;
-
-            const updatedBase = baseList.map((item) => {
-              const remote = remoteMap.get(item.id);
-              if (!remote) return item;
-
-              return {
-                ...item,
-                connected: Boolean(remote.connected),
-                lastSync: remote.last_sync || item.lastSync,
-                metrics:
-                  Array.isArray(remote.metrics) && remote.metrics.length > 0
-                    ? remote.metrics
-                    : item.metrics,
-              };
-            });
-
-            const existingIds = new Set(baseList.map((i) => i.id));
-            const newItems: IntegrationItem[] = resList.data
-              .filter((r: any) => !existingIds.has(r.id))
-              .map((r: any) => ({
-                id: r.id,
-                name: r.name,
-                provider: r.provider,
-                description: r.description || "",
-                category: (r.category as any) || "Data Warehouse & Cloud",
-                brandColor: "#4285F4",
-                connected: Boolean(r.connected),
-                lastSync: r.last_sync || undefined,
-                metrics: r.metrics || undefined,
-              }));
-
-            return [...updatedBase, ...newItems];
-          });
-        }
-
-        const resBq = await api.get("/integrations/bigquery").catch((err) => {
-          console.warn("Integrações: falha ao buscar BigQuery do backend.", err);
-          return null;
-        });
-        if (resBq?.data && isMounted) {
-          const bqData = resBq.data;
-          if (bqData.project_id) {
-            setBigQueryConfig((prev) => ({
-              ...prev,
-              projectId: bqData.project_id,
-              datasetId: bqData.dataset_id !== undefined ? bqData.dataset_id : prev.datasetId,
-              region: bqData.region || prev.region,
-              dryRunEnabled: bqData.dry_run_enabled ?? prev.dryRunEnabled,
-              maxBytesBilledGb: bqData.max_bytes_billed_gb ?? prev.maxBytesBilledGb,
-              costAlertThresholdUsd: bqData.cost_alert_threshold_usd ?? prev.costAlertThresholdUsd,
-              autoSyncLineage: bqData.auto_sync_lineage ?? prev.autoSyncLineage,
-              exportQueryAudit: bqData.export_query_audit ?? prev.exportQueryAudit,
-            }));
-          }
-        }
-
-        const resWh = await api.get("/integrations/webhooks").catch((err) => {
-          console.warn("Integrações: falha ao buscar Webhooks do backend.", err);
-          return null;
-        });
-        if (resWh?.data && isMounted) {
-          const whData = resWh.data;
-          if (whData.url) setWebhookUrl(whData.url);
-          if (whData.secret) setWebhookSecret(whData.secret);
-          if (Array.isArray(whData.events) && whData.events.length > 0) {
-            setSelectedWebhookEvents(whData.events);
-          }
+        const res = await api.get(`/integrations/logs?${params.toString()}`);
+        if (Array.isArray(res.data)) {
+          setIntegrationLogs(res.data);
         }
       } catch (err) {
-        console.warn("Integrações: backend offline, utilizando dados locais.", err);
+        console.warn("Falha ao carregar logs de integrações da BD:", err);
+      } finally {
+        setLoadingLogs(false);
       }
-    };
+    },
+    [logLevelFilter, logProviderFilter]
+  );
 
-    syncWithBackend();
+  const loadAllFromDatabase = useCallback(async () => {
+    setLoadingInitial(true);
+    try {
+      const [resStatic, resList, resBq, resWh] = await Promise.all([
+        api.get("/integrations/static-config").catch(() => null),
+        api.get("/integrations/").catch(() => null),
+        api.get("/integrations/bigquery").catch(() => null),
+        api.get("/integrations/webhooks").catch(() => null),
+      ]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+      if (resStatic?.data) {
+        if (
+          Array.isArray(resStatic.data.gcp_regions) &&
+          resStatic.data.gcp_regions.length > 0
+        ) {
+          setGcpRegions(resStatic.data.gcp_regions);
+        }
+        if (typeof resStatic.data.enforce_https === "boolean") {
+          setEnforceHttps(resStatic.data.enforce_https);
+        }
+      }
 
-  // Filtragem
+      if (Array.isArray(resList?.data)) {
+        const mapped: IntegrationItem[] = resList.data.map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          provider: r.provider,
+          description: r.description || "",
+          category: (r.category as any) || "Data Warehouse & Cloud",
+          brandColor: r.brand_color || "#4285F4",
+          badge: r.badge || undefined,
+          docsUrl: r.docs_url || ENV_DOCS_BASE_URL,
+          connected: Boolean(r.connected),
+          status: r.status || (r.connected ? "connected" : "disconnected"),
+          endpointUrl: r.endpoint_url || undefined,
+          featured: Boolean(r.featured),
+          lastSync: r.last_sync || undefined,
+          lastError: r.last_error || null,
+          errorCount: r.error_count || 0,
+          lastLatencyMs: r.last_latency_ms ?? null,
+          metrics: Array.isArray(r.metrics) ? r.metrics : [],
+          config: r.config || {},
+        }));
+        setIntegrationsList(mapped);
+      }
+
+      if (resBq?.data) {
+        const bq = resBq.data;
+        setBigQueryConfig((prev) => ({
+          ...prev,
+          projectId: bq.project_id || "",
+          datasetId: bq.dataset_id || "",
+          region: bq.region || ENV_DEFAULT_BQ_REGION,
+          hasCredentials: Boolean(bq.has_credentials),
+          clientEmail: bq.client_email || null,
+          dryRunEnabled: bq.dry_run_enabled ?? true,
+          maxBytesBilledGb: bq.max_bytes_billed_gb ?? ENV_DEFAULT_BQ_MAX_GB,
+          costAlertThresholdUsd:
+            bq.cost_alert_threshold_usd ?? ENV_DEFAULT_BQ_COST_USD,
+          autoSyncLineage: bq.auto_sync_lineage ?? true,
+          exportQueryAudit: bq.export_query_audit ?? true,
+          status: bq.status || "disconnected",
+          lastError: bq.last_error || null,
+          lastLatencyMs: bq.last_latency_ms ?? null,
+        }));
+      }
+
+      if (resWh?.data) {
+        const wh = resWh.data;
+        setWebhookUrl(wh.url || "");
+        setWebhookSecret(wh.secret || "");
+        setWebhookLastError(wh.last_error || null);
+        setWebhookLastTriggered(wh.last_triggered_at || null);
+        if (Array.isArray(wh.events) && wh.events.length > 0) {
+          setSelectedWebhookEvents(wh.events);
+        }
+      }
+
+      await fetchIntegrationLogs();
+    } finally {
+      setLoadingInitial(false);
+    }
+  }, [fetchIntegrationLogs]);
+
+  useEffect(() => {
+    loadAllFromDatabase();
+  }, [loadAllFromDatabase]);
+
+  useEffect(() => {
+    fetchIntegrationLogs(logLevelFilter, logProviderFilter);
+  }, [logLevelFilter, logProviderFilter, fetchIntegrationLogs]);
+
+  // Filtragem de integrações
   const filteredIntegrations = useMemo(() => {
-    const list = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
-    return list.filter((item) => {
-      const matchesCategory = activeCategory === "Todas" || item.category === activeCategory;
+    return integrationsList.filter((item) => {
+      const matchesCategory =
+        activeCategory === "Todas" || item.category === activeCategory;
       const matchesSearch =
         searchTerm.trim() === "" ||
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -434,45 +449,46 @@ export const IntegracoesTab: React.FC = () => {
     });
   }, [integrationsList, activeCategory, searchTerm]);
 
+  const openGenericModal = (item: IntegrationItem) => {
+    setGenericModalIntegration(item);
+    setGenericHost(item.config?.host || item.endpointUrl || "");
+    setGenericToken("");
+    setGenericTestResult(null);
+  };
+
   // Toggle Conectar / Desconectar
   const handleToggle = async (item: IntegrationItem) => {
     if (item.connected) {
       const ok = window.confirm(
-        `Desconectar a integração "${item.name}" removerá a sincronização ativa com o MustaInfoo. Deseja prosseguir?`
+        `Desconectar a integração "${item.name}" na base de dados?`
       );
       if (!ok) return;
     } else {
-      // Se for BigQuery, abre o modal de configuração detalhado diretamente
       if (item.id === "bigquery") {
+        setBigQueryTestResult(null);
         setIsBigQueryModalOpen(true);
         return;
       }
-      // Se for outra integração, abre modal genérico
-      setGenericModalIntegration(item);
-      setGenericHost("");
-      setGenericToken("");
+      openGenericModal(item);
       return;
     }
 
     try {
       setLoadingId(item.id);
       await api.post(`/integrations/toggle?provider=${item.id}&active=false`);
-
-      const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
-      const updated = currentList.map((i) =>
-        i.id === item.id ? { ...i, connected: false } : i
-      );
-      setIntegrationsList(updated);
-
+      await loadAllFromDatabase();
       setFeedbackMsg({
-        text: `Integração "${item.name}" foi desconectada com sucesso.`,
+        text: `Integração "${item.name}" foi desconectada e registada na base de dados.`,
         type: "info",
       });
     } catch (e: any) {
       setFeedbackMsg({
-        text: `Erro ao desconectar ${item.name}: ${e?.response?.data?.detail || (e instanceof Error ? e.message : "Erro desconhecido")}`,
+        text: `Erro ao desconectar ${item.name}: ${
+          e?.response?.data?.detail || e?.message || "Erro desconhecido"
+        }`,
         type: "error",
       });
+      await fetchIntegrationLogs();
     } finally {
       setLoadingId(null);
     }
@@ -484,59 +500,45 @@ export const IntegracoesTab: React.FC = () => {
     setBigQueryTestResult(null);
 
     try {
-      if (!bigQueryConfig.projectId.trim()) {
-        throw new Error("O campo 'GCP Project ID' é obrigatório.");
-      }
-      if (bigQueryConfig.serviceAccountJson.trim()) {
-        try {
-          JSON.parse(bigQueryConfig.serviceAccountJson);
-        } catch {
-          throw new Error("O JSON da Service Account contém erros de sintaxe.");
-        }
-      }
-
-      // Chama endpoint real do backend
       const res = await api.post("/integrations/bigquery/test", {
         project_id: bigQueryConfig.projectId,
         dataset_id: bigQueryConfig.datasetId,
         region: bigQueryConfig.region,
-        service_account_json: bigQueryConfig.serviceAccountJson,
+        service_account_json: bigQueryConfig.serviceAccountJson || undefined,
       });
 
       const data = res.data;
       setBigQueryTestResult({
-        success: data.success,
-        latencyMs: data.latency_ms || 38,
+        success: Boolean(data.success),
+        latencyMs: data.latency_ms || 0,
+        errorCode: data.error_code,
         message: data.message,
       });
+      await fetchIntegrationLogs();
     } catch (e: any) {
       setBigQueryTestResult({
         success: false,
         latencyMs: 0,
-        message: e?.response?.data?.detail || e?.message || "Falha ao validar credenciais do Google BigQuery.",
+        errorCode: "REQUEST_FAILED",
+        message:
+          e?.response?.data?.detail ||
+          e?.message ||
+          "Falha ao validar credenciais do Google BigQuery.",
       });
+      await fetchIntegrationLogs();
     } finally {
       setTestingBigQuery(false);
     }
   };
 
-  // Salvar Configurações do BigQuery
+  // Salvar Configurações do BigQuery na Base de Dados
   const handleSaveBigQuery = async () => {
     try {
-      if (!bigQueryConfig.projectId.trim()) {
-        setFeedbackMsg({
-          text: "O campo 'GCP Project ID' é obrigatório para salvar a integração.",
-          type: "error",
-        });
-        return;
-      }
-
-      // Salva no backend
       await api.post("/integrations/bigquery", {
         project_id: bigQueryConfig.projectId,
         dataset_id: bigQueryConfig.datasetId,
         region: bigQueryConfig.region,
-        service_account_json: bigQueryConfig.serviceAccountJson,
+        service_account_json: bigQueryConfig.serviceAccountJson || undefined,
         dry_run_enabled: bigQueryConfig.dryRunEnabled,
         max_bytes_billed_gb: bigQueryConfig.maxBytesBilledGb,
         cost_alert_threshold_usd: bigQueryConfig.costAlertThresholdUsd,
@@ -544,68 +546,101 @@ export const IntegracoesTab: React.FC = () => {
         export_query_audit: bigQueryConfig.exportQueryAudit,
       });
 
-      const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
-      const updated = currentList.map((i) =>
-        i.id === "bigquery"
-          ? {
-            ...i,
-            connected: true,
-            lastSync: "Agora mesmo",
-            metrics: [
-              { label: "Datasets", value: bigQueryConfig.datasetId || "4 ativos" },
-              { label: "Dry-Run", value: bigQueryConfig.dryRunEnabled ? `Ativo (${bigQueryConfig.maxBytesBilledGb} GB)` : "Desativado" },
-              { label: "Região", value: bigQueryConfig.region },
-            ],
-          }
-          : i
-      );
-      setIntegrationsList(updated);
-
       setIsBigQueryModalOpen(false);
+      await loadAllFromDatabase();
       setFeedbackMsg({
-        text: "Configuração do Google BigQuery salva e ativada com sucesso!",
+        text: "Configuração do Google BigQuery validada e salva na base de dados!",
         type: "success",
       });
     } catch (e: any) {
-      setFeedbackMsg({
-        text: `Erro ao salvar preferências do BigQuery: ${e?.response?.data?.detail || e?.message || "Falha na requisição"}`,
-        type: "error",
+      const errDetail =
+        e?.response?.data?.detail || e?.message || "Falha ao salvar no servidor";
+      setBigQueryTestResult({
+        success: false,
+        latencyMs: 0,
+        errorCode: "VALIDATION_ERROR",
+        message: errDetail,
       });
+      await fetchIntegrationLogs();
     }
   };
 
-  // Salvar Configuração Genérica
+  // Testar Conectividade de Provedor Genérico (RFC 3986 / RFC 9110 / SSRF)
+  const handleTestGeneric = async () => {
+    if (!genericModalIntegration) return;
+    setTestingGeneric(true);
+    setGenericTestResult(null);
+
+    try {
+      const res = await api.post("/integrations/generic/test", {
+        provider: genericModalIntegration.id,
+        host: genericHost,
+        token: genericToken || undefined,
+      });
+      const data = res.data;
+      setGenericTestResult({
+        success: Boolean(data.success),
+        latencyMs: data.latency_ms || 0,
+        statusCode: data.status_code,
+        errorCode: data.error_code,
+        resolvedEndpoint: data.resolved_endpoint,
+        message: data.message,
+      });
+      await fetchIntegrationLogs();
+    } catch (e: any) {
+      setGenericTestResult({
+        success: false,
+        latencyMs: 0,
+        errorCode: "NETWORK_ERROR",
+        message:
+          e?.response?.data?.detail ||
+          e?.message ||
+          "Erro ao testar conectividade com o provedor.",
+      });
+      await fetchIntegrationLogs();
+    } finally {
+      setTestingGeneric(false);
+    }
+  };
+
+  // Salvar Configuração Genérica na Base de Dados
   const handleSaveGeneric = async () => {
     if (!genericModalIntegration) return;
-    const targetId = genericModalIntegration.id;
+    setSavingGeneric(true);
 
     try {
       await api.post("/integrations/generic", {
-        provider: targetId,
+        provider: genericModalIntegration.id,
         name: genericModalIntegration.name,
         category: genericModalIntegration.category,
         config: { host: genericHost },
-        credentials: { token: genericToken },
+        credentials: genericToken ? { token: genericToken } : undefined,
+        verify_connection: true,
       });
 
-      const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
-      const updated = currentList.map((i) =>
-        i.id === targetId ? { ...i, connected: true, lastSync: "Agora mesmo" } : i
-      );
-      setIntegrationsList(updated);
-
+      const savedName = genericModalIntegration.name;
       setGenericModalIntegration(null);
       setGenericHost("");
       setGenericToken("");
+      setGenericTestResult(null);
+      await loadAllFromDatabase();
+
       setFeedbackMsg({
-        text: `Integração "${genericModalIntegration.name}" configurada e ativada com sucesso!`,
+        text: `Integração "${savedName}" validada e registada na base de dados com sucesso!`,
         type: "success",
       });
     } catch (e: any) {
-      setFeedbackMsg({
-        text: `Erro ao conectar ${genericModalIntegration.name}: ${e?.response?.data?.detail || e?.message || "Erro no servidor"}`,
-        type: "error",
+      const errDetail =
+        e?.response?.data?.detail || e?.message || "Erro na validação da integração";
+      setGenericTestResult({
+        success: false,
+        latencyMs: 0,
+        errorCode: "SAVE_REJECTED",
+        message: errDetail,
       });
+      await fetchIntegrationLogs();
+    } finally {
+      setSavingGeneric(false);
     }
   };
 
@@ -614,21 +649,28 @@ export const IntegracoesTab: React.FC = () => {
     setSyncingAll(true);
     setFeedbackMsg(null);
     try {
-      await api.post("/integrations/sync-all");
-      const currentList = Array.isArray(integrationsList) && integrationsList.length > 0 ? integrationsList : INITIAL_INTEGRATIONS_LIST;
-      const updated = currentList.map((i) =>
-        i.connected ? { ...i, lastSync: "Agora mesmo" } : i
-      );
-      setIntegrationsList(updated);
-      setFeedbackMsg({
-        text: "Todas as integrações ativas foram sincronizadas com sucesso.",
-        type: "success",
-      });
+      const res = await api.post("/integrations/sync-all");
+      await loadAllFromDatabase();
+      const errCount = res.data?.errors_count || 0;
+      if (errCount > 0) {
+        setFeedbackMsg({
+          text: `Sincronização concluída com ${errCount} erro(s) de conectividade. Verifique a tabela de logs abaixo.`,
+          type: "error",
+        });
+      } else {
+        setFeedbackMsg({
+          text: `Todas as integrações ativas (${res.data?.synced_count || 0}) foram verificadas e sincronizadas com sucesso.`,
+          type: "success",
+        });
+      }
     } catch (e: any) {
       setFeedbackMsg({
-        text: `Falha na sincronização periódica: ${e?.response?.data?.detail || e?.message || "Erro no servidor"}`,
+        text: `Falha na sincronização: ${
+          e?.response?.data?.detail || e?.message || "Erro no servidor"
+        }`,
         type: "error",
       });
+      await fetchIntegrationLogs();
     } finally {
       setSyncingAll(false);
     }
@@ -648,12 +690,12 @@ export const IntegracoesTab: React.FC = () => {
     ).join("");
     setWebhookSecret(`whsec_${randomHex}`);
     setFeedbackMsg({
-      text: "Novo segredo HMAC gerado com sucesso. Lembre-se de atualizar seus servidores clientes.",
+      text: "Novo segredo HMAC gerado. Clique em 'Salvar' para persistir na base de dados.",
       type: "info",
     });
   };
 
-  // Salvar Webhook
+  // Salvar Webhook na Base de Dados
   const handleSaveWebhook = async () => {
     try {
       await api.post("/integrations/webhooks", {
@@ -662,16 +704,19 @@ export const IntegracoesTab: React.FC = () => {
         events: selectedWebhookEvents,
         is_active: true,
       });
-
+      await loadAllFromDatabase();
       setFeedbackMsg({
-        text: "Configuração do Webhook salva com sucesso no backend.",
+        text: "Configuração do Webhook validada (RFC 3986 / HTTPS) e salva na base de dados.",
         type: "success",
       });
     } catch (e: any) {
       setFeedbackMsg({
-        text: `Erro ao salvar webhook: ${e?.response?.data?.detail || e?.message || "Falha na requisição"}`,
+        text: `Erro ao salvar Webhook: ${
+          e?.response?.data?.detail || e?.message || "Falha na validação"
+        }`,
         type: "error",
       });
+      await fetchIntegrationLogs();
     }
   };
 
@@ -689,74 +734,103 @@ export const IntegracoesTab: React.FC = () => {
       const data = res.data;
       setWebhookTestOutput({
         status: data.status,
+        success: Boolean(data.success),
+        errorCode: data.error_code,
         message: data.message,
         payload: data.payload,
       });
+      await loadAllFromDatabase();
     } catch (e: any) {
-      const fallbackPayload = {
-        event: "test.ping",
-        source: "MustaInfo.integrations",
-        timestamp: new Date().toISOString(),
-        target_project: bigQueryConfig.projectId,
-        environment: "production",
-        actor: user?.email || "admin@MustaInfo.com",
-        data: {
-          message: "Teste de conectividade de webhook disparado localmente.",
-          dry_run_service_active: bigQueryConfig.dryRunEnabled,
-        },
-      };
-
       setWebhookTestOutput({
-        status: 200,
-        message: "Endpoint simulado aceitou o disparo de teste com sucesso.",
-        payload: fallbackPayload,
+        status: e?.response?.status || 502,
+        success: false,
+        errorCode: "WEBHOOK_TEST_ERROR",
+        message:
+          e?.response?.data?.detail ||
+          e?.message ||
+          "Falha ao disparar evento de teste para o Webhook.",
+        payload: {},
       });
+      await fetchIntegrationLogs();
     } finally {
       setSendingTestWebhook(false);
     }
   };
 
+  // Limpar Logs de Integrações
+  const handleClearLogs = async () => {
+    try {
+      await api.delete(
+        `/integrations/logs${
+          logProviderFilter !== "all" ? `?provider=${logProviderFilter}` : ""
+        }`
+      );
+      await fetchIntegrationLogs();
+      setFeedbackMsg({
+        text: "Histórico de logs de integrações limpo na base de dados.",
+        type: "info",
+      });
+    } catch (e: any) {
+      setFeedbackMsg({
+        text: `Não foi possível limpar os logs: ${
+          e?.response?.data?.detail || e?.message
+        }`,
+        type: "error",
+      });
+    }
+  };
+
+  const totalErrorLogs = useMemo(
+    () =>
+      integrationLogs.filter(
+        (l) => l.level === "ERROR" || l.level === "CRITICAL"
+      ).length,
+    [integrationLogs]
+  );
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-16 animate-in fade-in duration-300">
       {/* ===================================================================
-          1. HEADER & STATUS GLOBAL (Estilo Google Cloud / BigQuery Hub)
+          1. HEADER & STATUS GLOBAL (Persistência em Base de Dados & Normas RFC)
       =================================================================== */}
       <div className="bg-white border border-gray-200/80 rounded-2xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-transparent rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center flex-wrap gap-2.5">
               <span className="px-3 py-1 text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200/60 rounded-full inline-flex items-center gap-1.5">
                 <Sparkles size={13} className="text-blue-600" />
                 Data & Cloud Integrations
               </span>
               <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
                 <CheckCircle2 size={12} className="text-emerald-500" />
-                SSL/TLS Criptografado
+                {enforceHttps ? "RFC 9110 HTTPS/TLS & Anti-SSRF Ativo" : "RFC 3986 URI Validated"}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
               Central de Integrações e Data Warehouses
             </h1>
             <p className="text-sm text-gray-600 leading-relaxed">
-              Conecte seus bancos analíticos em nuvem (como o <strong className="text-gray-800">Google BigQuery</strong>), plataformas de
-              storage, alertas corporativos e pipelines de dados para sincronização em tempo real e simulação de custos via Dry-Run.
+              Todas as credenciais, endpoints, métricas e logs de erros são persistidos na base de dados PostgreSQL e validados segundo as normas da Internet (RFC 3986, RFC 9110 TLS e proteção OWASP SSRF).
             </p>
           </div>
 
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
             <button
               onClick={handleSyncAll}
-              disabled={syncingAll}
+              disabled={syncingAll || loadingInitial}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900 rounded-xl text-xs font-bold tracking-wide transition-all shadow-sm hover:shadow disabled:opacity-50"
             >
               <RefreshCw size={14} className={syncingAll ? "animate-spin text-blue-600" : ""} />
-              {syncingAll ? "Sincronizando..." : "Sincronizar Todos"}
+              {syncingAll ? "Verificando..." : "Sincronizar Todos"}
             </button>
             {canManage && (
               <button
-                onClick={() => setIsBigQueryModalOpen(true)}
+                onClick={() => {
+                  setBigQueryTestResult(null);
+                  setIsBigQueryModalOpen(true);
+                }}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold tracking-wide transition-all shadow-sm hover:shadow-md"
               >
                 <Sliders size={14} />
@@ -766,17 +840,19 @@ export const IntegracoesTab: React.FC = () => {
           </div>
         </div>
 
-        {/* 4 Cards de Métricas no Topo */}
+        {/* 4 Cards de Métricas no Topo (Dados Reais da BD) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-6 border-t border-gray-100">
           <div className="bg-gray-50/70 border border-gray-100 rounded-xl p-3.5">
             <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-              Serviços Conectados
+              Serviços Conectados (BD)
             </span>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-xl font-bold text-gray-900">
                 {integrationsList.filter((i) => i.connected).length}
               </span>
-              <span className="text-xs text-gray-500 font-medium">de {integrationsList.length}</span>
+              <span className="text-xs text-gray-500 font-medium">
+                de {integrationsList.length}
+              </span>
             </div>
           </div>
 
@@ -785,20 +861,34 @@ export const IntegracoesTab: React.FC = () => {
               Google BigQuery Dry-Run
             </span>
             <div className="flex items-center gap-1.5 mt-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  bigQueryConfig.dryRunEnabled ? "bg-emerald-500 animate-pulse" : "bg-gray-400"
+                }`}
+              />
               <span className="text-sm font-bold text-gray-800">
-                {bigQueryConfig.dryRunEnabled ? `Ativo (${bigQueryConfig.maxBytesBilledGb} GB)` : "Inativo"}
+                {bigQueryConfig.dryRunEnabled
+                  ? `Limite ${bigQueryConfig.maxBytesBilledGb} GB`
+                  : "Inativo"}
               </span>
             </div>
           </div>
 
           <div className="bg-gray-50/70 border border-gray-100 rounded-xl p-3.5">
             <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-              Economia Estimada
+              Erros Registados (Logs)
             </span>
-            <div className="flex items-baseline gap-1 mt-1">
-              <span className="text-xl font-bold text-emerald-600">$142.80</span>
-              <span className="text-[10px] text-gray-400 font-semibold uppercase">evitados</span>
+            <div className="flex items-baseline gap-1.5 mt-1">
+              <span
+                className={`text-xl font-bold ${
+                  totalErrorLogs > 0 ? "text-red-600" : "text-emerald-600"
+                }`}
+              >
+                {totalErrorLogs}
+              </span>
+              <span className="text-[11px] text-gray-500 font-medium">
+                em {integrationLogs.length} eventos
+              </span>
             </div>
           </div>
 
@@ -807,7 +897,9 @@ export const IntegracoesTab: React.FC = () => {
               Webhooks & Alertas
             </span>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-sm font-bold text-gray-800">Ativo</span>
+              <span className="text-sm font-bold text-gray-800">
+                {webhookUrl ? "Configurado" : "Não Configurado"}
+              </span>
               <span className="text-xs text-gray-500 font-medium">(HMAC SHA-256)</span>
             </div>
           </div>
@@ -817,12 +909,13 @@ export const IntegracoesTab: React.FC = () => {
       {/* FEEDBACK TOAST / ALERT */}
       {feedbackMsg && (
         <div
-          className={`flex items-center justify-between gap-3 text-sm font-medium rounded-xl p-4 border animate-in slide-in-from-top-2 ${feedbackMsg.type === "success"
+          className={`flex items-center justify-between gap-3 text-sm font-medium rounded-xl p-4 border animate-in slide-in-from-top-2 ${
+            feedbackMsg.type === "success"
               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
               : feedbackMsg.type === "error"
                 ? "bg-red-50 border-red-200 text-red-800"
                 : "bg-blue-50 border-blue-200 text-blue-800"
-            }`}
+          }`}
         >
           <div className="flex items-center gap-2.5">
             {feedbackMsg.type === "success" ? (
@@ -847,25 +940,30 @@ export const IntegracoesTab: React.FC = () => {
           2. FILTROS POR CATEGORIA & BARRA DE BUSCA
       =================================================================== */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        {/* Chips de Categorias */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-          {(["Todas", "Data Warehouse & Cloud", "Armazenamento & ETL", "Comunicação & Alertas", "Desenvolvimento"] as IntegrationCategory[]).map(
-            (cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeCategory === cat
-                    ? "bg-gray-900 text-white shadow-sm"
-                    : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-              >
-                {cat}
-              </button>
-            )
-          )}
+          {(
+            [
+              "Todas",
+              "Data Warehouse & Cloud",
+              "Armazenamento & ETL",
+              "Comunicação & Alertas",
+              "Desenvolvimento",
+            ] as IntegrationCategory[]
+          ).map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                activeCategory === cat
+                  ? "bg-gray-900 text-white shadow-sm"
+                  : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
 
-        {/* Input de Busca */}
         <div className="relative min-w-[240px]">
           <input
             type="text"
@@ -874,7 +972,10 @@ export const IntegracoesTab: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
           />
-          <Activity size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Activity
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
@@ -887,147 +988,182 @@ export const IntegracoesTab: React.FC = () => {
       </div>
 
       {/* ===================================================================
-          3. GRID DE INTEGRAÇÕES (COM BIGQUERY EM DESTAQUE)
+          3. GRID DE INTEGRAÇÕES (PERSISTIDAS NA BASE DE DADOS)
       =================================================================== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredIntegrations.map((app) => {
-          const isBQ = app.id === "bigquery";
+      {loadingInitial ? (
+        <div className="bg-white border border-gray-200 rounded-2xl p-12 flex items-center justify-center gap-3 text-sm text-gray-500">
+          <Loader2 size={18} className="animate-spin text-blue-600" />
+          Carregando catálogo e estado das integrações da base de dados...
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {filteredIntegrations.map((app) => {
+            const isBQ = app.id === "bigquery";
+            const hasError = app.status === "error" || Boolean(app.lastError);
 
-          return (
-            <div
-              key={app.id}
-              className={`group bg-white border rounded-2xl p-6 transition-all duration-200 hover:shadow-xl hover:shadow-gray-100 flex flex-col justify-between relative overflow-hidden ${app.connected
-                  ? isBQ
-                    ? "border-blue-300 ring-1 ring-blue-100"
-                    : "border-gray-300"
-                  : "border-gray-200"
+            return (
+              <div
+                key={app.id}
+                className={`group bg-white border rounded-2xl p-6 transition-all duration-200 hover:shadow-xl hover:shadow-gray-100 flex flex-col justify-between relative overflow-hidden ${
+                  hasError
+                    ? "border-red-300 ring-1 ring-red-100"
+                    : app.connected
+                      ? isBQ
+                        ? "border-blue-300 ring-1 ring-blue-100"
+                        : "border-emerald-300"
+                      : "border-gray-200"
                 }`}
-            >
-              {/* Efeito Glow para o BigQuery em Destaque */}
-              {isBQ && (
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-              )}
-
-              <div>
-                {/* Top Row: Ícone, Nome, Provider e Badges */}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-13 h-13 rounded-2xl bg-gray-50 flex items-center justify-center border border-gray-100 shadow-sm group-hover:scale-105 transition-transform shrink-0 p-2.5">
-                      {getIntegrationIcon(app.id)}
-                    </div>
-                    <div>
-                      <div className="flex items-center flex-wrap gap-2">
-                        <h3 className="font-bold text-gray-900 text-base">{app.name}</h3>
-                        {app.badge && (
-                          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                            {app.badge}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs font-medium text-gray-400 block mt-0.5">
-                        {app.provider}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Botão de Toggle */}
-                  {canManage && (
-                    <button
-                      onClick={() => handleToggle(app)}
-                      disabled={loadingId === app.id}
-                      className={`relative h-9 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shrink-0 ${app.connected
-                          ? "text-red-700 bg-red-50 hover:bg-red-100 border border-red-200/60"
-                          : "text-white bg-gray-900 hover:bg-gray-800 shadow-sm"
-                        } disabled:opacity-40`}
-                    >
-                      {loadingId === app.id ? (
-                        <Loader2 className="animate-spin mx-auto" size={15} />
-                      ) : app.connected ? (
-                        "Desconectar"
-                      ) : (
-                        "Conectar"
-                      )}
-                    </button>
-                  )}
-                </div>
-
-                {/* Descrição */}
-                <p className="text-xs text-gray-600 mt-4 leading-relaxed">
-                  {app.description}
-                </p>
-
-                {/* Métricas ao Vivo se conectado */}
-                {app.connected && app.metrics && app.metrics.length > 0 && (
-                  <div className="mt-4 grid grid-cols-3 gap-2 bg-gray-50/80 border border-gray-100 rounded-xl p-2.5">
-                    {app.metrics.map((m, idx) => (
-                      <div key={idx} className="text-center">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
-                          {m.label}
-                        </span>
-                        <span className="text-xs font-bold text-gray-800 mt-0.5 block truncate">
-                          {m.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+              >
+                {isBQ && (
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
                 )}
-              </div>
 
-              {/* Bottom Row: Status de Conexão, Última Sincronização & Botão Configurar */}
-              <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`w-2 h-2 rounded-full ${app.connected ? "bg-emerald-500 animate-pulse" : "bg-gray-300"
+                <div>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-13 h-13 rounded-2xl bg-gray-50 flex items-center justify-center border border-gray-100 shadow-sm group-hover:scale-105 transition-transform shrink-0 p-2.5">
+                        {getIntegrationIcon(app.id)}
+                      </div>
+                      <div>
+                        <div className="flex items-center flex-wrap gap-2">
+                          <h3 className="font-bold text-gray-900 text-base">
+                            {app.name}
+                          </h3>
+                          {app.badge && (
+                            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                              {app.badge}
+                            </span>
+                          )}
+                          {hasError && (
+                            <span className="text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                              Erro ({app.errorCount || 1})
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs font-medium text-gray-400 block mt-0.5">
+                          {app.provider}
+                        </span>
+                      </div>
+                    </div>
+
+                    {canManage && (
+                      <button
+                        onClick={() => handleToggle(app)}
+                        disabled={loadingId === app.id}
+                        className={`relative h-9 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shrink-0 ${
+                          app.connected
+                            ? "text-red-700 bg-red-50 hover:bg-red-100 border border-red-200/60"
+                            : "text-white bg-gray-900 hover:bg-gray-800 shadow-sm"
+                        } disabled:opacity-40`}
+                      >
+                        {loadingId === app.id ? (
+                          <Loader2 className="animate-spin mx-auto" size={15} />
+                        ) : app.connected ? (
+                          "Desconectar"
+                        ) : (
+                          "Conectar"
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-gray-600 mt-4 leading-relaxed">
+                    {app.description}
+                  </p>
+
+                  {/* Alerta de Último Erro Registado na Base de Dados */}
+                  {app.lastError && (
+                    <div className="mt-3 p-2.5 bg-red-50 border border-red-200/80 rounded-xl flex items-start gap-2 text-[11px] text-red-800">
+                      <AlertTriangle size={14} className="text-red-600 shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{app.lastError}</span>
+                    </div>
+                  )}
+
+                  {/* Métricas Reais Persistidas */}
+                  {app.connected && app.metrics && app.metrics.length > 0 && (
+                    <div className="mt-4 grid grid-cols-3 gap-2 bg-gray-50/80 border border-gray-100 rounded-xl p-2.5">
+                      {app.metrics.map((m, idx) => (
+                        <div key={idx} className="text-center">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                            {m.label}
+                          </span>
+                          <span className="text-xs font-bold text-gray-800 mt-0.5 block truncate">
+                            {m.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        hasError
+                          ? "bg-red-500 animate-pulse"
+                          : app.connected
+                            ? "bg-emerald-500 animate-pulse"
+                            : "bg-gray-300"
                       }`}
-                  />
-                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                    {app.connected ? "Serviço Ativo" : "Não Vinculado"}
-                  </span>
-                  {app.connected && app.lastSync && (
-                    <span className="text-[11px] text-gray-400 hidden sm:inline">
-                      • {app.lastSync}
+                    />
+                    <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                      {hasError
+                        ? "Falha de Conexão"
+                        : app.connected
+                          ? "Serviço Ativo"
+                          : "Não Vinculado"}
                     </span>
-                  )}
-                </div>
+                    {app.lastSync && (
+                      <span className="text-[11px] text-gray-400 hidden sm:inline">
+                        • {app.lastSync}
+                      </span>
+                    )}
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  {app.connected && isBQ && (
-                    <button
-                      onClick={() => setIsBigQueryModalOpen(true)}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2.5 py-1 rounded-lg transition-colors"
-                    >
-                      <Sliders size={13} />
-                      Ajustar Parâmetros
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isBQ ? (
+                      <button
+                        onClick={() => {
+                          setBigQueryTestResult(null);
+                          setIsBigQueryModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2.5 py-1 rounded-lg transition-colors"
+                      >
+                        <Sliders size={13} />
+                        Ajustar Parâmetros
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => openGenericModal(app)}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors"
+                      >
+                        <Settings size={13} />
+                        Configurar
+                      </button>
+                    )}
 
-                  {!isBQ && app.connected && (
-                    <button
-                      onClick={() => {
-                        setGenericModalIntegration(app);
-                      }}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors"
-                    >
-                      <Settings size={13} />
-                      Configurar
-                    </button>
-                  )}
-
-                  <button
-                    title="Documentação e ajuda externa"
-                    className="text-gray-400 hover:text-gray-600 p-1 rounded transition-colors"
-                  >
-                    <ExternalLink size={14} />
-                  </button>
+                    {app.docsUrl && (
+                      <a
+                        href={app.docsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Documentação oficial do protocolo/API"
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded transition-colors"
+                      >
+                        <ExternalLink size={14} />
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ===================================================================
-          4. SEÇÃO AVANÇADA DE WEBHOOKS & EVENTOS (Google Cloud Pub/Sub Style)
+          4. SEÇÃO AVANÇADA DE WEBHOOKS & EVENTOS (HMAC SHA-256 & Anti-SSRF)
       =================================================================== */}
       {canManageWebhooks && (
         <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-slate-900 rounded-3xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden border border-gray-800">
@@ -1037,12 +1173,13 @@ export const IntegracoesTab: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-xs font-bold tracking-widest uppercase border border-blue-400/20">
-                  <Globe size={13} /> Webhooks & Eventos de Saída
+                  <Globe size={13} /> Webhooks & Eventos de Saída (RFC 9110)
                 </div>
-                <h3 className="text-2xl font-bold tracking-tight">Barramento de Notificações em Tempo Real</h3>
+                <h3 className="text-2xl font-bold tracking-tight">
+                  Barramento de Notificações em Tempo Real
+                </h3>
                 <p className="text-gray-400 text-xs sm:text-sm max-w-xl leading-relaxed">
-                  Dispare alertas automáticos com assinatura HMAC para seus servidores ou ferramentas como Zapier, n8n e Slack
-                  sempre que consultas pesadas forem detectadas pelo Dry-Run ou quando ocorrerem deadlocks.
+                  Dispare eventos assinados com HMAC SHA-256 e proteção anti-replay (`X-MustaInfo-Timestamp`). Endpoints são validados contra SSRF e requerem HTTPS.
                 </p>
               </div>
 
@@ -1062,18 +1199,31 @@ export const IntegracoesTab: React.FC = () => {
               </div>
             </div>
 
-            {/* Configuração de URL e Segredo HMAC */}
+            {webhookLastError && (
+              <div className="p-3.5 bg-red-500/10 border border-red-400/30 rounded-xl flex items-center justify-between text-xs text-red-200">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle size={15} className="text-red-400 shrink-0" />
+                  <span>Último erro de entrega: {webhookLastError}</span>
+                </div>
+                {webhookLastTriggered && (
+                  <span className="text-[11px] text-red-300/70 font-mono">
+                    {webhookLastTriggered}
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4 border-t border-gray-800">
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                  Endpoint URL de Destino
+                  Endpoint URL de Destino (HTTPS)
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="url"
                     value={webhookUrl}
                     onChange={(e) => setWebhookUrl(e.target.value)}
-                    placeholder="https://seu-servidor.com/api/MustaInfo-webhook"
+                    placeholder="https://hooks.slack.com/services/... ou seu endpoint HTTPS"
                     className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-gray-100 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   />
                   <button
@@ -1097,7 +1247,11 @@ export const IntegracoesTab: React.FC = () => {
                       className="text-gray-400 hover:text-white transition-colors ml-2"
                       title="Copiar Segredo"
                     >
-                      {copiedSecret ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                      {copiedSecret ? (
+                        <Check size={14} className="text-emerald-400" />
+                      ) : (
+                        <Copy size={14} />
+                      )}
                     </button>
                   </div>
                   <button
@@ -1110,10 +1264,9 @@ export const IntegracoesTab: React.FC = () => {
               </div>
             </div>
 
-            {/* Seletor de Eventos Monitorados */}
             <div className="pt-2">
               <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-2.5">
-                Eventos Disparados
+                Eventos Subscritos
               </label>
               <div className="flex flex-wrap gap-2">
                 {[
@@ -1132,12 +1285,17 @@ export const IntegracoesTab: React.FC = () => {
                           active ? prev.filter((x) => x !== ev.id) : [...prev, ev.id]
                         );
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${active
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+                        active
                           ? "bg-blue-600/30 border-blue-500/50 text-blue-200"
                           : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
-                        }`}
+                      }`}
                     >
-                      <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-blue-400" : "bg-gray-600"}`} />
+                      <div
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          active ? "bg-blue-400" : "bg-gray-600"
+                        }`}
+                      />
                       {ev.label}
                     </button>
                   );
@@ -1145,14 +1303,31 @@ export const IntegracoesTab: React.FC = () => {
               </div>
             </div>
 
-            {/* Painel com Retorno do Disparo de Teste */}
             {webhookTestOutput && (
-              <div className="mt-4 p-4 bg-black/40 border border-white/10 rounded-2xl space-y-2 animate-in fade-in">
+              <div
+                className={`mt-4 p-4 border rounded-2xl space-y-2 animate-in fade-in ${
+                  webhookTestOutput.success
+                    ? "bg-black/40 border-emerald-500/30"
+                    : "bg-red-950/30 border-red-500/40"
+                }`}
+              >
                 <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-emerald-400 flex items-center gap-1.5">
-                    <CheckCircle2 size={14} /> Resposta: {webhookTestOutput.message}
+                  <span
+                    className={`flex items-center gap-1.5 ${
+                      webhookTestOutput.success ? "text-emerald-400" : "text-red-400"
+                    }`}
+                  >
+                    {webhookTestOutput.success ? (
+                      <CheckCircle2 size={14} />
+                    ) : (
+                      <AlertTriangle size={14} />
+                    )}
+                    {webhookTestOutput.message}
                   </span>
-                  <span className="text-gray-400 font-mono">Status: {webhookTestOutput.status}</span>
+                  <span className="text-gray-400 font-mono">
+                    HTTP {webhookTestOutput.status}{" "}
+                    {webhookTestOutput.errorCode ? `(${webhookTestOutput.errorCode})` : ""}
+                  </span>
                 </div>
                 <pre className="p-3 bg-gray-950/80 rounded-xl text-[11px] font-mono text-gray-300 overflow-x-auto max-h-40 scrollbar-thin">
                   {JSON.stringify(webhookTestOutput.payload, null, 2)}
@@ -1164,12 +1339,165 @@ export const IntegracoesTab: React.FC = () => {
       )}
 
       {/* ===================================================================
-          5. MODAL DE CONFIGURAÇÃO GOOGLE BIGQUERY (Estilo Google Cloud Console)
+          5. TABELA DE LOGS DE ERROS & AUDITORIA DE INTEGRAÇÕES (BD)
+      =================================================================== */}
+      <div className="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <FileWarning size={18} className="text-gray-800" />
+              <h3 className="text-base font-extrabold text-gray-900">
+                Registo de Logs e Erros de Integrações (Base de Dados)
+              </h3>
+            </div>
+            <p className="text-xs text-gray-500">
+              Histórico persistido na tabela <code className="text-gray-700 font-mono">integration_logs</code> com diagnósticos de rede, falhas de autenticação, bloqueios SSRF e violações RFC.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Filtro de Severidade */}
+            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
+              {["ALL", "ERROR", "INFO"].map((lvl) => (
+                <button
+                  key={lvl}
+                  onClick={() => setLogLevelFilter(lvl)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    logLevelFilter === lvl
+                      ? lvl === "ERROR"
+                        ? "bg-red-600 text-white shadow-sm"
+                        : "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  {lvl === "ALL" ? "Todos" : lvl}
+                </button>
+              ))}
+            </div>
+
+            {/* Filtro de Provedor */}
+            <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2.5 py-1">
+              <Filter size={12} className="text-gray-400" />
+              <select
+                value={logProviderFilter}
+                onChange={(e) => setLogProviderFilter(e.target.value)}
+                className="text-xs text-gray-700 font-medium bg-transparent outline-none"
+              >
+                <option value="all">Todos os Provedores</option>
+                <option value="bigquery">Google BigQuery</option>
+                <option value="snowflake">Snowflake</option>
+                <option value="databricks">Databricks</option>
+                <option value="gcs">Google Cloud Storage</option>
+                <option value="slack">Slack</option>
+                <option value="github">GitHub</option>
+                <option value="jira">Jira</option>
+                <option value="webhook">Webhooks</option>
+              </select>
+            </div>
+
+            <button
+              onClick={() => fetchIntegrationLogs()}
+              disabled={loadingLogs}
+              className="p-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-gray-600 transition-colors"
+              title="Atualizar logs"
+            >
+              <RefreshCw size={14} className={loadingLogs ? "animate-spin" : ""} />
+            </button>
+
+            {canManage && integrationLogs.length > 0 && (
+              <button
+                onClick={handleClearLogs}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200/60 rounded-xl text-xs font-bold transition-colors"
+                title="Limpar histórico de logs"
+              >
+                <Trash2 size={13} />
+                Limpar
+              </button>
+            )}
+          </div>
+        </div>
+
+        {integrationLogs.length === 0 ? (
+          <div className="py-10 text-center text-xs text-gray-400">
+            Nenhum evento ou erro de integração registado para o filtro selecionado.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-gray-100 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  <th className="py-2.5 px-3">Data / Hora</th>
+                  <th className="py-2.5 px-3">Nível</th>
+                  <th className="py-2.5 px-3">Provedor</th>
+                  <th className="py-2.5 px-3">Ação</th>
+                  <th className="py-2.5 px-3">Código Norma / HTTP</th>
+                  <th className="py-2.5 px-3">Latência</th>
+                  <th className="py-2.5 px-3">Mensagem / Diagnóstico</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {integrationLogs.map((log) => {
+                  const isErr = log.level === "ERROR" || log.level === "CRITICAL";
+                  return (
+                    <tr
+                      key={log.id}
+                      className={isErr ? "bg-red-50/40 hover:bg-red-50/70" : "hover:bg-gray-50/80"}
+                    >
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-gray-500 whitespace-nowrap">
+                        {log.created_at}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                            isErr
+                              ? "bg-red-100 text-red-700 border border-red-200"
+                              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          }`}
+                        >
+                          {log.level}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-bold text-gray-800 uppercase text-[11px]">
+                        {log.provider}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-gray-600">
+                        {log.action}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px]">
+                        <span
+                          className={
+                            isErr ? "text-red-700 font-semibold" : "text-gray-600"
+                          }
+                        >
+                          {log.error_code || (log.status_code ? `HTTP_${log.status_code}` : "-")}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-gray-500">
+                        {log.latency_ms != null ? `${log.latency_ms}ms` : "-"}
+                      </td>
+                      <td className="py-2.5 px-3 text-gray-700 max-w-md">
+                        <div className="font-medium">{log.message}</div>
+                        {log.endpoint_url && (
+                          <div className="text-[10px] font-mono text-gray-400 truncate mt-0.5">
+                            Endpoint: {log.endpoint_url}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ===================================================================
+          6. MODAL DE CONFIGURAÇÃO GOOGLE BIGQUERY
       =================================================================== */}
       {isBigQueryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-gray-200 overflow-hidden">
-            {/* Modal Header */}
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-white border border-gray-200/80 flex items-center justify-center p-2 shadow-sm">
@@ -1180,7 +1508,7 @@ export const IntegracoesTab: React.FC = () => {
                     Configuração do Google BigQuery
                   </h3>
                   <p className="text-xs text-gray-500">
-                    Parâmetros de conexão GCP, políticas de Dry-Run e auditoria de consultas.
+                    Parâmetros de conexão GCP, políticas de Dry-Run e auditoria persistidos na base de dados.
                   </p>
                 </div>
               </div>
@@ -1192,7 +1520,6 @@ export const IntegracoesTab: React.FC = () => {
               </button>
             </div>
 
-            {/* Modal Sub-Tabs */}
             <div className="flex border-b border-gray-100 bg-white px-6">
               {[
                 { id: "creds", label: "Conexão GCP & Chave" },
@@ -1202,19 +1529,18 @@ export const IntegracoesTab: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setBigQueryTab(tab.id as any)}
-                  className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${bigQueryTab === tab.id
+                  className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${
+                    bigQueryTab === tab.id
                       ? "border-blue-600 text-blue-600"
                       : "border-transparent text-gray-500 hover:text-gray-800"
-                    }`}
+                  }`}
                 >
                   {tab.label}
                 </button>
               ))}
             </div>
 
-            {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
-              {/* ABA 1: CREDENCIAIS */}
               {bigQueryTab === "creds" && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1226,9 +1552,12 @@ export const IntegracoesTab: React.FC = () => {
                         type="text"
                         value={bigQueryConfig.projectId}
                         onChange={(e) =>
-                          setBigQueryConfig({ ...bigQueryConfig, projectId: e.target.value })
+                          setBigQueryConfig({
+                            ...bigQueryConfig,
+                            projectId: e.target.value,
+                          })
                         }
-                        placeholder="ex: MustaInfo-analytics-prod"
+                        placeholder="ex: meu-projeto-analytics-01"
                         className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
                     </div>
@@ -1241,7 +1570,10 @@ export const IntegracoesTab: React.FC = () => {
                         type="text"
                         value={bigQueryConfig.datasetId}
                         onChange={(e) =>
-                          setBigQueryConfig({ ...bigQueryConfig, datasetId: e.target.value })
+                          setBigQueryConfig({
+                            ...bigQueryConfig,
+                            datasetId: e.target.value,
+                          })
                         }
                         placeholder="ex: analytics_dw"
                         className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -1256,11 +1588,14 @@ export const IntegracoesTab: React.FC = () => {
                     <select
                       value={bigQueryConfig.region}
                       onChange={(e) =>
-                        setBigQueryConfig({ ...bigQueryConfig, region: e.target.value })
+                        setBigQueryConfig({
+                          ...bigQueryConfig,
+                          region: e.target.value,
+                        })
                       }
                       className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     >
-                      {GCP_REGIONS.map((r) => (
+                      {gcpRegions.map((r) => (
                         <option key={r.value} value={r.value}>
                           {r.label}
                         </option>
@@ -1274,7 +1609,9 @@ export const IntegracoesTab: React.FC = () => {
                         Chave Privada da Service Account (JSON)
                       </label>
                       <span className="text-[10px] text-gray-400">
-                        Criptografado com AES-256 no backend
+                        {bigQueryConfig.hasCredentials
+                          ? `Credencial ativa (${bigQueryConfig.clientEmail || "configurada"})`
+                          : "Obrigatório na primeira ativação"}
                       </span>
                     </div>
                     <textarea
@@ -1286,32 +1623,42 @@ export const IntegracoesTab: React.FC = () => {
                           serviceAccountJson: e.target.value,
                         })
                       }
-                      placeholder='{ "type": "service_account", "project_id": "...", "private_key": "..." }'
+                      placeholder='{"type": "service_account", "project_id": "...", "private_key": "...", "client_email": "...@...iam.gserviceaccount.com"}'
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-[11px] font-mono text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     />
                   </div>
 
-                  {/* Feedback de Teste */}
                   {bigQueryTestResult && (
                     <div
-                      className={`p-3.5 rounded-xl border flex items-start gap-2.5 ${bigQueryTestResult.success
+                      className={`p-3.5 rounded-xl border flex items-start gap-2.5 ${
+                        bigQueryTestResult.success
                           ? "bg-emerald-50 border-emerald-200 text-emerald-800"
                           : "bg-red-50 border-red-200 text-red-800"
-                        }`}
+                      }`}
                     >
                       {bigQueryTestResult.success ? (
-                        <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                        <CheckCircle2
+                          size={16}
+                          className="text-emerald-600 shrink-0 mt-0.5"
+                        />
                       ) : (
-                        <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                        <AlertTriangle
+                          size={16}
+                          className="text-red-600 shrink-0 mt-0.5"
+                        />
                       )}
                       <div>
                         <span className="font-bold block">
-                          {bigQueryTestResult.success ? "Conexão Validada" : "Erro na Conexão"}
+                          {bigQueryTestResult.success
+                            ? "Conexão Validada"
+                            : `Erro na Validação (${bigQueryTestResult.errorCode || "ERROR"})`}
                         </span>
-                        <p className="mt-0.5 leading-relaxed">{bigQueryTestResult.message}</p>
+                        <p className="mt-0.5 leading-relaxed">
+                          {bigQueryTestResult.message}
+                        </p>
                         {bigQueryTestResult.latencyMs > 0 && (
                           <span className="text-[10px] font-mono mt-1 block opacity-75">
-                            Latência: {bigQueryTestResult.latencyMs}ms
+                            Latência HTTPS: {bigQueryTestResult.latencyMs}ms
                           </span>
                         )}
                       </div>
@@ -1320,14 +1667,13 @@ export const IntegracoesTab: React.FC = () => {
                 </div>
               )}
 
-              {/* ABA 2: DRY-RUN */}
               {bigQueryTab === "dryrun" && (
                 <div className="space-y-5">
                   <div className="bg-blue-50/70 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
                     <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
                     <p className="text-blue-900 leading-relaxed text-xs">
                       O mecanismo de <strong>Dry-Run do BigQuery</strong> estima a quantidade exata de bytes que uma consulta varrerá
-                      <strong> sem executar o processamento real</strong> e sem incorrer em custos no Google Cloud.
+                      <strong> sem executar o processamento real</strong>.
                     </p>
                   </div>
 
@@ -1344,7 +1690,10 @@ export const IntegracoesTab: React.FC = () => {
                       type="checkbox"
                       checked={bigQueryConfig.dryRunEnabled}
                       onChange={(e) =>
-                        setBigQueryConfig({ ...bigQueryConfig, dryRunEnabled: e.target.checked })
+                        setBigQueryConfig({
+                          ...bigQueryConfig,
+                          dryRunEnabled: e.target.checked,
+                        })
                       }
                       className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
                     />
@@ -1353,7 +1702,7 @@ export const IntegracoesTab: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="font-bold text-gray-700 uppercase tracking-wider text-[10px]">
-                        Teto de Bytes Faturados (Maximum Bytes Billed em GB)
+                        Teto de Bytes Faturados (GB)
                       </label>
                       <input
                         type="number"
@@ -1363,14 +1712,12 @@ export const IntegracoesTab: React.FC = () => {
                         onChange={(e) =>
                           setBigQueryConfig({
                             ...bigQueryConfig,
-                            maxBytesBilledGb: Number(e.target.value) || 10,
+                            maxBytesBilledGb:
+                              Number(e.target.value) || ENV_DEFAULT_BQ_MAX_GB,
                           })
                         }
                         className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
-                      <span className="text-[10px] text-gray-400">
-                        Bloqueia queries que excederem este limite.
-                      </span>
                     </div>
 
                     <div className="space-y-1.5">
@@ -1385,20 +1732,17 @@ export const IntegracoesTab: React.FC = () => {
                         onChange={(e) =>
                           setBigQueryConfig({
                             ...bigQueryConfig,
-                            costAlertThresholdUsd: Number(e.target.value) || 1.0,
+                            costAlertThresholdUsd:
+                              Number(e.target.value) || ENV_DEFAULT_BQ_COST_USD,
                           })
                         }
                         className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
-                      <span className="text-[10px] text-gray-400">
-                        Dispara notificação se custo estimado for maior que o valor.
-                      </span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* ABA 3: LINHAGEM & AUDITORIA */}
               {bigQueryTab === "lineage" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-3.5 bg-gray-50 rounded-xl border border-gray-100">
@@ -1407,7 +1751,7 @@ export const IntegracoesTab: React.FC = () => {
                         Auto-Sincronizar com Linhagem de Dados
                       </span>
                       <span className="text-gray-500 text-[11px]">
-                        Exporta automaticamente nós de tabelas e views do BigQuery para o mapa visual de linhagem do MustaInfoo.
+                        Exporta automaticamente nós de tabelas e views do BigQuery para o mapa visual de linhagem.
                       </span>
                     </div>
                     <input
@@ -1429,7 +1773,7 @@ export const IntegracoesTab: React.FC = () => {
                         Exportação de Auditoria de Queries
                       </span>
                       <span className="text-gray-500 text-[11px]">
-                        Cria tabela particionada diária de histórico de auditoria no BigQuery para conformidade e CDOs.
+                        Mantém histórico de auditoria das consultas analíticas na base de dados.
                       </span>
                     </div>
                     <input
@@ -1448,7 +1792,6 @@ export const IntegracoesTab: React.FC = () => {
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="p-5 border-t border-gray-100 bg-gray-50/70 flex items-center justify-between">
               <button
                 type="button"
@@ -1477,7 +1820,7 @@ export const IntegracoesTab: React.FC = () => {
                   onClick={handleSaveBigQuery}
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs transition-all shadow-sm hover:shadow"
                 >
-                  Salvar e Ativar
+                  Salvar na Base de Dados
                 </button>
               </div>
             </div>
@@ -1486,11 +1829,11 @@ export const IntegracoesTab: React.FC = () => {
       )}
 
       {/* ===================================================================
-          6. MODAL GENÉRICO PARA DEMAIS INTEGRAÇÕES
+          7. MODAL PARA DEMAIS INTEGRAÇÕES (COM TESTE RFC / HTTPS / SSRF)
       =================================================================== */}
       {genericModalIntegration && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-gray-200 overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-white border border-gray-200/80 flex items-center justify-center p-2 shadow-sm">
@@ -1498,9 +1841,11 @@ export const IntegracoesTab: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-gray-900 text-base">
-                    Conectar {genericModalIntegration.name}
+                    Configurar {genericModalIntegration.name}
                   </h3>
-                  <span className="text-xs text-gray-500">{genericModalIntegration.provider}</span>
+                  <span className="text-xs text-gray-500">
+                    {genericModalIntegration.provider}
+                  </span>
                 </div>
               </div>
               <button
@@ -1508,6 +1853,7 @@ export const IntegracoesTab: React.FC = () => {
                   setGenericModalIntegration(null);
                   setGenericHost("");
                   setGenericToken("");
+                  setGenericTestResult(null);
                 }}
                 className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               >
@@ -1517,26 +1863,29 @@ export const IntegracoesTab: React.FC = () => {
 
             <div className="p-6 space-y-4 text-xs">
               <p className="text-gray-600 leading-relaxed">
-                Insira as credenciais de acesso ou tokens de API da sua conta{" "}
-                <strong>{genericModalIntegration.name}</strong> para sincronizar com o MustaInfoo.
+                Informe o endpoint HTTPS real e o token de autenticação para{" "}
+                <strong>{genericModalIntegration.name}</strong>. O backend validará o domínio (RFC 3986 / RFC 1123), o certificado TLS (RFC 9110) e a proteção anti-SSRF antes de gravar na base de dados.
               </p>
 
               <div className="space-y-1.5">
                 <label className="font-bold text-gray-700 uppercase tracking-wider text-[10px]">
-                  Identificador / Host da Conta
+                  Endpoint HTTPS / Host da Conta *
                 </label>
                 <input
                   type="text"
                   value={genericHost}
                   onChange={(e) => setGenericHost(e.target.value)}
-                  placeholder="ex: xyz12345.snowflakecomputing.com ou https://hooks.slack.com/..."
+                  placeholder={
+                    genericModalIntegration.endpointUrl ||
+                    "https://api.github.com"
+                  }
                   className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="font-bold text-gray-700 uppercase tracking-wider text-[10px]">
-                  Token de Autenticação / Chave de API
+                  Token de Autenticação / Bearer API Key
                 </label>
                 <input
                   type="password"
@@ -1547,31 +1896,85 @@ export const IntegracoesTab: React.FC = () => {
                 />
               </div>
 
+              {genericTestResult && (
+                <div
+                  className={`p-3.5 rounded-xl border flex items-start gap-2.5 ${
+                    genericTestResult.success
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                      : "bg-red-50 border-red-200 text-red-800"
+                  }`}
+                >
+                  {genericTestResult.success ? (
+                    <CheckCircle2
+                      size={16}
+                      className="text-emerald-600 shrink-0 mt-0.5"
+                    />
+                  ) : (
+                    <AlertTriangle
+                      size={16}
+                      className="text-red-600 shrink-0 mt-0.5"
+                    />
+                  )}
+                  <div className="space-y-0.5">
+                    <span className="font-bold block">
+                      {genericTestResult.success
+                        ? "Conectividade HTTPS Validada"
+                        : `Falha (${genericTestResult.errorCode || "ERROR"})`}
+                    </span>
+                    <p className="leading-relaxed">{genericTestResult.message}</p>
+                    {genericTestResult.latencyMs > 0 && (
+                      <span className="text-[10px] font-mono block opacity-75">
+                        Latência: {genericTestResult.latencyMs}ms
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl text-gray-500 text-[11px] flex items-center gap-2">
                 <Shield size={14} className="text-emerald-500 shrink-0" />
-                Credenciais trafegadas e armazenadas com isolamento seguro por empresa.
+                Registo persistido em PostgreSQL (`empresa_integrations` e `integration_logs`).
               </div>
             </div>
 
-            <div className="p-5 border-t border-gray-100 bg-gray-50/70 flex items-center justify-end gap-2">
+            <div className="p-5 border-t border-gray-100 bg-gray-50/70 flex items-center justify-between gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setGenericModalIntegration(null);
-                  setGenericHost("");
-                  setGenericToken("");
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 rounded-xl font-bold text-xs transition-colors"
+                onClick={handleTestGeneric}
+                disabled={testingGeneric || savingGeneric}
+                className="px-3.5 py-2 bg-white border border-gray-300 hover:border-gray-400 text-gray-700 rounded-xl font-bold text-xs transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
               >
-                Cancelar
+                {testingGeneric ? (
+                  <Loader2 size={14} className="animate-spin text-blue-600" />
+                ) : (
+                  <Zap size={14} className="text-amber-500" />
+                )}
+                {testingGeneric ? "Testando..." : "Testar Endpoint"}
               </button>
-              <button
-                type="button"
-                onClick={handleSaveGeneric}
-                className="px-5 py-2 bg-gray-900 hover:bg-black text-white rounded-xl font-bold text-xs transition-all shadow-sm"
-              >
-                Confirmar Conexão
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGenericModalIntegration(null);
+                    setGenericHost("");
+                    setGenericToken("");
+                    setGenericTestResult(null);
+                  }}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-900 rounded-xl font-bold text-xs transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveGeneric}
+                  disabled={savingGeneric}
+                  className="px-5 py-2 bg-gray-900 hover:bg-black text-white rounded-xl font-bold text-xs transition-all shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {savingGeneric && <Loader2 size={13} className="animate-spin" />}
+                  Confirmar e Salvar
+                </button>
+              </div>
             </div>
           </div>
         </div>
