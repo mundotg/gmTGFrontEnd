@@ -73,10 +73,10 @@ export default function HomePage() {
               <Database size={20} strokeWidth={2.5} />
             </div>
             <span className="font-bold tracking-tight text-lg hidden sm:block">
-              {t("nav.brandName") || "MustaInf"}
+              {t("nav.brandName") || "MustaInfo"}
             </span>
           </div>
-        
+
           <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-6">
               <Link href="/nexus-cognitiva" className="text-sm font-bold text-purple-600 hover:text-purple-700 transition-colors flex items-center gap-1.5">
@@ -193,7 +193,7 @@ export default function HomePage() {
           </div>
           <div className="space-y-2">
             <p className="text-gray-400 text-xs font-black uppercase tracking-[0.2em]">{t("home.footer")}</p>
-            <p className="text-[10px] text-gray-400 font-medium">© 2026 MustaInf Project • OrionForgeNexus Enterprise</p>
+            <p className="text-[10px] text-gray-400 font-medium">© 2026 MustaInfo Project • OrionForgeNexus Enterprise</p>
           </div>
         </footer>
       </main>

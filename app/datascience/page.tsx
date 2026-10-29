@@ -103,7 +103,7 @@ function DataSciencePageInner() {
       let key = rawKey;
       try {
         key = decodeURIComponent(rawKey);
-      } catch {}
+      } catch { }
       return { key };
     }
     const table = searchParams.get("table");
@@ -313,7 +313,7 @@ function DataSciencePageInner() {
     if (!overview) return;
     const numCols = columns.filter((c) => c.kind === "numeric").length;
     const md = [
-      `# 📊 Relatório Didático de Análise de Dados — MustaInf`,
+      `# 📊 Relatório Didático de Análise de Dados — MustaInfo`,
       ``,
       `## 1. Volumetria & Saúde dos Dados`,
       `- **Total de Linhas:** ${fmt(overview.n_rows)}`,
@@ -344,7 +344,7 @@ function DataSciencePageInner() {
         ? `- **Anomalias:** ${anomalies.count} registros atípicos identificados`
         : `- Nenhuma anomalia crítica`,
       ``,
-      `*Gerado pelo MustaInf Data Science Hub*`,
+      `*Gerado pelo MustaInfo Data Science Hub*`,
     ].join("\n");
 
     if (navigator?.clipboard) {
@@ -483,22 +483,20 @@ function DataSciencePageInner() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${
-                        isActive
+                      className={`flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer border ${isActive
                           ? "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
                           : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-900/60"
-                      }`}
+                        }`}
                     >
                       <Icon size={16} />
                       <span>{tab.label}</span>
                       {tab.badge && (
                         <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full ${
-                            tab.badgeColor ||
+                          className={`text-[10px] px-2 py-0.5 rounded-full ${tab.badgeColor ||
                             (isActive
                               ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
                               : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400")
-                          }`}
+                            }`}
                         >
                           {tab.badge}
                         </span>

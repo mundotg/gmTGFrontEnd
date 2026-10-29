@@ -4,7 +4,7 @@ import AuthProvider from "../component/provader";
 
 
 export const metadata: Metadata = {
-  title: "MustaInf auth",
+  title: "MustaInfo auth",
   description: "janelas de login e registro",
 };
 

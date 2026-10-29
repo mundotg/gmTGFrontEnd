@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+    Archive,
     ChevronRight,
     Folder,
     FolderPlus,
@@ -10,6 +11,7 @@ import {
     LockOpen,
     MoreVertical,
     Pencil,
+    Shield,
     Trash2,
     Unlock,
 } from "lucide-react";
@@ -147,6 +149,8 @@ export function FolderGrid({
     onPassword,
     onDelete,
     onLock,
+    onPermissions,
+    onDownloadZip,
     onDropOn,
     onDragStart,
     onDragEnd,
@@ -158,6 +162,8 @@ export function FolderGrid({
     onPassword: (f: FolderNode) => void;
     onDelete: (f: FolderNode) => void;
     onLock: (f: FolderNode) => void;
+    onPermissions?: (f: FolderNode) => void;
+    onDownloadZip?: (f: FolderNode) => void;
     onDropOn?: (destino: FolderNode, e: React.DragEvent) => void;
     onDragStart?: (item: DragItem) => void;
     onDragEnd?: () => void;
@@ -253,7 +259,23 @@ export function FolderGrid({
                     </button>
 
                     {menu === f.id && (
-                        <div className="absolute z-20 top-8 right-1 w-44 bg-white border border-gray-100 rounded-xl shadow-lg py-1 animate-scale-in">
+                        <div className="absolute z-20 top-8 right-1 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-1 animate-scale-in">
+                            {onPermissions && (
+                                <MenuItem
+                                    icon={<Shield className="w-3.5 h-3.5 text-indigo-600" />}
+                                    onClick={() => { setMenu(null); onPermissions(f); }}
+                                >
+                                    Permissões & Partilha
+                                </MenuItem>
+                            )}
+                            {onDownloadZip && !isFechada(f) && (
+                                <MenuItem
+                                    icon={<Archive className="w-3.5 h-3.5 text-purple-600" />}
+                                    onClick={() => { setMenu(null); onDownloadZip(f); }}
+                                >
+                                    Baixar pasta (.ZIP)
+                                </MenuItem>
+                            )}
                             <MenuItem
                                 icon={<Pencil className="w-3.5 h-3.5" />}
                                 onClick={() => { setMenu(null); onRename(f); }}

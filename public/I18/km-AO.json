@@ -1,6 +1,6 @@
 {
   "header": {
-    "welcome": "Ua vutuka kyambote ku MustaInf, imoxi",
+    "welcome": "Ua vutuka kyambote ku MustaInfo, imoxi",
     "platformType": "Data Pipeline and Analytics Platform",
     "desc": {
       "part1": "Polojeitu end-to-end ya ku tekula ",
@@ -15,7 +15,7 @@
     }
   },
   "nav": {
-    "brandName": "MustaInf",
+    "brandName": "MustaInfo",
     "tasks": "Ikalakalu",
     "ocr": "OCR",
     "login": "Bokela",
@@ -31,7 +31,7 @@
     "roadmapBadge": "ROADMAP",
     "featuresTitle": "Ikalakalu ya Muxima",
     "futureTitle": "Ihi yanda kwiza",
-    "footer": "MustaInf © 2026. Todos os direitos reservados. Desenvolvido com ❤️ em Next.js + Python FastAPI por Francemy Sebastião"
+    "footer": "MustaInfo © 2026. Todos os direitos reservados. Desenvolvido com ❤️ em Next.js + Python FastAPI por Francemy Sebastião"
   },
   "features": {
     "consultas": "Kusota kwaleluka: soneka ngó o dijina dya tabela.",
@@ -553,7 +553,7 @@
     "activityLog": "Musoso dya Kubhanga",
     "milestones": "Kwenda dya Milestones",
     "accessDenied": "Kubokela Kwa Kamba mu Módulo",
-    "accessDeniedDesc": "Zwela ni mutwameni dya MustaInf."
+    "accessDeniedDesc": "Zwela ni mutwameni dya MustaInfo."
   },
   "settings": {
     "title": "Ijidilu (Configurações)",

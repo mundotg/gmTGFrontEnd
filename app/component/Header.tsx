@@ -17,7 +17,7 @@ export default function Header() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80">
               <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              MustaInf Data Platform
+              MustaInfo Data Platform
             </span>
             {user?.empresa?.company && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">

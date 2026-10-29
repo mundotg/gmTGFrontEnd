@@ -5,8 +5,8 @@ import { LegalDocument } from "../_legal/LegalDocument";
 import { termos } from "../_legal/termos";
 
 export const metadata: Metadata = {
-  title: "Termos de Serviço · MustaInfo",
-  description: "Termos de utilização do MustaInfo.",
+  title: "Termos de Serviço · MustaInfoo",
+  description: "Termos de utilização do MustaInfoo.",
 };
 
 export default function Page() {

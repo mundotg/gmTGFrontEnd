@@ -89,7 +89,7 @@ export function AccessDenied({ t }: { t: (valor: string) => string }) {
 
       <p className="text-sm text-gray-500 font-medium max-w-xs">
         {t("projects.accessDeniedDesc") ||
-          "Contacte o administrador do MustaInf."}
+          "Contacte o administrador do MustaInfo."}
       </p>
     </div>
   );
@@ -101,7 +101,7 @@ export function AccessDenied({ t }: { t: (valor: string) => string }) {
 export function SkeletonLoader() {
   return (
     <div className="space-y-6 animate-pulse">
-      
+
       {/* HEADER */}
       <div className="flex justify-between">
         <div className="h-8 bg-gray-200 w-1/4 rounded-lg" />

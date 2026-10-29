@@ -47,7 +47,7 @@ export function DataScienceHeader({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight">
-                MustaInf · Análise & Ciência de Dados
+                MustaInfo · Análise & Ciência de Dados
               </h1>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-900">
                 Interativo & Didático
@@ -71,11 +71,10 @@ export function DataScienceHeader({
           <button
             onClick={onToggleStudyMode}
             type="button"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-              studyMode
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${studyMode
                 ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200 dark:shadow-none"
                 : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300"
-            }`}
+              }`}
             title="Ative o Modo Estudo para ver explicações detalhadas em cada número e gráfico"
           >
             <GraduationCap size={15} />

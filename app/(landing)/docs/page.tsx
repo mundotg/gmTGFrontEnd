@@ -101,55 +101,55 @@ const ENGINE_TOPICS: Array<{
   body: string;
   code?: string;
 }> = [
-  {
-    icon: Code2,
-    title: "Linguagens de Criação",
-    body:
-      "A maioria dos motores de bases de dados como PostgreSQL, MySQL e Oracle " +
-      "são desenvolvidos em C e C++, permitindo controlo direto da memória, " +
-      "alta performance e comunicação eficiente com o sistema operativo.",
-  },
-  {
-    icon: Database,
-    title: "Armazenamento em Disco",
-    body:
-      "Os dados são armazenados em ficheiros binários estruturados em páginas " +
-      "(blocos de tamanho fixo). Cada página contém múltiplas linhas de dados e metadados.",
-    code: `/data/
+    {
+      icon: Code2,
+      title: "Linguagens de Criação",
+      body:
+        "A maioria dos motores de bases de dados como PostgreSQL, MySQL e Oracle " +
+        "são desenvolvidos em C e C++, permitindo controlo direto da memória, " +
+        "alta performance e comunicação eficiente com o sistema operativo.",
+    },
+    {
+      icon: Database,
+      title: "Armazenamento em Disco",
+      body:
+        "Os dados são armazenados em ficheiros binários estruturados em páginas " +
+        "(blocos de tamanho fixo). Cada página contém múltiplas linhas de dados e metadados.",
+      code: `/data/
  ├── users.dat
  ├── users.idx
  └── wal.log`,
-  },
-  {
-    icon: Share2,
-    title: "Índices (B-Tree)",
-    body:
-      "Para acelerar consultas, os SGBDs utilizam estruturas como B-Trees, " +
-      "permitindo buscas em tempo logarítmico (O(log n)) ao invés de percorrer toda a tabela.",
-  },
-  {
-    icon: Cpu,
-    title: "Gestão de Memória",
-    body:
-      "O Buffer Pool mantém dados frequentemente acedidos em memória RAM, " +
-      "reduzindo acessos ao disco e melhorando significativamente a performance.",
-  },
-  {
-    icon: Terminal,
-    title: "Write-Ahead Logging (WAL)",
-    body:
-      "Antes de qualquer escrita em disco, as operações são registadas num log. " +
-      "Isso garante recuperação de dados em caso de falhas e suporte às propriedades ACID.",
-  },
-  {
-    icon: Zap,
-    title: "Execução de Queries",
-    body:
-      "O processamento de queries segue três etapas principais: parsing, planeamento " +
-      "e execução. O otimizador escolhe a melhor estratégia para aceder aos dados.",
-    code: "SQL → Parser → Planner → Executor",
-  },
-];
+    },
+    {
+      icon: Share2,
+      title: "Índices (B-Tree)",
+      body:
+        "Para acelerar consultas, os SGBDs utilizam estruturas como B-Trees, " +
+        "permitindo buscas em tempo logarítmico (O(log n)) ao invés de percorrer toda a tabela.",
+    },
+    {
+      icon: Cpu,
+      title: "Gestão de Memória",
+      body:
+        "O Buffer Pool mantém dados frequentemente acedidos em memória RAM, " +
+        "reduzindo acessos ao disco e melhorando significativamente a performance.",
+    },
+    {
+      icon: Terminal,
+      title: "Write-Ahead Logging (WAL)",
+      body:
+        "Antes de qualquer escrita em disco, as operações são registadas num log. " +
+        "Isso garante recuperação de dados em caso de falhas e suporte às propriedades ACID.",
+    },
+    {
+      icon: Zap,
+      title: "Execução de Queries",
+      body:
+        "O processamento de queries segue três etapas principais: parsing, planeamento " +
+        "e execução. O otimizador escolhe a melhor estratégia para aceder aos dados.",
+      code: "SQL → Parser → Planner → Executor",
+    },
+  ];
 
 function EngineSection() {
   return (
@@ -170,7 +170,7 @@ function EngineSection() {
       </div>
 
       <Callout tone="info">
-        Esta arquitetura permite que o MustaInf abstraia a complexidade dos SGBDs,
+        Esta arquitetura permite que o MustaInfo abstraia a complexidade dos SGBDs,
         oferecendo uma interface visual poderosa sem comprometer a performance.
       </Callout>
     </>
@@ -181,7 +181,7 @@ function IntroSection() {
   return (
     <>
       <p className="text-lg font-medium leading-relaxed text-gray-500 dark:text-gray-400">
-        Uma plataforma centralizada para engenharia de dados e análise preditiva. O MustaInf
+        Uma plataforma centralizada para engenharia de dados e análise preditiva. O MustaInfo
         atua como o motor de visualização e manipulação de bases de dados, com suporte para
         PostgreSQL, MySQL, Oracle, SQL Server, SQLite, MongoDB e Redis.
       </p>
@@ -333,7 +333,7 @@ const DOC_GROUPS: DocGroup[] = [
     items: [
       {
         id: "intro",
-        label: "O que é o MustaInf?",
+        label: "O que é o MustaInfo?",
         eyebrow: "Introdução ao Projeto",
         title: "OrionForgeNexus.",
         keywords: ["visao geral", "plataforma", "nextjs", "arquitetura"],
@@ -489,7 +489,7 @@ export default function DocsPage() {
               <Database size={18} strokeWidth={2.5} aria-hidden />
             </div>
             <span className="text-lg font-bold tracking-tight">
-              MustaInf <span className="text-blue-600 dark:text-blue-400">Docs</span>
+              MustaInfo <span className="text-blue-600 dark:text-blue-400">Docs</span>
             </span>
           </Link>
 
@@ -533,9 +533,8 @@ export default function DocsPage() {
         <nav
           id="docs-nav"
           aria-label="Navegação da documentação"
-          className={`w-full border-r border-gray-200 p-6 md:sticky md:top-16 md:block md:h-[calc(100vh-64px)] md:w-72 md:overflow-y-auto dark:border-white/10 ${
-            isMobileNavOpen ? "block" : "hidden"
-          }`}
+          className={`w-full border-r border-gray-200 p-6 md:sticky md:top-16 md:block md:h-[calc(100vh-64px)] md:w-72 md:overflow-y-auto dark:border-white/10 ${isMobileNavOpen ? "block" : "hidden"
+            }`}
         >
           {/* Pesquisa também no mobile, onde a da navbar está escondida */}
           <div className="relative mb-8 md:hidden">
@@ -576,11 +575,10 @@ export default function DocsPage() {
                               type="button"
                               onClick={() => selectSection(item.id)}
                               aria-current={isActive ? "page" : undefined}
-                              className={`group flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left text-sm font-bold transition-all ${
-                                isActive
+                              className={`group flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left text-sm font-bold transition-all ${isActive
                                   ? "bg-blue-600 text-white shadow-sm"
                                   : "text-gray-500 hover:bg-blue-50 hover:text-blue-600 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-blue-400"
-                              }`}
+                                }`}
                             >
                               {item.label}
                               <ChevronRight

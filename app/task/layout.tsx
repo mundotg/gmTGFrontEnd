@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Gestor de Projectos & Tarefas | MustaInfo",
+  title: "Gestor de Projectos & Tarefas | MustaInfoo",
   description: "Plataforma empresarial moderna para gestão ágil de projectos, sprints e tarefas de equipa.",
 };
 

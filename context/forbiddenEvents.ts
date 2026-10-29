@@ -9,7 +9,7 @@ export interface ForbiddenEventPayload {
   timestamp?: number;
 }
 
-export const FORBIDDEN_EVENT = "mustainf:api-forbidden";
+export const FORBIDDEN_EVENT = "MustaInfo:api-forbidden";
 
 let lastForbiddenMsg = "";
 let lastForbiddenTime = 0;
@@ -49,7 +49,7 @@ export function notifyForbidden(payload: {
  * Subscreve eventos 403 de acesso proibido. Retorna função para cancelar subscrição.
  */
 export function onForbidden(handler: (payload: ForbiddenEventPayload) => void): () => void {
-  if (typeof window === "undefined") return () => {};
+  if (typeof window === "undefined") return () => { };
 
   const listener = (event: Event) => {
     const custom = event as CustomEvent<ForbiddenEventPayload>;

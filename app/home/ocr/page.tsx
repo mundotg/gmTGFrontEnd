@@ -17,7 +17,7 @@ import HelpModal from "./components/HelpModal";
 import CameraModal from "./components/CameraModal";
 import HistoryDrawer, { OCRHistoryItem } from "./components/HistoryDrawer";
 
-const HISTORY_STORAGE_KEY = "mustainf_ocr_history";
+const HISTORY_STORAGE_KEY = "MustaInfo_ocr_history";
 
 export default function OCRPage() {
   const { api } = useSession();
@@ -304,7 +304,7 @@ export default function OCRPage() {
       } else {
         setError(
           t("ocr.invalidFile") ||
-            "Formato não suportado. Por favor, envie uma Imagem, PDF, Excel ou Texto."
+          "Formato não suportado. Por favor, envie uma Imagem, PDF, Excel ou Texto."
         );
       }
     } catch (err: any) {
@@ -360,7 +360,7 @@ export default function OCRPage() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Texto Reconhecido por MustaInf OCR",
+          title: "Texto Reconhecido por MustaInfo OCR",
           text: resultText,
         });
         return;
@@ -430,7 +430,7 @@ export default function OCRPage() {
             </div>
             <div>
               <h1 className="text-base font-bold text-gray-900 tracking-tight flex items-center gap-1.5">
-                MustaInf <span className="text-blue-600">Vision OCR</span>
+                MustaInfo <span className="text-blue-600">Vision OCR</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                   Paddle v3 + IA
                 </span>
@@ -545,11 +545,10 @@ export default function OCRPage() {
                   setDragActive(false);
                   if (e.dataTransfer.files[0]) handleFileSelect(e.dataTransfer.files[0]);
                 }}
-                className={`group relative aspect-[4/3] rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center overflow-hidden bg-gray-50/50 ${
-                  dragActive
+                className={`group relative aspect-[4/3] rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center overflow-hidden bg-gray-50/50 ${dragActive
                     ? "border-blue-500 bg-blue-50/60"
                     : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 {!selectedFile ? (
                   <div className="text-center p-6 space-y-3.5">
@@ -737,33 +736,30 @@ export default function OCRPage() {
                 <div className="flex items-center gap-1 bg-gray-200/60 p-1 rounded-xl">
                   <button
                     onClick={() => setActiveTab("text")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                      activeTab === "text"
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "text"
                         ? "bg-white text-gray-900 shadow-xs"
                         : "text-gray-600 hover:text-gray-900"
-                    }`}
+                      }`}
                   >
                     <AlignLeft size={13} />
                     <span>Texto</span>
                   </button>
                   <button
                     onClick={() => setActiveTab("lines")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                      activeTab === "lines"
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "lines"
                         ? "bg-white text-gray-900 shadow-xs"
                         : "text-gray-600 hover:text-gray-900"
-                    }`}
+                      }`}
                   >
                     <Layers size={13} />
                     <span>Linhas ({textStats.lines})</span>
                   </button>
                   <button
                     onClick={() => setActiveTab("structured")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                      activeTab === "structured"
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "structured"
                         ? "bg-white text-gray-900 shadow-xs"
                         : "text-gray-600 hover:text-gray-900"
-                    }`}
+                      }`}
                   >
                     <Sparkles size={13} />
                     <span>Ficha ({structuredData.length})</span>
@@ -787,11 +783,10 @@ export default function OCRPage() {
                   <button
                     onClick={() => setIsEditing(!isEditing)}
                     disabled={!resultText}
-                    className={`p-2 rounded-xl transition-colors border text-xs font-semibold flex items-center gap-1 ${
-                      isEditing
+                    className={`p-2 rounded-xl transition-colors border text-xs font-semibold flex items-center gap-1 ${isEditing
                         ? "bg-emerald-50 text-emerald-700 border-emerald-300"
                         : "bg-white text-gray-600 hover:bg-gray-50 border-gray-200"
-                    }`}
+                      }`}
                     title={isEditing ? "Concluir Edição" : "Editar Texto Manualmente"}
                   >
                     {isEditing ? <Save size={14} /> : <RotateCw size={14} />}
@@ -829,13 +824,12 @@ export default function OCRPage() {
                       loading
                         ? "Extraindo e digitalizando o conteúdo com Paddle OCR..."
                         : t("ocr.textPlaceholder") ||
-                          "O texto extraído do documento aparecerá aqui..."
+                        "O texto extraído do documento aparecerá aqui..."
                     }
-                    className={`flex-1 w-full bg-transparent resize-none focus:outline-none text-sm leading-relaxed font-mono transition-colors min-h-[360px] ${
-                      isEditing
+                    className={`flex-1 w-full bg-transparent resize-none focus:outline-none text-sm leading-relaxed font-mono transition-colors min-h-[360px] ${isEditing
                         ? "text-gray-900 font-medium bg-blue-50/20 p-2 rounded-xl border border-blue-200"
                         : "text-gray-800"
-                    }`}
+                      }`}
                   />
                 )}
 
@@ -936,13 +930,12 @@ export default function OCRPage() {
                   <button
                     onClick={handleCopy}
                     disabled={!resultText}
-                    className={`px-4 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all shadow-2xs ${
-                      !resultText
+                    className={`px-4 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all shadow-2xs ${!resultText
                         ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                         : copied
-                        ? "bg-emerald-600 text-white"
-                        : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
-                    }`}
+                          ? "bg-emerald-600 text-white"
+                          : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
+                      }`}
                   >
                     {copied ? (
                       <>

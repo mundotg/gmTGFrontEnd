@@ -69,9 +69,9 @@ function VerifyEmailContent() {
           setStatus("error");
           setErrorMessage(
             response.data?.detail ||
-              response.data?.message ||
-              t("auth.verifyErrorDesc") ||
-              "A ligação de confirmação é inválida ou já expirou."
+            response.data?.message ||
+            t("auth.verifyErrorDesc") ||
+            "A ligação de confirmação é inválida ou já expirou."
           );
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -128,8 +128,8 @@ function VerifyEmailContent() {
       if (response.data?.success) {
         setResendSuccess(
           response.data?.message ||
-            t("auth.resendVerificationSuccess") ||
-            "Novo e-mail de confirmação enviado! Por favor consulte a sua caixa de entrada."
+          t("auth.resendVerificationSuccess") ||
+          "Novo e-mail de confirmação enviado! Por favor consulte a sua caixa de entrada."
         );
       } else {
         setResendError(
@@ -149,13 +149,13 @@ function VerifyEmailContent() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 py-12">
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 sm:p-10 w-full max-w-lg text-center animate-in fade-in zoom-in-95 duration-300">
-        
+
         {/* Cabeçalho com Logótipo */}
         <div className="flex items-center justify-center gap-2 mb-8">
           <div className="bg-blue-50 border border-blue-100 w-12 h-12 rounded-xl flex items-center justify-center shadow-sm">
             <Database className="w-6 h-6 text-blue-600" />
           </div>
-          <span className="text-xl font-bold text-gray-900 tracking-tight">MustaInf</span>
+          <span className="text-xl font-bold text-gray-900 tracking-tight">MustaInfo</span>
         </div>
 
         {/* ⏳ Estado: A Carregar / A Validar */}
@@ -190,7 +190,7 @@ function VerifyEmailContent() {
 
             <p className="text-gray-600 text-sm max-w-md mx-auto mb-6 leading-relaxed">
               {t("auth.verifySuccessDesc") ||
-                "A sua conta foi ativada. O seu endereço de e-mail foi validado e já pode explorar todas as funcionalidades do MustaInf."}
+                "A sua conta foi ativada. O seu endereço de e-mail foi validado e já pode explorar todas as funcionalidades do MustaInfo."}
             </p>
 
             {confirmedEmail && (
@@ -230,8 +230,8 @@ function VerifyEmailContent() {
         {status === "error" && (
           <div className="py-4 animate-in fade-in zoom-in-95 duration-300">
             {errorMessage.toLowerCase().includes("expirou") ||
-            errorMessage.toLowerCase().includes("validade") ||
-            errorMessage.toLowerCase().includes("expired") ? (
+              errorMessage.toLowerCase().includes("validade") ||
+              errorMessage.toLowerCase().includes("expired") ? (
               <>
                 <div className="w-20 h-20 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
                   <Clock className="w-10 h-10 text-amber-600" />

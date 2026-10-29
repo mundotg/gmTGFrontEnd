@@ -108,7 +108,7 @@ graph TD
 * **Repositório de Conhecimento Fundamentado:** Espaço aberto ou restrito para partilha de estudos científicos, relatórios técnicos e experiências metodológicas.
 * **SEO e Indexação Ultrarrápida:** Arquitetura Server-Side Rendering (SSR) com Schema.org JSON-LD, `sitemap.xml` dinâmico e `robots.txt` para posicionamento no topo do Google.
 * **Interatividade em Tempo Real:** WebSockets para contagem de leitores simultâneos, reações imediatas, notificações flutuantes e comentários colaborativos.
-* **Gestão Multidomínio:** Suporte total para operar sob o domínio corporativo principal (`mustainfo.org/nexus-cognitiva`) ou sob um **domínio dedicado independente** (ex: `nexuscognitiva.com`).
+* **Gestão Multidomínio:** Suporte total para operar sob o domínio corporativo principal (`MustaInfoo.org/nexus-cognitiva`) ou sob um **domínio dedicado independente** (ex: `nexuscognitiva.com`).
 
 ---
 

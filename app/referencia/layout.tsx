@@ -4,7 +4,7 @@ import AuthProvider from "@/app/component/provader";
 import SidebarPopup from "../component/SidebarPopup";
 
 export const metadata: Metadata = {
-  title: "MustaInf referencia",
+  title: "MustaInfo referencia",
   description: "propups de referencia para o desenvolvimento de novas funcionalidades",
 };
 

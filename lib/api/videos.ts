@@ -1,6 +1,6 @@
 /**
  * Cliente de API tipado para o Recomendador de Vídeos do YouTube.
- * Utiliza fetch com `credentials: 'include'` para envio dos cookies de autenticação do MustaInf.
+ * Utiliza fetch com `credentials: 'include'` para envio dos cookies de autenticação do MustaInfo.
  */
 
 export interface VideoItem {

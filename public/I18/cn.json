@@ -1,6 +1,6 @@
 {
   "header": {
-    "welcome": "欢迎来到 MustaInf，一个",
+    "welcome": "欢迎来到 MustaInfo，一个",
     "platformType": "Data Pipeline and Analytics Platform",
     "desc": {
       "part1": "这是一个端到端项目，集成了",
@@ -15,7 +15,7 @@
     }
   },
   "nav": {
-    "brandName": "MustaInf",
+    "brandName": "MustaInfo",
     "tasks": "任务 (Tasks)",
     "ocr": "OCR",
     "login": "登录",
@@ -31,7 +31,7 @@
     "roadmapBadge": "路线图",
     "featuresTitle": "核心功能",
     "futureTitle": "即将推出",
-    "footer": "MustaInf © 2026. 保留所有权利。由 Francemy Sebastião 使用 ❤️ 基于 Next.js + Python FastAPI 开发"
+    "footer": "MustaInfo © 2026. 保留所有权利。由 Francemy Sebastião 使用 ❤️ 基于 Next.js + Python FastAPI 开发"
   },
   "features": {
     "consultas": "简化查询：只需输入表名即可。",
@@ -579,7 +579,7 @@
     "activityLog": "执行历史记录",
     "milestones": "里程碑进度",
     "accessDenied": "限制访问此模块",
-    "accessDeniedDesc": "请联系 MustaInf 管理员。"
+    "accessDeniedDesc": "请联系 MustaInfo 管理员。"
   },
   "settings": {
     "title": "设置",

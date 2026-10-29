@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Database, Trash2, Edit, History, Link as LinkIcon, PlusCircle, Users } from "lucide-react";
+import { Database, Trash2, Edit, History, Link as LinkIcon, PlusCircle, Users, ShieldCheck, BookOpen } from "lucide-react";
 
 import { useI18n } from "@/context/I18nContext";
 import { useSession } from "@/context/SessionContext";
@@ -22,6 +22,8 @@ import { cleanConnectionUrl } from "@/util/connectioPage/connectionUrl";
 import { aes_decrypt, aes_encrypt } from "@/service";
 import { DatasetImportModal, DatasetImportResponse } from "./component/DatasetImportModal";
 import { ShareConnectionModal } from "./component/ShareConnectionModal";
+import { MustaLinkManagerModal } from "./component/MustaLinkManagerModal";
+import { getMustaLinkStatus, type MustaLinkAgent } from "@/service/mustalink";
 import { useRouter } from "next/navigation";
 
 const DEFAULT_FORM_DATA: ConnectionFormData = {
@@ -78,6 +80,8 @@ const DatabaseConnectionForm = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("");
   const [isDatasetModalOpen, setIsDatasetModalOpen] = useState(false);
+  const [isMustaLinkOpen, setIsMustaLinkOpen] = useState(false);
+  const [onlineAgents, setOnlineAgents] = useState<MustaLinkAgent[]>([]);
 
   // Conexão cuja partilha está aberta no modal (null = modal fechado)
   const [sharingConnection, setSharingConnection] = useState<{
@@ -472,6 +476,45 @@ const DatabaseConnectionForm = () => {
     refreshConnections();
   }, [refreshConnections]);
 
+  const refreshOnlineAgents = useCallback(async () => {
+    try {
+      const res = await getMustaLinkStatus(api);
+      setOnlineAgents(res.agents || []);
+    } catch {
+      // ignora silenciosamente se offline
+    }
+  }, [api]);
+
+  useEffect(() => {
+    refreshOnlineAgents();
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refreshOnlineAgents();
+      }
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [refreshOnlineAgents]);
+
+  const handleSelectAgentFromModal = useCallback(
+    (_agentId: string, virtualHost: string) => {
+      if (!selectedDb) {
+        setSelectedDb("postgresql");
+      }
+      setFormData((prev) => ({
+        ...prev,
+        useUrl: false,
+        host: virtualHost,
+        port: prev.port || "5432",
+      }));
+    },
+    [selectedDb, setFormData, setSelectedDb]
+  );
+
+  // (mantido após handleDatasetImported)
+  const _noopDatasetLog = useCallback(() => {
+    refreshConnections();
+  }, [refreshConnections]);
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl space-y-6 animate-in fade-in zoom-in-95 duration-200">
@@ -496,6 +539,25 @@ const DatabaseConnectionForm = () => {
             <PlusCircle className="h-4 w-4" />
             Importar dataset
           </button>
+          <button
+            type="button"
+            onClick={() => router.push("/home/conexao/agentes")}
+            className="ml-3 inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            <BookOpen className="h-4 w-4 text-blue-600" />
+            Guia MustaLink
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsMustaLinkOpen(true)}
+            className="ml-3 inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+          >
+            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            MustaLink
+            <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
+              {onlineAgents.length} Online
+            </span>
+          </button>
         </div>
 
         <DatasetImportModal
@@ -503,6 +565,16 @@ const DatabaseConnectionForm = () => {
           onClose={() => setIsDatasetModalOpen(false)}
           onImported={handleDatasetImported}
           onError={refreshConnections}
+        />
+
+        <MustaLinkManagerModal
+          isOpen={isMustaLinkOpen}
+          onClose={() => setIsMustaLinkOpen(false)}
+          onSelectAgent={handleSelectAgentFromModal}
+          onAgentsUpdated={setOnlineAgents}
+        />
+        {/* DatasetImportModal closed above */}
+        <span className="hidden" data-noop={String(Boolean(refreshConnections))}
         />
 
         {sharingConnection && (
@@ -529,6 +601,8 @@ const DatabaseConnectionForm = () => {
             getStatusIcon={getStatusIcon}
             showDropdown={showDropdown}
             setShowDropdown={setShowDropdown}
+            onlineAgents={onlineAgents}
+            onOpenMustaLinkModal={() => setIsMustaLinkOpen(true)}
           />
 
           <div className="space-y-6 lg:space-y-8">

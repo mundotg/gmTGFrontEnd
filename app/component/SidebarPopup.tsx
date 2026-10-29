@@ -175,7 +175,7 @@ export default function SidebarPopup({ children }: { children: React.ReactNode }
             </div>
             {!collapsed && (
               <div className="min-w-0">
-                <h1 className="text-xl font-bold truncate">MustaInfo</h1>
+                <h1 className="text-xl font-bold truncate">MustaInfoo</h1>
                 <p className="text-sm text-gray-500 truncate">{t("sidebar.subtitle")}</p>
               </div>
             )}

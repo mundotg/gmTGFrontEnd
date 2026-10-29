@@ -83,10 +83,10 @@ export interface GenericConfig {
 ========================================================================= */
 
 const DEFAULT_BIGQUERY_CONFIG: BigQueryConfig = {
-  projectId: "mustainf-analytics-prod",
+  projectId: "MustaInfo-analytics-prod",
   datasetId: "analytics_dw",
   region: "us-central1",
-  serviceAccountJson: `{\n  "type": "service_account",\n  "project_id": "mustainf-analytics-prod",\n  "private_key_id": "key_7f8a9b2c3d4e",\n  "client_email": "mustainf-sa@mustainf-analytics-prod.iam.gserviceaccount.com"\n}`,
+  serviceAccountJson: `{\n  "type": "service_account",\n  "project_id": "MustaInfo-analytics-prod",\n  "private_key_id": "key_7f8a9b2c3d4e",\n  "client_email": "MustaInfo-sa@MustaInfo-analytics-prod.iam.gserviceaccount.com"\n}`,
   dryRunEnabled: true,
   maxBytesBilledGb: 10,
   costAlertThresholdUsd: 1.0,
@@ -182,7 +182,7 @@ const INITIAL_INTEGRATIONS_LIST: IntegrationItem[] = [
     name: "Google BigQuery",
     provider: "Google Cloud Platform",
     description:
-      "Data warehouse corporativo de alta escalabilidade. Conecta esquemas, executa queries analíticas e alimenta o motor de Dry-Run do MustaInfo para estimativa prévia de custos e bytes.",
+      "Data warehouse corporativo de alta escalabilidade. Conecta esquemas, executa queries analíticas e alimenta o motor de Dry-Run do MustaInfoo para estimativa prévia de custos e bytes.",
     category: "Data Warehouse & Cloud",
     brandColor: "#4285F4",
     badge: "Destaque & Dry-Run",
@@ -268,7 +268,7 @@ export const IntegracoesTab: React.FC = () => {
 
   // Estado persistido com usePersistedState (IndexedDB / arquitetura do projeto)
   const [bigQueryConfig, setBigQueryConfig] = usePersistedState<BigQueryConfig>(
-    "mustainf_bigquery_config",
+    "MustaInfo_bigquery_config",
     DEFAULT_BIGQUERY_CONFIG
   );
   const [testingBigQuery, setTestingBigQuery] = useState(false);
@@ -281,18 +281,18 @@ export const IntegracoesTab: React.FC = () => {
 
   // Webhooks State persistido
   const [webhookUrl, setWebhookUrl] = usePersistedState<string>(
-    "mustainf_webhook_url",
-    "https://api.empresa.com/v1/mustainf-events"
+    "MustaInfo_webhook_url",
+    "https://api.empresa.com/v1/MustaInfo-events"
   );
   const [webhookSecret, setWebhookSecret] = usePersistedState<string>(
-    "mustainf_webhook_secret",
+    "MustaInfo_webhook_secret",
     "whsec_9a8b7c6d5e4f3a2b1c0d"
   );
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [sendingTestWebhook, setSendingTestWebhook] = useState(false);
   const [webhookTestOutput, setWebhookTestOutput] = useState<{ status: number; message: string; payload: any } | null>(null);
   const [selectedWebhookEvents, setSelectedWebhookEvents] = usePersistedState<string[]>(
-    "mustainf_webhook_events",
+    "MustaInfo_webhook_events",
     [
       "query.executed",
       "dry_run.alert",
@@ -315,7 +315,7 @@ export const IntegracoesTab: React.FC = () => {
 
   // Estado das integrações persistido no IndexedDB via usePersistedState
   const [integrationsList, setIntegrationsList] = usePersistedState<IntegrationItem[]>(
-    "mustainf_integrations_list",
+    "MustaInfo_integrations_list",
     INITIAL_INTEGRATIONS_LIST
   );
 
@@ -438,7 +438,7 @@ export const IntegracoesTab: React.FC = () => {
   const handleToggle = async (item: IntegrationItem) => {
     if (item.connected) {
       const ok = window.confirm(
-        `Desconectar a integração "${item.name}" removerá a sincronização ativa com o MustaInfo. Deseja prosseguir?`
+        `Desconectar a integração "${item.name}" removerá a sincronização ativa com o MustaInfoo. Deseja prosseguir?`
       );
       if (!ok) return;
     } else {
@@ -548,15 +548,15 @@ export const IntegracoesTab: React.FC = () => {
       const updated = currentList.map((i) =>
         i.id === "bigquery"
           ? {
-              ...i,
-              connected: true,
-              lastSync: "Agora mesmo",
-              metrics: [
-                { label: "Datasets", value: bigQueryConfig.datasetId || "4 ativos" },
-                { label: "Dry-Run", value: bigQueryConfig.dryRunEnabled ? `Ativo (${bigQueryConfig.maxBytesBilledGb} GB)` : "Desativado" },
-                { label: "Região", value: bigQueryConfig.region },
-              ],
-            }
+            ...i,
+            connected: true,
+            lastSync: "Agora mesmo",
+            metrics: [
+              { label: "Datasets", value: bigQueryConfig.datasetId || "4 ativos" },
+              { label: "Dry-Run", value: bigQueryConfig.dryRunEnabled ? `Ativo (${bigQueryConfig.maxBytesBilledGb} GB)` : "Desativado" },
+              { label: "Região", value: bigQueryConfig.region },
+            ],
+          }
           : i
       );
       setIntegrationsList(updated);
@@ -695,11 +695,11 @@ export const IntegracoesTab: React.FC = () => {
     } catch (e: any) {
       const fallbackPayload = {
         event: "test.ping",
-        source: "mustainf.integrations",
+        source: "MustaInfo.integrations",
         timestamp: new Date().toISOString(),
         target_project: bigQueryConfig.projectId,
         environment: "production",
-        actor: user?.email || "admin@mustainf.com",
+        actor: user?.email || "admin@MustaInfo.com",
         data: {
           message: "Teste de conectividade de webhook disparado localmente.",
           dry_run_service_active: bigQueryConfig.dryRunEnabled,
@@ -817,13 +817,12 @@ export const IntegracoesTab: React.FC = () => {
       {/* FEEDBACK TOAST / ALERT */}
       {feedbackMsg && (
         <div
-          className={`flex items-center justify-between gap-3 text-sm font-medium rounded-xl p-4 border animate-in slide-in-from-top-2 ${
-            feedbackMsg.type === "success"
+          className={`flex items-center justify-between gap-3 text-sm font-medium rounded-xl p-4 border animate-in slide-in-from-top-2 ${feedbackMsg.type === "success"
               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
               : feedbackMsg.type === "error"
-              ? "bg-red-50 border-red-200 text-red-800"
-              : "bg-blue-50 border-blue-200 text-blue-800"
-          }`}
+                ? "bg-red-50 border-red-200 text-red-800"
+                : "bg-blue-50 border-blue-200 text-blue-800"
+            }`}
         >
           <div className="flex items-center gap-2.5">
             {feedbackMsg.type === "success" ? (
@@ -855,11 +854,10 @@ export const IntegracoesTab: React.FC = () => {
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                  activeCategory === cat
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeCategory === cat
                     ? "bg-gray-900 text-white shadow-sm"
                     : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                }`}
+                  }`}
               >
                 {cat}
               </button>
@@ -898,13 +896,12 @@ export const IntegracoesTab: React.FC = () => {
           return (
             <div
               key={app.id}
-              className={`group bg-white border rounded-2xl p-6 transition-all duration-200 hover:shadow-xl hover:shadow-gray-100 flex flex-col justify-between relative overflow-hidden ${
-                app.connected
+              className={`group bg-white border rounded-2xl p-6 transition-all duration-200 hover:shadow-xl hover:shadow-gray-100 flex flex-col justify-between relative overflow-hidden ${app.connected
                   ? isBQ
                     ? "border-blue-300 ring-1 ring-blue-100"
                     : "border-gray-300"
                   : "border-gray-200"
-              }`}
+                }`}
             >
               {/* Efeito Glow para o BigQuery em Destaque */}
               {isBQ && (
@@ -938,11 +935,10 @@ export const IntegracoesTab: React.FC = () => {
                     <button
                       onClick={() => handleToggle(app)}
                       disabled={loadingId === app.id}
-                      className={`relative h-9 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shrink-0 ${
-                        app.connected
+                      className={`relative h-9 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shrink-0 ${app.connected
                           ? "text-red-700 bg-red-50 hover:bg-red-100 border border-red-200/60"
                           : "text-white bg-gray-900 hover:bg-gray-800 shadow-sm"
-                      } disabled:opacity-40`}
+                        } disabled:opacity-40`}
                     >
                       {loadingId === app.id ? (
                         <Loader2 className="animate-spin mx-auto" size={15} />
@@ -981,9 +977,8 @@ export const IntegracoesTab: React.FC = () => {
               <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div
-                    className={`w-2 h-2 rounded-full ${
-                      app.connected ? "bg-emerald-500 animate-pulse" : "bg-gray-300"
-                    }`}
+                    className={`w-2 h-2 rounded-full ${app.connected ? "bg-emerald-500 animate-pulse" : "bg-gray-300"
+                      }`}
                   />
                   <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                     {app.connected ? "Serviço Ativo" : "Não Vinculado"}
@@ -1078,7 +1073,7 @@ export const IntegracoesTab: React.FC = () => {
                     type="url"
                     value={webhookUrl}
                     onChange={(e) => setWebhookUrl(e.target.value)}
-                    placeholder="https://seu-servidor.com/api/mustainf-webhook"
+                    placeholder="https://seu-servidor.com/api/MustaInfo-webhook"
                     className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-gray-100 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   />
                   <button
@@ -1137,11 +1132,10 @@ export const IntegracoesTab: React.FC = () => {
                           active ? prev.filter((x) => x !== ev.id) : [...prev, ev.id]
                         );
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
-                        active
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${active
                           ? "bg-blue-600/30 border-blue-500/50 text-blue-200"
                           : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
-                      }`}
+                        }`}
                     >
                       <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-blue-400" : "bg-gray-600"}`} />
                       {ev.label}
@@ -1208,11 +1202,10 @@ export const IntegracoesTab: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setBigQueryTab(tab.id as any)}
-                  className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${
-                    bigQueryTab === tab.id
+                  className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${bigQueryTab === tab.id
                       ? "border-blue-600 text-blue-600"
                       : "border-transparent text-gray-500 hover:text-gray-800"
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -1235,7 +1228,7 @@ export const IntegracoesTab: React.FC = () => {
                         onChange={(e) =>
                           setBigQueryConfig({ ...bigQueryConfig, projectId: e.target.value })
                         }
-                        placeholder="ex: mustainf-analytics-prod"
+                        placeholder="ex: MustaInfo-analytics-prod"
                         className="w-full bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
                     </div>
@@ -1301,11 +1294,10 @@ export const IntegracoesTab: React.FC = () => {
                   {/* Feedback de Teste */}
                   {bigQueryTestResult && (
                     <div
-                      className={`p-3.5 rounded-xl border flex items-start gap-2.5 ${
-                        bigQueryTestResult.success
+                      className={`p-3.5 rounded-xl border flex items-start gap-2.5 ${bigQueryTestResult.success
                           ? "bg-emerald-50 border-emerald-200 text-emerald-800"
                           : "bg-red-50 border-red-200 text-red-800"
-                      }`}
+                        }`}
                     >
                       {bigQueryTestResult.success ? (
                         <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
@@ -1415,7 +1407,7 @@ export const IntegracoesTab: React.FC = () => {
                         Auto-Sincronizar com Linhagem de Dados
                       </span>
                       <span className="text-gray-500 text-[11px]">
-                        Exporta automaticamente nós de tabelas e views do BigQuery para o mapa visual de linhagem do MustaInfo.
+                        Exporta automaticamente nós de tabelas e views do BigQuery para o mapa visual de linhagem do MustaInfoo.
                       </span>
                     </div>
                     <input
@@ -1526,7 +1518,7 @@ export const IntegracoesTab: React.FC = () => {
             <div className="p-6 space-y-4 text-xs">
               <p className="text-gray-600 leading-relaxed">
                 Insira as credenciais de acesso ou tokens de API da sua conta{" "}
-                <strong>{genericModalIntegration.name}</strong> para sincronizar com o MustaInfo.
+                <strong>{genericModalIntegration.name}</strong> para sincronizar com o MustaInfoo.
               </p>
 
               <div className="space-y-1.5">

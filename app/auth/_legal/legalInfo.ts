@@ -7,7 +7,7 @@
  * ninguém repare.
  */
 export const LEGAL = {
-  serviceName: "MustaInfo",
+  serviceName: "MustaInfoo",
   /** Entidade que presta o serviço e é responsável pelo tratamento. */
   entityName: "[Nome legal da empresa — a definir]",
   nif: "[NIF — a definir]",

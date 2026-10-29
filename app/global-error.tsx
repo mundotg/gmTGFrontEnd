@@ -31,7 +31,7 @@ export default function GlobalError({
   return (
     <html lang="pt">
       <head>
-        <title>Erro · MustaInf</title>
+        <title>Erro · MustaInfo</title>
       </head>
       <body className="antialiased">
         <main className="min-h-screen flex items-center justify-center bg-gray-50 px-6">
