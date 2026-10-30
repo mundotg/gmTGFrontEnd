@@ -89,6 +89,7 @@ export const MustaLinkManagerModal: React.FC<MustaLinkManagerProps> = ({
   const { api } = useSession();
 
   const [agents, setAgents] = useState<MustaLinkAgent[]>([]);
+  const [serverEnv, setServerEnv] = useState<string>("development");
   const [releases, setReleases] = useState<MustaLinkRelease[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +123,9 @@ export const MustaLinkManagerModal: React.FC<MustaLinkManagerProps> = ({
   const fetchStatus = useCallback(async () => {
     try {
       const res = await getMustaLinkStatus(api);
+      if (res.environment) {
+        setServerEnv(res.environment);
+      }
       const list = res.agents || [];
       setAgents(list);
       onAgentsUpdated?.(list);
@@ -334,6 +338,17 @@ export const MustaLinkManagerModal: React.FC<MustaLinkManagerProps> = ({
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Ligação segura
               </span>
+              {serverEnv === "development" || httpServerUrl.includes("localhost") || httpServerUrl.includes("127.0.0.1") ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Dev Local
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                  Produção
+                </span>
+              )}
             </div>
             <p className="mt-0.5 text-xs font-medium text-gray-500">
               Conectores de dados privados · Ligue bases de dados locais sem expor portas na Internet

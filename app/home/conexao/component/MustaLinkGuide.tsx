@@ -219,6 +219,17 @@ export const MustaLinkGuide: React.FC<MustaLinkGuideProps> = ({
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Túnel Reverso Seguro
                 </span>
+                {httpServerUrl.includes("localhost") || httpServerUrl.includes("127.0.0.1") ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                    Ambiente: Desenvolvimento Local
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
+                    <span className="h-2 w-2 rounded-full bg-blue-500" />
+                    Ambiente: Produção Cloud
+                  </span>
+                )}
               </div>
               <p className="mt-1 text-sm font-medium text-gray-500">
                 Ligue bases de dados privadas (PostgreSQL, MySQL, SQL Server, Oracle) ao MustaInf Cloud em 5 passos, sem abrir portas no router e sem configurar VPN.
@@ -398,8 +409,8 @@ export const MustaLinkGuide: React.FC<MustaLinkGuideProps> = ({
               </p>
               {activeRelease && (
                 <p className="font-technical mt-0.5 truncate text-[10px] text-gray-500">
-                  {(activeRelease.size_bytes / (1024 * 1024)).toFixed(2)} MB · SHA-256:{" "}
-                  {activeRelease.sha256.slice(0, 20)}…
+                  {((activeRelease.size_bytes || 0) / (1024 * 1024)).toFixed(2)} MB
+                  {activeRelease.sha256 ? ` · SHA-256: ${activeRelease.sha256.slice(0, 20)}…` : ""}
                 </p>
               )}
             </div>
@@ -434,6 +445,17 @@ export const MustaLinkGuide: React.FC<MustaLinkGuideProps> = ({
               Defina um nome para identificar o seu agente (ex.:{" "}
               <code className="font-technical text-gray-700">luanda-pg-01</code>) e a porta local da base de dados. O código gerado expira em 10 minutos e só pode ser usado uma vez.
             </p>
+
+            {/* Aviso Informativo sobre Revogação e Reativação */}
+            <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-[11px] text-blue-900 leading-relaxed">
+              <span className="font-bold flex items-center gap-1.5 text-blue-800">
+                <HelpCircle className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                Dica de Revogação e Reativação:
+              </span>
+              <p className="mt-0.5 text-blue-700">
+                Se revogar um agente no painel, a sua sessão é desconectada e o token antigo é invalidado por segurança. Para reativá-lo, basta gerar um novo código abaixo e reiniciar o agente com <code className="bg-white/80 px-1 py-0.2 rounded font-technical font-bold text-blue-800">.\musta-link-agent.exe -pair NOVO-CODIGO</code>.
+              </p>
+            </div>
 
             <form onSubmit={handleGeneratePairing} className="space-y-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

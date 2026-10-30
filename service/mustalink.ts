@@ -28,6 +28,8 @@ export interface MustaLinkStatusResponse {
   connected: boolean;
   count: number;
   agents: MustaLinkAgent[];
+  environment?: "development" | "production" | string;
+  relay_url?: string;
 }
 
 export interface MustaLinkTokenResponse {
@@ -50,9 +52,9 @@ export interface MustaLinkRelease {
   arch: MustaLinkArch;
   filename: string;
   size_bytes: number;
-  sha256: string;
-  binary_sha: string;
-  installer: string;
+  sha256?: string;
+  binary_sha?: string;
+  installer?: string;
   version: string;
   minio_key?: string;
   download_url?: string;
