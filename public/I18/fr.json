@@ -1078,13 +1078,151 @@
     "loginWithLinkedin": "Continuer avec LinkedIn"
   },
   "docs": {
-    "search": "Rechercher dans OrionForge...",
-    "language": "Français",
+    "search": "Rechercher dans la documentation...",
+    "no_results": "Aucun résultat trouvé pour",
     "community": "Communauté",
+    "version_label": "Version du Moteur",
+    "copy_code": "Copier",
+    "copied": "Copié !",
     "menu": {
-      "intro": "Premiers Pas",
-      "features": "Fonctionnalités Principales",
-      "advanced": "Avancé"
+      "getting_started": "Premiers Pas",
+      "core_features": "Fonctionnalités Principales",
+      "technical": "Référence Technique",
+      "intro": "Qu'est-ce que MustaInfo ?",
+      "theme": "Design System 2026",
+      "connections": "Gestion des Connexions",
+      "mustalink": "Agent MustaLink (Tunnel)",
+      "query_builder": "Générateur No-Code",
+      "ocr": "OCR Vision AI",
+      "sse": "Streaming de Données (SSE)",
+      "lineage": "Lignage des Données",
+      "audit": "Journaux & Audit",
+      "security": "Protocoles de Sécurité",
+      "db_engine": "Moteur de Base de Données"
+    },
+    "sections": {
+      "intro": {
+        "eyebrow": "Aperçu de la Plateforme",
+        "title": "Qu'est-ce que MustaInfo ?",
+        "desc": "MustaInfo est la plateforme unifiée pour la gestion des données, l'analyse prédictive et les tunnels sécurisés.",
+        "pillars_title": "Les Trois Piliers",
+        "pillar1_title": "1. Ingénierie & Connectivité Hybride",
+        "pillar1_desc": "Connectez vos bases de données sur site ou dans le cloud sans ouvrir de ports pare-feu.",
+        "pillar2_title": "2. Studio Analytique No-Code",
+        "pillar2_desc": "Générez des requêtes complexes sans coder et diffusez les résultats volumineux en streaming SSE.",
+        "pillar3_title": "3. IA Cognitive & Vision",
+        "pillar3_desc": "Numérisez documents et factures directement vers vos tables relationnelles avec OCR Vision AI."
+      },
+      "theme": {
+        "eyebrow": "Design System",
+        "title": "Design System 2026 · Normes & Tokens",
+        "desc": "Conçu pour une lisibilité maximale des données denses et une réactivité optimale.",
+        "colors_title": "Palette & Couleurs",
+        "colors_desc": "Bleu MustaInfo (#2563EB) et nuances de gris équilibrées.",
+        "geometry_title": "Géométrie & Surfaces",
+        "geometry_desc": "Coins arrondis (rounded-xl 12px) et ombres subtiles.",
+        "buttons_title": "Actions & Boutons",
+        "buttons_desc": "Boutons primaires avec bg-blue-600 et interactions intuitives.",
+        "demo_label": "Démonstration des États"
+      },
+      "connections": {
+        "eyebrow": "Sources de Données",
+        "title": "Gestion Centralisée des Connexions",
+        "desc": "Configurez, testez et partagez vos bases de données avec résilience et contrôles stricts.",
+        "pooling_title": "Résilience & Pool Asynchrone",
+        "pooling_desc": "Sondes automatiques pour éviter les déconnexions inattendues.",
+        "sharing_title": "Partage d'Entreprise & RBAC",
+        "sharing_desc": "Contrôle d'accès par rôles (Lecteur, Éditeur, Administrateur).",
+        "ssl_title": "Chiffrement TLS/SSL",
+        "ssl_desc": "Support complet des certificats sécurisés.",
+        "step_guide_title": "Ajouter une Connexion"
+      },
+      "query_builder": {
+        "eyebrow": "No-Code & SQL",
+        "title": "Query Builder No-Code & SQL Studio",
+        "desc": "Construisez des requêtes complexes visuellement sans taper de SQL.",
+        "features_title": "Fonctionnalités Clés",
+        "how_to_use_title": "Guide Étape par Étape",
+        "export_title": "Exportation Rapide",
+        "export_desc": "Exportez vers CSV, Excel ou JSON en un clic."
+      },
+      "ocr": {
+        "eyebrow": "Intelligence Artificielle",
+        "title": "OCR Vision AI · Extraction Intelligente",
+        "desc": "Transformez vos documents et factures en tables relationnelles.",
+        "formats_title": "Formats Pris en Charge",
+        "formats_desc": "Support PNG, JPG, WEBP et fichiers PDF multipages.",
+        "tables_title": "Détection de Tableaux",
+        "tables_desc": "Extraction automatique des colonnes, montants et dates.",
+        "pipeline_title": "Pipeline de Vision Neurale"
+      },
+      "sse": {
+        "eyebrow": "Temps Réel",
+        "title": "Streaming de Données via SSE",
+        "desc": "Diffusez des centaines de milliers de lignes en continu sans bloquer l'interface.",
+        "async_title": "Exécution Asynchrone",
+        "async_desc": "Les données sont transmises progressivement par paquets.",
+        "virtualization_title": "Tables Virtualisées",
+        "virtualization_desc": "Navigation ultra-rapide avec consommation mémoire minimale.",
+        "events_title": "Protocole SSE"
+      },
+      "mustalink": {
+        "eyebrow": "Connectivité On-Premise",
+        "title": "Agent MustaLink · Tunnel Inverse",
+        "desc": "Connectez vos bases privées au cloud sans exposer d'adresses IP publiques.",
+        "how_it_works_title": "Fonctionnement du Tunnel",
+        "how_it_works_desc": "Connexion sortante WebSocket TLS vers wss://api.mustainfo.cloud.",
+        "pairing_title": "Appairage OTP (XXXX-XXXX)",
+        "pairing_desc": "Générez un code temporaire pour connecter l'agent instantanément.",
+        "install_title": "Installation Multiplateforme",
+        "install_desc": "Binaires légers pour Windows, Linux et macOS.",
+        "virtual_host_title": "Hôte Virtuel agent://",
+        "virtual_host_desc": "Routage direct via le tunnel pour vos outils SQL."
+      },
+      "lineage": {
+        "eyebrow": "Gouvernance",
+        "title": "Lignage des Données & Pipeline",
+        "desc": "Tracez le parcours complet de vos données de la source à la destination.",
+        "traceability_title": "Traçabilité Complète",
+        "traceability_desc": "Visualisez les transformations et les dépendances.",
+        "metrics_title": "Métriques de Qualité",
+        "metrics_desc": "Surveillance des volumes et temps d'exécution."
+      },
+      "audit": {
+        "eyebrow": "Audit & Conformité",
+        "title": "Journaux, Audit & Télémétrie",
+        "desc": "Traçabilité immuable de chaque requête et action utilisateur.",
+        "query_history_title": "Historique des Requêtes",
+        "query_history_desc": "Enregistrement complet des requêtes exécutées.",
+        "telemetry_title": "Télémétrie Système",
+        "telemetry_desc": "Suivi des métriques de connexion et de performance.",
+        "compliance_title": "Conformité Règlementaire",
+        "compliance_desc": "Rapports d'audit pour répondre aux normes de sécurité."
+      },
+      "security": {
+        "eyebrow": "Sécurité",
+        "title": "Protocoles de Sécurité, PentestGuard & Chiffrement",
+        "desc": "Protection robuste des données d'entreprise et isolation multi-tenant.",
+        "encryption_title": "Chiffrement AES-256-GCM",
+        "encryption_desc": "Mots de passe et identifiants chiffrés au repos.",
+        "pentest_title": "PentestGuard",
+        "pentest_desc": "Défense active contre les injections SQL et intrusions.",
+        "tenant_title": "Isolation Stricte",
+        "tenant_desc": "Séparation logique totale entre organisations.",
+        "jti_title": "Révocation Immédiate JTI",
+        "jti_desc": "Révocation instantanée des agents suspects."
+      },
+      "db_engine": {
+        "eyebrow": "Architecture SGBD",
+        "title": "Architecture Interne des Moteurs de Bases de Données",
+        "desc": "Principes fondamentaux du stockage, de la mémoire et des index.",
+        "storage_title": "Stockage sur Disque & Pages",
+        "storage_desc": "Organisation en blocs binaires de taille fixe.",
+        "btree_title": "Index B-Tree O(log n)",
+        "btree_desc": "Recherches rapides avec un minimum d'E/S disque.",
+        "wal_title": "Write-Ahead Logging (WAL)",
+        "wal_desc": "Journalisation séquentielle assurant la reprise sur panne."
+      }
     }
   },
   "fields": {

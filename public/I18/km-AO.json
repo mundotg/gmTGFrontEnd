@@ -933,13 +933,151 @@
     "loginWithLinkedin": "Kota ni LinkedIn"
   },
   "docs": {
-    "search": "Sota mu OrionForge...",
-    "language": "Kimbundu (AO)",
-    "community": "Equipa",
+    "search": "Kukonda mu mikanda...",
+    "no_results": "Kibuka kibule kwivwa:",
+    "community": "Kijingu",
+    "version_label": "Kifunda kya Makina",
+    "copy_code": "Kukopa",
+    "copied": "Kyatutwe!",
     "menu": {
-      "intro": "Kwenda ya Mateka",
-      "features": "Ikalakalu ya Muxima",
-      "advanced": "Avançado"
+      "getting_started": "Mbandu ya Kujimbula",
+      "core_features": "Milonga ya Ndembu",
+      "technical": "Kijila kya Xina",
+      "intro": "MustaInfo ihi?",
+      "theme": "Design System 2026",
+      "connections": "Kutunga Jikoneksau",
+      "mustalink": "MustaLink (Njila ya Kilunga)",
+      "query_builder": "Kutunga Queries No-Code",
+      "ocr": "OCR Vision AI",
+      "sse": "Kuhana Ijitu (SSE)",
+      "lineage": "Kutala Ijitu (Lineage)",
+      "audit": "Jirejistu ni Kitalu",
+      "security": "Kulumata ni Kizubilu",
+      "db_engine": "Mukinji wa Base ya Ijitu"
+    },
+    "sections": {
+      "intro": {
+        "eyebrow": "Kitalu kya Mubanza",
+        "title": "MustaInfo ihi?",
+        "desc": "MustaInfo yidi mubanza wa katunda pala kutala, kulungulula ni kusota ijitu ya mabase joso.",
+        "pillars_title": "Mbandu Jitatu ja Mubanza",
+        "pillar1_title": "1. Jikoneksau ja Babase",
+        "pillar1_desc": "Kukuta mabase joso sé kubanza jiporata ja firewall.",
+        "pillar2_title": "2. Studio No-Code",
+        "pillar2_desc": "Kutunga queries sé código ni kutuma mu streaming SSE.",
+        "pillar3_title": "3. IA ni OCR",
+        "pillar3_desc": "Kukatula ijitu mu mikanda ni kuzubila ni PentestGuard."
+      },
+      "theme": {
+        "eyebrow": "Design System",
+        "title": "Design System 2026",
+        "desc": "Kitalu kya kulela pala meso ni kusota ijitu sé kubwila.",
+        "colors_title": "Mavala",
+        "colors_desc": "Livala lya blue-600 pala jiasau ja ndembu.",
+        "geometry_title": "Kukosa",
+        "geometry_desc": "Arredondado rounded-xl ni shadow-sm.",
+        "buttons_title": "Jibotau",
+        "buttons_desc": "Jibotau ja kulela ni jiasau ja kusuluka.",
+        "demo_label": "Kutala Jiasau"
+      },
+      "connections": {
+        "eyebrow": "Jikoneksau",
+        "title": "Kutunga Jikoneksau ja Jibase",
+        "desc": "Kukwata jibase ni kuphana mu kithangana kya kilunga.",
+        "pooling_title": "Pooling ya Kulela",
+        "pooling_desc": "Kulela jikoneksau pala jikalé ja zikuka kithangana kyoso.",
+        "sharing_title": "Kuhana ku Kijingu",
+        "sharing_desc": "Kukabula jikoneksau ni akwenu.",
+        "ssl_title": "TLS/SSL",
+        "ssl_desc": "Kuzubila ijitu mu njila ya mabase.",
+        "step_guide_title": "Kyebhi kya Kutunga Koneksau"
+      },
+      "query_builder": {
+        "eyebrow": "No-Code & SQL",
+        "title": "Query Builder No-Code & SQL Studio",
+        "desc": "Kutunga queries sé kusonika código mba kusoneka SQL.",
+        "features_title": "Milonga ya Query Builder",
+        "how_to_use_title": "Njila ya Kutunga",
+        "export_title": "Kutunda Ijitu",
+        "export_desc": "Kutunda ku CSV, Excel mba JSON."
+      },
+      "ocr": {
+        "eyebrow": "IA ni Kusota",
+        "title": "OCR Vision AI",
+        "desc": "Kukatula ijitu mu mikanda ni jifoto kuya mu jibase.",
+        "formats_title": "PNG, JPG ni PDF",
+        "formats_desc": "Kusota mikanda yoso ya kizubilu.",
+        "tables_title": "Kukatula Jimeza",
+        "tables_desc": "Kukatula milonga ni jikonta.",
+        "pipeline_title": "Njila ya IA"
+      },
+      "sse": {
+        "eyebrow": "Kithangana kya Mwene",
+        "title": "Kuhana Ijitu mu SSE",
+        "desc": "Kutumisa queries ja ndembu sé kukwata navegador.",
+        "async_title": "Kwijila kwa Kulela",
+        "async_desc": "Ijitu yiza ndenge-ndenge kithangana yitunda mu base.",
+        "virtualization_title": "Jimeza ja Virtual",
+        "virtualization_desc": "Kutala jifila joso sé memory kubwila.",
+        "events_title": "Mifunda ya SSE"
+      },
+      "mustalink": {
+        "eyebrow": "Njila ya Kilunga kya Baze",
+        "title": "MustaLink Agent · Njila ya Kusuluka",
+        "desc": "Kukuta jibase ja kubata mba ja mu mbanza ku nuvem sé kubanza jiporata ja firewall.",
+        "how_it_works_title": "Kyebhi Kyendelao",
+        "how_it_works_desc": "Agent yituma WebSocket ku API ya MustaInfo ni kusuluka.",
+        "pairing_title": "Kukuta ni Kodigu (XXXX-XXXX)",
+        "pairing_desc": "Kuhana kodigu ya kizubilu pala agent kubatuka ku mubanza we.",
+        "install_title": "Kutula kwa Kulela",
+        "install_desc": "Pala Windows, Linux ni macOS ni scripts ja PowerShell ni Bash.",
+        "virtual_host_title": "Endelesu ya agent://",
+        "virtual_host_desc": "Tula agent://mwanetu pala kutuma queries mu njila ya kilunga."
+      },
+      "lineage": {
+        "eyebrow": "Kutala Ijitu",
+        "title": "Data Lineage",
+        "desc": "Kwijila kwe yitunda ijitu ni kwe yiya.",
+        "traceability_title": "Njila Yoso",
+        "traceability_desc": "Kutala kyoso kyatondeka mu babase.",
+        "metrics_title": "Kitalu",
+        "metrics_desc": "Kutala jifila ni kithangana kyabindama."
+      },
+      "audit": {
+        "eyebrow": "Jirejistu",
+        "title": "Audit & Telemetry",
+        "desc": "Kutala nanyi wazikula babase ni kithangana kyoso.",
+        "query_history_title": "Musoso wa Queries",
+        "query_history_desc": "Kusoneka queries joso jazolela.",
+        "telemetry_title": "Kitalu kya Makina",
+        "telemetry_desc": "Kutala kithangana kyendekela agent ni babase.",
+        "compliance_title": "Kizubilu kya Kijila",
+        "compliance_desc": "Kulela jirejistu pala mutambi."
+      },
+      "security": {
+        "eyebrow": "Kizubilu",
+        "title": "Protocolos ja Segurança & PentestGuard",
+        "desc": "Kizubilu kya ndembu pala ijitu yé.",
+        "encryption_title": "AES-256-GCM",
+        "encryption_desc": "Kuzubika jisenha ni jikoneksau.",
+        "pentest_title": "PentestGuard",
+        "pentest_desc": "Kukola ku milonga ya kubukumuka.",
+        "tenant_title": "Kukala Mutu ni Mubanza we",
+        "tenant_desc": "Mutu kalanga mu babase ya mukwa.",
+        "jti_title": "JTI ya Kulela",
+        "jti_desc": "Kujima agent kithangana kya ndembu."
+      },
+      "db_engine": {
+        "eyebrow": "Xina ya SGBD",
+        "title": "Mukinji wa Base ya Ijitu",
+        "desc": "Kusanguluka kyebhi kibwila mu disco ni memori.",
+        "storage_title": "Disco ni Pages",
+        "storage_desc": "Kusoneka ijitu mu bipesi ja kibwila.",
+        "btree_title": "Indisi B-Tree",
+        "btree_desc": "Kusota lusolo O(log n).",
+        "wal_title": "Write-Ahead Logging",
+        "wal_desc": "Kusoneka mu log ande dya disco."
+      }
     }
   },
   "fields": {

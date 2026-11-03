@@ -69,9 +69,11 @@ export default function HomePage() {
       <nav className="sticky top-0 z-50 bg-white/80 dark:bg-[#000000]/80 backdrop-blur-xl border-b border-black/5 dark:border-white/10 px-6 py-3">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-              <Database size={20} strokeWidth={2.5} />
-            </div>
+            <img
+              src="/img/logo_mustainfo.png"
+              alt="MustaInfo"
+              className="w-9 h-9 rounded-xl object-cover shadow-md border border-gray-200/50"
+            />
             <span className="font-bold tracking-tight text-lg hidden sm:block">
               {t("nav.brandName") || "MustaInfo"}
             </span>

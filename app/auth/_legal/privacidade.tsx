@@ -242,7 +242,7 @@ export const privacidade: LegalDoc = {
       content: (
         <UL>
           <li>
-            Os ficheiros que carrega ficam num armazenamento de objetos compatível com S3 (s3.MustaInfoo.cloud). Se esse
+            Os ficheiros que carrega ficam num armazenamento de objetos compatível com S3 (s3.MustaInfo.cloud). Se esse
             armazenamento estiver indisponível no momento do envio, é guardada uma cópia nos nossos servidores.
           </li>
           <li>Os links de download são temporários (1 hora).</li>

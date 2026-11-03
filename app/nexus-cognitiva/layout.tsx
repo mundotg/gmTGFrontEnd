@@ -28,6 +28,12 @@ const nexusUrl = getNexusBaseUrl();
 const mainSiteUrl = getMainPlatformUrl();
 
 export const metadata: Metadata = {
+  icons: {
+    icon: "/img/logo_mustainfo.png",
+    shortcut: "/img/logo_mustainfo.png",
+    apple: "/img/logo_mustainfo.png",
+  },
+
   metadataBase: new URL(nexusUrl),
   title: {
     default: "Nexus Cognitiva — Plataforma de Conhecimento Colaborativo | MustInfo",
@@ -86,7 +92,7 @@ export const metadata: Metadata = {
     images: [
       "https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=1200&auto=format&fit=crop&q=80",
     ],
-    creator: "@MustaInfoo",
+    creator: "@MustaInfo",
   },
   robots: {
     index: true,

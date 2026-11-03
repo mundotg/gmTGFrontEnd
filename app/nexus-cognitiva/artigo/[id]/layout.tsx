@@ -100,7 +100,7 @@ export async function generateMetadata({
       title,
       description,
       images,
-      creator: "@MustaInfoo",
+      creator: "@MustaInfo",
     },
     robots: {
       index: true,

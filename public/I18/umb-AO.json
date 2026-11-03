@@ -933,13 +933,151 @@
     "loginWithLinkedin": "Iñila la LinkedIn"
   },
   "docs": {
-    "search": "Sandiliya ko OrionForge...",
-    "language": "Umbundu (AO)",
-    "community": "Ocimunga",
+    "search": "Sanda vovikanda...",
+    "no_results": "Kacisangiwile:",
+    "community": "Ociunda",
+    "version_label": "Ocikwata c'Otembo",
+    "copy_code": "Kapa",
+    "copied": "Cakapiwa!",
     "menu": {
-      "intro": "Oku Enda Coku Fetika",
-      "features": "Ovapange Avelapo",
-      "advanced": "Avançado"
+      "getting_started": "Efetikilo",
+      "core_features": "Ovina Vyakolelo",
+      "technical": "Ulandu W'Otembo",
+      "intro": "Nye MustaInfo?",
+      "theme": "Design System 2026",
+      "connections": "Okusoleka Jikoneksau",
+      "mustalink": "MustaLink (Onjila)",
+      "query_builder": "Query Builder No-Code",
+      "ocr": "OCR Vision AI",
+      "sse": "Okuhana Ovina (SSE)",
+      "lineage": "Okutala Ovina (Lineage)",
+      "audit": "Ovitalo l'Audit",
+      "security": "Olonjila Vio-Segurança",
+      "db_engine": "Omitwe Yo-Base Y'Ovina"
+    },
+    "sections": {
+      "intro": {
+        "eyebrow": "Etalelo",
+        "title": "Nye MustaInfo?",
+        "desc": "MustaInfo ocitumalo c'okutala, okukongela l'okuvangula ovina viosi vio-base y'ovina.",
+        "pillars_title": "Omitwe Vitatu Vyakolelo",
+        "pillar1_title": "1. Jikoneksau l' Onjila",
+        "pillar1_desc": "Kuta olombase viosi sé okusilivila ombwelu ya firewall.",
+        "pillar2_title": "2. Studio No-Code",
+        "pillar2_desc": "Tunga queries sé codigo l' okutuma l' onjila yo-SSE.",
+        "pillar3_title": "3. IA l' OCR",
+        "pillar3_desc": "Tundisa ovina v'ovipembe l'okulumata l' PentestGuard."
+      },
+      "theme": {
+        "eyebrow": "Design System",
+        "title": "Design System 2026",
+        "desc": "Etalelo liakolelo l'olombisi viosi viokukongela.",
+        "colors_title": "Olombivala",
+        "colors_desc": "Ocisungo co-blue-600 k'ovina viakolelo.",
+        "geometry_title": "Ovina Vio-rounded-xl",
+        "geometry_desc": "Alipanya o-rounded-xl l' shadow-sm.",
+        "buttons_title": "Olombotau",
+        "buttons_desc": "Olombotau viakolelo viokuvingila.",
+        "demo_label": "Etalelo Li'Otukwata"
+      },
+      "connections": {
+        "eyebrow": "Jikoneksau",
+        "title": "Okutala Jikoneksau Viosi",
+        "desc": "Kukongela olombase viosi l'okavalu yakolelo.",
+        "pooling_title": "Pooling Yakolelo",
+        "pooling_desc": "Okutala nda jikoneksau jikwete omwenho otembo yosi.",
+        "sharing_title": "Okuhana K'ociunda",
+        "sharing_desc": "Pana ovina k'omanu vove.",
+        "ssl_title": "TLS/SSL",
+        "ssl_desc": "Kulumata ovina k'onjila.",
+        "step_guide_title": "Ndomo Otunga Ekoneksau"
+      },
+      "query_builder": {
+        "eyebrow": "No-Code & SQL",
+        "title": "Query Builder No-Code & SQL Studio",
+        "desc": "Tunga queries sé okusoneha codigo.",
+        "features_title": "Ovina Vio-Query Builder",
+        "how_to_use_title": "Onjila Y'Okutunga",
+        "export_title": "Okutunda Ovina",
+        "export_desc": "Tunda k' CSV, Excel l' JSON."
+      },
+      "ocr": {
+        "eyebrow": "IA l' Ovaso",
+        "title": "OCR Vision AI",
+        "desc": "Tundisa ovina v'ovipembe l'ovifoto oco viende k'olombase.",
+        "formats_title": "PNG, JPG l' PDF",
+        "formats_desc": "Kusanda ovina viosi.",
+        "tables_title": "Kusanga Olomesa",
+        "tables_desc": "Kukwata olombisi l'olonumbi.",
+        "pipeline_title": "Onjila Yo-IA"
+      },
+      "sse": {
+        "eyebrow": "Otembo ya Cili",
+        "title": "Okuhana Ovina l' SSE",
+        "desc": "Feta queries jinene sé okutulumula navegador.",
+        "async_title": "Okuenda l'Onjila",
+        "async_desc": "Ovina viiya ndomwe viitunda k'olombase.",
+        "virtualization_title": "Olomesa Vio-Virtual",
+        "virtualization_desc": "Tala ovina viosi sé okunyõla o-memoria.",
+        "events_title": "Olonjila Vio-SSE"
+      },
+      "mustalink": {
+        "eyebrow": "Onjila Yakolelo",
+        "title": "MustaLink Agent · Onjila Yotembo",
+        "desc": "Kuta olombase vio-komputator k'onjembo sé okusilivila ombwelu ya firewall.",
+        "how_it_works_title": "Ndomo Cilivila",
+        "how_it_works_desc": "Agent yituma WebSocket k'API yo MustaInfo l'eposo liavelapo.",
+        "pairing_title": "Kukuta l'Ocindeka (XXXX-XXXX)",
+        "pairing_desc": "Hana ocindeka colupale k'agent oco yifetike.",
+        "install_title": "Okutula Olombanja",
+        "install_desc": "Windows, Linux l' macOS l' scripts via PowerShell l' Bash.",
+        "virtual_host_title": "Onduko yo agent://",
+        "virtual_host_desc": "Kapa agent://ombwelo yove oco queries vitiye l'onjila."
+      },
+      "lineage": {
+        "eyebrow": "Okutala Ovina",
+        "title": "Data Lineage",
+        "desc": "Kwijila oku ovina viitunda l'oku vienda.",
+        "traceability_title": "Onjila Yosi",
+        "traceability_desc": "Tala ovina viosi viapiñanyisiwa.",
+        "metrics_title": "Otalo",
+        "metrics_desc": "Kutala olombisi l'otembo."
+      },
+      "audit": {
+        "eyebrow": "Ovitalo",
+        "title": "Audit & Telemetry",
+        "desc": "Kutala u watunga olombase l'otembo yosi.",
+        "query_history_title": "Ulandu Wo-Queries",
+        "query_history_desc": "Kusoneha queries viosi viatungiwa.",
+        "telemetry_title": "Otalo Yo-Makina",
+        "telemetry_desc": "Kutala omwenho wo-agent l'olombase.",
+        "compliance_title": "Kulumata K'ovihandeleko",
+        "compliance_desc": "Okulava ovitalo viosi."
+      },
+      "security": {
+        "eyebrow": "Kulumata",
+        "title": "Olonjila Vio-Segurança & PentestGuard",
+        "desc": "Kulumata kwakolelo k'ovina viove.",
+        "encryption_title": "AES-256-GCM",
+        "encryption_desc": "Kulumata olosenha l'ovikwata.",
+        "pentest_title": "PentestGuard",
+        "pentest_desc": "Okukwata olonjila viovina vinyõla.",
+        "tenant_title": "Omunu l'Omunu",
+        "tenant_desc": "Lomwe omunu otẽla okutala ovina viokwavo.",
+        "jti_title": "JTI Yo-Agent",
+        "jti_desc": "Okujima agent nda ya kuka."
+      },
+      "db_engine": {
+        "eyebrow": "Omitwe Yo-SGBD",
+        "title": "Omitwe Yo-Base Y'Ovina",
+        "desc": "Kutala ndomo cilingiwa k'odisco l'omemoria.",
+        "storage_title": "Disco l' Olombanja",
+        "storage_desc": "Kusoneha ovina viakolelo k'odisco.",
+        "btree_title": "Indisi B-Tree",
+        "btree_desc": "Sanda lonjila O(log n).",
+        "wal_title": "Write-Ahead Logging",
+        "wal_desc": "Soneha tete k'olog osimbu kueyiliwa k'odisco."
+      }
     }
   },
   "fields": {

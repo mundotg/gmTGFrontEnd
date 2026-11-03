@@ -5,6 +5,12 @@ import Sidebar from "../component/Sidebar";
 
 
 export const metadata: Metadata = {
+  icons: {
+    icon: "/img/logo_mustainfo.png",
+    shortcut: "/img/logo_mustainfo.png",
+    apple: "/img/logo_mustainfo.png",
+  },
+
   title: "clouds",
   description: "clouds",
 };

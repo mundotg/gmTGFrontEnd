@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:webpack": "next dev",
     "devDebug": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",

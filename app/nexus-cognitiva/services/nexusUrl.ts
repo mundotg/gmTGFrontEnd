@@ -3,11 +3,11 @@
 /**
  * Utilitário central de gestão de URLs e Domínio do Nexus Cognitiva.
  * Suporta funcionamento tanto sob o domínio principal (/nexus-cognitiva)
- * quanto sob um domínio dedicado / à parte (ex: https://nexuscognitiva.com ou https://nexus.MustaInfoo.org).
+ * quanto sob um domínio dedicado / à parte (ex: https://nexuscognitiva.com ou https://nexus.MustaInfo.org).
  */
 
 const RAW_NEXUS_URL = process.env.NEXT_PUBLIC_NEXUS_URL || "";
-const MAIN_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://MustaInfoo.org").replace(/\/+$/, "");
+const MAIN_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://MustaInfo.org").replace(/\/+$/, "");
 
 /**
  * Retorna a URL base absoluta do Nexus Cognitiva.
@@ -34,7 +34,7 @@ export function getNexusBaseUrl(): string {
 
 /**
  * Retorna o hostname do Nexus Cognitiva (para configuração de rewrites ou verificação de domínio).
- * Ex: "nexuscognitiva.com" ou "nexus.MustaInfoo.org"
+ * Ex: "nexuscognitiva.com" ou "nexus.MustaInfo.org"
  */
 export function getNexusHost(): string {
   if (process.env.NEXT_PUBLIC_NEXUS_HOST) {
@@ -51,7 +51,7 @@ export function getNexusHost(): string {
 
 /**
  * Verifica se o Nexus está configurado para correr como domínio próprio/raiz (standalone).
- * Ex: "https://nexuscognitiva.com" ou "https://nexus.MustaInfoo.org" (sem /nexus-cognitiva no path).
+ * Ex: "https://nexuscognitiva.com" ou "https://nexus.MustaInfo.org" (sem /nexus-cognitiva no path).
  */
 export function isStandaloneNexusDomain(): boolean {
   if (RAW_NEXUS_URL) {

@@ -276,14 +276,19 @@ export const MustaLinkManagerModal: React.FC<MustaLinkManagerProps> = ({
   );
 
   const httpServerUrl = useMemo(() => {
-    if (typeof window === "undefined") return "http://127.0.0.1:8000";
-    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+    const envUrl =
+      process.env.NEXT_PUBLIC_MUSTA_LINK_SERVER_URL ||
+      process.env.NEXT_PUBLIC_API_URL;
     if (envUrl) return envUrl.replace(/\/+$/, "");
-    return `${window.location.protocol}//${window.location.hostname}:8000`;
+    return "https://api.mustainfo.cloud";
   }, []);
 
   const wsServerUrl = useMemo(() => {
-    return httpServerUrl.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
+    if (process.env.NEXT_PUBLIC_MUSTA_LINK_RELAY_URL) {
+      return process.env.NEXT_PUBLIC_MUSTA_LINK_RELAY_URL.replace(/\/+$/, "");
+    }
+    const base = httpServerUrl.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:");
+    return base.endsWith("/conn/agent-tunnel") ? base : `${base}/conn/agent-tunnel`;
   }, [httpServerUrl]);
 
   const pairingInstallCommand = useMemo(() => {

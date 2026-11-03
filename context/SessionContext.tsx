@@ -51,142 +51,185 @@ const desencriptarUser = (user: Usuario): Usuario => {
 
 const SessionContext = createContext<SessionData | undefined>(undefined);
 
+// 🛡️ Controlo de concorrência e cache a nível de módulo (evita tempestade de requisições e loops de 401)
+let refreshPromise: Promise<boolean> | null = null;
+let logoutPromise: Promise<boolean> | null = null;
+let authMePromise: Promise<any> | null = null;
+let lastAuthMeFetchTime = 0;
+const AUTH_ME_CACHE_TTL = 30000; // 30 segundos de cache no cliente
+
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = usePersistedState<Usuario | null>("_user_logado", null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const isAuthenticated = useMemo(() => !!user, [user]);
 
-
-    // const route = useRouter();
+    const storeLoginData = useCallback((userData: Usuario) => {
+        setUser(desencriptarUser(userData));
+    }, [setUser]);
 
     const logout = useCallback(async (redirect: string | null = null) => {
-        // console.log("Logout chamado", user);
-        if (isLoggingOut) return false; // Evita múltiplos logouts simultâneos
-        setIsLoggingOut(true);
-        setIsLoading(true);
+        if (logoutPromise) {
+            return logoutPromise;
+        }
 
-        try {
-            await api.post("/auth/logout");
-            setUser(null);
-
-        } catch (error) {
-            console.warn("Erro ao deslogar:", error);
-            throw error;
-        } finally {
-            setIsLoggingOut(false);
-            setIsLoading(false);
-            if (redirect) {
-                // route.push(redirect);
+        logoutPromise = (async () => {
+            setIsLoading(true);
+            try {
+                await api.post("/auth/logout").catch(() => {});
+                setUser(null);
+                lastAuthMeFetchTime = 0;
+            } catch (error) {
+                console.warn("Erro ao deslogar:", error);
+            } finally {
+                setIsLoading(false);
+                logoutPromise = null;
+                try {
+                    fetch("/api/login", {
+                        method: "POST",
+                        credentials: "include",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ token: "" }),
+                    }).catch(() => {});
+                } catch {}
+                sessionStorage.removeItem("login_done");
+                sessionStorage.removeItem("login_retry");
             }
-            fetch("/api/login", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: "" }),
-            });
-            sessionStorage.removeItem("login_done");
-            sessionStorage.removeItem("login_retry");
-
-        }
-        return true;
-    }, [isLoggingOut]);
-
-    const refreshAccessToken = useCallback(async () => {
-        if (isRefreshing) return;
-        setIsRefreshing(true);
-
-        try {
-            await api.post('/auth/refresh', {}, { withCredentials: true });
-            setIsRefreshing(false);
             return true;
-        } catch (error) {
-            setIsRefreshing(false);
-            return false
-        }
-    }, [logout, isRefreshing]);
+        })();
 
-    // 🛑 Interceptor para Logout Automático no erro 401
+        return logoutPromise;
+    }, [setUser]);
+
+    const refreshAccessToken = useCallback(async (): Promise<boolean> => {
+        // Se já existe um pedido de refresh em curso, todas as requisições paralelas aguardam a mesma Promise
+        if (refreshPromise) {
+            return refreshPromise;
+        }
+
+        refreshPromise = (async () => {
+            try {
+                await api.post('/auth/refresh', {}, { withCredentials: true });
+                return true;
+            } catch {
+                return false;
+            } finally {
+                refreshPromise = null;
+            }
+        })();
+
+        return refreshPromise;
+    }, []);
+
+    // 🛑 Interceptor para Renovação e Logout Automático no erro 401 (sem loops de requisições)
     useEffect(() => {
         const interceptor = api.interceptors.response.use(
             response => response,
             async (error) => {
                 const originalRequest = error.config;
-                if (error.response?.status === 401 && !isLoggingOut && !originalRequest._retry) {
+                const url = originalRequest?.url || "";
 
+                // NUNCA interceptar rotas de autenticação para evitar loops infinitos
+                if (
+                    url.includes("/auth/refresh") ||
+                    url.includes("/auth/logout") ||
+                    url.includes("/auth/login")
+                ) {
+                    return Promise.reject(error);
+                }
+
+                if (error.response?.status === 401 && !originalRequest._retry) {
                     originalRequest._retry = true;
                     const success = await refreshAccessToken();
                     if (success) {
-                        // Tenta novamente a requisição original
                         return api(originalRequest);
                     } else {
-                        // Refresh falhou, força logout
                         await logout();
                     }
                 }
-                // console.error("Erro ao processar a resposta:", error);
                 return Promise.reject(error);
             }
         );
 
         return () => api.interceptors.response.eject(interceptor);
-    }, [isRefreshing, isLoggingOut, refreshAccessToken, logout]);
+    }, [refreshAccessToken, logout]);
 
+    // 🔄 Renovação de token periódica APENAS se o utilizador estiver autenticado
     useEffect(() => {
-
+        if (!isAuthenticated) return;
 
         const refresh = async () => {
             try {
-                await refreshAccessToken(); // faz request ao backend, backend usa refresh_token do httpOnly cookie
+                await refreshAccessToken();
                 console.log("Access token renovado ✅");
             } catch (err) {
                 console.error("Falha ao atualizar token:", err);
             }
         };
 
-        // chama refresh a cada 13 minutos (antes dos 15 min)
         const interval: NodeJS.Timeout = setInterval(refresh, 13 * 60 * 1000);
-
-        // chama uma vez logo ao montar (garantir sincronização inicial)
-        refresh();
-
         return () => clearInterval(interval);
-    }, []);
+    }, [isAuthenticated, refreshAccessToken]);
 
-    // Recupera sessão ao carregar o app
+    // 📦 Recupera sessão ao carregar com Cache e Deduplicação
     useEffect(() => {
+        let isMounted = true;
 
-        api.get("/auth/me", { withCredentials: true, timeout: 25000 })
+        const now = Date.now();
+        // Se já temos o utilizador em cache e foi buscado recentemente, evitamos nova consulta ao backend
+        if (user && lastAuthMeFetchTime > 0 && now - lastAuthMeFetchTime < AUTH_ME_CACHE_TTL) {
+            setIsLoading(false);
+            return;
+        }
+
+        if (authMePromise) {
+            authMePromise
+                .then(data => {
+                    if (isMounted && data) storeLoginData(data);
+                })
+                .finally(() => {
+                    if (isMounted) setIsLoading(false);
+                });
+            return;
+        }
+
+        authMePromise = api.get("/auth/me", { withCredentials: true, timeout: 25000 })
             .then(response => {
-                // console.log("dados do user: ", response.data)
-                storeLoginData(response.data)
+                lastAuthMeFetchTime = Date.now();
+                if (isMounted) {
+                    storeLoginData(response.data);
+                }
+                return response.data;
             })
             .catch((err) => {
+                lastAuthMeFetchTime = 0;
                 if (err?.response?.status !== 401) {
                     console.error("Erro em /auth/me:", err);
                 }
-                // Apenas realiza logout se o backend responder expressamente com 401 (token expirado/não autorizado)
+                // Apenas realiza logout se o utilizador constava como logado e o backend rejeitou expressamente
                 if (err?.response?.status === 401 && user) {
-                    logout()
+                    logout();
                 }
+                return null;
             })
-            .finally(() => setIsLoading(false));
+            .finally(() => {
+                authMePromise = null;
+                if (isMounted) setIsLoading(false);
+            });
 
-    }, []);
-
-    const storeLoginData = useCallback((user: Usuario) => {
-        setUser(desencriptarUser(user));
-    }, []);
+        return () => {
+            isMounted = false;
+        };
+    }, [user, storeLoginData, logout]);
 
     /**
-     * Relê o `/auth/me`. O `info_extra` (base de dados ativa, nº de tabelas…)
+     * Relê o `/auth/me` forçadamente (ignora cache local). O `info_extra` (base de dados ativa, nº de tabelas…)
      * só era lido no arranque, por isso o menu ficava a mostrar a conexão
      * antiga até se recarregar a página.
      */
     const refreshUser = useCallback(async () => {
         try {
             const response = await api.get("/auth/me", { withCredentials: true, timeout: 25000 });
+            lastAuthMeFetchTime = Date.now();
             storeLoginData(response.data);
         } catch (err) {
             // Falhar aqui não deve deslogar: é uma revalidação, não o arranque.

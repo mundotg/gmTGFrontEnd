@@ -152,9 +152,11 @@ function VerifyEmailContent() {
 
         {/* Cabeçalho com Logótipo */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="bg-blue-50 border border-blue-100 w-12 h-12 rounded-xl flex items-center justify-center shadow-sm">
-            <Database className="w-6 h-6 text-blue-600" />
-          </div>
+          <img
+            src="/img/logo_mustainfo.png"
+            alt="MustaInfo"
+            className="w-12 h-12 rounded-xl object-cover shadow-sm border border-gray-100"
+          />
           <span className="text-xl font-bold text-gray-900 tracking-tight">MustaInfo</span>
         </div>
 

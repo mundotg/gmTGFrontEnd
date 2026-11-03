@@ -356,7 +356,11 @@ const App: React.FC = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center gap-3">
-              <Briefcase className="text-indigo-600 w-6 h-6 sm:w-7 sm:h-7" />
+              <img
+                src="/img/logo_mustainfo.png"
+                alt="MustaInfo"
+                className="w-8 h-8 rounded-lg object-cover shadow-sm border border-gray-200 shrink-0"
+              />
               <h1 className="text-lg sm:text-xl font-bold tracking-tight text-gray-900">
                 Gestor de Projectos & Tarefas
               </h1>
