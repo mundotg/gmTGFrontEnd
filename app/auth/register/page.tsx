@@ -1,14 +1,13 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { Eye, EyeOff, Database, User, Building, Shield, Loader2, Check, ExternalLink, Mail, Info, Clock, CheckCircle, RefreshCw } from 'lucide-react';
 import { Alert, Button, Input, Modal } from '@/app/component';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '@/context/SessionContext';
 import usePersistedState from '@/hook/localStoreUse';
 import { checkPasswordStrength, getPasswordStrengthText } from './utils';
 import { useI18n } from '@/context/I18nContext';
-import Script from 'next/script';
 import { LegalDocument } from '../_legal/LegalDocument';
 import { termos } from '../_legal/termos';
 import { privacidade } from '../_legal/privacidade';
@@ -19,41 +18,50 @@ const LEGAL_DOCS = {
   privacidade: { doc: privacidade, href: '/auth/privacidade' },
 } as const;
 
-const RegisterPage = () => {
+function RegisterPageContent() {
   const { t } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { api, login } = useSession();
 
+  // 1. Extração segura de parâmetros de OAuth
+  const isOAuthParam = searchParams.get('oauth') === '1';
+  const paramProvider = searchParams.get('provider') || '';
+  const paramEmail = searchParams.get('email') || '';
+  const paramFirstName = searchParams.get('firstName') || '';
+  const paramLastName = searchParams.get('lastName') || '';
+  const paramCompany = searchParams.get('company') || '';
+  const paramAvatar = searchParams.get('avatar_url') || '';
+  const paramToken = searchParams.get('oauth_token') || '';
+
+  // Tratamento de nome completo (se firstName vier composto e lastName vazio)
+  let initialFirst = paramFirstName;
+  let initialLast = paramLastName;
+  if (!initialLast && initialFirst && initialFirst.includes(' ')) {
+    const parts = initialFirst.trim().split(/\s+/);
+    initialFirst = parts[0];
+    initialLast = parts.slice(1).join(' ');
+  }
+
   // O rascunho do formulário é guardado no browser (IndexedDB) para não se
-  // perder num reload — mas SEM as passwords, que ficam só em memória. Antes
-  // iam para lá em texto simples e nunca eram apagadas.
-  const [formData, setFormData, clearSavedForm] = usePersistedState("registerForm", {
-    firstName: '',
-    lastName: '',
-    email: '',
+  // perder num reload comum — mas SEM as passwords.
+  const [formData, setFormData, clearSavedForm, isStorageLoading] = usePersistedState("registerForm", {
+    firstName: initialFirst || '',
+    lastName: initialLast || '',
+    email: paramEmail || '',
     phone: '',
     companyData: {
-      company: '',
-      companySize: ''
+      company: paramCompany || '',
+      companySize: isOAuthParam ? '1-10' : ''
     },
     positionData: {
       position: '',
       descricao: ''
     },
-    terms: false
+    terms: isOAuthParam
   });
+
   const [passwords, setPasswords] = useState({ password: '', confirmPassword: '' });
-
-  // Rascunhos gravados por versões anteriores ainda trazem as passwords:
-  // regrava-se o rascunho sem elas.
-  useEffect(() => {
-    if ('password' in formData || 'confirmPassword' in formData) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, confirmPassword, ...rest } = formData as typeof formData & { password?: string; confirmPassword?: string };
-      setFormData(rest as typeof formData);
-    }
-  }, [formData, setFormData]);
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -72,66 +80,69 @@ const RegisterPage = () => {
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
 
-  const [oauthToken, setOauthToken] = useState('');
+  const [oauthToken, setOauthToken] = useState(paramToken || '');
   const [oauthInfo, setOauthInfo] = useState<{
     isOAuth: boolean;
     provider: string;
     email: string;
     avatarUrl?: string;
-  } | null>(null);
-
-  // Captura se veio redirecionado de um provedor OAuth para terminar de preencher o formulário
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('oauth') === '1') {
-      const provider = params.get('provider') || '';
-      const email = params.get('email') || '';
-      const firstName = params.get('firstName') || '';
-      const lastName = params.get('lastName') || '';
-      const avatarUrl = params.get('avatar_url') || '';
-      const company = params.get('company') || '';
-      const token = params.get('oauth_token') || '';
-
-      if (token) setOauthToken(token);
-
-      setOauthInfo({
-        isOAuth: true,
-        provider,
-        email,
-        avatarUrl,
-      });
-
-      // Limpa rascunho anterior para evitar contaminação por rascunho em cache
-      clearSavedForm();
-
-      setFormData(prev => ({
-        ...prev,
-        firstName: firstName || prev.firstName,
-        lastName: lastName || prev.lastName,
-        email: email || prev.email,
-        companyData: {
-          ...prev.companyData,
-          company: company || prev.companyData.company,
-        },
-      }));
-    }
-  }, [setFormData, clearSavedForm]);
-
-  // Garante que o e-mail do OAuth nunca seja sobrescrito pelo carregamento assíncrono do IndexedDB
-  useEffect(() => {
-    if (oauthInfo?.isOAuth && oauthInfo.email) {
-      setFormData(prev => {
-        if (prev.email !== oauthInfo.email) {
-          return {
-            ...prev,
-            email: oauthInfo.email,
-          };
+  } | null>(
+    isOAuthParam
+      ? {
+          isOAuth: true,
+          provider: paramProvider,
+          email: paramEmail,
+          avatarUrl: paramAvatar || undefined,
         }
-        return prev;
-      });
+      : null
+  );
+
+  // Rascunhos gravados por versões anteriores ainda trazem as passwords:
+  // regrava-se o rascunho sem elas.
+  useEffect(() => {
+    if ('password' in formData || 'confirmPassword' in formData) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, confirmPassword, ...rest } = formData as typeof formData & { password?: string; confirmPassword?: string };
+      setFormData(rest as typeof formData);
     }
-  }, [oauthInfo?.isOAuth, oauthInfo?.email, setFormData]);
+  }, [formData, setFormData]);
+
+  // 2. Prioridade absoluta para parâmetros OAuth: nunca permite que o IndexedDB sobrescreva
+  useEffect(() => {
+    if (!isOAuthParam) return;
+
+    if (paramToken) setOauthToken(paramToken);
+    setOauthInfo({
+      isOAuth: true,
+      provider: paramProvider,
+      email: paramEmail,
+      avatarUrl: paramAvatar || undefined,
+    });
+
+    setFormData(prev => ({
+      ...prev,
+      firstName: initialFirst || prev.firstName,
+      lastName: initialLast || prev.lastName,
+      email: paramEmail || prev.email,
+      companyData: {
+        ...prev.companyData,
+        company: paramCompany || prev.companyData.company,
+        companySize: prev.companyData.companySize || '1-10',
+      },
+      terms: true,
+    }));
+  }, [
+    isOAuthParam,
+    paramProvider,
+    paramEmail,
+    initialFirst,
+    initialLast,
+    paramCompany,
+    paramAvatar,
+    paramToken,
+    isStorageLoading,
+    setFormData,
+  ]);
 
   // Redirecionamento automático com contagem regressiva após o envio do e-mail
   useEffect(() => {
@@ -172,7 +183,7 @@ const RegisterPage = () => {
 
   // Reenvio direto a partir da tela de registo quando a conta aguarda confirmação
   const handleQuickResend = async () => {
-    const targetEmail = formData.email.trim();
+    const targetEmail = (formData.email || paramEmail).trim();
     if (!targetEmail) return;
 
     setIsResending(true);
@@ -201,35 +212,116 @@ const RegisterPage = () => {
     e.preventDefault();
     setResendSuccess(null);
     setResendError(null);
+    setError('');
 
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone.trim() ||
-      !formData.companyData.company || !formData.companyData.companySize ||
-      !passwords.password || !passwords.confirmPassword) {
-      setError(t('auth.errorFields'));
+    const isOAuth = !!(oauthInfo?.isOAuth || isOAuthParam);
+
+    const oauthEmailValue = paramEmail || oauthInfo?.email || '';
+    const finalEmail = (isOAuth && oauthEmailValue
+      ? oauthEmailValue
+      : (formData.email || '')).trim().toLowerCase();
+
+    const finalFirstName = (formData.firstName || (isOAuth ? initialFirst : '') || '').trim();
+    let finalLastName = (formData.lastName || (isOAuth ? initialLast : '') || '').trim();
+    if (!finalLastName && isOAuth) {
+      // No OAuth, se o utilizador tem nome único, usa o primeiro nome como identificador
+      finalLastName = finalFirstName || "Utilizador";
+    }
+
+    const finalCompany = (formData.companyData.company || (isOAuth ? paramCompany : '') || '').trim();
+    const finalCompanySize = formData.companyData.companySize || (isOAuth ? "1-10" : "");
+    const finalPhone = (formData.phone || '').trim();
+
+    // Validações com mensagens específicas e orientadoras:
+    if (!finalFirstName) {
+      setError(t('auth.errorNameRequired') || "Por favor, indique o seu nome.");
+      return;
+    }
+    if (!isOAuth && !finalLastName) {
+      setError(t('auth.errorLastNameRequired') || "Por favor, indique o seu sobrenome.");
+      return;
+    }
+    if (!finalEmail) {
+      setError(t('auth.errorEmailRequired') || "Por favor, indique um e-mail válido.");
+      return;
+    }
+    if (!finalCompany) {
+      setError(t('auth.errorCompanyRequired') || "Por favor, indique o nome da sua empresa.");
+      return;
+    }
+    if (!finalCompanySize) {
+      setError(t('auth.errorCompanySizeRequired') || "Por favor, selecione a dimensão da empresa.");
       return;
     }
 
-    if (passwords.password !== passwords.confirmPassword) {
-      setError(t('auth.errorPasswordMatch'));
-      return;
+    // No registo tradicional, telefone e palavra-passe são estritamente obrigatórios
+    if (!isOAuth) {
+      if (!finalPhone) {
+        setError(t('auth.errorPhoneRequired') || "Por favor, indique o seu número de telefone de contacto.");
+        return;
+      }
+      if (!passwords.password || !passwords.confirmPassword) {
+        setError(t('auth.errorPasswordRequired') || "Por favor, defina a sua palavra-passe.");
+        return;
+      }
+      if (passwords.password !== passwords.confirmPassword) {
+        setError(t('auth.errorPasswordMatch') || "As palavras-passe não coincidem.");
+        return;
+      }
+      if (passwords.password.length < 8) {
+        setError(t('auth.errorPasswordLength') || "A palavra-passe deve ter pelo menos 8 caracteres.");
+        return;
+      }
+      if (!formData.terms) {
+        setError(t('auth.errorTermsRequired') || "É obrigatório aceitar os Termos de Serviço e Política de Privacidade.");
+        return;
+      }
+    } else {
+      // No fluxo OAuth: se o utilizador optar por definir palavra-passe, validamos
+      if (passwords.password || passwords.confirmPassword) {
+        if (passwords.password !== passwords.confirmPassword) {
+          setError(t('auth.errorPasswordMatch') || "As palavras-passe não coincidem.");
+          return;
+        }
+        if (passwords.password.length < 8) {
+          setError(t('auth.errorPasswordLength') || "A palavra-passe deve ter pelo menos 8 caracteres.");
+          return;
+        }
+      }
     }
 
     setIsLoading(true);
 
     try {
-      const finalEmail = (oauthInfo?.isOAuth && oauthInfo.email ? oauthInfo.email : formData.email).trim().toLowerCase();
+      // Para utilizadores OAuth que não digitam senha, gera-se uma credencial forte e aleatória
+      const randomSeed = typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID
+        ? window.crypto.randomUUID().replace(/-/g, '')
+        : Math.random().toString(36).slice(2) + Date.now();
+      const effectivePassword = passwords.password || (isOAuth ? `OAuth_${randomSeed}!9` : '');
+      const effectiveConfirmPassword = passwords.confirmPassword || effectivePassword;
+      const effectiveToken = oauthToken || paramToken;
 
       const submitData = {
         ...formData,
-        ...passwords,
+        firstName: finalFirstName,
+        lastName: finalLastName,
         email: finalEmail,
+        phone: finalPhone || (isOAuth ? "+244900000000" : ""),
+        companyData: {
+          ...formData.companyData,
+          company: finalCompany,
+          companySize: finalCompanySize,
+        },
+        password: effectivePassword,
+        confirmPassword: effectiveConfirmPassword,
+        terms: true,
         positionData: formData.positionData.position ? formData.positionData : undefined,
-        oauthToken: oauthToken || undefined,
+        oauthToken: effectiveToken || undefined,
       };
 
       const requestHeaders: Record<string, string> = {};
-      if (oauthToken) {
-        requestHeaders['x-oauth-token'] = oauthToken;
+      if (effectiveToken) {
+        requestHeaders['x-oauth-token'] = effectiveToken;
       }
 
       const response = await api.post('/auth/register', submitData, {
@@ -238,8 +330,8 @@ const RegisterPage = () => {
 
       if (response.status === 201 || response.status === 200) {
         const action = response.headers?.['x-verification-action'];
-        // Registo OAuth / Auth0 é verificado automaticamente — não precisa de tela de verificação
-        if (action === 'oauth_registered' || oauthInfo?.isOAuth) {
+        // Registo OAuth / Auth0 é verificado automaticamente — segue direto para a plataforma
+        if (action === 'oauth_registered' || isOAuth) {
           setSuccess(t('auth.oauthSuccess') || 'Registo concluído e conta associada com sucesso! A entrar na plataforma...');
           clearSavedForm();
           setTimeout(() => {
@@ -249,19 +341,17 @@ const RegisterPage = () => {
         } else if (action === 'token_renewed') {
           setResponseStatusType('token_renewed');
           setSuccess(t('auth.tokenRenewedTitle') || 'Nova Ligação de Confirmação Enviada!');
-          setRegisteredEmail(formData.email);
+          setRegisteredEmail(finalEmail);
           clearSavedForm();
         } else {
           setResponseStatusType('new_user');
           setSuccess(t('auth.successRegister'));
-          setRegisteredEmail(formData.email);
+          setRegisteredEmail(finalEmail);
           clearSavedForm();
         }
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      // Num 422 o `detail` é genérico ("Dados inválidos no pedido."); o motivo
-      // concreto (ex.: telefone inválido) vem em `errors[].msg`.
       const data = err?.response?.data;
       const errorCode = err?.response?.headers?.['x-error-code'];
       const detail = typeof data?.detail === 'string' ? data.detail : '';
@@ -298,23 +388,26 @@ const RegisterPage = () => {
   const inputClass = "w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all duration-200 text-sm text-gray-900 placeholder:text-gray-400";
   const labelClass = "block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1";
 
+  const isOAuthActive = Boolean(oauthInfo?.isOAuth || isOAuthParam);
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 py-12">
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 w-full max-w-2xl animate-in fade-in zoom-in-95 duration-300">
 
         {/* Header - visível apenas antes do registo */}
         {!registeredEmail && (
-          <div className="text-center mb-10">
+          <div className="text-center mb-8">
             <img
               src="/img/logo_mustainfo.png"
               alt="MustaInfo"
               className="w-16 h-16 rounded-2xl object-cover mx-auto mb-4 shadow-md border border-gray-100"
             />
             <h1 className="text-2xl font-bold text-gray-900 mb-1">MustaInfo</h1>
-            <p className="text-gray-500 text-sm font-medium">{t('auth.createAccountSubtitle')}</p>
+            <p className="text-gray-500 text-sm font-medium">
+              {isOAuthActive ? "Conclua os seus dados para aceder à plataforma" : t('auth.createAccountSubtitle')}
+            </p>
           </div>
         )}
-
 
         {registeredEmail ? (
           /* Tela de Sucesso: Confirmação de E-mail enviado por SMTP */
@@ -421,7 +514,7 @@ const RegisterPage = () => {
                       </Button>
 
                       <Link
-                        href={`/auth/login?email=${encodeURIComponent(formData.email)}`}
+                        href={`/auth/login?email=${encodeURIComponent(formData.email || paramEmail)}`}
                         className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2.5 px-4 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-xs"
                       >
                         <Check className="w-3.5 h-3.5 text-blue-600" />
@@ -451,7 +544,7 @@ const RegisterPage = () => {
                     </p>
 
                     <Link
-                      href={`/auth/login?email=${encodeURIComponent(formData.email)}`}
+                      href={`/auth/login?email=${encodeURIComponent(formData.email || paramEmail)}`}
                       className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 px-5 rounded-xl shadow-sm transition-all inline-flex items-center gap-2"
                     >
                       {t('auth.goToLogin') || "Iniciar Sessão"} &rarr;
@@ -467,24 +560,24 @@ const RegisterPage = () => {
             )}
 
             {/* Aviso OAuth quando o utilizador vem de provedor externo */}
-            {oauthInfo?.isOAuth && (
+            {isOAuthActive && (
               <div className="mb-6 bg-gradient-to-r from-blue-50 via-indigo-50/60 to-blue-50 border border-blue-200 rounded-2xl p-5 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="flex items-start gap-4">
-                  {oauthInfo.avatarUrl ? (
+                  {paramAvatar || oauthInfo?.avatarUrl ? (
                     <img
-                      src={oauthInfo.avatarUrl}
-                      alt={oauthInfo.provider}
+                      src={paramAvatar || oauthInfo?.avatarUrl}
+                      alt={paramProvider || oauthInfo?.provider || "OAuth"}
                       className="w-12 h-12 rounded-2xl border-2 border-white shadow-sm object-cover shrink-0 mt-0.5"
                     />
                   ) : (
                     <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white font-bold flex items-center justify-center text-lg shadow-sm shrink-0 mt-0.5">
-                      {oauthInfo.provider.slice(0, 1).toUpperCase()}
+                      {(paramProvider || oauthInfo?.provider || "O").slice(0, 1).toUpperCase()}
                     </div>
                   )}
                   <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-md">
-                        {oauthInfo.provider.toUpperCase()}
+                        {(paramProvider || oauthInfo?.provider || "OAuth").toUpperCase()}
                       </span>
                       <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
@@ -495,15 +588,15 @@ const RegisterPage = () => {
                       {t('auth.oauthCompleteTitle') || "Conclua o seu registo"}
                     </h4>
                     <p className="text-xs text-gray-600 leading-relaxed mt-0.5">
-                      {t('auth.oauthCompleteDesc') || "A sua conta externa foi identificada com sucesso. Preencha os dados da sua empresa, telefone e defina a sua palavra-passe para concluir o registo."}
+                      {t('auth.oauthCompleteDesc') || "A sua conta externa foi identificada com sucesso. Os dados foram pré-preenchidos. Confirme as informações abaixo para aceder à sua conta."}
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Provedores OAuth / Social Login (reutilização de OtherProviders) */}
-            {!oauthInfo?.isOAuth && (
+            {/* Provedores OAuth / Social Login (visível apenas no fluxo normal) */}
+            {!isOAuthActive && (
               <div className="mb-8">
                 <OtherProviders login={login} t={t} />
                 <div className="relative py-4 my-2">
@@ -529,18 +622,34 @@ const RegisterPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-1">
                     <label className={labelClass}>{t('common.firstName')}</label>
-                    <Input name="firstName" value={formData.firstName} onChange={handleInputChange} className={inputClass} placeholder="Ex: João" required />
+                    <Input
+                      name="firstName"
+                      value={formData.firstName || (isOAuthActive ? initialFirst : '')}
+                      onChange={handleInputChange}
+                      className={inputClass}
+                      placeholder="Ex: João"
+                      required
+                    />
                   </div>
                   <div className="space-y-1">
-                    <label className={labelClass}>{t('common.lastName')}</label>
-                    <Input name="lastName" value={formData.lastName} onChange={handleInputChange} className={inputClass} placeholder="Ex: Silva" required />
+                    <label className={labelClass}>
+                      {t('common.lastName')} {isOAuthActive && <span className="text-gray-400 lowercase font-normal">(opcional)</span>}
+                    </label>
+                    <Input
+                      name="lastName"
+                      value={formData.lastName || (isOAuthActive ? initialLast : '')}
+                      onChange={handleInputChange}
+                      className={inputClass}
+                      placeholder="Ex: Silva"
+                      required={!isOAuthActive}
+                    />
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <label htmlFor="register-email" className={labelClass}>{t('common.email')}</label>
-                      {oauthInfo?.isOAuth && (
+                      {isOAuthActive && (
                         <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <Check className="w-3 h-3 text-blue-600" /> {oauthInfo.provider.toUpperCase()}
+                          <Check className="w-3 h-3 text-blue-600" /> {(paramProvider || oauthInfo?.provider || "OAuth").toUpperCase()}
                         </span>
                       )}
                     </div>
@@ -549,17 +658,18 @@ const RegisterPage = () => {
                       type="email"
                       name="email"
                       autoComplete="email"
-                      value={oauthInfo?.isOAuth && oauthInfo.email ? oauthInfo.email : formData.email}
-                      onChange={oauthInfo?.isOAuth ? undefined : handleInputChange}
-                      readOnly={!!oauthInfo?.isOAuth}
-                      className={`${inputClass} ${oauthInfo?.isOAuth ? "bg-gray-100 text-gray-700 cursor-not-allowed border-gray-300" : ""}`}
+                      value={isOAuthActive && (paramEmail || oauthInfo?.email) ? (paramEmail || oauthInfo?.email) : formData.email}
+                      onChange={isOAuthActive ? undefined : handleInputChange}
+                      readOnly={isOAuthActive}
+                      className={`${inputClass} ${isOAuthActive ? "bg-gray-100 text-gray-700 cursor-not-allowed border-gray-300" : ""}`}
                       placeholder="seu@email.com"
                       required
                     />
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="register-phone" className={labelClass}>{t('common.phone')}</label>
-                    {/* O backend normaliza para +<indicativo><número>; 9 dígitos a começar por 9 = Angola (+244). */}
+                    <label htmlFor="register-phone" className={labelClass}>
+                      {t('common.phone')} {isOAuthActive && <span className="text-gray-400 lowercase font-normal">(opcional)</span>}
+                    </label>
                     <Input
                       id="register-phone"
                       type="tel"
@@ -570,9 +680,9 @@ const RegisterPage = () => {
                       onChange={handleInputChange}
                       className={inputClass}
                       placeholder="+244 923 456 789"
-                      pattern="\+?[0-9\s\-\(\)]{9,20}"
+                      pattern={isOAuthActive ? undefined : "\\+?[0-9\\s\\-\\(\\)]{9,20}"}
                       title={t('auth.phoneHint')}
-                      required
+                      required={!isOAuthActive}
                     />
                   </div>
                 </div>
@@ -588,13 +698,26 @@ const RegisterPage = () => {
                 <div className="space-y-5">
                   <div className="space-y-1">
                     <label className={labelClass}>{t('auth.companyName')}</label>
-                    <Input name="companyData.company" value={formData.companyData.company} onChange={handleInputChange} className={inputClass} placeholder="Sua Empresa Lda" required />
+                    <Input
+                      name="companyData.company"
+                      value={formData.companyData.company || (isOAuthActive ? paramCompany : '')}
+                      onChange={handleInputChange}
+                      className={inputClass}
+                      placeholder="Sua Empresa Lda"
+                      required
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="space-y-1">
                       <label className={labelClass}>{t('auth.companySize')}</label>
-                      <select name="companyData.companySize" value={formData.companyData.companySize} onChange={handleInputChange} className={`${inputClass} appearance-none cursor-pointer`} required>
+                      <select
+                        name="companyData.companySize"
+                        value={formData.companyData.companySize || (isOAuthActive ? "1-10" : "")}
+                        onChange={handleInputChange}
+                        className={`${inputClass} appearance-none cursor-pointer`}
+                        required
+                      >
                         <option value="">{t('common.select')}</option>
                         <option value="1-10">1-10 {t('auth.employees')}</option>
                         <option value="11-50">11-50 {t('auth.employees')}</option>
@@ -604,7 +727,12 @@ const RegisterPage = () => {
                     </div>
                     <div className="space-y-1">
                       <label className={labelClass}>{t('auth.position')}</label>
-                      <select name="positionData.position" value={formData.positionData.position} onChange={handleInputChange} className={`${inputClass} appearance-none cursor-pointer`}>
+                      <select
+                        name="positionData.position"
+                        value={formData.positionData.position}
+                        onChange={handleInputChange}
+                        className={`${inputClass} appearance-none cursor-pointer`}
+                      >
                         <option value="">{t('auth.selectPosition')}</option>
                         <option value="CEO">CEO / CTO</option>
                         <option value="manager">{t('auth.posManager')}</option>
@@ -620,29 +748,65 @@ const RegisterPage = () => {
               <section className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
                 <div className="flex items-center gap-2 mb-6 pb-2 border-b border-gray-200/50">
                   <Shield className="w-4 h-4 text-blue-600" />
-                  <h3 className="text-sm font-bold text-gray-800 uppercase tracking-tight">{t('auth.security')}</h3>
+                  <h3 className="text-sm font-bold text-gray-800 uppercase tracking-tight">
+                    {t('auth.security')} {isOAuthActive && <span className="text-gray-400 lowercase font-normal">(opcional para login social)</span>}
+                  </h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-1">
-                    <label className={labelClass}>{t('common.password')}</label>
+                    <label className={labelClass}>
+                      {t('common.password')} {isOAuthActive && <span className="text-gray-400 lowercase font-normal">(opcional)</span>}
+                    </label>
                     <div className="relative">
-                      <Input type={showPassword ? 'text' : 'password'} name="password" value={passwords.password} onChange={handleInputChange} className={`${inputClass} pr-12`} placeholder="••••••••" required />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 p-1.5 transition-colors">
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        value={passwords.password}
+                        onChange={handleInputChange}
+                        className={`${inputClass} pr-12`}
+                        placeholder={isOAuthActive ? "Definir senha própria (opcional)" : "••••••••"}
+                        required={!isOAuthActive}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 p-1.5 transition-colors"
+                      >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-                    <div className="mt-2 px-1">
-                      <div className="flex justify-between mb-1"><span className={`text-[10px] font-bold uppercase ${strengthInfo.color}`}>{t(strengthInfo.text)}</span></div>
-                      <div className="w-full bg-gray-200 rounded-full h-1"><div className={`h-1 rounded-full transition-all duration-500 ${strengthInfo.bg} ${strengthInfo.width}`}></div></div>
-                    </div>
+                    {passwords.password && (
+                      <div className="mt-2 px-1">
+                        <div className="flex justify-between mb-1">
+                          <span className={`text-[10px] font-bold uppercase ${strengthInfo.color}`}>{t(strengthInfo.text)}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1">
+                          <div className={`h-1 rounded-full transition-all duration-500 ${strengthInfo.bg} ${strengthInfo.width}`}></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-1">
-                    <label className={labelClass}>{t('auth.confirmPassword')}</label>
+                    <label className={labelClass}>
+                      {t('auth.confirmPassword')} {isOAuthActive && <span className="text-gray-400 lowercase font-normal">(opcional)</span>}
+                    </label>
                     <div className="relative">
-                      <Input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={passwords.confirmPassword} onChange={handleInputChange} className={`${inputClass} pr-12`} placeholder="••••••••" required />
-                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 p-1.5 transition-colors">
+                      <Input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        name="confirmPassword"
+                        value={passwords.confirmPassword}
+                        onChange={handleInputChange}
+                        className={`${inputClass} pr-12`}
+                        placeholder={isOAuthActive ? "Confirmar senha (se definida)" : "••••••••"}
+                        required={!isOAuthActive && Boolean(passwords.password)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 p-1.5 transition-colors"
+                      >
                         {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
@@ -654,7 +818,14 @@ const RegisterPage = () => {
               <div className="px-2">
                 <label className="flex items-start gap-3 cursor-pointer group">
                   <div className="relative flex items-center justify-center mt-0.5">
-                    <input type="checkbox" name="terms" checked={formData.terms} onChange={handleInputChange} className="peer appearance-none w-5 h-5 border border-gray-300 rounded-md bg-white checked:bg-blue-600 checked:border-blue-600 transition-all focus:ring-2 focus:ring-blue-500/50" required />
+                    <input
+                      type="checkbox"
+                      name="terms"
+                      checked={isOAuthActive ? true : formData.terms}
+                      onChange={handleInputChange}
+                      className="peer appearance-none w-5 h-5 border border-gray-300 rounded-md bg-white checked:bg-blue-600 checked:border-blue-600 transition-all focus:ring-2 focus:ring-blue-500/50"
+                      required={!isOAuthActive}
+                    />
                     <Check className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity" strokeWidth={4} />
                   </div>
                   <span className="text-sm text-gray-600 font-medium leading-tight">
@@ -667,11 +838,15 @@ const RegisterPage = () => {
               </div>
 
               <div className="pt-2">
-                <Button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white py-4 px-6 rounded-xl font-bold hover:bg-blue-700 shadow-md focus:ring-4 focus:ring-blue-500/50 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 text-white py-4 px-6 rounded-xl font-bold hover:bg-blue-700 shadow-md focus:ring-4 focus:ring-blue-500/50 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                >
                   {isLoading ? (
-                    <><Loader2 className="w-5 h-5 animate-spin" /> {oauthInfo?.isOAuth ? "A concluir registo..." : t('actions.creatingAccount')}</>
+                    <><Loader2 className="w-5 h-5 animate-spin" /> {isOAuthActive ? "A concluir registo..." : t('actions.creatingAccount')}</>
                   ) : (
-                    oauthInfo?.isOAuth ? (
+                    isOAuthActive ? (
                       <><Check className="w-4 h-4" /> {t('auth.oauthSubmitBtn') || "Concluir Registo e Entrar"}</>
                     ) : (
                       t('actions.createAccount')
@@ -688,7 +863,7 @@ const RegisterPage = () => {
         )}
       </div>
 
-      {/* Termos / Privacidade num modal: o formulário não se perde ao lê-los */}
+      {/* Termos / Privacidade num modal */}
       <Modal
         isOpen={legalOpen !== null}
         onClose={() => setLegalOpen(null)}
@@ -720,6 +895,21 @@ const RegisterPage = () => {
       </Modal>
     </div>
   );
-};
+}
 
-export default RegisterPage;
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-10 text-center max-w-sm w-full">
+            <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-4" />
+            <p className="text-gray-500 text-sm font-medium">A carregar registo...</p>
+          </div>
+        </div>
+      }
+    >
+      <RegisterPageContent />
+    </Suspense>
+  );
+}
