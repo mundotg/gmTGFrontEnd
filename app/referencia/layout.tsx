@@ -4,6 +4,12 @@ import AuthProvider from "@/app/component/provader";
 import SidebarPopup from "../component/SidebarPopup";
 
 export const metadata: Metadata = {
+  icons: {
+    icon: "/img/logo_mustainfo.png",
+    shortcut: "/img/logo_mustainfo.png",
+    apple: "/img/logo_mustainfo.png",
+  },
+
   title: "MustaInfo referencia",
   description: "propups de referencia para o desenvolvimento de novas funcionalidades",
 };

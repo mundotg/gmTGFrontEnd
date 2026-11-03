@@ -1294,13 +1294,151 @@
     "loginWithLinkedin": "Continuar com LinkedIn"
   },
   "docs": {
-    "search": "Pesquisar no OrionForge...",
-    "language": "Português (AO)",
+    "search": "Pesquisar documentação...",
+    "no_results": "Nenhum resultado encontrado para",
     "community": "Comunidade",
+    "version_label": "Versão do Motor",
+    "copy_code": "Copiar",
+    "copied": "Copiado!",
     "menu": {
-      "intro": "Primeiros Passos",
-      "features": "Funcionalidades Core",
-      "advanced": "Avançado"
+      "getting_started": "Primeiros Passos",
+      "core_features": "Funcionalidades Core",
+      "technical": "Referência Técnica",
+      "intro": "O que é o MustaInfo?",
+      "theme": "Design System 2026",
+      "connections": "Gestão de Conexões",
+      "mustalink": "MustaLink Agent (Túnel)",
+      "query_builder": "Query Builder No-Code",
+      "ocr": "OCR Vision AI",
+      "sse": "Streaming de Dados (SSE)",
+      "lineage": "Linhagem de Dados",
+      "audit": "Logs & Auditoria",
+      "security": "Protocolos de Segurança",
+      "db_engine": "Engine de Base de Dados"
+    },
+    "sections": {
+      "intro": {
+        "eyebrow": "Visão Geral da Plataforma",
+        "title": "O que é o MustaInfo?",
+        "desc": "O MustaInfo é a plataforma unificada para gestão de dados, engenharia analítica, automação de fluxos, IA cognitiva e túneis seguros de banco de dados. Combina conectividade on-premise e nuvem em um ecossistema integrado.",
+        "pillars_title": "Os Três Pilares da Plataforma",
+        "pillar1_title": "1. Conectividade & Engenharia Híbrida",
+        "pillar1_desc": "Conecte qualquer base de dados (PostgreSQL, MySQL, Oracle, SQL Server, MongoDB, Redis) diretamente ou através do agente reverso seguro MustaLink, sem expor portas nem criar regras complexas de firewall.",
+        "pillar2_title": "2. Studio Analítico & Visual No-Code",
+        "pillar2_desc": "Construa consultas complexas sem programar com o Query Builder, execute queries assíncronas de longa duração com streaming SSE e analise dados com visualização de esquemas relacionais.",
+        "pillar3_title": "3. Inteligência Cognitiva & IA Visionária",
+        "pillar3_desc": "Extraia dados estruturados de imagens e faturas com OCR Vision AI multimodal, rastreie o ciclo de vida com linhagem de dados (Data Lineage) e conte com proteção ativa de segurança PentestGuard."
+      },
+      "theme": {
+        "eyebrow": "Design System & Interface",
+        "title": "Design System 2026 · Padrão Oficial & Tokens",
+        "desc": "O design do MustaInfo é projetado para máxima eficiência e legibilidade em interfaces de dados densos. Cada componente foi lapidado com suporte nativo a temas Claro e Escuro, feedback tátil e glassmorphism suave.",
+        "colors_title": "Paleta de Cores & Identidade",
+        "colors_desc": "Azul MustaInfo (#2563EB / bg-blue-600) para ações primárias e focos de destaque. Escala de cinzas neutra do gray-50 ao gray-900 para clareza visual impecável.",
+        "geometry_title": "Tokens de Geometria & Superfícies",
+        "geometry_desc": "Cantos com arredondamento rounded-xl (12px), sombras sutis shadow-sm e bordas delimitadoras dark:border-white/10 que definem hierarquia sem poluição visual.",
+        "buttons_title": "Padrão de Ações & Botões",
+        "buttons_desc": "Ações primárias devem usar bg-blue-600 com hover progressivo, enquanto ações secundárias usam superfícies suaves com contraste adequado.",
+        "demo_label": "Transição de Foco & Interatividade"
+      },
+      "connections": {
+        "eyebrow": "Gestão de Fontes de Dados",
+        "title": "Gestão Centralizada de Conexões",
+        "desc": "Configure, teste e compartilhe fontes de dados com segurança empresarial, pooling de conexões assíncrono e controle estrito de acessos.",
+        "pooling_title": "Resiliência & Connection Pooling",
+        "pooling_desc": "Health-checks automáticos (pool_pre_ping) e reciclagem programada eliminam quedas por timeouts de rede ou reinícios de instâncias remotas.",
+        "sharing_title": "Compartilhamento Corporativo & RBAC",
+        "sharing_desc": "Conecte bancos à sua organização e atribua permissões granulares: Visualizador (apenas leitura), Editor (operações DML) e Administrador (gestão e DDL).",
+        "ssl_title": "TLS/SSL e Certificados Customizados",
+        "ssl_desc": "Suporte completo para conexões criptografadas com modos require, verify-ca e verify-full, garantindo conformidade com auditoria.",
+        "step_guide_title": "Como Adicionar uma Nova Conexão"
+      },
+      "query_builder": {
+        "eyebrow": "Ferramentas No-Code & SQL",
+        "title": "Query Builder No-Code & SQL Studio",
+        "desc": "Crie consultas complexas sem escrever uma única linha de SQL ou alterne para o editor avançado com realce de sintaxe e autocompletion inteligente.",
+        "features_title": "Recursos do Construtor Visual",
+        "how_to_use_title": "Como Funciona o Fluxo de Construção",
+        "export_title": "Exportação & Compartilhamento Instantâneo",
+        "export_desc": "Exporte resultados com um clique para CSV, Excel ou JSON estruturado, além de salvar consultas favoritas na biblioteca compartilhada do projeto."
+      },
+      "ocr": {
+        "eyebrow": "Inteligência Artificial & Visão Computacional",
+        "title": "OCR Vision AI · Extração Inteligente de Documentos",
+        "desc": "Transforme documentos físicos, recibos, relatórios financeiros e esquemas técnicos em tabelas de bases de dados relacionais através de modelos neurais de visão.",
+        "formats_title": "Suporte a Múltiplos Formatos",
+        "formats_desc": "Processamento avançado de imagens PNG, JPG, WEBP e PDFs estruturados de múltiplas páginas com pré-processamento de ruído e alinhamento automático.",
+        "tables_title": "Detecção de Tabelas e Tipagem Automática",
+        "tables_desc": "O modelo detecta colunas, cabeçalhos e tipos de dados (datas, números monetários, texto), gerando comandos DDL e DML prontos para execução.",
+        "pipeline_title": "Pipeline de Reconhecimento Neural"
+      },
+      "sse": {
+        "eyebrow": "Processamento em Tempo Real",
+        "title": "Streaming de Dados via Server-Sent Events (SSE)",
+        "desc": "Execute consultas analíticas pesadas sem bloquear o navegador. Os dados são transmitidos em fluxo contínuo via SSE com cancelamento instantâneo.",
+        "async_title": "Execução Não-Bloqueante",
+        "async_desc": "Queries de longa duração não travam a interface: o backend processa os registros em chunks e transmite os dados à medida que chegam do banco.",
+        "virtualization_title": "Tabelas com Virtualização Extrema",
+        "virtualization_desc": "Navegue por centenas de milhares de linhas com consumo mínimo de memória graças ao motor de virtualização que renderiza apenas os dados visíveis no ecrã.",
+        "events_title": "Protocolo de Eventos SSE"
+      },
+      "mustalink": {
+        "eyebrow": "Conectividade Segura On-Premise",
+        "title": "MustaLink Agent · Túnel Reverso de Alto Desempenho",
+        "desc": "Conecte com total segurança bases de dados locais, de escritórios ou em redes privadas à nuvem MustaInfo sem precisar abrir portas em firewalls ou expor IPs públicos.",
+        "how_it_works_title": "Como Funciona o Túnel Reverso",
+        "how_it_works_desc": "O agente inicia uma conexão WebSocket segura (TLS) de dentro da sua rede para a API do MustaInfo (wss://api.mustainfo.cloud). As queries e streams trafegam de forma bidirecional e multiplexada com latência mínima.",
+        "pairing_title": "Emparelhamento por Código OTP (XXXX-XXXX)",
+        "pairing_desc": "Gere um código de emparelhamento de uso único no painel. O agente consome o código, valida a sua organização e recebe um token de túnel seguro com expiração configurável.",
+        "install_title": "Instalação Rápida Multiplataforma",
+        "install_desc": "Disponível para Windows, Linux e macOS (arquiteturas amd64 e arm64). Scripts de instalação automatizada disponíveis para PowerShell e Bash.",
+        "virtual_host_title": "Endereçamento Virtual Transparente",
+        "virtual_host_desc": "Ao criar ou gerir uma conexão no MustaInfo, basta apontar o host para agent://meu-agente ou musta-agent. O sistema roteia todo o tráfego SQL diretamente pelo túnel."
+      },
+      "lineage": {
+        "eyebrow": "Governança & Engenharia de Dados",
+        "title": "Linhagem de Dados & Data Science",
+        "desc": "Rastreie o ciclo de vida completo dos dados: visualização de tabelas de origem, transformações aplicadas e tabelas de destino.",
+        "traceability_title": "Rastreabilidade Ponta a Ponta",
+        "traceability_desc": "Entenda o impacto de qualquer alteração de esquema ou consulta em toda a pipeline analítica da empresa.",
+        "metrics_title": "Métricas de Qualidade & Volume",
+        "metrics_desc": "Monitore contagem de linhas transferidas, duração de transformações em milissegundos e status de sucesso ou falha em tempo real."
+      },
+      "audit": {
+        "eyebrow": "Conformidade & Monitoramento",
+        "title": "Logs, Auditoria & Telemetria",
+        "desc": "Mantenha o controle completo e a rastreabilidade total de todas as operações realizadas em suas bases de dados com trilha de auditoria imutável.",
+        "query_history_title": "Histórico Completo de Consultas",
+        "query_history_desc": "Registro de quem executou a consulta, timestamp exato, tempo de resposta, parâmetros utilizados e número de linhas retornadas.",
+        "telemetry_title": "Métricas de Performance do Sistema",
+        "telemetry_desc": "Gráficos de uso de conexões, tempo de atividade do agente MustaLink, consumo de cache e tráfego de rede.",
+        "compliance_title": "Governança & Conformidade LGPD/GDPR",
+        "compliance_desc": "Garantia de retenção e exportação de relatórios de auditoria para atender normas regulatórias e exigências de segurança corporativa."
+      },
+      "security": {
+        "eyebrow": "Segurança Empresarial",
+        "title": "Protocolos de Segurança, PentestGuard & Criptografia",
+        "desc": "Desenvolvido com foco rigoroso em segurança de dados corporativos, privacidade e conformidade com os mais altos padrões de criptografia e auditoria.",
+        "encryption_title": "Criptografia AES-256-GCM em Repouso",
+        "encryption_desc": "Todas as senhas e strings de conexão são protegidas com cifras autenticadas AES-GCM. As chaves mestras nunca são expostas na interface.",
+        "pentest_title": "PentestGuard: Proteção Ativa Contra Ataques",
+        "pentest_desc": "Proteção proativa contra injeções SQL, scanning malicioso, requisições forjadas e bloqueio preventivo de acessos não autorizados.",
+        "tenant_title": "Isolamento Estrito de Tenant",
+        "tenant_desc": "Arquitetura com separação lógica estrita entre organizações: nenhum usuário tem visibilidade sobre sessões, agentes ou conexões alheias.",
+        "jti_title": "Tokens JTI com Revogação Instantânea",
+        "jti_desc": "Tokens de agente utilizam identificadores criptográficos únicos (JTI). Em caso de suspeita, o acesso pode ser encerrado em milissegundos sem afetar outros túneis."
+      },
+      "db_engine": {
+        "eyebrow": "Núcleo Técnico de SGBD",
+        "title": "Arquitetura Interna de Motores de Base de Dados",
+        "desc": "Compreenda como os sistemas de base de dados gerenciam armazenamento em disco, buffer pool em memória, índices e execução de queries.",
+        "storage_title": "Armazenamento em Disco & Páginas",
+        "storage_desc": "Dados são gravados em páginas binárias de tamanho fixo. O MustaInfo interage diretamente com estes esquemas mantendo integridade ACID.",
+        "btree_title": "Índices B-Tree & Busca O(log n)",
+        "btree_desc": "Aceleração exponencial de consultas por meio de estruturas balanceadas em árvore, minimizando acessos a disco.",
+        "wal_title": "Write-Ahead Logging (WAL)",
+        "wal_desc": "Transações são salvas em log sequencial antes da gravação definitiva em disco, assegurando durabilidade e recuperação contra falhas."
+      }
     }
   },
   "fields": {

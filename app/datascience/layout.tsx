@@ -3,6 +3,12 @@ import "../globals.css";
 import AuthProvider from "@/app/component/provader";
 
 export const metadata: Metadata = {
+  icons: {
+    icon: "/img/logo_mustainfo.png",
+    shortcut: "/img/logo_mustainfo.png",
+    apple: "/img/logo_mustainfo.png",
+  },
+
   title: "MustaInfo · Análise de Dados",
   description: "Estatística e ciência de dados sobre o resultado de uma consulta, em tempo real.",
 };

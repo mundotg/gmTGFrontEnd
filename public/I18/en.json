@@ -1294,13 +1294,151 @@
     "loginWithLinkedin": "Continue with LinkedIn"
   },
   "docs": {
-    "search": "Search OrionForge...",
-    "language": "English (US)",
+    "search": "Search documentation...",
+    "no_results": "No results found for",
     "community": "Community",
+    "version_label": "Engine Version",
+    "copy_code": "Copy",
+    "copied": "Copied!",
     "menu": {
-      "intro": "Getting Started",
-      "features": "Core Features",
-      "advanced": "Advanced"
+      "getting_started": "Getting Started",
+      "core_features": "Core Features",
+      "technical": "Technical Reference",
+      "intro": "What is MustaInfo?",
+      "theme": "Design System 2026",
+      "connections": "Connection Management",
+      "mustalink": "MustaLink Agent (Tunnel)",
+      "query_builder": "No-Code Query Builder",
+      "ocr": "OCR Vision AI",
+      "sse": "Data Streaming (SSE)",
+      "lineage": "Data Lineage",
+      "audit": "Logs & Audit",
+      "security": "Security Protocols",
+      "db_engine": "Database Engine"
+    },
+    "sections": {
+      "intro": {
+        "eyebrow": "Platform Overview",
+        "title": "What is MustaInfo?",
+        "desc": "MustaInfo is the unified platform for data management, pipeline engineering, cognitive AI, and secure reverse tunnels. It brings on-premise and multi-cloud databases together in one single workspace.",
+        "pillars_title": "The Three Core Pillars",
+        "pillar1_title": "1. Hybrid Data Engineering",
+        "pillar1_desc": "Connect any database (PostgreSQL, MySQL, Oracle, SQL Server, MongoDB, Redis) directly or through the MustaLink agent without opening firewall ports.",
+        "pillar2_title": "2. No-Code Analytical Studio",
+        "pillar2_desc": "Build multi-table queries visually without code, stream high-volume result sets via Server-Sent Events, and inspect schemas interactively.",
+        "pillar3_title": "3. Cognitive AI & Document Vision",
+        "pillar3_desc": "Turn scanned invoices and diagrams into structured relational records with OCR Vision AI, trace pipelines with Data Lineage, and stay protected with PentestGuard."
+      },
+      "theme": {
+        "eyebrow": "Design System & UI",
+        "title": "Design System 2026 · Standards & Tokens",
+        "desc": "Engineered for high data density, clarity, and visual comfort. Features native Dark/Light mode support, tactile hover responses, and glassmorphic depth.",
+        "colors_title": "Color Palette & Identity",
+        "colors_desc": "MustaInfo Blue (#2563EB / bg-blue-600) for primary interactions. High-contrast neutral grays from gray-50 to gray-900.",
+        "geometry_title": "Geometry Tokens & Surfaces",
+        "geometry_desc": "Rounded corners (rounded-xl 12px), subtle elevations (shadow-sm), and clean divider lines for strong visual hierarchy.",
+        "buttons_title": "Interactive Action Standards",
+        "buttons_desc": "Primary actions utilize blue-600 with progressive hover elevation, paired with accessible secondary buttons.",
+        "demo_label": "Interactive Focus & State Transition"
+      },
+      "connections": {
+        "eyebrow": "Data Sources",
+        "title": "Centralized Connection Management",
+        "desc": "Configure, test, and share data sources with enterprise pooling, latency benchmarking, and role-based permissions.",
+        "pooling_title": "Resilience & Async Connection Pooling",
+        "pooling_desc": "Pre-ping health checks and scheduled recycling prevent stale socket drops and sudden 500 disconnections.",
+        "sharing_title": "Enterprise Sharing & RBAC",
+        "sharing_desc": "Share database access across your team with granular roles: Viewer (read-only), Editor (DML operations), and Admin (full DDL).",
+        "ssl_title": "TLS/SSL & Custom Certificates",
+        "ssl_desc": "Full support for encrypted communication with require, verify-ca, and verify-full modes.",
+        "step_guide_title": "How to Add a New Connection"
+      },
+      "query_builder": {
+        "eyebrow": "No-Code & SQL Tools",
+        "title": "No-Code Query Builder & SQL Studio",
+        "desc": "Compose complex SQL joins and aggregations visually without writing code, or switch to the advanced SQL studio with syntax highlighting.",
+        "features_title": "Visual Builder Capabilities",
+        "how_to_use_title": "Step-by-Step Construction Flow",
+        "export_title": "Instant Data Export",
+        "export_desc": "Export query results with a single click to CSV, Excel, or structured JSON, and save favorite queries to project libraries."
+      },
+      "ocr": {
+        "eyebrow": "Artificial Intelligence & Vision",
+        "title": "OCR Vision AI · Intelligent Document Extraction",
+        "desc": "Turn physical receipts, invoices, financial reports, and technical schematics into clean database tables using neural vision models.",
+        "formats_title": "Multi-Format Support",
+        "formats_desc": "Process PNG, JPG, WEBP, and multi-page structured PDFs with automatic noise suppression, skew correction, and OCR extraction.",
+        "tables_title": "Table Detection & Auto-Typing",
+        "tables_desc": "Automatically detects columns, headers, dates, currency values, and generates ready-to-run DDL/DML statements.",
+        "pipeline_title": "Neural Processing Pipeline"
+      },
+      "sse": {
+        "eyebrow": "Real-Time Processing",
+        "title": "Data Streaming via Server-Sent Events (SSE)",
+        "desc": "Execute heavy analytical queries without freezing your browser. Rows are streamed continuously over SSE with instant cancellation support.",
+        "async_title": "Non-Blocking Async Execution",
+        "async_desc": "Long-running queries stream progressive data chunks to the client as soon as the database server produces them.",
+        "virtualization_title": "Extreme Virtualized Tables",
+        "virtualization_desc": "Smoothly scroll through hundreds of thousands of records with tiny memory footprints thanks to viewport-only row rendering.",
+        "events_title": "SSE Protocol Structure"
+      },
+      "mustalink": {
+        "eyebrow": "Secure On-Premise Connectivity",
+        "title": "MustaLink Agent · High-Performance Reverse Tunnel",
+        "desc": "Safely connect on-premise, internal company, or private network databases to MustaInfo cloud without opening firewall ports or managing public IPs.",
+        "how_it_works_title": "How the Reverse Tunnel Operates",
+        "how_it_works_desc": "The Go agent establishes a secure TLS WebSocket connection from inside your network to MustaInfo API (wss://api.mustainfo.cloud). Queries and streams flow multiplexed with ultra-low latency.",
+        "pairing_title": "One-Time OTP Code Pairing (XXXX-XXXX)",
+        "pairing_desc": "Generate a single-use pairing code in the dashboard. The agent claims the code, verifies your organization, and stores an isolated session token.",
+        "install_title": "Fast Cross-Platform Setup",
+        "install_desc": "Available as native binaries for Windows, Linux, and macOS (amd64 and arm64). Automated installation scripts for PowerShell and Bash.",
+        "virtual_host_title": "Seamless Virtual Addressing",
+        "virtual_host_desc": "When configuring a database connection in MustaInfo, set the host to agent://my-agent or musta-agent. Traffic is routed directly across the tunnel."
+      },
+      "lineage": {
+        "eyebrow": "Data Governance & Lineage",
+        "title": "Data Lineage & Pipeline Tracking",
+        "desc": "Track the full data lifecycle: visualize source tables, intermediate transformations, and destination tables end-to-end.",
+        "traceability_title": "End-to-End Traceability",
+        "traceability_desc": "Understand schema changes and downstream impact before making structural updates to mission-critical tables.",
+        "metrics_title": "Quality & Throughput Metrics",
+        "metrics_desc": "Monitor transferred row counts, transformation elapsed time in milliseconds, and real-time execution health."
+      },
+      "audit": {
+        "eyebrow": "Compliance & Monitoring",
+        "title": "Logs, Audit Trail & System Telemetry",
+        "desc": "Maintain full visibility over database activities with immutable audit logs and live connection metrics.",
+        "query_history_title": "Complete Query History",
+        "query_history_desc": "Records execution author, millisecond duration, affected rows, and parameter history for audits.",
+        "telemetry_title": "System Performance Metrics",
+        "telemetry_desc": "Monitor active connection pool allocations, MustaLink tunnel uptime, cache usage, and network traffic.",
+        "compliance_title": "Governance & Compliance",
+        "compliance_desc": "Continuous retention and audit trail export meeting regulatory and enterprise security mandates."
+      },
+      "security": {
+        "eyebrow": "Enterprise Security",
+        "title": "Security Protocols, PentestGuard & Encryption",
+        "desc": "Engineered with strict corporate data protection standards, privacy compliance, and multi-tenant sandboxing.",
+        "encryption_title": "AES-256-GCM Encryption at Rest",
+        "encryption_desc": "Connection credentials and passwords are encrypted using authenticated AES-GCM ciphers. Master keys are never exposed in UI.",
+        "pentest_title": "PentestGuard: Active Threat Prevention",
+        "pentest_desc": "Proactive protection against SQL injections, malicious port scans, request forgery, and anomalous activity detection.",
+        "tenant_title": "Strict Tenant Isolation",
+        "tenant_desc": "Rigid boundary enforcement guarantees that no organization can inspect or access another tenant's agents, tunnels, or data.",
+        "jti_title": "JTI Tokens with Instant Revocation",
+        "jti_desc": "Agent tokens use unique cryptographic JTIs. If compromised, an agent can be revoked in milliseconds without affecting other connections."
+      },
+      "db_engine": {
+        "eyebrow": "DBMS Internal Core",
+        "title": "Internal Database Engine Architecture",
+        "desc": "Explore how modern DBMS platforms manage disk pages, in-memory buffer pools, indexes, and query execution pipelines.",
+        "storage_title": "Disk Storage & Binary Pages",
+        "storage_desc": "Data is organized in fixed-size binary pages. MustaInfo respects ACID guarantees across operations.",
+        "btree_title": "B-Tree Indexes & O(log n) Search",
+        "btree_desc": "Logarithmic search speed via self-balancing tree structures, drastically reducing physical disk I/O.",
+        "wal_title": "Write-Ahead Logging (WAL)",
+        "wal_desc": "Modifications are appended to sequential logs prior to disk page flush, guaranteeing durability and crash recovery."
+      }
     }
   },
   "fields": {

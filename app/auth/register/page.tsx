@@ -305,10 +305,12 @@ const RegisterPage = () => {
         {/* Header - visível apenas antes do registo */}
         {!registeredEmail && (
           <div className="text-center mb-10">
-            <div className="bg-blue-50 border border-blue-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-              <Database className="w-8 h-8 text-blue-600" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">MustaInfoo</h1>
+            <img
+              src="/img/logo_mustainfo.png"
+              alt="MustaInfo"
+              className="w-16 h-16 rounded-2xl object-cover mx-auto mb-4 shadow-md border border-gray-100"
+            />
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">MustaInfo</h1>
             <p className="text-gray-500 text-sm font-medium">{t('auth.createAccountSubtitle')}</p>
           </div>
         )}
@@ -318,8 +320,8 @@ const RegisterPage = () => {
           /* Tela de Sucesso: Confirmação de E-mail enviado por SMTP */
           <div className="text-center py-6 animate-in fade-in zoom-in-95 duration-300">
             <div className={`border w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm ${responseStatusType === 'token_renewed'
-                ? 'bg-amber-50 border-amber-200'
-                : 'bg-blue-50 border-blue-100'
+              ? 'bg-amber-50 border-amber-200'
+              : 'bg-blue-50 border-blue-100'
               }`}>
               <Mail className={`w-10 h-10 animate-pulse ${responseStatusType === 'token_renewed' ? 'text-amber-600' : 'text-blue-600'
                 }`} />
@@ -346,8 +348,8 @@ const RegisterPage = () => {
             </p>
 
             <div className={`border rounded-xl p-4 max-w-md mx-auto mb-8 text-left flex items-start gap-3 ${responseStatusType === 'token_renewed'
-                ? 'bg-amber-50/70 border-amber-200 text-amber-900'
-                : 'bg-blue-50/70 border-blue-100 text-blue-900'
+              ? 'bg-amber-50/70 border-amber-200 text-amber-900'
+              : 'bg-blue-50/70 border-blue-100 text-blue-900'
               }`}>
               <Info className={`w-5 h-5 shrink-0 mt-0.5 ${responseStatusType === 'token_renewed' ? 'text-amber-600' : 'text-blue-600'
                 }`} />

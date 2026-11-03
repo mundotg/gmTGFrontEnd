@@ -229,9 +229,11 @@ const LoginPage = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="text-center mb-8">
-            <div className="bg-blue-50 border border-blue-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-              <Database className="w-8 h-8 text-blue-600" />
-            </div>
+            <img
+              src="/img/logo_mustainfo.png"
+              alt="MustaInfo"
+              className="w-16 h-16 rounded-2xl object-cover mx-auto mb-4 shadow-md border border-gray-100"
+            />
             <h1 className="text-2xl font-bold text-gray-900 mb-1">MustaInfo</h1>
             <p className="text-gray-500 text-sm font-medium">{t("header.platformType")}</p>
           </div>

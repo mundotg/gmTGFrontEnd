@@ -21,7 +21,7 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: MustaInfoo-redis
+    container_name: MustaInfo-redis
 
     # Autenticação por ACL (utilizador + password). Sem isto o Redis aceita
     # qualquer ligação, e a porta publicada abaixo fica aberta a quem estiver
@@ -83,8 +83,8 @@ services:
     build:
       context: ../gmTGBackend
       dockerfile: Dockerfile
-    image: MustaInfoo-backend
-    container_name: MustaInfoo-api
+    image: MustaInfo-backend
+    container_name: MustaInfo-api
 
     depends_on:
       redis:
@@ -172,7 +172,7 @@ services:
       # `npm run dev` abaixo não teria com que trabalhar. O estágio `builder`
       # tem as duas coisas.
       target: builder
-    container_name: MustaInfoo-front
+    container_name: MustaInfo-front
 
     depends_on:
       # Só `started`: o front arranca e mostra o ecrã de login enquanto a API

@@ -170,12 +170,14 @@ export default function SidebarPopup({ children }: { children: React.ReactNode }
         {/* Header */}
         <div className={`p-6 border-b flex items-center flex-shrink-0 ${collapsed ? "justify-center" : "justify-between"}`}>
           <div className="flex items-center space-x-3 min-w-0">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Database className="w-6 h-6 text-white" />
-            </div>
+            <img
+              src="/img/logo_mustainfo.png"
+              alt="MustaInfo"
+              className="w-10 h-10 rounded-xl object-cover shadow-sm border border-gray-200/50 flex-shrink-0"
+            />
             {!collapsed && (
               <div className="min-w-0">
-                <h1 className="text-xl font-bold truncate">MustaInfoo</h1>
+                <h1 className="text-xl font-bold truncate">MustaInfo</h1>
                 <p className="text-sm text-gray-500 truncate">{t("sidebar.subtitle")}</p>
               </div>
             )}

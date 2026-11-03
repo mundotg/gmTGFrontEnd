@@ -4,6 +4,12 @@ import AuthProvider from "@/app/component/provader";
 import Sidebar from "@/app/component/Sidebar";
 
 export const metadata: Metadata = {
+  icons: {
+    icon: "/img/logo_mustainfo.png",
+    shortcut: "/img/logo_mustainfo.png",
+    apple: "/img/logo_mustainfo.png",
+  },
+
   title: "Jogos do Sistema | MustaInfo",
   description: "Catálogo de jogos interativos, duelos de tabuleiro, desafios de estratégia e lógica da plataforma MustaInfo.",
   keywords: ["jogos do sistema", "MustaInfo jogos", "tapatan", "jogo da velha", "trilha", "jogos de tabuleiro", "estratégia"],

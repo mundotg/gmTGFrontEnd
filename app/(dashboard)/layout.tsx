@@ -4,6 +4,12 @@ import AuthProvider from "@/app/component/provader";
 import Sidebar from "@/app/component/Sidebar";
 
 export const metadata: Metadata = {
+  icons: {
+    icon: "/img/logo_mustainfo.png",
+    shortcut: "/img/logo_mustainfo.png",
+    apple: "/img/logo_mustainfo.png",
+  },
+
   title: "Recomendador de Vídeos | MustaInfo",
   description: "Vídeos recomendados com base no seu histórico e preferências de tecnologia.",
 };

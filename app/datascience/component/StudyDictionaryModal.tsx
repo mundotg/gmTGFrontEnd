@@ -179,7 +179,7 @@ export const DICTIONARY_TERMS: DictionaryTerm[] = [
     practicalExample:
       "Um cliente com ID 999999 não comprou 'mais' nem tem 'mais valor' que o cliente com ID 1; o número 999999 é apenas uma chave de banco gerada pelo auto-increment.",
     formulaOrIntuition:
-      "O MustaInfoo detecta automaticamente colunas com padrão de ID e as exclui de correlações, clusters K-Means e detecção de anomalias de negócio.",
+      "O MustaInfo detecta automaticamente colunas com padrão de ID e as exclui de correlações, clusters K-Means e detecção de anomalias de negócio.",
     actionTip:
       "Nunca use colunas de ID em eixos numéricos de gráficos de dispersão ou em algoritmos de Machine Learning sem anonimização ou hashing categórico.",
   },
@@ -318,8 +318,8 @@ export function StudyDictionaryModal({
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all cursor-pointer ${selectedCategory === cat
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-indigo-300"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-indigo-300"
                     }`}
                 >
                   {cat}
@@ -336,8 +336,8 @@ export function StudyDictionaryModal({
                     key={t.id}
                     onClick={() => setSelectedTermId(t.id)}
                     className={`p-3 rounded-2xl cursor-pointer transition-all border ${isSelected
-                        ? "bg-white dark:bg-slate-800 border-indigo-400 dark:border-indigo-500 shadow-md ring-1 ring-indigo-400/30"
-                        : "bg-white/60 dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800/80 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300"
+                      ? "bg-white dark:bg-slate-800 border-indigo-400 dark:border-indigo-500 shadow-md ring-1 ring-indigo-400/30"
+                      : "bg-white/60 dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800/80 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300"
                       }`}
                   >
                     <div className="flex items-center justify-between mb-1">

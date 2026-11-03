@@ -960,13 +960,151 @@
     "loginWithLinkedin": "使用 LinkedIn 登录"
   },
   "docs": {
-    "search": "在 OrionForge 中搜索...",
-    "language": "中文 (简体)",
+    "search": "搜索文档...",
+    "no_results": "未找到相关结果：",
     "community": "社区",
+    "version_label": "引擎版本",
+    "copy_code": "复制",
+    "copied": "已复制！",
     "menu": {
-      "intro": "入门指南",
-      "features": "核心功能",
-      "advanced": "进阶"
+      "getting_started": "快速入门",
+      "core_features": "核心功能",
+      "technical": "技术参考",
+      "intro": "什么是 MustaInfo？",
+      "theme": "Design System 2026",
+      "connections": "连接管理",
+      "mustalink": "MustaLink 代理 (安全隧道)",
+      "query_builder": "无代码查询构建器",
+      "ocr": "OCR 智能视觉识别",
+      "sse": "数据流传输 (SSE)",
+      "lineage": "数据血缘与治理",
+      "audit": "日志与审计",
+      "security": "安全协议与防御",
+      "db_engine": "数据库引擎架构"
+    },
+    "sections": {
+      "intro": {
+        "eyebrow": "平台概览",
+        "title": "什么是 MustaInfo？",
+        "desc": "MustaInfo 是统一的数据工程、分析、认知人工智能及安全反向隧道平台，原生互联本地与多云数据库。",
+        "pillars_title": "平台三大支柱",
+        "pillar1_title": "1. 混合数据工程与连接",
+        "pillar1_desc": "无需配置公网 IP 或防火墙端口，直连或通过 MustaLink 反向隧道管理所有数据库。",
+        "pillar2_title": "2. 可视化无代码分析工作台",
+        "pillar2_desc": "无代码拖拽生成复杂多表查询，通过 SSE 流式传输海量记录，实时呈现关系模型。",
+        "pillar3_title": "3. 认知智能与文档视觉",
+        "pillar3_desc": "利用 OCR 视觉模型快速将纸质发票和图表转化为数据库结构，配备 PentestGuard 主动安全防护。"
+      },
+      "theme": {
+        "eyebrow": "设计系统与界面规范",
+        "title": "Design System 2026 · 官方规范与设计令牌",
+        "desc": "专为高数据密度与舒适阅读体验设计，全面适配深色/浅色模式，交互反馈灵动细腻。",
+        "colors_title": "色彩体系与视觉标识",
+        "colors_desc": "MustaInfo 官方蓝 (#2563EB / bg-blue-600) 主操作色，配合平衡的中性灰度阶梯。",
+        "geometry_title": "几何规范与圆角阴影",
+        "geometry_desc": "统一 12px 圆角 (rounded-xl) 与微阴影 (shadow-sm)，构建清晰层次感。",
+        "buttons_title": "按钮交互规范",
+        "buttons_desc": "主次按钮色彩对比鲜明，支持无障碍访问与键盘状态导航。",
+        "demo_label": "交互状态与焦点演示"
+      },
+      "connections": {
+        "eyebrow": "数据源管理",
+        "title": "集中式数据库连接管理",
+        "desc": "集中配置、测试并安全共享数据源，配备异步连接池与细粒度权限控制。",
+        "pooling_title": "连接池弹性与探活",
+        "pooling_desc": "自动执行 pool_pre_ping 检查并周期性回收闲置连接，彻底避免网络超时引发的连接中断。",
+        "sharing_title": "企业共享与 RBAC 权限",
+        "sharing_desc": "按组织分配查看者、编辑者与管理员角色，确保数据隔离。",
+        "ssl_title": "TLS/SSL 加密与证书",
+        "ssl_desc": "支持 require、verify-ca 及 verify-full 认证模式，全面满足安全合规需求。",
+        "step_guide_title": "如何添加新连接"
+      },
+      "query_builder": {
+        "eyebrow": "无代码与 SQL 工具",
+        "title": "无代码查询构建器与 SQL Studio",
+        "desc": "通过可视化界面组合复杂 SQL 查询，或无缝切换至高亮代码编辑器进行专业编写。",
+        "features_title": "可视化构建特性",
+        "how_to_use_title": "分步构建流程",
+        "export_title": "一键导出数据",
+        "export_desc": "支持单键快速导出为 CSV、Excel 或 JSON 结构化格式。"
+      },
+      "ocr": {
+        "eyebrow": "人工智能与计算机视觉",
+        "title": "OCR 智能视觉识别 · 文档数据提取",
+        "desc": "利用前沿神经网络视觉模型，将纸质文档、发票及架构图智能转换为数据库结构化数据。",
+        "formats_title": "多格式处理能力",
+        "formats_desc": "支持 PNG、JPG、WEBP 和多页 PDF 智能降噪与图像矫正。",
+        "tables_title": "表格识别与类型推导",
+        "tables_desc": "自动提取列名、日期、金额与数值类型，生成就绪的 DDL/DML 语句。",
+        "pipeline_title": "神经视觉识别流程"
+      },
+      "sse": {
+        "eyebrow": "实时流传输",
+        "title": "基于 SSE 的数据流传输技术",
+        "desc": "执行海量数据查询时无需等待全部加载，通过 Server-Sent Events 边处理边流式渲染，支持随时中断。",
+        "async_title": "非阻塞异步执行",
+        "async_desc": "后端流式分块推送记录，界面始终保持极致流畅。",
+        "virtualization_title": "极限虚拟化表格",
+        "virtualization_desc": "仅渲染屏幕可见区域，可丝滑浏览数十万行数据而几乎不占用多余内存。",
+        "events_title": "SSE 事件协议格式"
+      },
+      "mustalink": {
+        "eyebrow": "本地私网安全互联",
+        "title": "MustaLink 代理 · 高性能反向隧道",
+        "desc": "无需在防火墙开放端口或配置公网 IP，即可将企业本地或私有网络数据库安全连接到 MustaInfo 云端。",
+        "how_it_works_title": "反向隧道工作原理",
+        "how_it_works_desc": "Go 编写的轻量级代理从内部主动向 MustaInfo 发起安全 TLS WebSocket 连接，实现低延迟多路复用传输。",
+        "pairing_title": "动态 OTP 配对码 (XXXX-XXXX)",
+        "pairing_desc": "在控制台生成一次性配对码，代理自动验证并安全获取通信令牌。",
+        "install_title": "全平台极速安装",
+        "install_desc": "原生支持 Windows、Linux 及 macOS（amd64 与 arm64），提供 PowerShell 和 Bash 自动安装脚本。",
+        "virtual_host_title": "无缝虚拟地址路由",
+        "virtual_host_desc": "配置连接时，将主机设置为 agent://my-agent 即可自动通过隧道路由所有 SQL 流量。"
+      },
+      "lineage": {
+        "eyebrow": "数据治理与工程",
+        "title": "数据血缘与全链路追踪",
+        "desc": "全链路可视化展示数据源表、中间转换逻辑与目标流向。",
+        "traceability_title": "端到端可追溯性",
+        "traceability_desc": "在变更数据表结构前精准评估对下游分析任务的影响。",
+        "metrics_title": "质量与吞吐量监控",
+        "metrics_desc": "实时监测传输行数、处理毫秒数及执行健康状态。"
+      },
+      "audit": {
+        "eyebrow": "合规与系统监控",
+        "title": "完整审计日志与系统遥测",
+        "desc": "详尽记录所有操作流水，提供不可篡改的合规审计轨迹。",
+        "query_history_title": "全量查询历史",
+        "query_history_desc": "精确记录查询发起人、时间戳、执行耗时与影响记录数。",
+        "telemetry_title": "系统性能遥测",
+        "telemetry_desc": "实时监控连接池状态、MustaLink 隧道在线率及网络流量。",
+        "compliance_title": "安全合规管理",
+        "compliance_desc": "持久保存并支持导出审计流水，完全满足合规审计标准。"
+      },
+      "security": {
+        "eyebrow": "企业级安全",
+        "title": "安全协议、PentestGuard 与数据加密",
+        "desc": "遵循国际安全与隐私合规标准，为企业数据资产筑牢严密防线。",
+        "encryption_title": "静态数据 AES-256-GCM 加密",
+        "encryption_desc": "所有凭证和密码均采用经过身份验证的 AES-GCM 高度加密，主密钥永不泄露。",
+        "pentest_title": "PentestGuard 主动安全防护",
+        "pentest_desc": "实时防御 SQL 注入、恶意嗅探扫描及异常请求。",
+        "tenant_title": "严格的多租户物理/逻辑隔离",
+        "tenant_desc": "跨组织数据与隧道严密隔离，杜绝任何未经授权的越权访问。",
+        "jti_title": "JTI 令牌与秒级吊销",
+        "jti_desc": "代理采用独立 JTI 令牌，遇异常可毫秒级单点吊销隔离。"
+      },
+      "db_engine": {
+        "eyebrow": "数据库底层原理",
+        "title": "数据库管理系统内部架构揭秘",
+        "desc": "深入解析磁盘页存储、内存缓冲池、B-Tree 索引及查询执行器工作机制。",
+        "storage_title": "磁盘存储与数据页管理",
+        "storage_desc": "数据按照固定尺寸的二进制页组织，确保严苛的 ACID 事务一致性。",
+        "btree_title": "B-Tree 索引与 O(log n) 查询加速",
+        "btree_desc": "利用自平衡多叉树结构极大缩短物理磁盘寻道次数。",
+        "wal_title": "预写式日志 (Write-Ahead Logging)",
+        "wal_desc": "在数据写入磁盘前先行记录变更日志，确保系统崩溃时可精准恢复。"
+      }
     }
   },
   "fields": {

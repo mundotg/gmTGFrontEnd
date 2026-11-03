@@ -115,16 +115,15 @@ export const MustaLinkGuide: React.FC<MustaLinkGuideProps> = ({
   );
 
   const httpServerUrl =
-    typeof window !== "undefined"
-      ? (
-          process.env.NEXT_PUBLIC_API_URL ||
-          `${window.location.protocol}//${window.location.hostname}:8000`
-        ).replace(/\/+$/, "")
-      : "https://api.mustainfo.cloud";
+    (
+      process.env.NEXT_PUBLIC_MUSTA_LINK_SERVER_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "https://api.mustainfo.cloud"
+    ).replace(/\/+$/, "");
 
-  const wsServerUrl = httpServerUrl
-    .replace(/^https:/i, "wss:")
-    .replace(/^http:/i, "ws:");
+  const wsServerUrl =
+    process.env.NEXT_PUBLIC_MUSTA_LINK_RELAY_URL?.replace(/\/+$/, "") ||
+    (httpServerUrl.replace(/^https:/i, "wss:").replace(/^http:/i, "ws:") + "/conn/agent-tunnel");
 
   const copyToClipboard = useCallback(async (id: string, text: string) => {
     try {
