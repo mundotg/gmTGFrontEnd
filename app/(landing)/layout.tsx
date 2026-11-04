@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     apple: "/img/logo_mustainfo.png",
   },
   title: "MustaInfo | Plataforma Unificada de Gestão de Dados & Conexões Cloud",
-  description: "Gerencie PostgreSQL, MySQL, SQL Server, MongoDB e SQLite em um único workspace seguro. Conecte servidores on-premise com o agente MustaLink e acelere com IA.",
+  description: "Gerencie PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB e SQLite em um único workspace seguro. Conecte servidores on-premise com o agente MustaLink e acelere com IA.",
 };
 
 export default function RootLayout({

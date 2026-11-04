@@ -129,6 +129,7 @@ export default function HomePage() {
   // Motores de banco de dados suportados (visual minimalista sóbrio)
   const engines = [
     { name: "PostgreSQL", type: "postgresql" },
+    { name: "Oracle DB", type: "oracle" },
     { name: "MySQL", type: "mysql" },
     { name: "SQL Server", type: "sqlserver" },
     { name: "MongoDB", type: "mongodb" },
