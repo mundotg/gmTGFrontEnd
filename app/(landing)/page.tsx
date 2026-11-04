@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/context/SessionContext";
-import { useI18n } from "@/context/I18nContext";
+import { useI18n, LanguageCode } from "@/context/I18nContext";
 import { applyTheme, getStoredTheme, ThemeMode } from "@/util";
 import {
   Database,
@@ -32,20 +32,47 @@ import {
   RefreshCw,
   FolderArchive,
   BarChart3,
-  Bot
+  Bot,
+  Globe,
+  ChevronDown
 } from "lucide-react";
 
 export default function LandingPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, logout } = useSession();
-  const { t } = useI18n();
+  const { user, isAuthenticated, logout } = useSession();
+  const { t, locale, setLocale } = useI18n();
 
   const [activeTab, setActiveTab] = useState<"connections" | "query" | "mustalink" | "ai">("connections");
   const [copiedCommand, setCopiedCommand] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>("system");
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Mapeamento dos idiomas suportados
+  const languages: Array<{ code: LanguageCode; name: string; short: string; flag: string }> = [
+    { code: "pt", name: "Português", short: "PT", flag: "🇵🇹" },
+    { code: "en", name: "English", short: "EN", flag: "🇺🇸" },
+    { code: "fr", name: "Français", short: "FR", flag: "🇫🇷" },
+    { code: "cn", name: "中文 (Mandarim)", short: "CN", flag: "🇨🇳" },
+    { code: "km-AO", name: "Kimbundu", short: "KM", flag: "🇦🇴" },
+    { code: "umb-AO", name: "Umbundu", short: "UMB", flag: "🇦🇴" },
+  ];
+
+  const currentLang = languages.find((l) => l.code === locale) || languages[0];
 
   useEffect(() => {
     setCurrentTheme(getStoredTheme());
+  }, []);
+
+  // Fechar dropdown de idiomas ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (langDropdownRef.current && !langDropdownRef.current.contains(e.target as Node)) {
+        setLangDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleToggleTheme = () => {
@@ -68,14 +95,14 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-800 dark:text-slate-100 font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200">
-
+      
       {/* ============================================================ */}
-      {/* 1. NAVBAR CORPORATIVA ELEGANTE                              */}
+      {/* 1. NAVBAR CORPORATIVA COM I18N & TEMA                        */}
       {/* ============================================================ */}
       <header className="sticky top-0 z-50 bg-white/90 dark:bg-[#0B0F19]/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-
-          {/* Logo e Nome */}
+          
+          {/* Logo e Marca */}
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2.5 group">
               <div className="relative w-9 h-9 rounded-xl overflow-hidden shadow-sm border border-slate-200/60 dark:border-slate-700/60 bg-white p-0.5 transition-transform group-hover:scale-105">
@@ -91,11 +118,11 @@ export default function LandingPage() {
                     MustaInfo
                   </span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 uppercase tracking-wider">
-                    Cloud v2
+                    {t("landing.nav.versionBadge", "Cloud v2")}
                   </span>
                 </div>
                 <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  Data Platform & Infrastructure
+                  {t("landing.nav.subtitle", "Data Platform & Infrastructure")}
                 </span>
               </div>
             </Link>
@@ -104,73 +131,119 @@ export default function LandingPage() {
           {/* Links Centrais de Navegação */}
           <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-slate-600 dark:text-slate-300">
             <a href="#recursos" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              Recursos
+              {t("landing.nav.features", "Recursos")}
             </a>
             <a href="#motores" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              Bancos Suportados
+              {t("landing.nav.databases", "Bancos Suportados")}
             </a>
             <a href="#mustalink" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              MustaLink Agent
+              {t("landing.nav.mustalink", "MustaLink Agent")}
             </a>
             <Link href="/nexus-cognitiva" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-1.5">
               <Sparkles size={15} className="text-blue-500" />
-              Nexus CGT
+              {t("landing.nav.nexus", "Nexus IA")}
             </Link>
             <Link href="/docs" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              Documentação
+              {t("landing.nav.docs", "Documentação")}
             </Link>
           </nav>
 
-          {/* Controles da Direita (Tema + Auth) */}
-          <div className="flex items-center gap-3">
-            {/* Botão de Alternância de Tema */}
+          {/* Controles da Direita (Idioma + Tema + Auth) */}
+          <div className="flex items-center gap-2.5">
+            
+            {/* SELETOR DE IDIOMA COM DROPDOWN */}
+            <div className="relative" ref={langDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors border border-slate-200/70 dark:border-slate-800 shadow-2xs"
+                title="Alterar Idioma / Switch Language"
+                aria-expanded={langDropdownOpen}
+              >
+                <Globe size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                <span className="text-sm leading-none">{currentLang.flag}</span>
+                <span className="hidden sm:inline font-bold">{currentLang.short}</span>
+                <ChevronDown size={13} className={`text-slate-400 transition-transform duration-200 ${langDropdownOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {langDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 mb-1">
+                    Idioma / Language
+                  </div>
+                  {languages.map((l) => (
+                    <button
+                      key={l.code}
+                      onClick={() => {
+                        setLocale(l.code);
+                        setLangDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-colors ${
+                        locale === l.code
+                          ? "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm leading-none">{l.flag}</span>
+                        <span>{l.name}</span>
+                      </span>
+                      {locale === l.code && <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Alternador de Tema */}
             <button
               onClick={handleToggleTheme}
               aria-label="Alternar tema"
-              title={`Tema atual: ${currentTheme}`}
+              title={`Tema: ${currentTheme}`}
               className="p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
             >
               {currentTheme === "light" ? (
-                <Sun size={18} className="text-amber-500" />
+                <Sun size={17} className="text-amber-500" />
               ) : currentTheme === "dark" ? (
-                <Moon size={18} className="text-blue-400" />
+                <Moon size={17} className="text-blue-400" />
               ) : (
-                <Monitor size={18} />
+                <Monitor size={17} />
               )}
             </button>
 
-            <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800"></div>
+            <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
 
+            {/* Ações de Autenticação */}
             {isAuthenticated ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <Link
                   href="/home"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-600/20 transition-all hover:shadow-md"
+                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all hover:shadow-sm"
                 >
-                  <Server size={16} />
-                  <span>Acessar Console</span>
+                  <Server size={14} />
+                  <span>{t("landing.nav.console", "Acessar Console")}</span>
                 </Link>
                 <button
                   onClick={handleLogout}
-                  title="Terminar Sessão"
-                  className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                  title={t("landing.nav.logout", "Terminar Sessão")}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
                 >
-                  <LogOut size={18} />
+                  <LogOut size={16} />
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 <Link
                   href="/auth/login"
-                  className="px-3.5 py-1.5 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
                 >
-                  Entrar
+                  {t("landing.nav.login", "Entrar")}
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-600/20 transition-all hover:shadow-md active:scale-[0.98]"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all hover:shadow-sm active:scale-[0.98]"
                 >
-                  Criar Conta
+                  {t("landing.nav.register", "Criar Conta")}
                 </Link>
               </div>
             )}
@@ -179,33 +252,34 @@ export default function LandingPage() {
       </header>
 
       {/* ============================================================ */}
-      {/* 2. HERO SECTION — DIRETO AO PONTO                           */}
+      {/* 2. HERO SECTION COM I18N                                     */}
       {/* ============================================================ */}
       <section className="relative overflow-hidden pt-12 pb-20 md:pt-20 md:pb-28 border-b border-slate-200/60 dark:border-slate-800/60">
-        {/* Glow de fundo sutil e profissional (azul corporativo / indigo) */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-blue-500/10 via-indigo-500/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-7">
-
+          
           {/* Badge de introdução */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 text-blue-700 dark:text-blue-300 text-xs font-semibold shadow-xs">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 text-blue-700 dark:text-blue-300 text-xs font-semibold shadow-2xs">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Infraestrutura Unificada de Banco de Dados & Túnel Seguro</span>
+            <span>{t("landing.hero.badge", "Infraestrutura Unificada de Banco de Dados & Túnel Seguro")}</span>
           </div>
 
           {/* Título Principal */}
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.12]">
-            Toda a sua infraestrutura de dados{" "}
+            {t("landing.hero.title1", "Toda a sua infraestrutura de dados")}{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
-              conectada e governada
+              {t("landing.hero.titleHighlight", "conectada e governada")}
             </span>{" "}
-            em um só lugar.
+            {t("landing.hero.title2", "em um só lugar.")}
           </h1>
 
           {/* Subtítulo Objetivo */}
           <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto font-normal leading-relaxed">
-            Elimine a fragmentação entre DBeaver, Compass e VPNs complexas. O <strong>MustaInfo</strong> unifica{" "}
-            <strong>PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB e SQLite</strong>, permitindo consultas em tempo real, túnel seguro on-premise (MustaLink) e inteligência assistida por IA.
+            {t(
+              "landing.hero.description",
+              "Elimine a fragmentação entre DBeaver, Compass e VPNs complexas. O MustaInfo unifica PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB e SQLite, permitindo consultas em tempo real, túnel seguro on-premise (MustaLink) e inteligência assistida por IA."
+            )}
           </p>
 
           {/* Ações / CTAs */}
@@ -214,16 +288,16 @@ export default function LandingPage() {
               href={isAuthenticated ? "/home" : "/auth/register"}
               className="w-full sm:w-auto px-7 py-3.5 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2.5"
             >
-              <span>{isAuthenticated ? "Ir para o Console" : "Começar Agora Gratuitamente"}</span>
+              <span>{isAuthenticated ? t("landing.hero.consoleCta", "Ir para o Console") : t("landing.hero.startCta", "Começar Agora Gratuitamente")}</span>
               <ArrowRight size={18} />
             </Link>
 
             <Link
               href="/docs"
-              className="w-full sm:w-auto px-6 py-3.5 rounded-xl text-base font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800/90 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-xs transition-colors flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-3.5 rounded-xl text-base font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800/90 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 shadow-2xs transition-colors flex items-center justify-center gap-2"
             >
               <FileCode2 size={18} className="text-slate-500 dark:text-slate-400" />
-              <span>Ver Documentação Técnica</span>
+              <span>{t("landing.hero.docsCta", "Ver Documentação Técnica")}</span>
             </Link>
           </div>
 
@@ -231,19 +305,19 @@ export default function LandingPage() {
           <div className="pt-8 flex flex-wrap items-center justify-center gap-y-2 gap-x-6 text-xs font-semibold text-slate-500 dark:text-slate-400">
             <div className="flex items-center gap-1.5">
               <CheckCircle2 size={15} className="text-emerald-500" />
-              <span>Conexão Zero-Trust sem IP público</span>
+              <span>{t("landing.trust.zeroTrust", "Conexão Zero-Trust sem IP público")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 size={15} className="text-emerald-500" />
-              <span>Criptografia TLS 1.3 & AES-256</span>
+              <span>{t("landing.trust.encryption", "Criptografia TLS 1.3 & AES-256")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 size={15} className="text-emerald-500" />
-              <span>Streaming de Dados por SSE</span>
+              <span>{t("landing.trust.streaming", "Streaming de Dados por SSE")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 size={15} className="text-emerald-500" />
-              <span>Multi-Tenant & RBAC Corporativo</span>
+              <span>{t("landing.trust.rbac", "Multi-Tenant & RBAC Corporativo")}</span>
             </div>
           </div>
         </div>
@@ -253,8 +327,8 @@ export default function LandingPage() {
         {/* ============================================================ */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-14">
           <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
-
-            {/* Top Bar da Janela (Estilo Console Operacional) */}
+            
+            {/* Top Bar da Janela */}
             <div className="px-4 py-3 bg-slate-100/80 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-700 inline-block" />
@@ -268,9 +342,13 @@ export default function LandingPage() {
               {/* Status ao vivo */}
               <div className="flex items-center gap-2 text-xs font-mono">
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
-                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Túnel Ativo (12ms)</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                  {t("landing.showcase.tunnelActive", "Túnel Ativo (12ms)")}
+                </span>
                 <span className="text-slate-400 dark:text-slate-600">•</span>
-                <span className="text-slate-500 dark:text-slate-400">5 Motores Online</span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {t("landing.showcase.enginesOnline", "6 Motores Online")}
+                </span>
               </div>
             </div>
 
@@ -278,52 +356,56 @@ export default function LandingPage() {
             <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 overflow-x-auto text-xs font-medium">
               <button
                 onClick={() => setActiveTab("connections")}
-                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === "connections"
-                  ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
-                  : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                  }`}
+                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "connections"
+                    ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
+                    : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
               >
                 <Database size={15} />
-                <span>Conexões Ativas</span>
+                <span>{t("landing.showcase.tabConnections", "Conexões Ativas")}</span>
               </button>
 
               <button
                 onClick={() => setActiveTab("query")}
-                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === "query"
-                  ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
-                  : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                  }`}
+                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "query"
+                    ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
+                    : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
               >
                 <Terminal size={15} />
-                <span>Query Studio & SSE</span>
+                <span>{t("landing.showcase.tabQuery", "Query Studio & SSE")}</span>
               </button>
 
               <button
                 onClick={() => setActiveTab("mustalink")}
-                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === "mustalink"
-                  ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
-                  : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                  }`}
+                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "mustalink"
+                    ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
+                    : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
               >
                 <Network size={15} />
-                <span>MustaLink Zero-Trust</span>
+                <span>{t("landing.showcase.tabMustalink", "MustaLink Zero-Trust")}</span>
               </button>
 
               <button
                 onClick={() => setActiveTab("ai")}
-                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === "ai"
-                  ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
-                  : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                  }`}
+                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "ai"
+                    ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
+                    : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
               >
                 <Sparkles size={15} />
-                <span>Nexus Cognitiva & OCR</span>
+                <span>{t("landing.showcase.tabAi", "Nexus Cognitiva & OCR")}</span>
               </button>
             </div>
 
             {/* Conteúdo da Aba Ativa */}
             <div className="p-6 md:p-8 bg-white dark:bg-slate-900 font-sans min-h-[290px] flex flex-col justify-center">
-
+              
               {/* TAB 1: CONEXÕES ATIVAS */}
               {activeTab === "connections" && (
                 <div className="space-y-4 animate-in fade-in duration-300">
@@ -419,12 +501,12 @@ export default function LandingPage() {
                       {copiedCommand ? (
                         <>
                           <Check size={14} className="text-emerald-400" />
-                          <span>Copiado!</span>
+                          <span>{t("landing.showcase.copied", "Copiado!")}</span>
                         </>
                       ) : (
                         <>
                           <Copy size={14} />
-                          <span>Copiar Comando</span>
+                          <span>{t("landing.showcase.copyCommand", "Copiar Comando")}</span>
                         </>
                       )}
                     </button>
@@ -465,59 +547,59 @@ export default function LandingPage() {
       </section>
 
       {/* ============================================================ */}
-      {/* 4. OS 3 PILARES FUNDAMENTAIS                                  */}
+      {/* 4. OS 3 PILARES FUNDAMENTAIS COM I18N                         */}
       {/* ============================================================ */}
       <section id="recursos" className="py-20 md:py-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-3.5 mb-16">
           <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-            Simplicidade Operacional
+            {t("landing.pillars.tag", "Simplicidade Operacional")}
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Construído para resolver os problemas reais de quem lida com dados
+            {t("landing.pillars.title", "Construído para resolver os problemas reais de quem lida com dados")}
           </h2>
           <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400">
-            Sem firulas ou configurações impossíveis. O que você precisa para gerenciar bases de dados corporativas em minutos.
+            {t("landing.pillars.subtitle", "Sem firulas ou configurações impossíveis. O que você precisa para gerenciar bases de dados corporativas em minutos.")}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-
+          
           {/* Pilar 1 */}
-          <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-500/50 hover:shadow-lg transition-all space-y-4">
+          <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:border-blue-500/50 hover:shadow-lg transition-all space-y-4">
             <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
               <Layers size={24} />
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-              Gestão Multi-Engine Centralizada
+              {t("landing.pillars.p1Title", "Gestão Multi-Engine Centralizada")}
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              Conecte simultaneamente PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB e SQLite. Alterne entre schemas, inspecione chaves estrangeiras e execute queries sem trocar de aplicativo.
+              {t("landing.pillars.p1Desc", "Conecte simultaneamente PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB e SQLite. Alterne entre schemas, inspecione chaves estrangeiras e execute queries sem trocar de aplicativo.")}
             </p>
           </div>
 
           {/* Pilar 2 */}
-          <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-500/50 hover:shadow-lg transition-all space-y-4">
+          <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:border-blue-500/50 hover:shadow-lg transition-all space-y-4">
             <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
               <ShieldCheck size={24} />
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-              Túnel Seguro MustaLink (Zero-Trust)
+              {t("landing.pillars.p2Title", "Túnel Seguro MustaLink (Zero-Trust)")}
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              Seus bancos de dados on-premise ficam inacessíveis a invasores públicos. O túnel estabelece conexões seguras por WebSockets TLS com criptografia ponta a ponta e auditoria completa.
+              {t("landing.pillars.p2Desc", "Seus bancos de dados on-premise ficam inacessíveis a invasores públicos. O túnel estabelece conexões seguras por WebSockets TLS com criptografia ponta a ponta e auditoria completa.")}
             </p>
           </div>
 
           {/* Pilar 3 */}
-          <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-500/50 hover:shadow-lg transition-all space-y-4">
+          <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:border-blue-500/50 hover:shadow-lg transition-all space-y-4">
             <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
               <Zap size={24} />
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-              Automações & Streaming SSE
+              {t("landing.pillars.p3Title", "Automações & Streaming SSE")}
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              Execução de consultas volumosas sem travar a interface graças ao streaming por Server-Sent Events, backups automatizados, migrações de dados e restaurações assistidas.
+              {t("landing.pillars.p3Desc", "Execução de consultas volumosas sem travar a interface graças ao streaming por Server-Sent Events, backups automatizados, migrações de dados e restaurações assistidas.")}
             </p>
           </div>
 
@@ -529,13 +611,13 @@ export default function LandingPage() {
       {/* ============================================================ */}
       <section id="motores" className="py-16 bg-slate-100/60 dark:bg-slate-900/40 border-y border-slate-200/60 dark:border-slate-800/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-10">
-
+          
           <div className="space-y-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Compatibilidade Universal
+              {t("landing.engines.tag", "Compatibilidade Universal")}
             </span>
             <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-              Conectores nativos para os motores mais usados da indústria
+              {t("landing.engines.title", "Conectores nativos para os motores mais usados da indústria")}
             </h3>
           </div>
 
@@ -550,7 +632,7 @@ export default function LandingPage() {
             ].map((engine, i) => (
               <div
                 key={i}
-                className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-center space-y-1.5 shadow-xs"
+                className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-center space-y-1.5 shadow-2xs"
               >
                 <Database size={28} className="mx-auto text-blue-600 dark:text-blue-400" />
                 <h4 className="font-bold text-slate-900 dark:text-white text-base">{engine.name}</h4>
@@ -566,65 +648,77 @@ export default function LandingPage() {
       </section>
 
       {/* ============================================================ */}
-      {/* 6. GRID DE CAPACIDADES ESPECÍFICAS (BENTO STYLE)             */}
+      {/* 6. GRID DE RECURSOS CORPORATIVOS                             */}
       {/* ============================================================ */}
       <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         <div className="text-center max-w-2xl mx-auto space-y-3">
           <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-            Recursos Completos
+            {t("landing.features.tag", "Recursos Completos")}
           </span>
           <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Ferramental pensado para administradores e desenvolvedores
+            {t("landing.features.title", "Ferramental pensado para administradores e desenvolvedores")}
           </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-
+          
           <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
             <Table2 className="text-blue-600" size={24} />
-            <h4 className="font-bold text-lg text-slate-900 dark:text-white">Editor Visual de Esquemas</h4>
+            <h4 className="font-bold text-lg text-slate-900 dark:text-white">
+              {t("landing.features.f1Title", "Editor Visual de Esquemas")}
+            </h4>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Explore estruturas completas de tabelas, tipos de dados, chaves estrangeiras e índices sem ter de escrever queries descritivas manualmente.
+              {t("landing.features.f1Desc", "Explore estruturas completas de tabelas, tipos de dados, chaves estrangeiras e índices sem ter de escrever queries descritivas manualmente.")}
             </p>
           </div>
 
           <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
             <RefreshCw className="text-emerald-600" size={24} />
-            <h4 className="font-bold text-lg text-slate-900 dark:text-white">Migração & Transferência de Dados</h4>
+            <h4 className="font-bold text-lg text-slate-900 dark:text-white">
+              {t("landing.features.f2Title", "Migração & Transferência de Dados")}
+            </h4>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Mova registros entre bases diferentes de forma programada com mapeamento assistido de colunas e validação prévia de integridade.
+              {t("landing.features.f2Desc", "Mova registros entre bases diferentes de forma programada com mapeamento assistido de colunas e validação prévia de integridade.")}
             </p>
           </div>
 
           <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
             <FolderArchive className="text-amber-600" size={24} />
-            <h4 className="font-bold text-lg text-slate-900 dark:text-white">Backups Automatizados</h4>
+            <h4 className="font-bold text-lg text-slate-900 dark:text-white">
+              {t("landing.features.f3Title", "Backups Automatizados")}
+            </h4>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Integração com utilitários oficiais (pg_dump, mysqldump) para cópias de segurança diretas no MinIO/S3 com progresso em tempo real.
+              {t("landing.features.f3Desc", "Integração com utilitários oficiais (pg_dump, mysqldump) para cópias de segurança diretas no MinIO/S3 com progresso em tempo real.")}
             </p>
           </div>
 
           <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
             <Activity className="text-rose-600" size={24} />
-            <h4 className="font-bold text-lg text-slate-900 dark:text-white">Monitorização de Deadlocks</h4>
+            <h4 className="font-bold text-lg text-slate-900 dark:text-white">
+              {t("landing.features.f4Title", "Monitorização de Deadlocks")}
+            </h4>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Identifique consultas travadas, locks concorrentes e conexões órfãs que afetam o desempenho do seu servidor antes de causarem indisponibilidade.
+              {t("landing.features.f4Desc", "Identifique consultas travadas, locks concorrentes e conexões órfãs que afetam o desempenho do seu servidor antes de causarem indisponibilidade.")}
             </p>
           </div>
 
           <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
             <BarChart3 className="text-indigo-600" size={24} />
-            <h4 className="font-bold text-lg text-slate-900 dark:text-white">Métricas de Volume & Histórico</h4>
+            <h4 className="font-bold text-lg text-slate-900 dark:text-white">
+              {t("landing.features.f5Title", "Métricas de Volume & Histórico")}
+            </h4>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Histórico auditado de todas as consultas executadas por usuário, com métricas de tempo de resposta, volume de dados transferidos e logs de conformidade.
+              {t("landing.features.f5Desc", "Histórico auditado de todas as consultas executadas por usuário, com métricas de tempo de resposta, volume de dados transferidos e logs de conformidade.")}
             </p>
           </div>
 
           <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
             <ScanText className="text-purple-600" size={24} />
-            <h4 className="font-bold text-lg text-slate-900 dark:text-white">OCR & Ingestão Documental</h4>
+            <h4 className="font-bold text-lg text-slate-900 dark:text-white">
+              {t("landing.features.f6Title", "OCR & Ingestão Documental")}
+            </h4>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Extração precisa de tabelas e documentos escaneados com normalização automática para inserção direta em schemas de banco de dados.
+              {t("landing.features.f6Desc", "Extração precisa de tabelas e documentos escaneados com normalização automática para inserção direta em schemas de banco de dados.")}
             </p>
           </div>
 
@@ -632,29 +726,31 @@ export default function LandingPage() {
       </section>
 
       {/* ============================================================ */}
-      {/* 7. COMO FUNCIONA EM 3 PASSOS                                */}
+      {/* 7. COMO FUNCIONA EM 3 PASSOS COM I18N                       */}
       {/* ============================================================ */}
       <section className="py-20 bg-slate-100/60 dark:bg-slate-900/40 border-y border-slate-200/60 dark:border-slate-800/60">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-
+          
           <div className="text-center space-y-2">
             <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-              Fluxo Simples
+              {t("landing.steps.tag", "Fluxo Simples")}
             </span>
             <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white">
-              Pronto em menos de 3 minutos
+              {t("landing.steps.title", "Pronto em menos de 3 minutos")}
             </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
-
+            
             <div className="space-y-3">
               <span className="text-4xl font-black text-blue-600/30 dark:text-blue-400/20 font-mono">
                 01
               </span>
-              <h4 className="text-lg font-bold text-slate-900 dark:text-white">Crie sua Conta</h4>
+              <h4 className="text-lg font-bold text-slate-900 dark:text-white">
+                {t("landing.steps.s1Title", "Crie sua Conta")}
+              </h4>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Cadastre sua empresa em poucos segundos com login direto ou OAuth corporativo seguro (Google / GitHub).
+                {t("landing.steps.s1Desc", "Cadastre sua empresa em poucos segundos com login direto ou OAuth corporativo seguro (Google / GitHub).")}
               </p>
             </div>
 
@@ -662,9 +758,11 @@ export default function LandingPage() {
               <span className="text-4xl font-black text-blue-600/30 dark:text-blue-400/20 font-mono">
                 02
               </span>
-              <h4 className="text-lg font-bold text-slate-900 dark:text-white">Conecte seus Bancos</h4>
+              <h4 className="text-lg font-bold text-slate-900 dark:text-white">
+                {t("landing.steps.s2Title", "Conecte seus Bancos")}
+              </h4>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Insira as credenciais de bases na nuvem ou inicie o agente MustaLink para conectar servidores locais com segurança.
+                {t("landing.steps.s2Desc", "Insira as credenciais de bases na nuvem ou inicie o agente MustaLink para conectar servidores locais com segurança.")}
               </p>
             </div>
 
@@ -672,9 +770,11 @@ export default function LandingPage() {
               <span className="text-4xl font-black text-blue-600/30 dark:text-blue-400/20 font-mono">
                 03
               </span>
-              <h4 className="text-lg font-bold text-slate-900 dark:text-white">Opere e Governe</h4>
+              <h4 className="text-lg font-bold text-slate-900 dark:text-white">
+                {t("landing.steps.s3Title", "Opere e Governe")}
+              </h4>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Consulte tabelas, crie queries, automatize backups e monitore conexões em um console de alta velocidade.
+                {t("landing.steps.s3Desc", "Consulte tabelas, crie queries, automatize backups e monitore conexões em um console de alta velocidade.")}
               </p>
             </div>
 
@@ -684,30 +784,30 @@ export default function LandingPage() {
       </section>
 
       {/* ============================================================ */}
-      {/* 8. CALL TO ACTION (CTA) FINAL CORPORATIVO                    */}
+      {/* 8. CALL TO ACTION (CTA) FINAL COM I18N                       */}
       {/* ============================================================ */}
       <section className="py-20 max-w-5xl mx-auto px-4 sm:px-6">
         <div className="rounded-3xl bg-gradient-to-br from-blue-700 via-blue-800 to-indigo-900 text-white p-8 sm:p-14 text-center space-y-6 shadow-2xl relative overflow-hidden">
-
+          
           <div className="relative z-10 max-w-2xl mx-auto space-y-4">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight">
-              Pronto para centralizar e proteger seus dados?
+              {t("landing.cta.title", "Pronto para centralizar e proteger seus dados?")}
             </h2>
             <p className="text-base text-blue-100 font-normal leading-relaxed">
-              Junte-se a equipes que simplificaram a administração de banco de dados e conexões on-premise com o MustaInfo.
+              {t("landing.cta.subtitle", "Junte-se a equipes que simplificaram a administração de banco de dados e conexões on-premise com o MustaInfo.")}
             </p>
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href={isAuthenticated ? "/home" : "/auth/register"}
                 className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-bold bg-white text-blue-900 hover:bg-blue-50 shadow-lg transition-all active:scale-[0.98]"
               >
-                {isAuthenticated ? "Abrir Painel Principal" : "Criar Conta Gratuita"}
+                {isAuthenticated ? t("landing.hero.consoleCta", "Abrir Painel Principal") : t("landing.cta.button", "Criar Conta Gratuita")}
               </Link>
               <Link
                 href="/docs"
                 className="w-full sm:w-auto px-6 py-3.5 rounded-xl text-base font-semibold text-white/90 hover:text-white hover:bg-white/10 border border-white/20 transition-colors"
               >
-                Consultar Documentação
+                {t("landing.cta.docs", "Consultar Documentação")}
               </Link>
             </div>
           </div>
@@ -716,11 +816,11 @@ export default function LandingPage() {
       </section>
 
       {/* ============================================================ */}
-      {/* 9. FOOTER PROFISSIONAL                                       */}
+      {/* 9. FOOTER PROFISSIONAL COM I18N                              */}
       {/* ============================================================ */}
       <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 py-12 text-sm text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
-
+          
           {/* Coluna 1: Marca */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -732,7 +832,7 @@ export default function LandingPage() {
               <span className="font-bold text-slate-900 dark:text-white">MustaInfo</span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Plataforma Corporativa Unificada de Gestão de Bancos de Dados, Conectividade Cloud e Túnel Zero-Trust.
+              {t("landing.footer.desc", "Plataforma Corporativa Unificada de Gestão de Bancos de Dados, Conectividade Cloud e Túnel Zero-Trust.")}
             </p>
             <p className="text-[11px] text-slate-400 dark:text-slate-600">
               © 2026 MustaInfo Project • OrionForgeNexus Enterprise.
@@ -742,12 +842,12 @@ export default function LandingPage() {
           {/* Coluna 2: Produto */}
           <div className="space-y-2.5 text-xs">
             <span className="font-bold text-slate-900 dark:text-slate-200 block uppercase tracking-wider text-[11px]">
-              Plataforma
+              {t("landing.footer.platform", "Plataforma")}
             </span>
             <ul className="space-y-2">
-              <li><a href="#recursos" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Conexões Multi-Engine</a></li>
-              <li><a href="#mustalink" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">MustaLink Agent</a></li>
-              <li><Link href="/nexus-cognitiva" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Nexus Cognitiva (IA)</Link></li>
+              <li><a href="#recursos" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{t("landing.nav.features", "Conexões Multi-Engine")}</a></li>
+              <li><a href="#mustalink" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{t("landing.nav.mustalink", "MustaLink Agent")}</a></li>
+              <li><Link href="/nexus-cognitiva" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{t("landing.nav.nexus", "Nexus Cognitiva (IA)")}</Link></li>
               <li><Link href="/home/ocr" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">OCR de Documentos</Link></li>
               <li><Link href="/task" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Tarefas & Sprints</Link></li>
             </ul>
@@ -756,7 +856,7 @@ export default function LandingPage() {
           {/* Coluna 3: Motores */}
           <div className="space-y-2.5 text-xs">
             <span className="font-bold text-slate-900 dark:text-slate-200 block uppercase tracking-wider text-[11px]">
-              Motores & Nuvem
+              {t("landing.footer.engines", "Motores & Nuvem")}
             </span>
             <ul className="space-y-2">
               <li><span className="text-slate-600 dark:text-slate-400">PostgreSQL (12 ao 18+)</span></li>
@@ -771,13 +871,13 @@ export default function LandingPage() {
           {/* Coluna 4: Recursos & Suporte */}
           <div className="space-y-2.5 text-xs">
             <span className="font-bold text-slate-900 dark:text-slate-200 block uppercase tracking-wider text-[11px]">
-              Recursos
+              {t("landing.footer.resources", "Recursos")}
             </span>
             <ul className="space-y-2">
-              <li><Link href="/docs" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Documentação Técnica</Link></li>
-              <li><Link href="/auth/login" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Portal do Utilizador</Link></li>
-              <li><Link href="/auth/register" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Criar Nova Conta</Link></li>
-              <li><span className="text-slate-400 dark:text-slate-600">Status da API: Operacional</span></li>
+              <li><Link href="/docs" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{t("landing.nav.docs", "Documentação Técnica")}</Link></li>
+              <li><Link href="/auth/login" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{t("landing.nav.login", "Portal do Utilizador")}</Link></li>
+              <li><Link href="/auth/register" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{t("landing.nav.register", "Criar Nova Conta")}</Link></li>
+              <li><span className="text-slate-400 dark:text-slate-600">{t("landing.footer.apiStatus", "Status da API: Operacional")}</span></li>
             </ul>
           </div>
 

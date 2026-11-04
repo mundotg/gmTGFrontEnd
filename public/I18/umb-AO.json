@@ -1190,5 +1190,99 @@
     "downstreamConsumers": "Ovakukwama Downstream",
     "dependentDownstream": "olombase vikwateko",
     "extraction": "Kukatula"
+  },
+  "landing": {
+    "nav": {
+      "features": "Ovina Vyosi",
+      "databases": "Olombangu Vyo Datos",
+      "mustalink": "Onjila yo MustaLink",
+      "nexus": "Nexus IA",
+      "docs": "Akanda",
+      "login": "Iñila",
+      "register": "Liyondika",
+      "console": "Pisa Console",
+      "versionBadge": "Cloud v2",
+      "subtitle": "Data Platform & Infrastructure"
+    },
+    "hero": {
+      "badge": "Olombangu Vyosi Vyo Datos & Onjila ya Kolapo",
+      "title1": "Olombangu vyosi vyo datos vyé",
+      "titleHighlight": "vyakutikisiwa ciwa",
+      "title2": "pocitumalo cimosi.",
+      "description": "Tula ovitangi vyolombangu vimwe. MustaInfo ikwatisa PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB la SQLite koku linga olosinga viwa lo MustaLink.",
+      "startCta": "Fetika Kaliye Ondando Yahele",
+      "consoleCta": "Iñila vo Console",
+      "docsCta": "Tala Akanda"
+    },
+    "trust": {
+      "zeroTrust": "Onjila ya Zero-Trust ya kolapo",
+      "encryption": "Kukuwako ku TLS 1.3",
+      "streaming": "Okutuma ovina vo SSE",
+      "rbac": "Okutata omanu vo mbangu"
+    },
+    "showcase": {
+      "tunnelActive": "Onjila Yalinga ciwa (12ms)",
+      "enginesOnline": "6 Olombangu Vyalinga ciwa",
+      "tabConnections": "Olombangu Vyalinga",
+      "tabQuery": "Query Studio & SSE",
+      "tabMustalink": "MustaLink Zero-Trust",
+      "tabAi": "Nexus IA & OCR",
+      "copyCommand": "Kopia Ondaka",
+      "copied": "Cakopiwa!"
+    },
+    "pillars": {
+      "tag": "Upange Wasunguluka",
+      "title": "Calinga koku tetulula ovitangi vyolombangu vyo datos",
+      "subtitle": "Ovina vyosi watela oku kuata koku tata olombangu vyocitumalo cé.",
+      "p1Title": "Okutata Olombangu Vyosi",
+      "p1Desc": "Okukwata PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB la SQLite pocitumalo cimosi.",
+      "p2Title": "Onjila ya Kolapo MustaLink",
+      "p2Desc": "Olombangu vyo vonjo kaviteli oku tambiwa lomanu va kumbi.",
+      "p3Title": "Okutuma Ovina vo SSE",
+      "p3Desc": "Okulinga olosinga vinene koku sepuka eteke liaco."
+    },
+    "engines": {
+      "tag": "Olombangu Vyosi",
+      "title": "Olombangu vyasapuka koku vumba ovina vyosi"
+    },
+    "features": {
+      "tag": "Ovina Vyosi",
+      "title": "Calingilwa omanu vatata olombangu vyo datos",
+      "f1Title": "Okutala Omatabela",
+      "f1Desc": "Tala omatabela osi la olokoluna siko koku soneka queries.",
+      "f2Title": "Okusonga Ovina",
+      "f2Desc": "Songa ovina pokati kolombangu viñi viñi.",
+      "f3Title": "Okupakulula (Backups)",
+      "f3Desc": "Pakulula ovina viende vo MinIO/S3.",
+      "f4Title": "Okutala Deadlocks",
+      "f4Desc": "Limbuka olosinga vyalingisiwa cimwe.",
+      "f5Title": "Otembo yo Queries",
+      "f5Desc": "Soneka otembo yosi queries viakwata.",
+      "f6Title": "Okutanga Akanda (OCR)",
+      "f6Desc": "Tanga akanda la okupakula vomatabela."
+    },
+    "steps": {
+      "tag": "Onjila Yelela",
+      "title": "Cikwata olominutu vitatu",
+      "s1Title": "Liyondika",
+      "s1Desc": "Liyondika ciwa lonjila yakolapo.",
+      "s2Title": "Kwatisa Olombangu Vyé",
+      "s2Desc": "Kapa olombangu vyé vo Cloud ale vo MustaLink.",
+      "s3Title": "Vumba ciwa",
+      "s3Desc": "Linga queries ciwa pocitumalo cimosi."
+    },
+    "cta": {
+      "title": "Ocipango cé ciwa cokutata olombangu vyé?",
+      "subtitle": "Likuata la omanu vatata olombangu vyosi lo MustaInfo.",
+      "button": "Liyondika Ondando Yahele",
+      "docs": "Tala Akanda"
+    },
+    "footer": {
+      "desc": "Ocitumalo Cinene Cokutata Olombangu Vyosi lo MustaLink.",
+      "platform": "Ocitumalo",
+      "engines": "Olombangu & Cloud",
+      "resources": "Akanda",
+      "apiStatus": "API: Yalinga ciwa"
+    }
   }
 }

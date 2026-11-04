@@ -1190,5 +1190,99 @@
     "downstreamConsumers": "Jikonsumidores Downstream",
     "dependentDownstream": "athu atadila mu downstream",
     "extraction": "Kukatula"
+  },
+  "landing": {
+    "nav": {
+      "features": "Ikebidilu",
+      "databases": "Mabangu a Ngana",
+      "mustalink": "Muleji MustaLink",
+      "nexus": "Nexus IA",
+      "docs": "Mikanda",
+      "login": "Bokona",
+      "register": "Soneka Kijimbu",
+      "console": "Kusangela",
+      "versionBadge": "Cloud v2",
+      "subtitle": "Data Platform & Infrastructure"
+    },
+    "hero": {
+      "badge": "Mabangu Ma Kubanza & Njila ya Kidifungunu",
+      "title1": "Jimbangu josojoso ja Ngana",
+      "titleHighlight": "jitambikisa mu kidi",
+      "title2": "mu kididi kimoxi.",
+      "description": "Zubisa maka a jimbangu javula. MustaInfo ijiya PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB ni SQLite, kubanga queries mu kithangana ni MustaLink.",
+      "startCta": "Mateka Lelu Ngó",
+      "consoleCta": "Bokona mu Console",
+      "docsCta": "Tala Mikanda"
+    },
+    "trust": {
+      "zeroTrust": "Kidifungunu kya Zero-Trust",
+      "encryption": "Kijikidilu kya TLS 1.3",
+      "streaming": "Kutumisa majina mu SSE",
+      "rbac": "Kutala Athu mu Mbangu"
+    },
+    "showcase": {
+      "tunnelActive": "Njila Yala Kidi (12ms)",
+      "enginesOnline": "6 Mabangu Mayala Kidi",
+      "tabConnections": "Jinjila Jala Kidi",
+      "tabQuery": "Query Studio & SSE",
+      "tabMustalink": "MustaLink Zero-Trust",
+      "tabAi": "Nexus IA & OCR",
+      "copyCommand": "Kopiyala Kizuelu",
+      "copied": "Akopiyala!"
+    },
+    "pillars": {
+      "tag": "Ubhezelu wa Kalunga",
+      "title": "Yabhangwa phala kubatula maka a jimbangu",
+      "subtitle": "Kima kyosokyo kya kusota phala kutala mabangu ma ngana.",
+      "p1Title": "Kutala Mabangu Javula",
+      "p1Desc": "Kutambikisa PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB ni SQLite mu kithangana kimoxi.",
+      "p2Title": "Njila ya Kidifungunu MustaLink",
+      "p2Desc": "Mabangu me mu inzo katena ku a kwata kudi jinguma ja ngambo.",
+      "p3Title": "Kutumisa Majina mu SSE",
+      "p3Desc": "Kubanga queries yovula sé kubita kubanza kwa tela."
+    },
+    "engines": {
+      "tag": "Mabangu Mesene",
+      "title": "Mabangu ma kutambikisa mavu moso"
+    },
+    "features": {
+      "tag": "Ikebidilu Yoso",
+      "title": "Ikwata phala akwa kwivwa milongi ya jimbangu",
+      "f1Title": "Kutala Matebela",
+      "f1Desc": "Kutala makanda moso ma jimbangu sé kusoneka queries.",
+      "f2Title": "Kulumuna Majina",
+      "f2Desc": "Kulumuna majina mu mabangu javula.",
+      "f3Title": "Kukwata Backups",
+      "f3Desc": "Kukwata backups phala kusuwa mu MinIO/S3.",
+      "f4Title": "Kutala Deadlocks",
+      "f4Desc": "Kutala milongi yakwama mu mbangu.",
+      "f5Title": "Kutala Kithangana",
+      "f5Desc": "Kusoneka kithangana kyabiti mu queries.",
+      "f6Title": "Kutanga Mikanda (OCR)",
+      "f6Desc": "Kutanga majina mu mikanda ni kufikisa mu matebela."
+    },
+    "steps": {
+      "tag": "Njila Yapepumuka",
+      "title": "Kyazubha mu itatu ya menutu",
+      "s1Title": "Soneka Kijimbu",
+      "s1Desc": "Soneka kilunga kyé mu kithangana kyohepa.",
+      "s2Title": "Tambikisa Mabangu Mé",
+      "s2Desc": "Pana mazina ma mabangu mé mu Cloud mba mu MustaLink.",
+      "s3Title": "Tala Majina Mé",
+      "s3Desc": "Banga queries ni kuwana kithangana kyambote mu console."
+    },
+    "cta": {
+      "title": "Wadizange phala kusuwa jimbangu jé?",
+      "subtitle": "Kala ni athu asola MustaInfo phala kutala jimbangu javula.",
+      "button": "Soneka Kijimbu Ngó",
+      "docs": "Tala Mikanda"
+    },
+    "footer": {
+      "desc": "Kikwata kya Kidi phala Kutala Mabangu ma Ngana ni Njila ya Kidifungunu.",
+      "platform": "Kikwata",
+      "engines": "Mabangu & Cloud",
+      "resources": "Mikanda",
+      "apiStatus": "API: Yala Kidi"
+    }
   }
 }

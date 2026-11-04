@@ -2138,5 +2138,99 @@
       "noData": "No preview data available for this table.",
       "closeAndOpen": "Close and View Connection"
     }
+  },
+  "landing": {
+    "nav": {
+      "features": "Features",
+      "databases": "Supported Databases",
+      "mustalink": "MustaLink Agent",
+      "nexus": "Nexus AI",
+      "docs": "Documentation",
+      "login": "Sign In",
+      "register": "Sign Up",
+      "console": "Open Console",
+      "versionBadge": "Cloud v2",
+      "subtitle": "Data Platform & Infrastructure"
+    },
+    "hero": {
+      "badge": "Unified Database Infrastructure & Secure Tunnel",
+      "title1": "All your data infrastructure",
+      "titleHighlight": "connected and governed",
+      "title2": "in one single place.",
+      "description": "Eliminate fragmentation between DBeaver, Compass, and complex VPNs. MustaInfo unifies PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB, and SQLite, providing real-time queries, zero-trust on-premise tunneling (MustaLink), and AI-driven intelligence.",
+      "startCta": "Get Started for Free",
+      "consoleCta": "Open Console",
+      "docsCta": "View Technical Docs"
+    },
+    "trust": {
+      "zeroTrust": "Zero-Trust connection without public IP",
+      "encryption": "TLS 1.3 & AES-256 Encryption",
+      "streaming": "Real-time SSE Data Streaming",
+      "rbac": "Multi-Tenant & Enterprise RBAC"
+    },
+    "showcase": {
+      "tunnelActive": "Tunnel Active (12ms)",
+      "enginesOnline": "6 Engines Online",
+      "tabConnections": "Active Connections",
+      "tabQuery": "Query Studio & SSE",
+      "tabMustalink": "MustaLink Zero-Trust",
+      "tabAi": "Nexus AI & OCR",
+      "copyCommand": "Copy Command",
+      "copied": "Copied!"
+    },
+    "pillars": {
+      "tag": "Operational Simplicity",
+      "title": "Built to solve real data infrastructure bottlenecks",
+      "subtitle": "No fluff or impossible configurations. Everything you need to manage enterprise databases in minutes.",
+      "p1Title": "Centralized Multi-Engine Management",
+      "p1Desc": "Simultaneously connect PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB, and SQLite. Inspect schemas, foreign keys, and run queries without switching applications.",
+      "p2Title": "MustaLink Secure Tunnel (Zero-Trust)",
+      "p2Desc": "Keep on-premise databases inaccessible to public attackers. The agent builds secure TLS WebSockets tunnels with end-to-end encryption and full audit logs.",
+      "p3Title": "Automations & SSE Streaming",
+      "p3Desc": "Execute heavy analytical queries without freezing the UI thanks to Server-Sent Events, automated backups, and assisted migrations."
+    },
+    "engines": {
+      "tag": "Universal Compatibility",
+      "title": "Native connectors for industry standard database engines"
+    },
+    "features": {
+      "tag": "Comprehensive Tools",
+      "title": "Built for database administrators and software engineers",
+      "f1Title": "Visual Schema Explorer",
+      "f1Desc": "Inspect table structures, data types, foreign keys, and indices without typing manual DDL/metadata queries.",
+      "f2Title": "Data Migration & Pipelines",
+      "f2Desc": "Move records between heterogeneous databases on a schedule with column mapping and schema validation.",
+      "f3Title": "Automated Backups",
+      "f3Desc": "Direct integration with official CLI utilities (pg_dump, mysqldump) streaming snapshots to MinIO/S3 in real-time.",
+      "f4Title": "Deadlock & Lock Monitoring",
+      "f4Desc": "Identify blocked queries, concurrent locks, and orphan sessions before they degrade server performance.",
+      "f5Title": "Volume & Audit Metrics",
+      "f5Desc": "Full audit log of all queries run by users, including execution duration, transferred volume, and compliance logs.",
+      "f6Title": "OCR & Document Ingestion",
+      "f6Desc": "Accurately parse scanned documents and receipts directly into normalized database records using PaddleOCR."
+    },
+    "steps": {
+      "tag": "Simple Workflow",
+      "title": "Ready in less than 3 minutes",
+      "s1Title": "Create your Account",
+      "s1Desc": "Register your organization in seconds with secure email login or corporate OAuth (Google / GitHub).",
+      "s2Title": "Connect your Databases",
+      "s2Desc": "Enter cloud database credentials or launch the MustaLink agent to link on-premise instances securely.",
+      "s3Title": "Operate and Govern",
+      "s3Desc": "Browse tables, craft queries, automate backups, and monitor connections in a high-speed unified console."
+    },
+    "cta": {
+      "title": "Ready to centralize and secure your databases?",
+      "subtitle": "Join engineering and data teams who trust MustaInfo for on-premise and cloud database operations.",
+      "button": "Create Free Account",
+      "docs": "Browse Documentation"
+    },
+    "footer": {
+      "desc": "Unified Enterprise Platform for Multi-Database Management, Cloud Connectivity, and Zero-Trust Tunneling.",
+      "platform": "Platform",
+      "engines": "Engines & Cloud",
+      "resources": "Resources",
+      "apiStatus": "API Status: Operational"
+    }
   }
 }
