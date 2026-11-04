@@ -207,7 +207,7 @@ export default function LandingPage() {
           {/* Subtítulo Objetivo */}
           <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto font-normal leading-relaxed">
             Elimine a fragmentação entre DBeaver, Compass e VPNs complexas. O <strong>MustaInfo</strong> unifica{" "}
-            <strong>PostgreSQL, MySQL, SQL Server, MongoDB e SQLite</strong>, permitindo consultas em tempo real, túnel seguro on-premise (MustaLink) e inteligência assistida por IA.
+            <strong>PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB e SQLite</strong>, permitindo consultas em tempo real, túnel seguro on-premise (MustaLink) e inteligência assistida por IA.
           </p>
 
           {/* Ações / CTAs */}
@@ -344,6 +344,7 @@ export default function LandingPage() {
                   {/* Linhas da Tabela */}
                   {[
                     { name: "db_producao_core", engine: "PostgreSQL 16", origin: "AWS RDS us-east-1", ping: "14ms", status: "Conectado", badge: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" },
+                    { name: "oracle_finance_prod", engine: "Oracle DB 19c", origin: "OCI / On-Premise", ping: "16ms", status: "Conectado", badge: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300" },
                     { name: "erp_onpremise_matriz", engine: "SQL Server 2022", origin: "MustaLink Túnel Local", ping: "22ms", status: "Conectado", badge: "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300" },
                     { name: "ecommerce_analytics", engine: "MySQL 8.0", origin: "Google Cloud SQL", ping: "18ms", status: "Conectado", badge: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
                     { name: "event_logs_catalog", engine: "MongoDB 7.0", origin: "Atlas Cluster", ping: "29ms", status: "Conectado", badge: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
@@ -496,7 +497,7 @@ export default function LandingPage() {
               Gestão Multi-Engine Centralizada
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              Conecte simultaneamente PostgreSQL, MySQL, SQL Server, MongoDB e SQLite. Alterne entre schemas, inspecione chaves estrangeiras e execute queries sem trocar de aplicativo.
+              Conecte simultaneamente PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB e SQLite. Alterne entre schemas, inspecione chaves estrangeiras e execute queries sem trocar de aplicativo.
             </p>
           </div>
 
@@ -544,9 +545,10 @@ export default function LandingPage() {
             </h3>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 max-w-5xl mx-auto">
             {[
               { name: "PostgreSQL", desc: "v12 a v18+ nativo", tag: "Relacional" },
+              { name: "Oracle DB", desc: "19c, 21c & 23ai", tag: "Enterprise" },
               { name: "MySQL", desc: "v5.7, v8.0 & MariaDB", tag: "Relacional" },
               { name: "SQL Server", desc: "2016 a 2022 / Azure", tag: "Enterprise" },
               { name: "MongoDB", desc: "v5 a v7+ Document", tag: "NoSQL" },
@@ -764,6 +766,7 @@ export default function LandingPage() {
             </span>
             <ul className="space-y-2">
               <li><span className="text-slate-600 dark:text-slate-400">PostgreSQL (12 ao 18+)</span></li>
+              <li><span className="text-slate-600 dark:text-slate-400">Oracle Database (19c / 21c / 23ai)</span></li>
               <li><span className="text-slate-600 dark:text-slate-400">MySQL & MariaDB</span></li>
               <li><span className="text-slate-600 dark:text-slate-400">Microsoft SQL Server</span></li>
               <li><span className="text-slate-600 dark:text-slate-400">MongoDB Atlas / Local</span></li>
