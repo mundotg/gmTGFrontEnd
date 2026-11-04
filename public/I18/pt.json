@@ -2138,5 +2138,99 @@
       "noData": "Não há dados para preview nesta tabela.",
       "closeAndOpen": "Fechar e Ver Conexão"
     }
+  },
+  "landing": {
+    "nav": {
+      "features": "Recursos",
+      "databases": "Bancos Suportados",
+      "mustalink": "MustaLink Agent",
+      "nexus": "Nexus IA",
+      "docs": "Documentação",
+      "login": "Entrar",
+      "register": "Criar Conta",
+      "console": "Acessar Console",
+      "versionBadge": "Cloud v2",
+      "subtitle": "Data Platform & Infrastructure"
+    },
+    "hero": {
+      "badge": "Infraestrutura Unificada de Banco de Dados & Túnel Seguro",
+      "title1": "Toda a sua infraestrutura de dados",
+      "titleHighlight": "conectada e governada",
+      "title2": "em um só lugar.",
+      "description": "Elimine a fragmentação entre DBeaver, Compass e VPNs complexas. O MustaInfo unifica PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB e SQLite, permitindo consultas em tempo real, túnel seguro on-premise (MustaLink) e inteligência assistida por IA.",
+      "startCta": "Começar Agora Gratuitamente",
+      "consoleCta": "Ir para o Console",
+      "docsCta": "Ver Documentação Técnica"
+    },
+    "trust": {
+      "zeroTrust": "Conexão Zero-Trust sem IP público",
+      "encryption": "Criptografia TLS 1.3 & AES-256",
+      "streaming": "Streaming de Dados por SSE",
+      "rbac": "Multi-Tenant & RBAC Corporativo"
+    },
+    "showcase": {
+      "tunnelActive": "Túnel Ativo (12ms)",
+      "enginesOnline": "6 Motores Online",
+      "tabConnections": "Conexões Ativas",
+      "tabQuery": "Query Studio & SSE",
+      "tabMustalink": "MustaLink Zero-Trust",
+      "tabAi": "Nexus Cognitiva & OCR",
+      "copyCommand": "Copiar Comando",
+      "copied": "Copiado!"
+    },
+    "pillars": {
+      "tag": "Simplicidade Operacional",
+      "title": "Construído para resolver os problemas reais de quem lida com dados",
+      "subtitle": "Sem firulas ou configurações impossíveis. O que você precisa para gerenciar bases de dados corporativas em minutos.",
+      "p1Title": "Gestão Multi-Engine Centralizada",
+      "p1Desc": "Conecte simultaneamente PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB e SQLite. Alterne entre schemas, inspecione chaves estrangeiras e execute queries sem trocar de aplicativo.",
+      "p2Title": "Túnel Seguro MustaLink (Zero-Trust)",
+      "p2Desc": "Seus bancos de dados on-premise ficam inacessíveis a invasores públicos. O túnel estabelece conexões seguras por WebSockets TLS com criptografia ponta a ponta e auditoria completa.",
+      "p3Title": "Automações & Streaming SSE",
+      "p3Desc": "Execução de consultas volumosas sem travar a interface graças ao streaming por Server-Sent Events, backups automatizados, migrações de dados e restaurações assistidas."
+    },
+    "engines": {
+      "tag": "Compatibilidade Universal",
+      "title": "Conectores nativos para os motores mais usados da indústria"
+    },
+    "features": {
+      "tag": "Recursos Completos",
+      "title": "Ferramental pensado para administradores e desenvolvedores",
+      "f1Title": "Editor Visual de Esquemas",
+      "f1Desc": "Explore estruturas completas de tabelas, tipos de dados, chaves estrangeiras e índices sem ter de escrever queries descritivas manualmente.",
+      "f2Title": "Migração & Transferência de Dados",
+      "f2Desc": "Mova registros entre bases diferentes de forma programada com mapeamento assistido de colunas e validação prévia de integridade.",
+      "f3Title": "Backups Automatizados",
+      "f3Desc": "Integração com utilitários oficiais (pg_dump, mysqldump) para cópias de segurança diretas no MinIO/S3 com progresso em tempo real.",
+      "f4Title": "Monitorização de Deadlocks",
+      "f4Desc": "Identifique consultas travadas, locks concorrentes e conexões órfãs que afetam o desempenho do seu servidor antes de causarem indisponibilidade.",
+      "f5Title": "Métricas de Volume & Histórico",
+      "f5Desc": "Histórico auditado de todas as consultas executadas por usuário, com métricas de tempo de resposta, volume de dados transferidos e logs de conformidade.",
+      "f6Title": "OCR & Ingestão Documental",
+      "f6Desc": "Extração precisa de tabelas e documentos escaneados com normalização automática para inserção direta em schemas de banco de dados."
+    },
+    "steps": {
+      "tag": "Fluxo Simples",
+      "title": "Pronto em menos de 3 minutos",
+      "s1Title": "Crie sua Conta",
+      "s1Desc": "Cadastre sua empresa em poucos segundos com login direto ou OAuth corporativo seguro (Google / GitHub).",
+      "s2Title": "Conecte seus Bancos",
+      "s2Desc": "Insira as credenciais de bases na nuvem ou inicie o agente MustaLink para conectar servidores locais com segurança.",
+      "s3Title": "Opere e Governe",
+      "s3Desc": "Consulte tabelas, crie queries, automatize backups e monitore conexões em um console de alta velocidade."
+    },
+    "cta": {
+      "title": "Pronto para centralizar e proteger seus dados?",
+      "subtitle": "Junte-se a equipes que simplificaram a administração de banco de dados e conexões on-premise com o MustaInfo.",
+      "button": "Criar Conta Gratuita",
+      "docs": "Consultar Documentação"
+    },
+    "footer": {
+      "desc": "Plataforma Corporativa Unificada de Gestão de Bancos de Dados, Conectividade Cloud e Túnel Zero-Trust.",
+      "platform": "Plataforma",
+      "engines": "Motores & Nuvem",
+      "resources": "Recursos",
+      "apiStatus": "Status da API: Operacional"
+    }
   }
 }

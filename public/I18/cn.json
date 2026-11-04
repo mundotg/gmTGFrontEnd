@@ -1354,5 +1354,99 @@
     "downstreamConsumers": "下游消费者",
     "dependentDownstream": "个下游依赖项",
     "extraction": "抽取"
+  },
+  "landing": {
+    "nav": {
+      "features": "核心功能",
+      "databases": "支持数据库",
+      "mustalink": "MustaLink 隧道",
+      "nexus": "Nexus 智能",
+      "docs": "技术文档",
+      "login": "登录",
+      "register": "立即注册",
+      "console": "进入控制台",
+      "versionBadge": "云端 v2",
+      "subtitle": "数据平台与基础设施"
+    },
+    "hero": {
+      "badge": "统一数据库基础设施与零信任安全隧道",
+      "title1": "集中连接并治理",
+      "titleHighlight": "所有企业数据基础设施",
+      "title2": "高效运营。",
+      "description": "告别工具碎片化与复杂的 VPN 配置。MustaInfo 统一接入 PostgreSQL、Oracle Database、MySQL、SQL Server、MongoDB 和 SQLite，实现实时查询、本地安全隧道及 AI 辅助分析。",
+      "startCta": "免费开始使用",
+      "consoleCta": "进入控制台",
+      "docsCta": "查看技术文档"
+    },
+    "trust": {
+      "zeroTrust": "无公网 IP 零信任安全连接",
+      "encryption": "TLS 1.3 与 AES-256 全链路加密",
+      "streaming": "SSE 实时数据流式传输",
+      "rbac": "多租户与企业级权限控制"
+    },
+    "showcase": {
+      "tunnelActive": "安全隧道在线 (12ms)",
+      "enginesOnline": "6 大引擎在线",
+      "tabConnections": "活跃连接",
+      "tabQuery": "查询工作台",
+      "tabMustalink": "MustaLink 隧道",
+      "tabAi": "Nexus AI 与 OCR",
+      "copyCommand": "复制命令",
+      "copied": "已复制!"
+    },
+    "pillars": {
+      "tag": "极致运维体验",
+      "title": "为解决真实企业数据痛点而生",
+      "subtitle": "无需复杂配置，几分钟内即可搭建与管理企业级数据库环境。",
+      "p1Title": "集中多引擎管理",
+      "p1Desc": "无缝连接 PostgreSQL、Oracle Database、MySQL、SQL Server、MongoDB 与 SQLite。",
+      "p2Title": "MustaLink 零信任隧道",
+      "p2Desc": "本地内网数据库无需暴露公网端口，通过加密长连接实现跨网安全访问。",
+      "p3Title": "自动化与流式传输",
+      "p3Desc": "通过 Server-Sent Events 支持大容量查询流式返回，防止界面卡死。"
+    },
+    "engines": {
+      "tag": "广泛兼容",
+      "title": "原生支持行业主流关系型与 NoSQL 引擎"
+    },
+    "features": {
+      "tag": "全面能力",
+      "title": "专为数据库管理员与开发团队设计",
+      "f1Title": "可视化结构浏览器",
+      "f1Desc": "快速直观查看表结构、字段类型、外键与索引关联。",
+      "f2Title": "跨库数据迁移",
+      "f2Desc": "跨异构数据库定时同步并进行字段映射与校验。",
+      "f3Title": "自动化备份与归档",
+      "f3Desc": "集成官方转储工具，直接流式备份至 MinIO/S3 云存储。",
+      "f4Title": "死锁与锁争用监控",
+      "f4Desc": "毫秒级发现阻塞事务与异常会话，保障业务连续性。",
+      "f5Title": "查询审计与历史",
+      "f5Desc": "完整记录所有人员执行记录与数据量合规审计。",
+      "f6Title": "OCR 单据智能录入",
+      "f6Desc": "精准提取票据与凭证文本，结构化导入数据表。"
+    },
+    "steps": {
+      "tag": "极简流程",
+      "title": "3 分钟内快速就绪",
+      "s1Title": "创建企业账号",
+      "s1Desc": "支持直接注册或企业 OAuth (Google / GitHub) 安全授权。",
+      "s2Title": "接入数据实例",
+      "s2Desc": "录入云数据库地址或运行 MustaLink Agent 穿透本地内网。",
+      "s3Title": "查询与统一治理",
+      "s3Desc": "在极速控制台中开展查询、管理备份并实时监控状态。"
+    },
+    "cta": {
+      "title": "准备好集中治理并保护您的数据了吗？",
+      "subtitle": "加入信赖 MustaInfo 的专业技术团队，体验高效数据运维。",
+      "button": "免费创建账号",
+      "docs": "查阅技术文档"
+    },
+    "footer": {
+      "desc": "企业级统一数据库管理、多云连接与零信任隧道平台。",
+      "platform": "平台功能",
+      "engines": "引擎与云端",
+      "resources": "资源",
+      "apiStatus": "API 运行状态：正常"
+    }
   }
 }

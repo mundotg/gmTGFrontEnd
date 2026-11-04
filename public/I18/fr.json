@@ -1646,5 +1646,99 @@
       "noData": "Aucune donnée d'aperçu disponible pour cette table.",
       "closeAndOpen": "Fermer et voir la connexion"
     }
+  },
+  "landing": {
+    "nav": {
+      "features": "Fonctionnalités",
+      "databases": "Bases Prises en Charge",
+      "mustalink": "Agent MustaLink",
+      "nexus": "Nexus IA",
+      "docs": "Documentation",
+      "login": "Connexion",
+      "register": "Créer un Compte",
+      "console": "Accéder à la Console",
+      "versionBadge": "Cloud v2",
+      "subtitle": "Data Platform & Infrastructure"
+    },
+    "hero": {
+      "badge": "Infrastructure Unifiée de Bases de Données & Tunnel Sécurisé",
+      "title1": "Toute votre infrastructure de données",
+      "titleHighlight": "connectée et gouvernée",
+      "title2": "en un seul endroit.",
+      "description": "Éliminez la dispersion entre DBeaver, Compass et VPNs complexes. MustaInfo unifie PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB et SQLite avec requêtes en temps réel et tunnel sécurisé MustaLink.",
+      "startCta": "Commencer Gratuitement",
+      "consoleCta": "Aller à la Console",
+      "docsCta": "Voir la Documentation"
+    },
+    "trust": {
+      "zeroTrust": "Connexion Zero-Trust sans IP publique",
+      "encryption": "Chiffrement TLS 1.3 & AES-256",
+      "streaming": "Streaming de Données par SSE",
+      "rbac": "Multi-Tenant & RBAC d'Entreprise"
+    },
+    "showcase": {
+      "tunnelActive": "Tunnel Actif (12ms)",
+      "enginesOnline": "6 Moteurs en Ligne",
+      "tabConnections": "Connexions Actives",
+      "tabQuery": "Query Studio & SSE",
+      "tabMustalink": "MustaLink Zero-Trust",
+      "tabAi": "Nexus IA & OCR",
+      "copyCommand": "Copier la Commande",
+      "copied": "Copié !"
+    },
+    "pillars": {
+      "tag": "Simplicité Opérationnelle",
+      "title": "Conçu pour résoudre les défis réels de gestion de données",
+      "subtitle": "Tout ce dont vous avez besoin pour administrer des bases d'entreprise en quelques minutes.",
+      "p1Title": "Gestion Multi-Moteur Centralisée",
+      "p1Desc": "Connectez simultanément PostgreSQL, Oracle Database, MySQL, SQL Server, MongoDB et SQLite.",
+      "p2Title": "Tunnel Sécurisé MustaLink (Zero-Trust)",
+      "p2Desc": "Vos bases sur site restent invisibles aux attaques externes avec tunnel chiffré de bout en bout.",
+      "p3Title": "Automatisations & Streaming SSE",
+      "p3Desc": "Exécution rapide de requêtes sans blocage d'interface grâce à Server-Sent Events et sauvegardes programmées."
+    },
+    "engines": {
+      "tag": "Compatibilité Universelle",
+      "title": "Connecteurs natifs pour les moteurs les plus utilisés"
+    },
+    "features": {
+      "tag": "Outils Complets",
+      "title": "Conçu pour les administrateurs et ingénieurs logiciels",
+      "f1Title": "Explorateur de Schémas",
+      "f1Desc": "Explorez tables, colonnes et clés étrangères sans écrire de requêtes manuelles.",
+      "f2Title": "Migration & Pipelines",
+      "f2Desc": "Transférez des enregistrements entre bases avec validation d'intégrité.",
+      "f3Title": "Sauvegardes Automatisées",
+      "f3Desc": "Exportation directe vers MinIO/S3 avec suivi de progression en temps réel.",
+      "f4Title": "Surveillance des Deadlocks",
+      "f4Desc": "Détectez les verrous et sessions bloquées avant tout impact opérationnel.",
+      "f5Title": "Métriques & Audit",
+      "f5Desc": "Historique audité de toutes les requêtes exécutées avec métriques de temps.",
+      "f6Title": "OCR & Ingestion de Documents",
+      "f6Desc": "Extraction de factures et documents scannés directement dans vos tables."
+    },
+    "steps": {
+      "tag": "Flux Simple",
+      "title": "Opérationnel en moins de 3 minutes",
+      "s1Title": "Créez votre Compte",
+      "s1Desc": "Inscrivez votre entreprise en quelques secondes avec authentification sécurisée.",
+      "s2Title": "Connectez vos Bases",
+      "s2Desc": "Renseignez vos identifiants cloud ou lancez l'agent MustaLink pour vos serveurs locaux.",
+      "s3Title": "Gérez et Automatisez",
+      "s3Desc": "Exécutez des requêtes et pilotez vos données depuis une console haute performance."
+    },
+    "cta": {
+      "title": "Prêt à centraliser et sécuriser vos données ?",
+      "subtitle": "Rejoignez les équipes qui font confiance à MustaInfo pour leurs opérations de données.",
+      "button": "Créer un Compte Gratuit",
+      "docs": "Consulter la Documentation"
+    },
+    "footer": {
+      "desc": "Plateforme d'Entreprise Unifiée pour la Gestion de Données et Connexion Cloud Zero-Trust.",
+      "platform": "Plateforme",
+      "engines": "Moteurs & Cloud",
+      "resources": "Ressources",
+      "apiStatus": "État de l'API : Opérationnel"
+    }
   }
 }
