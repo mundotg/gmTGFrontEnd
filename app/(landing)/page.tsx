@@ -16,7 +16,6 @@ import {
   Lock,
   ArrowRight,
   CheckCircle2,
-  ChevronRight,
   Copy,
   Check,
   Server,
@@ -29,7 +28,6 @@ import {
   Sun,
   Moon,
   Monitor,
-  ExternalLink,
   Table2,
   RefreshCw,
   FolderArchive,
@@ -70,13 +68,13 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-800 dark:text-slate-100 font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200">
-      
+
       {/* ============================================================ */}
       {/* 1. NAVBAR CORPORATIVA ELEGANTE                              */}
       {/* ============================================================ */}
       <header className="sticky top-0 z-50 bg-white/90 dark:bg-[#0B0F19]/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          
+
           {/* Logo e Nome */}
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2.5 group">
@@ -116,7 +114,7 @@ export default function LandingPage() {
             </a>
             <Link href="/nexus-cognitiva" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-1.5">
               <Sparkles size={15} className="text-blue-500" />
-              Nexus IA
+              Nexus CGT
             </Link>
             <Link href="/docs" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
               Documentação
@@ -188,7 +186,7 @@ export default function LandingPage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-blue-500/10 via-indigo-500/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-7">
-          
+
           {/* Badge de introdução */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 text-blue-700 dark:text-blue-300 text-xs font-semibold shadow-xs">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -255,7 +253,7 @@ export default function LandingPage() {
         {/* ============================================================ */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-14">
           <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl overflow-hidden">
-            
+
             {/* Top Bar da Janela (Estilo Console Operacional) */}
             <div className="px-4 py-3 bg-slate-100/80 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -280,11 +278,10 @@ export default function LandingPage() {
             <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 overflow-x-auto text-xs font-medium">
               <button
                 onClick={() => setActiveTab("connections")}
-                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "connections"
-                    ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
-                    : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                }`}
+                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === "connections"
+                  ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
+                  : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
               >
                 <Database size={15} />
                 <span>Conexões Ativas</span>
@@ -292,11 +289,10 @@ export default function LandingPage() {
 
               <button
                 onClick={() => setActiveTab("query")}
-                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "query"
-                    ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
-                    : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                }`}
+                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === "query"
+                  ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
+                  : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
               >
                 <Terminal size={15} />
                 <span>Query Studio & SSE</span>
@@ -304,11 +300,10 @@ export default function LandingPage() {
 
               <button
                 onClick={() => setActiveTab("mustalink")}
-                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "mustalink"
-                    ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
-                    : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                }`}
+                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === "mustalink"
+                  ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
+                  : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
               >
                 <Network size={15} />
                 <span>MustaLink Zero-Trust</span>
@@ -316,11 +311,10 @@ export default function LandingPage() {
 
               <button
                 onClick={() => setActiveTab("ai")}
-                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "ai"
-                    ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
-                    : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                }`}
+                className={`flex items-center gap-2 px-5 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === "ai"
+                  ? "border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 font-bold"
+                  : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
               >
                 <Sparkles size={15} />
                 <span>Nexus Cognitiva & OCR</span>
@@ -329,7 +323,7 @@ export default function LandingPage() {
 
             {/* Conteúdo da Aba Ativa */}
             <div className="p-6 md:p-8 bg-white dark:bg-slate-900 font-sans min-h-[290px] flex flex-col justify-center">
-              
+
               {/* TAB 1: CONEXÕES ATIVAS */}
               {activeTab === "connections" && (
                 <div className="space-y-4 animate-in fade-in duration-300">
@@ -487,7 +481,7 @@ export default function LandingPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
+
           {/* Pilar 1 */}
           <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-500/50 hover:shadow-lg transition-all space-y-4">
             <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
@@ -535,7 +529,7 @@ export default function LandingPage() {
       {/* ============================================================ */}
       <section id="motores" className="py-16 bg-slate-100/60 dark:bg-slate-900/40 border-y border-slate-200/60 dark:border-slate-800/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-10">
-          
+
           <div className="space-y-2">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Compatibilidade Universal
@@ -585,7 +579,7 @@ export default function LandingPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          
+
           <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
             <Table2 className="text-blue-600" size={24} />
             <h4 className="font-bold text-lg text-slate-900 dark:text-white">Editor Visual de Esquemas</h4>
@@ -642,7 +636,7 @@ export default function LandingPage() {
       {/* ============================================================ */}
       <section className="py-20 bg-slate-100/60 dark:bg-slate-900/40 border-y border-slate-200/60 dark:border-slate-800/60">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-          
+
           <div className="text-center space-y-2">
             <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
               Fluxo Simples
@@ -653,7 +647,7 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
-            
+
             <div className="space-y-3">
               <span className="text-4xl font-black text-blue-600/30 dark:text-blue-400/20 font-mono">
                 01
@@ -694,7 +688,7 @@ export default function LandingPage() {
       {/* ============================================================ */}
       <section className="py-20 max-w-5xl mx-auto px-4 sm:px-6">
         <div className="rounded-3xl bg-gradient-to-br from-blue-700 via-blue-800 to-indigo-900 text-white p-8 sm:p-14 text-center space-y-6 shadow-2xl relative overflow-hidden">
-          
+
           <div className="relative z-10 max-w-2xl mx-auto space-y-4">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight">
               Pronto para centralizar e proteger seus dados?
@@ -726,7 +720,7 @@ export default function LandingPage() {
       {/* ============================================================ */}
       <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 py-12 text-sm text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
-          
+
           {/* Coluna 1: Marca */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
