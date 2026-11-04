@@ -1320,7 +1320,7 @@
       "intro": {
         "eyebrow": "Platform Overview",
         "title": "What is MustaInfo?",
-        "desc": "MustaInfo is the unified platform for data management, pipeline engineering, cognitive AI, and secure reverse tunnels. It brings on-premise and multi-cloud databases together in one single workspace.",
+        "desc": "MustaInfo is the unified platform for data management, pipeline engineering, and secure reverse tunnels. It brings on-premise and multi-cloud databases together in one single workspace.",
         "pillars_title": "The Three Core Pillars",
         "pillar1_title": "1. Hybrid Data Engineering",
         "pillar1_desc": "Connect any database (PostgreSQL, MySQL, Oracle, SQL Server, MongoDB, Redis) directly or through the MustaLink agent without opening firewall ports.",
