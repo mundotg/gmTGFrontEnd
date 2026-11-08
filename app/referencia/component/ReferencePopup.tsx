@@ -24,12 +24,12 @@ const FieldSkeleton = () => (
   </div>
 );
 
-// Componente principal do popup
+// Componente principal do popup de referência
 export const ReferencePopup = () => {
   const searchParams = useSearchParams();
-  const table = useMemo(() => searchParams.get("table"), [searchParams]);
-  const field = useMemo(() => searchParams.get("field"), [searchParams]);
-  const value = useMemo(() => searchParams.get("value"), [searchParams]);
+  const table = useMemo(() => searchParams.get("table") || "", [searchParams]);
+  const field = useMemo(() => searchParams.get("field") || "", [searchParams]);
+  const value = useMemo(() => searchParams.get("value") || "", [searchParams]);
 
   const { t } = useI18n();
 
@@ -43,36 +43,35 @@ export const ReferencePopup = () => {
   const [enabledFields, setEnabledFields] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Estados de UI
-  const [isLoading, setIsLoading] = useState(false);
+  // Estados de UI - inicia em true para exibir o skeleton enquanto busca dados
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string>('');
 
   const { openReferencePopup: viewReferenceTable } = usePopupReference();
 
-  // Dados computados
+  // Dados computados - na página de referência há apenas uma tabela em foco
   const selectedTables = useMemo(() => {
-    return informacaosOftables.filter((t_meta) =>
-      selectColumns.some((col) => col.startsWith(`${t_meta.table_name}.`))
-    );
-  }, [selectColumns, informacaosOftables]);
+    return informacaosOftables;
+  }, [informacaosOftables]);
 
   const hasChanges = useMemo(() => {
     return Object.values(editedFields).some(f => f.hasChanged);
   }, [editedFields]);
 
   const hasValidationErrors = useMemo(() => {
-    return Object.values(errors).some(error => error);
+    return Object.values(errors).some(error => !!error);
   }, [errors]);
 
   const changedFieldsCount = useMemo(() => {
     return Object.values(editedFields).filter(f => f.hasChanged).length;
   }, [editedFields]);
 
-  // Carregamento inicial dos dados
+  // Carregamento inicial dos dados com normalização robusta
   useEffect(() => {
     if (!table || !field || !value) {
       setLoadError(t("referencePopup.invalidParams") || 'Parâmetros inválidos: table, field e value são obrigatórios');
+      setIsLoading(false);
       return;
     }
 
@@ -83,63 +82,112 @@ export const ReferencePopup = () => {
         setIsLoading(true);
         setLoadError('');
 
-        // Buscar metadados da tabela
-        const metadataResponse = await api.get<MetadataTableResponse>(
-          `/consu/metadata_fieds/${encodeURIComponent(table)}`,
-          { withCredentials: true, signal: controller.signal }
-        );
+        // 1. Normaliza os nomes de tabela e campo (remove schemas se existirem para o match local)
+        const pureTable = table.includes(".") ? table.split(".").pop()! : table;
+        const pureField = field.includes(".") ? field.split(".").pop()! : field;
 
-        const metadata = metadataResponse.data;
-        const selectCols: Record<string, string> = metadata.colunas.reduce((acc, col) => {
-          acc[`${table}.${col.nome}`] = `${table}.${col.nome}`;
-          return acc;
-        }, {} as Record<string, string>);
+        // 2. Buscar metadados da tabela
+        let metadata: MetadataTableResponse | null = null;
+        try {
+          const res = await api.get<MetadataTableResponse>(
+            `/consu/metadata_fieds/${encodeURIComponent(table)}`,
+            { withCredentials: true, signal: controller.signal }
+          );
+          metadata = res.data;
+        } catch {
+          // Se a tabela falhar com schema/sem schema, tenta a variante pura
+          if (pureTable !== table) {
+            const res = await api.get<MetadataTableResponse>(
+              `/consu/metadata_fieds/${encodeURIComponent(pureTable)}`,
+              { withCredentials: true, signal: controller.signal }
+            );
+            metadata = res.data;
+          } else {
+            throw new Error(`Não foi possível carregar os metadados da tabela '${table}'.`);
+          }
+        }
 
-        // Construir query para buscar o registro
+        if (!metadata || !metadata.colunas || metadata.colunas.length === 0) {
+          throw new Error("Não foi possível carregar a estrutura de colunas desta tabela.");
+        }
+
+        // Tabela efetiva para a query
+        const actualTable = metadata.table_name || table;
+
+        // 3. Montar aliases de coluna sem duplicar prefixo
+        const selectCols: Record<string, string> = {};
+        metadata.colunas.forEach((col) => {
+          const colClean = col.nome.includes(".") ? col.nome.split(".").pop()! : col.nome;
+          const qualified = `${actualTable}.${colClean}`;
+          selectCols[qualified] = qualified;
+        });
+
+        // 4. Identificar o tipo correto da coluna do filtro
+        const targetCol = metadata.colunas.find((c) => {
+          const cName = c.nome.includes(".") ? c.nome.split(".").pop()! : c.nome;
+          return cName.toLowerCase() === pureField.toLowerCase();
+        });
+
+        let columnType = targetCol?.tipo?.toLowerCase() || "string";
+        const trimmedVal = value.trim();
+
+        // Se o valor for no padrão UUID (36 caracteres hex com hífens), força tipo 'uuid'
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedVal)) {
+          columnType = "uuid";
+        }
+
+        // 5. Construir query para buscar o registro
         const query: QueryPayload = {
-          baseTable: table,
+          baseTable: actualTable,
           aliaisTables: selectCols,
-          table_list: [table],
+          table_list: [actualTable],
           joins: {},
           where: [{
-            table_name_fil: table,
-            column: field,
+            table_name_fil: actualTable,
+            column: pureField,
             operator: "=",
-            value,
+            value: trimmedVal,
             logicalOperator: "AND",
-            column_type: metadata.colunas.find((c) => c.nome === field)?.tipo || "string",
+            column_type: columnType as any,
             value_type: "string",
           }],
           limit: 1,
         };
 
-        // Executar query
+        // 6. Executar query
         const queryResponse = await api.post<QueryResultType>(
-          "/exe/execute_query/",
+          "/exe/execute_query",
           query,
           { withCredentials: true, signal: controller.signal }
         );
 
-        if (!queryResponse.data.preview[0]) {
+        const previewRows = queryResponse.data?.preview || [];
+        if (!previewRows[0]) {
           setLoadError(t("referencePopup.notFound") || 'Registro não encontrado');
           return;
         }
 
         const selectedRow: SelectedRow = {
-          row: queryResponse.data.preview[0],
+          row: previewRows[0],
           nameColumns: Object.keys(selectCols),
-          tableName: [table],
+          tableName: [actualTable],
         };
 
         setRow(selectedRow);
         setInformacaosOftables([metadata]);
         setSelectColumns(Object.keys(selectCols));
       } catch (error) {
-        const e = error as { name?: string; response?: { data?: { message?: string } } };
-        // Ignora apenas o cancelamento (AbortController ao desmontar).
+        const e = error as { name?: string; message?: string; response?: { data?: { message?: string; detail?: string } } };
+        // Ignora apenas o cancelamento (AbortController ao desmontar)
         if (e?.name !== "CanceledError" && e?.name !== "AbortError") {
-          console.error("Erro ao carregar dados:", error);
-          setLoadError(e?.response?.data?.message || t("referencePopup.loadError") || 'Erro ao carregar dados');
+          console.error("Erro ao carregar dados de referência:", error);
+          const errorMsg =
+            e?.response?.data?.detail ||
+            e?.response?.data?.message ||
+            e?.message ||
+            t("referencePopup.loadError") ||
+            'Erro ao carregar dados';
+          setLoadError(errorMsg);
         }
       } finally {
         setIsLoading(false);
@@ -148,7 +196,8 @@ export const ReferencePopup = () => {
 
     fetchData();
     return () => controller.abort();
-  }, [table, field, value, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table, field, value]);
 
   // Hook customizado para deletar registro
   const onDelete = useCallback(async (payload: PayloadDeleteRow, index: number) => {
@@ -195,28 +244,70 @@ export const ReferencePopup = () => {
   } = useRowDelete({
     row,
     selectedTables,
-
     onDelete,
     onClose: typeof window !== "undefined" ? () => window.close() : () => { }
   });
 
-  // Inicializar campos editáveis
+  // Inicializar campos editáveis garantindo que todas as variantes de chaves casem com FieldEditor
   useEffect(() => {
     if (!row?.row || Object.keys(row.row).length === 0) return;
 
     const initialEditedFields: Record<string, EditedField> = {};
     const initialEnabledFields: Record<string, boolean> = {};
 
-    Object.entries(row.row).forEach(([key, val]) => {
-      initialEditedFields[key] = {
-        value: String(val ?? ''),
-        tableName: table || row.tableName?.[0] || "",
+    const meta = informacaosOftables[0];
+    const actualTable = meta?.table_name || table || row.tableName?.[0] || "";
+    const justTable = actualTable.includes(".") ? actualTable.split(".").pop()! : actualTable;
+
+    // Popula a partir dos dados retornados da query
+    Object.entries(row.row).forEach(([rawKey, val]) => {
+      const pureKey = rawKey.includes(".") ? rawKey.split(".").pop()! : rawKey;
+      const valStr = val !== null && val !== undefined ? String(val) : "";
+
+      const targetCol = meta?.colunas?.find((c) => {
+        const cName = c.nome.includes(".") ? c.nome.split(".").pop()! : c.nome;
+        return cName.toLowerCase() === pureKey.toLowerCase();
+      });
+
+      const fieldObj: EditedField = {
+        value: valStr,
+        tableName: actualTable,
         hasChanged: false,
-        type_column: "text"
+        type_column: targetCol?.tipo || "text",
       };
-      // A chave tem de ser a MESMA usada no render/toggle (`correctKey`),
-      // caso contrário o estado de "editável" nunca casa e ficava morto.
-      initialEnabledFields[key] = false;
+
+      // Mapeia todas as possíveis variações da chave
+      initialEditedFields[rawKey] = fieldObj;
+      initialEnabledFields[rawKey] = false;
+
+      initialEditedFields[pureKey] = fieldObj;
+      initialEnabledFields[pureKey] = false;
+
+      initialEditedFields[`${actualTable}.${pureKey}`] = fieldObj;
+      initialEnabledFields[`${actualTable}.${pureKey}`] = false;
+
+      if (justTable && justTable !== actualTable) {
+        initialEditedFields[`${justTable}.${pureKey}`] = fieldObj;
+        initialEnabledFields[`${justTable}.${pureKey}`] = false;
+      }
+    });
+
+    // Garante que todas as colunas dos metadados tenham entrada em editedFields
+    meta?.colunas?.forEach((col) => {
+      const pureKey = col.nome.includes(".") ? col.nome.split(".").pop()! : col.nome;
+      const keyWithTable = `${actualTable}.${pureKey}`;
+      if (!initialEditedFields[keyWithTable] && !initialEditedFields[pureKey]) {
+        const fieldObj: EditedField = {
+          value: "",
+          tableName: actualTable,
+          hasChanged: false,
+          type_column: col.tipo || "text",
+        };
+        initialEditedFields[keyWithTable] = fieldObj;
+        initialEditedFields[pureKey] = fieldObj;
+        initialEnabledFields[keyWithTable] = false;
+        initialEnabledFields[pureKey] = false;
+      }
     });
 
     setEditedFields(initialEditedFields);
@@ -260,26 +351,40 @@ export const ReferencePopup = () => {
       const tables_primary_keys_values = Object.entries(editedFields)
         .filter(([, f]) => f.hasChanged)
         .reduce((acc, [key, f]) => {
-          const t_meta = informacaosOftables.find(t => t.table_name === f.tableName);
+          const t_meta = informacaosOftables.find(t => t.table_name === f.tableName) || informacaosOftables[0];
           if (!t_meta) return acc;
 
+          const pureColKey = key.includes(".") ? key.split(".").pop()! : key;
+
           if (!acc[t_meta.table_name]) {
-            const primaryKeyField = findIdentifierField(t_meta.table_name, informacaosOftables)?.nome;
-            const primary_key_name = `${t_meta.table_name}.${primaryKeyField}`;
+            const pkCol = findIdentifierField(t_meta.table_name, informacaosOftables);
+            const pkField = pkCol?.nome ? (pkCol.nome.includes(".") ? pkCol.nome.split(".").pop()! : pkCol.nome) : "id";
+            const primary_key_name = `${t_meta.table_name}.${pkField}`;
+            
+            // Busca o valor da PK em todas as possíveis variantes de chave no row
+            const pkVal =
+              row?.row?.[primary_key_name] ??
+              row?.row?.[pkField] ??
+              row?.row?.[`${t_meta.table_name.split(".").pop()}.${pkField}`] ??
+              "null";
+
             acc[t_meta.table_name] = {
               primaryKey: primary_key_name,
-              valor: String(row?.row?.[primary_key_name]) ?? "null",
+              valor: String(pkVal),
             };
           }
 
-          acc[t_meta.table_name][key] = f.value;
+          acc[t_meta.table_name][pureColKey] = f.value;
           return acc;
         }, {} as Tables_primary_keys_values);
 
       const updatedRow = Object.entries(editedFields)
         .filter(([, f]) => f.hasChanged)
         .reduce<EditedFieldForQuery>((acc, [key, f]) => {
-          const [tableName, column] = key.split(".");
+          const parts = key.split(".");
+          const column = parts.pop() || key;
+          const tableName = f.tableName || parts.join(".") || table;
+
           if (!acc[tableName]) acc[tableName] = {};
           acc[tableName][column] = {
             value: String(f.value),
@@ -301,7 +406,7 @@ export const ReferencePopup = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [hasChanges, hasValidationErrors, editedFields, informacaosOftables, row?.row, t]);
+  }, [hasChanges, hasValidationErrors, editedFields, informacaosOftables, row?.row, table, t]);
 
   const handleClose = useCallback(() => {
     if (hasChanges) {
@@ -339,10 +444,10 @@ export const ReferencePopup = () => {
   if (loadError) {
     return (
       <div className="w-full h-screen bg-white flex flex-col items-center justify-center">
-        <div className="text-center">
+        <div className="text-center p-6 max-w-md">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-800 mb-2">{t("referencePopup.errorTitle") || "Erro ao Carregar"}</h2>
-          <p className="text-gray-600 mb-4">{loadError}</p>
+          <p className="text-gray-600 mb-4 break-words">{loadError}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 mx-auto"
@@ -356,13 +461,20 @@ export const ReferencePopup = () => {
   }
 
   // Render: No Data
-  if (!row || selectedTables.length === 0) {
+  if (!isLoading && (!row?.row || Object.keys(row.row).length === 0 || selectedTables.length === 0)) {
     return (
       <div className="w-full h-screen bg-white flex flex-col items-center justify-center">
-        <div className="text-center">
+        <div className="text-center p-6 max-w-md">
           <Database className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-800 mb-2">{t("referencePopup.noDataTitle") || "Nenhum Dado Encontrado"}</h2>
-          <p className="text-gray-600">{t("referencePopup.noDataDesc") || "Não foi possível carregar os dados solicitados."}</p>
+          <p className="text-gray-600 mb-4">{t("referencePopup.noDataDesc") || "Não foi possível carregar os dados solicitados."}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 mx-auto"
+          >
+            <RefreshCw className="w-4 h-4" />
+            {t("actions.tryAgain") || "Tentar Novamente"}
+          </button>
         </div>
       </div>
     );
@@ -407,36 +519,41 @@ export const ReferencePopup = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {metadata.colunas.map((col, index) => {
-                // 1. Extrai apenas o nome da tabela (remove o schema, se houver)
+                // 1. Extrai o nome puro da coluna e da tabela
+                const pureCol = col.nome.includes(".") ? col.nome.split(".").pop()! : col.nome;
                 const justTable = metadata.table_name.includes(".")
-                  ? metadata.table_name.split(".").pop()
+                  ? metadata.table_name.split(".").pop()!
                   : metadata.table_name;
 
-                // 2. Monta as 3 possíveis chaves que podem estar no nosso State
-                const keyWithSchema = `${metadata.table_name}.${col.nome}`; // Ex: public.users.name
-                const keyWithTable = `${justTable}.${col.nome}`;            // Ex: users.name
-                const keyJustColumn = col.nome;                             // Ex: name
+                // 2. Procura nas variações registradas
+                const keyWithSchema = `${metadata.table_name}.${pureCol}`;
+                const keyWithTable = `${justTable}.${pureCol}`;
+                const keyJustColumn = pureCol;
+                const keyExact = col.nome;
 
-                // 3. Descobre qual é a chave correta procurando no objeto
-                const correctKey = editedFields[keyWithSchema] ? keyWithSchema :
+                const correctKey =
+                  editedFields[keyWithSchema] ? keyWithSchema :
                   editedFields[keyWithTable] ? keyWithTable :
-                    editedFields[keyJustColumn] ? keyJustColumn :
-                      null;
+                  editedFields[keyExact] ? keyExact :
+                  editedFields[keyJustColumn] ? keyJustColumn :
+                  keyWithTable;
 
-                // 4. Pega os valores
-                const editedField = correctKey ? editedFields[correctKey] : null;
+                // 3. Fallback seguro caso não tenha sido inicializado
+                const editedField = editedFields[correctKey] || {
+                  value: "",
+                  tableName: metadata.table_name,
+                  hasChanged: false,
+                  type_column: col.tipo || "text",
+                };
 
-                if (!editedField) return null;
-
-                // Como editField existe, sabemos que correctKey é uma string!
-                const isEnabled = enabledFields[correctKey as string] ?? false;
-                const hasError = errors[correctKey as string] ?? "";
+                const isEnabled = enabledFields[correctKey] ?? false;
+                const hasError = errors[correctKey] ?? "";
 
                 return (
                   <FieldEditor
                     key={`${correctKey}_${index}`}
                     col={col}
-                    qualifiedName={correctKey as string}
+                    qualifiedName={correctKey}
                     metadata={metadata}
                     editedField={editedField}
                     isEnabled={isEnabled}
@@ -454,13 +571,13 @@ export const ReferencePopup = () => {
 
       {/* Footer */}
       <ModalFooter
-        onDelete={() => setShowDeleteConfirm(true)} // Tira essa linha se for um modal de "Criar Novo"
+        onDelete={() => setShowDeleteConfirm(true)}
         onCancel={handleClose}
         onSave={handleSave}
         isLoading={isLoading}
         isDeleting={isDeleting}
         isSaving={isSaving}
-        disableSave={!hasChanges || isLoading || isDeleting || Object.values(errors).some(error => error)}
+        disableSave={!hasChanges || isLoading || isDeleting || Object.values(errors).some(error => !!error)}
       />
 
       {/* Modal de Confirmação de Delete */}
