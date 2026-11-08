@@ -142,6 +142,7 @@ const DatabaseConnectionForm = () => {
 
   // Debounce para refresh connections
   const refreshConnectionsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastRefreshTime = useRef<number>(Date.now());
 
   const refreshConnections = useCallback(() => {
     // Debounce para evitar múltiplas execuções rápidas
@@ -150,6 +151,7 @@ const DatabaseConnectionForm = () => {
     }
 
     refreshConnectionsTimeout.current = setTimeout(() => {
+      lastRefreshTime.current = Date.now();
       // As DUAS listas. O histórico ficava para trás porque só a paginação
       // das conexões era re-executada — daí os eventos nunca aparecerem
       // depois de criar, apagar ou alternar uma conexão.
@@ -161,11 +163,14 @@ const DatabaseConnectionForm = () => {
     }, 300);
   }, [setExecute, setExecuteHistory]);
 
-  // Voltar à página (ou ao separador) revalida: sem isto, ficava-se a olhar
-  // para o estado de quando se saiu.
+  // Voltar à página (ou ao separador) revalida com intervalo mínimo de 15s para evitar spam
   useEffect(() => {
     const revalidar = () => {
-      if (document.visibilityState === "visible") refreshConnections();
+      if (document.visibilityState === "visible") {
+        if (Date.now() - lastRefreshTime.current > 15000) {
+          refreshConnections();
+        }
+      }
     };
     window.addEventListener("focus", revalidar);
     document.addEventListener("visibilitychange", revalidar);
@@ -486,14 +491,17 @@ const DatabaseConnectionForm = () => {
   }, [api]);
 
   useEffect(() => {
+    // Se o modal estiver aberto, ele próprio já faz polling e atualiza onAgentsUpdated
+    if (isMustaLinkOpen) return;
+
     refreshOnlineAgents();
     const timer = setInterval(() => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && !isMustaLinkOpen) {
         refreshOnlineAgents();
       }
-    }, 10000);
+    }, 20000);
     return () => clearInterval(timer);
-  }, [refreshOnlineAgents]);
+  }, [isMustaLinkOpen, refreshOnlineAgents]);
 
   const handleSelectAgentFromModal = useCallback(
     (_agentId: string, virtualHost: string) => {
