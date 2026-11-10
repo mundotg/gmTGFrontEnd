@@ -30,6 +30,8 @@ export const ReferencePopup = () => {
   const table = useMemo(() => searchParams.get("table") || "", [searchParams]);
   const field = useMemo(() => searchParams.get("field") || "", [searchParams]);
   const value = useMemo(() => searchParams.get("value") || "", [searchParams]);
+  const schemaParam = useMemo(() => searchParams.get("schema") || "", [searchParams]);
+  const connectionIdParam = useMemo(() => searchParams.get("connection_id") || searchParams.get("conn_id") || "", [searchParams]);
 
   const { t } = useI18n();
 
@@ -69,7 +71,16 @@ export const ReferencePopup = () => {
 
   // Carregamento inicial dos dados com normalização robusta
   useEffect(() => {
+    console.log('[ReferencePopup 🔍] useEffect acionado com parâmetros:', {
+      table,
+      field,
+      value,
+      schemaParam,
+      connectionIdParam,
+    });
+
     if (!table || !field || !value) {
+      console.warn('[ReferencePopup ⚠️] Parâmetros obrigatórios ausentes:', { table, field, value });
       setLoadError(t("referencePopup.invalidParams") || 'Parâmetros inválidos: table, field e value são obrigatórios');
       setIsLoading(false);
       return;
@@ -79,40 +90,124 @@ export const ReferencePopup = () => {
 
     const fetchData = async () => {
       try {
+        console.log('[ReferencePopup 🚀] Iniciando fetchData...');
         setIsLoading(true);
         setLoadError('');
 
-        // 1. Normaliza os nomes de tabela e campo (remove schemas se existirem para o match local)
+        // 1. Normaliza os nomes de tabela e campo
         const pureTable = table.includes(".") ? table.split(".").pop()! : table;
         const pureField = field.includes(".") ? field.split(".").pop()! : field;
+        const embeddedSchema = table.includes(".") ? table.split(".")[0] : "";
+        const targetSchema = schemaParam || embeddedSchema;
 
-        // 2. Buscar metadados da tabela
+        console.log('[ReferencePopup ⚙️] Nomes normalizados:', {
+          pureTable,
+          pureField,
+          embeddedSchema,
+          targetSchema,
+        });
+
+        // 2. Buscar metadados da tabela com fallback seguro
         let metadata: MetadataTableResponse | null = null;
-        try {
-          const res = await api.get<MetadataTableResponse>(
-            `/consu/metadata_fieds/${encodeURIComponent(table)}`,
-            { withCredentials: true, signal: controller.signal }
+        let lastErrorMsg = '';
+
+        const fetchMeta = async (tbl: string, sch?: string) => {
+          const params: Record<string, string> = {};
+          if (sch) params.schema = sch;
+          if (connectionIdParam) params.connection_id = connectionIdParam;
+
+          console.log(`[ReferencePopup 📡] GET /consu/metadata_fieds/${encodeURIComponent(tbl)}`, { params });
+          return await api.get<MetadataTableResponse>(
+            `/consu/metadata_fieds/${encodeURIComponent(tbl)}`,
+            { params, withCredentials: true, signal: controller.signal }
           );
+        };
+
+        // Tentativa 1: nome informado + schema (se houver)
+        try {
+          console.log('[ReferencePopup 📡] Metadados Tentativa 1 (nome informado + schema)...');
+          const res = await fetchMeta(table, targetSchema);
           metadata = res.data;
-        } catch {
-          // Se a tabela falhar com schema/sem schema, tenta a variante pura
-          if (pureTable !== table) {
-            const res = await api.get<MetadataTableResponse>(
-              `/consu/metadata_fieds/${encodeURIComponent(pureTable)}`,
-              { withCredentials: true, signal: controller.signal }
-            );
+          console.log('[ReferencePopup ✅] Metadados obtidos na Tentativa 1:', {
+            table_name: metadata?.table_name,
+            connection_id: metadata?.connection_id,
+            total_colunas: metadata?.colunas?.length,
+          });
+        } catch (err: any) {
+          console.warn('[ReferencePopup ⚠️] Falha na Tentativa 1:', {
+            message: err?.message,
+            status: err?.response?.status,
+            data: err?.response?.data,
+            aborted: controller.signal.aborted,
+          });
+          if (controller.signal.aborted) {
+            console.log('[ReferencePopup 🛑] Requisição abortada pelo controller.');
+            return;
+          }
+          lastErrorMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || '';
+
+          // Tentativa 2: pureTable com schema explícito ou fallback para 'public'
+          try {
+            console.log('[ReferencePopup 📡] Metadados Tentativa 2 (pureTable com schema)...', { pureTable, schema: targetSchema || 'public' });
+            const res = await fetchMeta(pureTable, targetSchema || 'public');
             metadata = res.data;
-          } else {
-            throw new Error(`Não foi possível carregar os metadados da tabela '${table}'.`);
+            console.log('[ReferencePopup ✅] Metadados obtidos na Tentativa 2:', {
+              table_name: metadata?.table_name,
+              connection_id: metadata?.connection_id,
+              total_colunas: metadata?.colunas?.length,
+            });
+          } catch (err2: any) {
+            console.warn('[ReferencePopup ⚠️] Falha na Tentativa 2:', {
+              message: err2?.message,
+              status: err2?.response?.status,
+              data: err2?.response?.data,
+              aborted: controller.signal.aborted,
+            });
+            if (controller.signal.aborted) {
+              console.log('[ReferencePopup 🛑] Requisição abortada pelo controller.');
+              return;
+            }
+            lastErrorMsg = err2?.response?.data?.detail || err2?.response?.data?.message || lastErrorMsg;
+
+            // Tentativa 3: pureTable sem schema
+            try {
+              console.log('[ReferencePopup 📡] Metadados Tentativa 3 (pureTable sem schema)...', { pureTable });
+              const res = await fetchMeta(pureTable);
+              metadata = res.data;
+              console.log('[ReferencePopup ✅] Metadados obtidos na Tentativa 3:', {
+                table_name: metadata?.table_name,
+                connection_id: metadata?.connection_id,
+                total_colunas: metadata?.colunas?.length,
+              });
+            } catch (err3: any) {
+              console.error('[ReferencePopup ❌] Falha em todas as tentativas de metadados:', {
+                message: err3?.message,
+                status: err3?.response?.status,
+                data: err3?.response?.data,
+                aborted: controller.signal.aborted,
+              });
+              if (controller.signal.aborted) {
+                console.log('[ReferencePopup 🛑] Requisição abortada pelo controller.');
+                return;
+              }
+              lastErrorMsg = err3?.response?.data?.detail || err3?.response?.data?.message || lastErrorMsg;
+              throw new Error(lastErrorMsg || `Não foi possível carregar os metadados da tabela '${table}'.`);
+            }
           }
         }
 
+        if (controller.signal.aborted) {
+          console.log('[ReferencePopup 🛑] Requisição abortada antes de processar query.');
+          return;
+        }
+
         if (!metadata || !metadata.colunas || metadata.colunas.length === 0) {
+          console.error('[ReferencePopup ❌] Metadados vazios ou sem colunas:', metadata);
           throw new Error("Não foi possível carregar a estrutura de colunas desta tabela.");
         }
 
         // Tabela efetiva para a query
-        const actualTable = metadata.table_name || table;
+        const actualTable = metadata.table_name || pureTable;
 
         // 3. Montar aliases de coluna sem duplicar prefixo
         const selectCols: Record<string, string> = {};
@@ -136,9 +231,21 @@ export const ReferencePopup = () => {
           columnType = "uuid";
         }
 
+        // Conexão associada (se conhecida)
+        const connId = metadata.connection_id || (connectionIdParam ? parseInt(connectionIdParam, 10) : undefined);
+
+        console.log('[ReferencePopup 🔧] Configuração para /exe/execute_query:', {
+          actualTable,
+          columnType,
+          trimmedVal,
+          connId,
+          colunasTotais: Object.keys(selectCols).length,
+        });
+
         // 5. Construir query para buscar o registro
         const query: QueryPayload = {
           baseTable: actualTable,
+          connection_id: connId,
           aliaisTables: selectCols,
           table_list: [actualTable],
           joins: {},
@@ -154,6 +261,8 @@ export const ReferencePopup = () => {
           limit: 1,
         };
 
+        console.log('[ReferencePopup 📤] Executando POST /exe/execute_query...', query);
+
         // 6. Executar query
         const queryResponse = await api.post<QueryResultType>(
           "/exe/execute_query",
@@ -161,8 +270,16 @@ export const ReferencePopup = () => {
           { withCredentials: true, signal: controller.signal }
         );
 
+        if (controller.signal.aborted) {
+          console.log('[ReferencePopup 🛑] Requisição abortada após /exe/execute_query.');
+          return;
+        }
+
+        console.log('[ReferencePopup 📥] Resposta de /exe/execute_query recebida:', queryResponse.data);
+
         const previewRows = queryResponse.data?.preview || [];
         if (!previewRows[0]) {
+          console.warn('[ReferencePopup ⚠️] Nenhum registro retornado em previewRows:', queryResponse.data);
           setLoadError(t("referencePopup.notFound") || 'Registro não encontrado');
           return;
         }
@@ -173,31 +290,41 @@ export const ReferencePopup = () => {
           tableName: [actualTable],
         };
 
+        console.log('[ReferencePopup 🎉] Carregamento bem-sucedido! Definindo row:', selectedRow);
         setRow(selectedRow);
         setInformacaosOftables([metadata]);
         setSelectColumns(Object.keys(selectCols));
       } catch (error) {
         const e = error as { name?: string; message?: string; response?: { data?: { message?: string; detail?: string } } };
-        // Ignora apenas o cancelamento (AbortController ao desmontar)
-        if (e?.name !== "CanceledError" && e?.name !== "AbortError") {
-          console.error("Erro ao carregar dados de referência:", error);
+        console.error('[ReferencePopup ❌] Erro no bloco catch de fetchData:', error);
+        // Ignora apenas se foi cancelado por desmontagem real
+        if (!controller.signal.aborted) {
           const errorMsg =
             e?.response?.data?.detail ||
             e?.response?.data?.message ||
             e?.message ||
             t("referencePopup.loadError") ||
             'Erro ao carregar dados';
+          console.error('[ReferencePopup ❌] Definindo loadError:', errorMsg);
           setLoadError(errorMsg);
+        } else {
+          console.log('[ReferencePopup 🛑] Erro ignorado pois controller.signal.aborted é true.');
         }
       } finally {
-        setIsLoading(false);
+        console.log('[ReferencePopup 🏁] finally de fetchData executado. signalAborted:', controller.signal.aborted);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchData();
-    return () => controller.abort();
+    return () => {
+      console.log('[ReferencePopup 🧹] Cleanup do useEffect: abortando controller');
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table, field, value]);
+  }, [table, field, value, schemaParam, connectionIdParam]);
 
   // Hook customizado para deletar registro
   const onDelete = useCallback(async (payload: PayloadDeleteRow, index: number) => {
@@ -338,8 +465,21 @@ export const ReferencePopup = () => {
     setEnabledFields(prev => ({ ...prev, [fieldName]: !prev[fieldName] }));
   }, []);
 
-  const handleViewReference = useCallback((refTable: string, refField: string, refValue: string, name: string) => {
-    viewReferenceTable({ table: refTable, field: refField, value: refValue }, { name });
+  const handleViewReference = useCallback((
+    refTable: string,
+    refField: string,
+    refValue: string,
+    name: string,
+    connectionId?: number,
+    schema?: string | null
+  ) => {
+    viewReferenceTable({
+      table: refTable,
+      field: refField,
+      value: refValue,
+      ...(connectionId ? { connection_id: connectionId } : {}),
+      ...(schema ? { schema } : {})
+    }, { name });
   }, [viewReferenceTable]);
 
   const handleSave = useCallback(async () => {
@@ -420,6 +560,7 @@ export const ReferencePopup = () => {
 
   // Render: Loading
   if (isLoading) {
+    console.log('[ReferencePopup 🎨] Renderizando: LOADING');
     return (
       <div className="w-full h-screen bg-white flex flex-col">
         <header className="flex justify-between items-center border-b border-gray-200 p-4">
@@ -442,6 +583,7 @@ export const ReferencePopup = () => {
 
   // Render: Error
   if (loadError) {
+    console.log('[ReferencePopup 🎨] Renderizando: ERROR ->', loadError);
     return (
       <div className="w-full h-screen bg-white flex flex-col items-center justify-center">
         <div className="text-center p-6 max-w-md">
@@ -462,6 +604,13 @@ export const ReferencePopup = () => {
 
   // Render: No Data
   if (!isLoading && (!row?.row || Object.keys(row.row).length === 0 || selectedTables.length === 0)) {
+    console.log('[ReferencePopup 🎨] Renderizando: NO DATA. Detalhes:', {
+      isLoading,
+      hasRow: !!row?.row,
+      rowKeys: Object.keys(row?.row || {}),
+      selectedTablesCount: selectedTables.length,
+      loadError,
+    });
     return (
       <div className="w-full h-screen bg-white flex flex-col items-center justify-center">
         <div className="text-center p-6 max-w-md">
@@ -479,6 +628,8 @@ export const ReferencePopup = () => {
       </div>
     );
   }
+
+  console.log('[ReferencePopup 🎨] Renderizando: SUCESSO / FORMULÁRIO com colunas:', selectColumns.length);
 
   return (
     <div className="w-full h-screen bg-white flex flex-col">

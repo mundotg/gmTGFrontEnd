@@ -25,7 +25,7 @@ const FieldEditor = React.memo(({
   hasError: string;
   onFieldChange: (key: string, value: string, tableName: string, columnType: string, is_nullable?: boolean) => void;
   onToggleEdit: (field: string) => void;
-  onViewReference: (table: string, field: string, value: string, name: string) => void;
+  onViewReference: (table: string, field: string, value: string, name: string, connectionId?: number, schema?: string | null) => void;
 }) => {
   const { t } = useI18n(); // 👈 Adicionado para os textos internacionalizados
   const hasChanged = editedField.hasChanged; // 👈 Derivado da prop
@@ -65,7 +65,9 @@ const FieldEditor = React.memo(({
                   col.referenced_table!,
                   col.field_references!,
                   editedField.value,
-                  `${metadata.table_name}_${col.nome}_to_${col.referenced_table}_${col.field_references}`
+                  `${metadata.table_name}_${col.nome}_to_${col.referenced_table}_${col.field_references}`,
+                  metadata.connection_id,
+                  metadata.schema_name
                 );
               }}
               aria-label={`${t("actions.viewRef") || "Ver referência de"} ${col.referenced_table}.${col.field_references}`}

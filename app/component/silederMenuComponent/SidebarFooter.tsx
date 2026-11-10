@@ -13,7 +13,7 @@ import {
   ChevronUp,
   Cloud,
   Activity,
-  FlaskConical,
+  // FlaskConical,
   LucideIcon,
 } from "lucide-react";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
@@ -98,15 +98,15 @@ const MENU_OPTIONS: MenuOption[] = [
     href: "/home/tester",
     requiresConnection: false,
   },
-  {
-    id: "test",
-    label: "sidebar.devTest",
-    title: "Testes (dev)",
-    icon: FlaskConical,
-    href: "/home/test",
-    permission: ["settings:system", "admin:*"],
-    requiresConnection: false,
-  },
+  // {
+  //   id: "test",
+  //   label: "sidebar.devTest",
+  //   title: "Testes (dev)",
+  //   icon: FlaskConical,
+  //   href: "/home/test",
+  //   permission: ["settings:system", "admin:*"],
+  //   requiresConnection: false,
+  // },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -305,11 +305,10 @@ const FooterMenu = ({
   return (
     <div
       ref={menuRef}
-      className={`bg-white border border-gray-200/90 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in duration-150 ${
-        collapsed
+      className={`bg-white border border-gray-200/90 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in duration-150 ${collapsed
           ? "absolute bottom-0 left-full ml-3 w-72 zoom-in-95"
           : "absolute bottom-full left-0 right-0 mb-2 mx-2 slide-in-from-bottom-2"
-      }`}
+        }`}
     >
       {/* Cabeçalho com Informações do Usuário */}
       <div className="p-3.5 bg-gradient-to-br from-gray-50 via-slate-50 to-blue-50/40 border-b border-gray-100">
@@ -351,16 +350,14 @@ const FooterMenu = ({
               key={opt.id}
               href={opt.href}
               onClick={onClose}
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-150 ${
-                isActive
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-150 ${isActive
                   ? "bg-blue-50 text-blue-700 font-semibold shadow-xs"
                   : "text-gray-700 hover:bg-gray-100/80 hover:text-gray-900"
-              }`}
+                }`}
             >
               <div
-                className={`p-1.5 rounded-lg transition-colors ${
-                  isActive ? "bg-blue-600 text-white shadow-xs" : "bg-gray-100 text-gray-600"
-                }`}
+                className={`p-1.5 rounded-lg transition-colors ${isActive ? "bg-blue-600 text-white shadow-xs" : "bg-gray-100 text-gray-600"
+                  }`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
               </div>

@@ -150,8 +150,21 @@ const RowDetailsModal: React.FC<RowDetailsModalProps> = ({
     return Object.values(editedFields).some((field) => field.hasChanged);
   }, [editedFields]);
 
-  const handleViewReference = useCallback((refTable: string, refField: string, refValue: string, name: string) => {
-    viewReferenceTable({ table: refTable, field: refField, value: refValue }, { name });
+  const handleViewReference = useCallback((
+    refTable: string,
+    refField: string,
+    refValue: string,
+    name: string,
+    connectionId?: number,
+    schema?: string | null
+  ) => {
+    viewReferenceTable({
+      table: refTable,
+      field: refField,
+      value: refValue,
+      ...(connectionId ? { connection_id: connectionId } : {}),
+      ...(schema ? { schema } : {})
+    }, { name });
   }, [viewReferenceTable]);
 
   // Reset do modal quando abrir/fechar
