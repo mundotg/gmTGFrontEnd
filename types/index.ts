@@ -422,6 +422,7 @@ export type DistinctList = {
 
 export interface QueryPayload {
   baseTable: string;
+  connection_id?: number;
   joins: Record<string, AdvancedJoinOptionPayload>;
   aliaisTables: Record<string, string>;
   table_list: string[];

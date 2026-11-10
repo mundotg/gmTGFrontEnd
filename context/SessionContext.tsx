@@ -1,6 +1,6 @@
 
 "use client";
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from "react";
 
 import type { Axios } from "axios";
 import api from "./axioCuston";
@@ -170,56 +170,70 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         return () => clearInterval(interval);
     }, [isAuthenticated, refreshAccessToken]);
 
-    // 📦 Recupera sessão ao carregar com Cache e Deduplicação
-    useEffect(() => {
-        let isMounted = true;
+    // 📦 Recupera sessão ao carregar com Cache e Deduplicação unificada
+    const initialCheckDone = useRef(false);
 
+    const fetchUserData = useCallback(async (options?: { force?: boolean }): Promise<Usuario | null> => {
         const now = Date.now();
-        // Se já temos o utilizador em cache e foi buscado recentemente, evitamos nova consulta ao backend
-        if (user && lastAuthMeFetchTime > 0 && now - lastAuthMeFetchTime < AUTH_ME_CACHE_TTL) {
-            setIsLoading(false);
-            return;
+        const force = options?.force ?? false;
+
+        // Se não for forçado e já temos dados recentes (TTL 30s), devolve sem ir à rede
+        if (!force && user && lastAuthMeFetchTime > 0 && (now - lastAuthMeFetchTime < AUTH_ME_CACHE_TTL)) {
+            return user;
         }
 
+        // Se uma requisição de /auth/me já está em andamento, reaproveita a mesma Promise
         if (authMePromise) {
-            authMePromise
-                .then(data => {
-                    if (isMounted && data) storeLoginData(data);
-                })
-                .finally(() => {
-                    if (isMounted) setIsLoading(false);
-                });
-            return;
+            return authMePromise;
         }
 
-        authMePromise = api.get("/auth/me", { withCredentials: true, timeout: 25000 })
-            .then(response => {
+        authMePromise = (async () => {
+            try {
+                const response = await api.get("/auth/me", {
+                    withCredentials: true,
+                    timeout: 25000,
+                    ...(force ? { forceRefresh: true } : {}),
+                });
                 lastAuthMeFetchTime = Date.now();
-                if (isMounted) {
+                if (response.data) {
                     storeLoginData(response.data);
+                    return response.data;
                 }
-                return response.data;
-            })
-            .catch((err) => {
+                return null;
+            } catch (err: any) {
                 lastAuthMeFetchTime = 0;
                 if (err?.response?.status !== 401) {
                     console.error("Erro em /auth/me:", err);
-                }
-                // Apenas realiza logout se o utilizador constava como logado e o backend rejeitou expressamente
-                if (err?.response?.status === 401 && user) {
-                    logout();
+                } else if (user) {
+                    // Apenas realiza logout se o utilizador constava como logado e o backend rejeitou expressamente
+                    await logout();
                 }
                 return null;
-            })
-            .finally(() => {
+            } finally {
                 authMePromise = null;
+            }
+        })();
+
+        return authMePromise;
+    }, [user, storeLoginData, logout]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        if (initialCheckDone.current) {
+            return;
+        }
+        initialCheckDone.current = true;
+
+        fetchUserData()
+            .finally(() => {
                 if (isMounted) setIsLoading(false);
             });
 
         return () => {
             isMounted = false;
         };
-    }, [user, storeLoginData, logout]);
+    }, [fetchUserData]);
 
     /**
      * Relê o `/auth/me` forçadamente (ignora cache local). O `info_extra` (base de dados ativa, nº de tabelas…)
@@ -228,17 +242,27 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
      */
     const refreshUser = useCallback(async () => {
         try {
-            const response = await api.get("/auth/me", { withCredentials: true, timeout: 25000 });
-            lastAuthMeFetchTime = Date.now();
-            storeLoginData(response.data);
+            await fetchUserData({ force: true });
         } catch (err) {
             // Falhar aqui não deve deslogar: é uma revalidação, não o arranque.
             console.warn("Não foi possível atualizar a sessão:", err);
         }
-    }, [storeLoginData]);
+    }, [fetchUserData]);
 
-    // Qualquer alteração à conexão ativa (nesta aba ou noutra) atualiza o menu.
-    useEffect(() => onConnectionChanged(() => { void refreshUser(); }), [refreshUser]);
+    // Qualquer alteração à conexão ativa (nesta aba ou noutra) atualiza o menu com debounce.
+    useEffect(() => {
+        let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+        const unsubscribe = onConnectionChanged(() => {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                void refreshUser();
+            }, 300);
+        });
+        return () => {
+            if (debounceTimer) clearTimeout(debounceTimer);
+            unsubscribe();
+        };
+    }, [refreshUser]);
 
     const login = useCallback(async (provider: AuthProvider, options?: LoginOptions) => {
         setIsLoading(true);
