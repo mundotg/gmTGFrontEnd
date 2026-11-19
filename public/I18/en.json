@@ -477,7 +477,12 @@
     "search": "Search",
     "editSqlAdvanced": "Advanced SQL Editor",
     "diagramClass": "Class Diagram",
-    "disableTablesSystem": "Disable system tables"
+    "disableTablesSystem": "Disable system tables",
+    "dryRun": "Test (Dry Run)",
+    "dryRunDelete": "Test Delete (Dry Run)",
+    "simulateChanges": "Test changes without saving (Dry Run)",
+    "simulateDelete": "Simulate deletion without deleting records (Dry Run)",
+    "simulating": "Simulating..."
   },
   "referencePopup": {
     "invalidParams": "Invalid parameters: table, field and value are required",
@@ -1197,7 +1202,10 @@
     "editSelectedTitle": "Edit Selected Records",
     "selectTablesTitle": "Select Tables",
     "selectTablesMsg": "This record involves multiple tables. Select which ones to apply this action to.",
-    "selectTablesWarning": "The action will only execute on the tables selected above. Others will be ignored."
+    "selectTablesWarning": "The action will only execute on the tables selected above. Others will be ignored.",
+    "simulationSuccessTitle": "Simulation Approved (Dry Run)",
+    "simulationErrorTitle": "Simulation Failed (Constraint Detected)",
+    "viewSimulatedQuery": "View generated query"
   },
   "pagination": {
     "previous": "Previous",

@@ -434,7 +434,12 @@
     "editSqlAdvanced": "Éditeur SQL Avancé",
     "diagramClass": "Diagramme de Classes",
     "disableTablesSystem": "Désactiver les tables système",
-    "addColumn": "Ajouter une colonne"
+    "addColumn": "Ajouter une colonne",
+    "dryRun": "Tester (Dry Run)",
+    "dryRunDelete": "Tester la Suppression (Dry Run)",
+    "simulateChanges": "Tester les modifications sans enregistrer (Dry Run)",
+    "simulateDelete": "Simuler la suppression sans effacer les enregistrements (Dry Run)",
+    "simulating": "Simulation en cours..."
   },
   "common": {
     "table": "Table",
@@ -981,7 +986,10 @@
     "createTable": "Créer une Table",
     "editTable": "Modifier la Table",
     "createTableDesc": "Créez une nouvelle table dans le schéma sélectionné.",
-    "editTableDesc": "Modifiez les métadonnées et les paramètres de cette table."
+    "editTableDesc": "Modifiez les métadonnées et les paramètres de cette table.",
+    "simulationSuccessTitle": "Simulation Approuvée (Dry Run)",
+    "simulationErrorTitle": "Échec de la Simulation (Contrainte Détectée)",
+    "viewSimulatedQuery": "Voir la requête générée"
   },
   "pagination": {
     "previous": "Précédent",

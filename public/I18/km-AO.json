@@ -400,7 +400,12 @@
     "editSqlAdvanced": "Kusoneka SQL ya Pulu",
     "diagramClass": "Diagrama ya Classes",
     "disableTablesSystem": "Kujima tabelas ja sistema",
-    "addColumn": "Bandekesa coluna"
+    "addColumn": "Bandekesa coluna",
+    "dryRun": "Fikisa (Dry Run)",
+    "dryRunDelete": "Fikisa Kuzima (Dry Run)",
+    "simulateChanges": "Fikisa kulungulula sé kubhaka (Dry Run)",
+    "simulateDelete": "Fikisa kuzima sé kuzima registros (Dry Run)",
+    "simulating": "Kufikisa..."
   },
   "common": {
     "table": "Tabela",
@@ -838,7 +843,10 @@
     "createTable": "Bhanga Tabela",
     "editTable": "Fidikila Tabela",
     "createTableDesc": "Bhanga imoxi tabela ya ubhe mu schema a sola.",
-    "editTableDesc": "Lunuka o metadados ni ijidilu dya tabela yiyi."
+    "editTableDesc": "Lunuka o metadados ni ijidilu dya tabela yiyi.",
+    "simulationSuccessTitle": "Kufikisa Kwatambula (Dry Run)",
+    "simulationErrorTitle": "Kufikisa Kwalembwa",
+    "viewSimulatedQuery": "Tala query yasoneka"
   },
   "pagination": {
     "previous": "Mbuima",

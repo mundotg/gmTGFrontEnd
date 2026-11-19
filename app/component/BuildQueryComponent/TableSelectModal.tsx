@@ -213,6 +213,8 @@ export function GenericSelectModal({
           </button>
         </div>
 
+        {/* CORPO ROLÁVEL (garante que Header e Footer fiquem sempre fixos e visíveis) */}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
         {/* GUIA EDUCATIVO (Para que serve?) */}
         {showHelp && (
           <div className="bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-blue-50/90 border-b border-blue-200/70 p-3.5 sm:px-6 sm:py-3.5 flex-shrink-0 transition-all">
@@ -345,7 +347,7 @@ export function GenericSelectModal({
         </div>
 
         {/* TABS */}
-        <div className="border-b border-gray-200 bg-gray-50/80 px-4 sm:px-6 flex-shrink-0">
+        <div className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50/95 backdrop-blur-xs px-4 sm:px-6 flex-shrink-0">
           <div className="flex gap-4" role="tablist">
             <button
               onClick={() => setActiveTab("all")}
@@ -391,7 +393,7 @@ export function GenericSelectModal({
         </div>
 
         {/* CONTENT LIST */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-white min-h-[220px]">
+        <div className="flex-1 p-4 sm:p-6 bg-white">
           <RenderTabContent
             showDistinctOptions={enableDistinct && showDistinctOptions && useDistinct}
             distinctColumns={distinctColumns}
@@ -415,9 +417,10 @@ export function GenericSelectModal({
             icon={icon}
           />
         </div>
+        </div>
 
-        {/* FOOTER */}
-        <div className="p-4 sm:px-6 sm:py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
+        {/* FOOTER FIXO */}
+        <div className="p-4 sm:px-6 sm:py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0 z-20 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.06)]">
           <div className="text-xs text-gray-500 font-medium">
             {selectionCount === 0 ? (
               <span className="text-blue-700">

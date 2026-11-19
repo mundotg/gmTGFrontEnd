@@ -400,7 +400,12 @@
     "editSqlAdvanced": "Oku pongolola SQL yo pofele",
     "diagramClass": "Diagrama yo Classes",
     "disableTablesSystem": "Oku tima olotabela vio sistema",
-    "addColumn": "Vokiya coluna"
+    "addColumn": "Vokiya coluna",
+    "dryRun": "Seteka (Dry Run)",
+    "dryRunDelete": "Seteka Oku Ima (Dry Run)",
+    "simulateChanges": "Seteka epongoloko okuti ka ku selekiwa (Dry Run)",
+    "simulateDelete": "Seteka oku ima okuti ka ku imiwa registros (Dry Run)",
+    "simulating": "Oku seteka..."
   },
   "common": {
     "table": "Tabela",
@@ -838,7 +843,10 @@
     "createTable": "Tunga Tabela",
     "editTable": "Pongolola Tabela",
     "createTableDesc": "Tunga imue tabela yokaliye vo schema ya nõliwa.",
-    "editTableDesc": "Pongolola o metadados kuenda ovisokiyo yo tabela eyi."
+    "editTableDesc": "Pongolola o metadados kuenda ovisokiyo yo tabela eyi.",
+    "simulationSuccessTitle": "Esokololo Lia Tava (Dry Run)",
+    "simulationErrorTitle": "Esokololo Lia Loya",
+    "viewSimulatedQuery": "Tala query ya sonehiwa"
   },
   "pagination": {
     "previous": "Eci capita",
