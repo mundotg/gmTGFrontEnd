@@ -500,7 +500,7 @@ export const ReferencePopup = () => {
             const pkCol = findIdentifierField(t_meta.table_name, informacaosOftables);
             const pkField = pkCol?.nome ? (pkCol.nome.includes(".") ? pkCol.nome.split(".").pop()! : pkCol.nome) : "id";
             const primary_key_name = `${t_meta.table_name}.${pkField}`;
-            
+
             // Busca o valor da PK em todas as possíveis variantes de chave no row
             const pkVal =
               row?.row?.[primary_key_name] ??
@@ -684,10 +684,10 @@ export const ReferencePopup = () => {
 
                 const correctKey =
                   editedFields[keyWithSchema] ? keyWithSchema :
-                  editedFields[keyWithTable] ? keyWithTable :
-                  editedFields[keyExact] ? keyExact :
-                  editedFields[keyJustColumn] ? keyJustColumn :
-                  keyWithTable;
+                    editedFields[keyWithTable] ? keyWithTable :
+                      editedFields[keyExact] ? keyExact :
+                        editedFields[keyJustColumn] ? keyJustColumn :
+                          keyWithTable;
 
                 // 3. Fallback seguro caso não tenha sido inicializado
                 const editedField = editedFields[correctKey] || {

@@ -426,7 +426,12 @@
     "editSqlAdvanced": "高级 SQL 编辑",
     "diagramClass": "类关系图",
     "disableTablesSystem": "禁用系统表",
-    "addColumn": "添加列"
+    "addColumn": "添加列",
+    "dryRun": "测试 (试运行)",
+    "dryRunDelete": "测试删除 (试运行)",
+    "simulateChanges": "测试更改而不保存 (试运行)",
+    "simulateDelete": "模拟删除而不实际删除记录 (试运行)",
+    "simulating": "正在模拟..."
   },
   "common": {
     "table": "表",
@@ -865,7 +870,10 @@
     "createTable": "创建表",
     "editTable": "编辑表",
     "createTableDesc": "在选定的 Schema 中创建一个新表。",
-    "editTableDesc": "更改此表的元数据和配置。"
+    "editTableDesc": "更改此表的元数据和配置。",
+    "simulationSuccessTitle": "模拟通过 (试运行)",
+    "simulationErrorTitle": "模拟失败 (检测到约束冲突)",
+    "viewSimulatedQuery": "查看生成的查询"
   },
   "pagination": {
     "previous": "上一页",

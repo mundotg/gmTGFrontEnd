@@ -477,7 +477,12 @@
     "updatingSelectedRecords": "A atualizar registros selecionados...",
     "confirmBulkEdit": "Tem a certeza que deseja atualizar todos os registros desta consulta com as alterações selecionadas?",
     "confirmSelectedEdit": "Tem certeza que deseja atualizar os registros selecionados com as alterações escolhidas?",
-    "search": "Pesquisar"
+    "search": "Pesquisar",
+    "dryRun": "Testar (Dry Run)",
+    "dryRunDelete": "Testar Exclusão (Dry Run)",
+    "simulateChanges": "Testar alterações sem salvar (Dry Run)",
+    "simulateDelete": "Simular exclusão sem apagar registros (Dry Run)",
+    "simulating": "Simulando..."
   },
   "referencePopup": {
     "invalidParams": "Parâmetros inválidos: table, field e value são obrigatórios",
@@ -1197,7 +1202,10 @@
     "editSelectedTitle": "Editar Registros Selecionados",
     "selectTablesTitle": "Selecionar Tabelas",
     "selectTablesMsg": "Este registro envolve múltiplas tabelas. Selecione em quais delas deseja aplicar esta ação.",
-    "selectTablesWarning": "A ação será executada apenas nas tabelas marcadas acima. As demais serão ignoradas."
+    "selectTablesWarning": "A ação será executada apenas nas tabelas marcadas acima. As demais serão ignoradas.",
+    "simulationSuccessTitle": "Simulação Aprovada (Dry Run)",
+    "simulationErrorTitle": "Falha na Simulação (Restrição Detectada)",
+    "viewSimulatedQuery": "Ver query gerada"
   },
   "pagination": {
     "previous": "Anterior",
